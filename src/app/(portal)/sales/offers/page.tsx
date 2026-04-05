@@ -23,7 +23,10 @@ export default async function SalesOffersPage() {
   if (!session?.user) redirect("/login");
   const user = session.user as SessionUser;
 
-  const offers = await getSalesOffers(user.role === "admin" ? undefined : user.partnerId);
+  let offers = await getSalesOffers(user.role === "admin" ? undefined : user.partnerId);
+  if (user.role === "partner") {
+    offers = offers.filter((o) => o.createdBy === user.id);
+  }
 
   const draft = offers.filter((o) => o.status === "draft").length;
   const sent = offers.filter((o) => o.status === "sent").length;

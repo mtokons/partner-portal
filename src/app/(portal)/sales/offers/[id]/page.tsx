@@ -31,7 +31,7 @@ export default async function OfferDetailPage({ params }: { params: Promise<{ id
   ]);
 
   if (!offer) notFound();
-  if (user.role !== "admin" && offer.partnerId !== user.partnerId) redirect("/sales/offers");
+  if (user.role !== "admin" && offer.createdBy !== user.id) redirect("/sales/offers");
 
   const cfg = statusConfig[offer.status] || statusConfig.draft;
 

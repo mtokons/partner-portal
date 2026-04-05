@@ -16,7 +16,7 @@ export default async function EditOfferPage({ params }: { params: Promise<{ id: 
   ]);
 
   if (!offer) notFound();
-  if (user.role !== "admin" && offer.partnerId !== user.partnerId) redirect("/sales/offers");
+  if (user.role !== "admin" && offer.createdBy !== user.id) redirect("/sales/offers");
 
   // Only allow editing if draft or sent
   if (offer.status !== "draft" && offer.status !== "sent") {

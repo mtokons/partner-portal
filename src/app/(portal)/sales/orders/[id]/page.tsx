@@ -33,7 +33,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
   ]);
 
   if (!order) notFound();
-  if (user.role !== "admin" && order.partnerId !== user.partnerId) redirect("/sales/orders");
+  if (user.role !== "admin" && order.createdBy !== user.id) redirect("/sales/orders");
 
   const cfg = statusConfig[order.status] || statusConfig.pending;
 

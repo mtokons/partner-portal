@@ -22,8 +22,10 @@ async function requireUser(): Promise<SessionUser> {
   return session.user as SessionUser;
 }
 
-function canAccessOffer(user: SessionUser, partnerId: string): boolean {
-  return user.role === "admin" || user.partnerId === partnerId;
+function canAccessRecord(user: SessionUser, record: { partnerId: string; createdBy: string }): boolean {
+  if (user.role === "admin") return true;
+  if (user.role === "partner") return record.createdBy === user.id;
+  return user.partnerId === record.partnerId;
 }
 
 // ── Sales Offer actions ──
@@ -92,7 +94,7 @@ export async function updateOfferStatusAction(offerId: string, status: SalesOffe
   const user = await requireUser();
   const offer = await getSalesOfferById(offerId);
   if (!offer) return { success: false, message: "Offer not found" };
-  if (!canAccessOffer(user, offer.partnerId)) return { success: false, message: "Forbidden" };
+  if (!canAccessRecord(user, offer)) return { success: false, message: "Forbidden" };
 
   const updates: Partial<typeof offer> = { status };
   const now = new Date().toISOString();
@@ -110,7 +112,7 @@ export async function deleteOfferAction(offerId: string) {
   const user = await requireUser();
   const offer = await getSalesOfferById(offerId);
   if (!offer) return { success: false, message: "Offer not found" };
-  if (!canAccessOffer(user, offer.partnerId)) return { success: false, message: "Forbidden" };
+  if (!canAccessRecord(user, offer)) return { success: false, message: "Forbidden" };
   if (offer.status !== "draft") return { success: false, message: "Only draft offers can be deleted" };
 
   await deleteSalesOffer(offerId);
@@ -122,7 +124,7 @@ export async function convertOfferToOrderAction(offerId: string) {
   const user = await requireUser();
   const offer = await getSalesOfferById(offerId);
   if (!offer) return { success: false, message: "Offer not found" };
-  if (!canAccessOffer(user, offer.partnerId)) return { success: false, message: "Forbidden" };
+  if (!canAccessRecord(user, offer)) return { success: false, message: "Forbidden" };
 
   try {
     const order = await convertOfferToOrder(offerId);
@@ -138,7 +140,7 @@ export async function sendOfferEmailAction(offerId: string) {
   const user = await requireUser();
   const offer = await getSalesOfferById(offerId);
   if (!offer) return { success: false, message: "Offer not found" };
-  if (!canAccessOffer(user, offer.partnerId)) return { success: false, message: "Forbidden" };
+  if (!canAccessRecord(user, offer)) return { success: false, message: "Forbidden" };
   if (!offer.clientEmail) return { success: false, message: "Client email not set" };
 
   const items = await getSalesOfferItems(offerId);
@@ -203,7 +205,7 @@ export async function updateOrderStatusAction(orderId: string, status: "pending"
   const user = await requireUser();
   const order = await getSalesOrderById(orderId);
   if (!order) return { success: false, message: "Order not found" };
-  if (!canAccessOffer(user, order.partnerId)) return { success: false, message: "Forbidden" };
+  if (!canAccessRecord(user, order)) return { success: false, message: "Forbidden" };
 
   const updates: Partial<typeof order> = { status };
   if (status === "completed") updates.completedAt = new Date().toISOString();
@@ -226,7 +228,7 @@ export async function createServiceTaskAction(data: {
   const user = await requireUser();
   const order = await getSalesOrderById(data.salesOrderId);
   if (!order) return { success: false, message: "Order not found" };
-  if (!canAccessOffer(user, order.partnerId)) return { success: false, message: "Forbidden" };
+  if (!canAccessRecord(user, order)) return { success: false, message: "Forbidden" };
 
   await createServiceTask({
     salesOrderId: data.salesOrderId,
@@ -272,7 +274,7 @@ export async function loadOfferDetailData(offerId: string) {
     getSalesOfferItems(offerId),
   ]);
   if (!offer) return null;
-  if (!canAccessOffer(user, offer.partnerId)) return null;
+  if (!canAccessRecord(user, offer)) return null;
   return { offer, items, user };
 }
 
@@ -301,6 +303,6 @@ export async function loadOrderDetailData(orderId: string) {
     getServiceTasks(orderId),
   ]);
   if (!order) return null;
-  if (!canAccessOffer(user, order.partnerId)) return null;
+  if (!canAccessRecord(user, order)) return null;
   return { order, items, tasks, user };
 }
