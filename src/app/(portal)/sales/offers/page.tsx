@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Handshake, FileText, CheckCircle2, XCircle, Clock, Send } from "lucide-react";
+import { Handshake, CheckCircle2, XCircle, Clock, Send } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
@@ -36,21 +36,13 @@ export default async function SalesOffersPage() {
   return (
     <div className="space-y-7 page-enter">
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <div className="h-6 w-1 rounded-full gradient-purple" />
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Sales</p>
-          </div>
-          <h1 className="text-3xl font-black text-foreground tracking-tight">Sales Offers</h1>
-          <p className="text-sm text-muted-foreground mt-1.5">{offers.length} offers total</p>
+      <div className="mb-6">
+        <div className="flex items-center gap-2 mb-1">
+          <div className="h-6 w-1 rounded-full gradient-purple" />
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Sales</p>
         </div>
-        <Link href="/sales/offers/new">
-          <Button className="gap-2">
-            <FileText className="h-4 w-4" />
-            New Offer
-          </Button>
-        </Link>
+        <h1 className="text-3xl font-black text-foreground tracking-tight">Sales Offers</h1>
+        <p className="text-sm text-muted-foreground mt-1.5">{offers.length} offers total</p>
       </div>
 
       {/* Stats */}
