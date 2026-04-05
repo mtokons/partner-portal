@@ -37,6 +37,10 @@ export async function createSalesOfferAction(data: {
   discountType: "fixed" | "percent";
   validUntil: string;
   notes?: string;
+  saleType?: import("@/types").SaleType;
+  referralId?: string;
+  referralName?: string;
+  referralPercent?: number;
 }) {
   const user = await requireUser();
   const offerNumber = await generateOfferNumber();
@@ -53,6 +57,10 @@ export async function createSalesOfferAction(data: {
     clientName: data.clientName,
     clientEmail: data.clientEmail,
     status: "draft",
+    saleType: data.saleType || "direct",
+    referralId: data.referralId,
+    referralName: data.referralName,
+    referralPercent: data.referralPercent,
     subtotal,
     discount: data.discount,
     discountType: data.discountType,

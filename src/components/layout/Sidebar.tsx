@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Package, ShoppingCart, Users, Activity,
   DollarSign, Shield, BarChart3, FileText, Receipt, Handshake,
   UserCheck, Calendar, CreditCard, Zap, Mail, ChevronRight,
-  FlaskConical, ClipboardList,
+  FlaskConical, ClipboardList, Store, Tag, Share2, Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -17,19 +17,22 @@ interface SidebarProps {
 const partnerLinks = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, group: "main" },
   { href: "/orders", label: "Orders", icon: ShoppingCart, group: "main" },
-  { href: "/products", label: "Products", icon: Package, group: "main" },
   { href: "/clients", label: "Clients", icon: Users, group: "main" },
   { href: "/activity", label: "Activity", icon: Activity, group: "main" },
+  { href: "/shop", label: "Sales Shop", icon: Store, group: "shop" },
+  { href: "/sales/offers", label: "My Offers", icon: Handshake, group: "shop" },
+  { href: "/sales/orders", label: "My Orders", icon: ClipboardList, group: "shop" },
   { href: "/financials", label: "P&L Overview", icon: DollarSign, group: "finance" },
   { href: "/financials/expenses", label: "Expenses", icon: Receipt, group: "finance" },
   { href: "/financials/invoices", label: "Invoices", icon: FileText, group: "finance" },
-  { href: "/financials/sales-offer", label: "Sales Offer", icon: Handshake, group: "finance" },
-  { href: "/sales/offers", label: "Sales Offers", icon: Handshake, group: "sales" },
-  { href: "/sales/orders", label: "Sales Orders", icon: ClipboardList, group: "sales" },
+  { href: "/financials/payouts", label: "My Payouts", icon: Wallet, group: "finance" },
 ];
 
 const adminLinks = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, group: "main" },
+  { href: "/shop", label: "Sales Shop", icon: Store, group: "shop" },
+  { href: "/sales/offers", label: "Sales Offers", icon: Handshake, group: "shop" },
+  { href: "/sales/orders", label: "Sales Orders", icon: ClipboardList, group: "shop" },
   { href: "/admin/overview", label: "Admin Overview", icon: BarChart3, group: "admin" },
   { href: "/admin/partners", label: "Manage Partners", icon: Shield, group: "admin" },
   { href: "/admin/customers", label: "Customers", icon: Users, group: "admin" },
@@ -38,18 +41,19 @@ const adminLinks = [
   { href: "/admin/expert-payments", label: "Expert Payments", icon: CreditCard, group: "admin" },
   { href: "/admin/orders", label: "All Orders", icon: ShoppingCart, group: "admin" },
   { href: "/admin/financials", label: "Global Financials", icon: DollarSign, group: "admin" },
+  { href: "/admin/referrals", label: "Referrals", icon: Share2, group: "admin" },
+  { href: "/admin/payouts", label: "Payouts", icon: Wallet, group: "admin" },
+  { href: "/admin/promotions", label: "Promotions", icon: Tag, group: "admin" },
+  { href: "/admin/products", label: "Manage Products", icon: Package, group: "admin" },
   { href: "/admin/send-email", label: "Send Email", icon: Mail, group: "admin" },
-  { href: "/products", label: "Products", icon: Package, group: "main" },
   { href: "/activity", label: "Activity", icon: Activity, group: "main" },
-  { href: "/sales/offers", label: "Sales Offers", icon: Handshake, group: "sales" },
-  { href: "/sales/orders", label: "Sales Orders", icon: ClipboardList, group: "sales" },
   { href: "/sp-test", label: "SP CRUD Test", icon: FlaskConical, group: "dev" },
 ];
 
 const groupLabels: Record<string, string> = {
   main: "Main",
+  shop: "Sales Shop",
   finance: "Finance",
-  sales: "Sales",
   admin: "Administration",
   dev: "Developer",
 };

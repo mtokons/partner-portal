@@ -30,6 +30,13 @@ export interface Product {
   stock: number;
   category: string;
   imageUrl?: string;
+  // Sales Shop extensions
+  discount?: number;             // Discount value
+  discountType?: "fixed" | "percent";
+  discountExpiry?: string;       // ISO date
+  isAvailable?: boolean;         // If false, hidden in shop
+  tags?: string[];               // e.g. ["new", "bestseller"]
+  sortOrder?: number;            // Gallery display order
 }
 
 export interface Order {
@@ -344,6 +351,10 @@ export interface SalesOffer {
   clientName?: string;
   clientEmail?: string;
   status: SalesOfferStatus;
+  saleType: SaleType;           // NEW — how this sale is classified
+  referralId?: string;          // NEW — referrer's user ID
+  referralName?: string;        // NEW — referrer's display name
+  referralPercent?: number;     // NEW — % benefit for referrer (0-100)
   subtotal: number;             // Sum of line totals (BDT)
   discount: number;             // Discount amount or percentage value
   discountType: "fixed" | "percent";
@@ -414,4 +425,79 @@ export interface ServiceTask {
   dueDate?: string;
   completedAt?: string;
   createdAt: string;
+}
+
+// ============================================================
+// SCCG Sales Shop — Extended Types
+// ============================================================
+
+/** The four B2B sale channels */
+export type SaleType =
+  | "direct"                   // SCCG sells directly, 100% to SCCG
+  | "direct-referral"          // Direct plus a referrer who earns a %
+  | "partner-individual"       // Individual partner sale with commission
+  | "partner-institutional";   // Institutional partner (e.g. reseller)
+
+/** Referral record — stored in SharePoint "SCCG Referrals" */
+export interface Referral {
+  id: string;
+  referrerId: string;
+  referrerName: string;
+  referrerType: "partner" | "expert" | "user";
+  salesOfferId: string;
+  salesOrderId?: string;       // set when offer converts to order
+  percentage: number;          // 0–100
+  amount: number;              // calculated payout amount
+  status: "pending" | "approved" | "paid";
+  createdAt: string;
+}
+
+/** Payout record — stored in SharePoint "SCCG Payouts" */
+export type PayoutStatus = "pending" | "eligible" | "approved" | "paid";
+export type PayoutRecipientType = "partner" | "expert" | "referrer";
+
+export interface Payout {
+  id: string;
+  recipientId: string;
+  recipientName: string;
+  recipientType: PayoutRecipientType;
+  relatedOrderId: string;
+  relatedOrderNumber?: string;
+  gross: number;
+  deductions: number;
+  net: number;
+  currency: "BDT" | "EUR";
+  status: PayoutStatus;
+  payoutDate?: string;
+  notes?: string;
+  createdAt: string;
+}
+
+/** Promotion / campaign — stored in SharePoint "SCCG Promotions" */
+export type PromotionType = "discount" | "bundle" | "promo" | "announcement";
+export type PromotionAppliesTo = "all" | "product" | "category";
+
+export interface Promotion {
+  id: string;
+  title: string;
+  description?: string;
+  type: PromotionType;
+  appliesTo: PromotionAppliesTo;
+  productId?: string;          // if promotion is product-specific
+  category?: string;           // if promotion is category-specific
+  discountType: "fixed" | "percent";
+  discountValue: number;
+  startDate: string;
+  endDate?: string;
+  isActive: boolean;
+  imageUrl?: string;           // image for the slider
+  priority: number;            // display order in slider
+}
+
+/** Cart item — client-side only, no SharePoint list */
+export interface CartItem {
+  product: Product;
+  quantity: number;
+  effectivePrice: number;      // price after active promotion/discount
+  appliedPromotion?: Promotion; // which promotion was applied, if any
 }

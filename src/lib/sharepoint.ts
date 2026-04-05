@@ -4,6 +4,7 @@ import type {
   Customer, Expert, ServicePackage, CustomerPackage,
   Session, ExpertPayment, AppNotification,
   SalesOffer, SalesOfferItem, SalesOrder, SalesOrderItem, ServiceTask,
+  Promotion, Referral, Payout,
 } from "@/types";
 import {
   mockPartners, mockProducts, mockOrders, mockClients,
@@ -112,6 +113,64 @@ const PR_COL = { // SCCG Products
   price: "Price",
   description: "Description",
   stock: "Stock",
+  imageUrl: "ImageUrl",
+  discount: "Discount",
+  discountType: "DiscountType",
+  discountExpiry: "DiscountExpiry",
+  isAvailable: "IsAvailable",
+  tags: "Tags",
+  sortOrder: "SortOrder",
+};
+
+const SO_COL_EXT = { // SCCG Sales Offers — extended fields
+  saleType: "SaleType",
+  referralId: "ReferralId",
+  referralName: "ReferralName",
+  referralPercent: "ReferralPercent",
+};
+
+const PROMO_COL = { // SCCG Promotions
+  title: "Title",
+  description: "Description",
+  type: "Type",
+  appliesTo: "AppliesTo",
+  productId: "ProductId",
+  category: "Category",
+  discountType: "DiscountType",
+  discountValue: "DiscountValue",
+  startDate: "StartDate",
+  endDate: "EndDate",
+  isActive: "IsActive",
+  imageUrl: "ImageUrl",
+  priority: "Priority",
+};
+
+const REF_COL = { // SCCG Referrals
+  referrerId: "ReferrerId",
+  referrerName: "ReferrerName",
+  referrerType: "ReferrerType",
+  salesOfferId: "SalesOfferId",
+  salesOrderId: "SalesOrderId",
+  percentage: "Percentage",
+  amount: "Amount",
+  status: "Status",
+  createdAt: "CreatedAt",
+};
+
+const PAY_COL = { // SCCG Payouts
+  recipientId: "RecipientId",
+  recipientName: "RecipientName",
+  recipientType: "RecipientType",
+  relatedOrderId: "RelatedOrderId",
+  relatedOrderNumber: "RelatedOrderNumber",
+  gross: "Gross",
+  deductions: "Deductions",
+  net: "Net",
+  currency: "Currency",
+  status: "Status",
+  payoutDate: "PayoutDate",
+  notes: "Notes",
+  createdAt: "CreatedAt",
 };
 
 // ============================================================
@@ -140,6 +199,9 @@ const stores = {
   salesOrders: [...mockSalesOrders],
   salesOrderItems: [...mockSalesOrderItems],
   serviceTasks: [...mockServiceTasks],
+  promotions: [] as Promotion[],
+  referrals: [] as Referral[],
+  payouts: [] as Payout[],
 };
 
 function genId(prefix: string): string {
@@ -1281,3 +1343,223 @@ export async function convertOfferToOrder(offerId: string): Promise<SalesOrder> 
 
   return newOrder;
 }
+
+// ============================================================
+// Promotions
+// ============================================================
+export async function getPromotions(): Promise<Promotion[]> {
+  if (useMock) return stores.promotions;
+  const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
+  const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, unknown> }> }>(
+    `${await getSiteListUrlAsync("Promotions")}?$expand=fields&$orderby=fields/${PROMO_COL.priority} asc`
+  );
+  return res.value.map((item) => {
+    const f = item.fields;
+    return {
+      id: item.id,
+      title: String(f[PROMO_COL.title] || ""),
+      description: f[PROMO_COL.description] ? String(f[PROMO_COL.description]) : undefined,
+      type: String(f[PROMO_COL.type] || "promo") as Promotion["type"],
+      appliesTo: String(f[PROMO_COL.appliesTo] || "all") as Promotion["appliesTo"],
+      productId: f[PROMO_COL.productId] ? String(f[PROMO_COL.productId]) : undefined,
+      category: f[PROMO_COL.category] ? String(f[PROMO_COL.category]) : undefined,
+      discountType: String(f[PROMO_COL.discountType] || "percent") as "fixed" | "percent",
+      discountValue: Number(f[PROMO_COL.discountValue] || 0),
+      startDate: String(f[PROMO_COL.startDate] || new Date().toISOString()),
+      endDate: f[PROMO_COL.endDate] ? String(f[PROMO_COL.endDate]) : undefined,
+      isActive: Boolean(f[PROMO_COL.isActive]),
+      imageUrl: f[PROMO_COL.imageUrl] ? String(f[PROMO_COL.imageUrl]) : undefined,
+      priority: Number(f[PROMO_COL.priority] || 99),
+    } as Promotion;
+  });
+}
+
+export async function createPromotion(data: Omit<Promotion, "id">): Promise<Promotion> {
+  if (useMock) {
+    const item: Promotion = { ...data, id: genId("promo") };
+    stores.promotions.push(item);
+    return item;
+  }
+  const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
+  const body = {
+    [PROMO_COL.title]: data.title,
+    [PROMO_COL.description]: data.description,
+    [PROMO_COL.type]: data.type,
+    [PROMO_COL.appliesTo]: data.appliesTo,
+    [PROMO_COL.productId]: data.productId,
+    [PROMO_COL.category]: data.category,
+    [PROMO_COL.discountType]: data.discountType,
+    [PROMO_COL.discountValue]: data.discountValue,
+    [PROMO_COL.startDate]: data.startDate,
+    [PROMO_COL.endDate]: data.endDate,
+    [PROMO_COL.isActive]: data.isActive,
+    [PROMO_COL.imageUrl]: data.imageUrl,
+    [PROMO_COL.priority]: data.priority,
+  };
+  const res = await graphPost<{ id: string }>(`${await getSiteListUrlAsync("Promotions")}`, { fields: body });
+  return { ...data, id: res.id };
+}
+
+export async function updatePromotion(id: string, data: Partial<Promotion>): Promise<void> {
+  if (useMock) {
+    const idx = stores.promotions.findIndex((p) => p.id === id);
+    if (idx !== -1) stores.promotions[idx] = { ...stores.promotions[idx], ...data };
+    return;
+  }
+  const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
+  await graphPatch(`${await getSiteListUrlAsync("Promotions")}('${id}')/fields`, data);
+}
+
+export async function deletePromotion(id: string): Promise<void> {
+  if (useMock) {
+    stores.promotions = stores.promotions.filter((p) => p.id !== id);
+    return;
+  }
+  const { graphDelete, getSiteListUrlAsync } = await import("@/lib/graph");
+  await graphDelete(`${await getSiteListUrlAsync("Promotions")}('${id}')`);
+}
+
+// ============================================================
+// Referrals
+// ============================================================
+export async function getReferrals(partnerId?: string): Promise<Referral[]> {
+  if (useMock) {
+    return partnerId
+      ? stores.referrals.filter((r) => r.referrerId === partnerId)
+      : stores.referrals;
+  }
+  const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
+  const filter = partnerId
+    ? `?$filter=fields/${REF_COL.referrerId} eq '${partnerId}'&$expand=fields`
+    : `?$expand=fields`;
+  const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, unknown> }> }>(
+    `${await getSiteListUrlAsync("Referrals")}${filter}`
+  );
+  return res.value.map((item) => {
+    const f = item.fields;
+    return {
+      id: item.id,
+      referrerId: String(f[REF_COL.referrerId] || ""),
+      referrerName: String(f[REF_COL.referrerName] || ""),
+      referrerType: String(f[REF_COL.referrerType] || "partner") as Referral["referrerType"],
+      salesOfferId: String(f[REF_COL.salesOfferId] || ""),
+      salesOrderId: f[REF_COL.salesOrderId] ? String(f[REF_COL.salesOrderId]) : undefined,
+      percentage: Number(f[REF_COL.percentage] || 0),
+      amount: Number(f[REF_COL.amount] || 0),
+      status: String(f[REF_COL.status] || "pending") as Referral["status"],
+      createdAt: String(f[REF_COL.createdAt] || new Date().toISOString()),
+    } as Referral;
+  });
+}
+
+export async function createReferral(data: Omit<Referral, "id">): Promise<Referral> {
+  if (useMock) {
+    const item: Referral = { ...data, id: genId("ref") };
+    stores.referrals.push(item);
+    return item;
+  }
+  const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
+  const body = {
+    [REF_COL.referrerId]: data.referrerId,
+    [REF_COL.referrerName]: data.referrerName,
+    [REF_COL.referrerType]: data.referrerType,
+    [REF_COL.salesOfferId]: data.salesOfferId,
+    [REF_COL.percentage]: data.percentage,
+    [REF_COL.amount]: data.amount,
+    [REF_COL.status]: data.status,
+    [REF_COL.createdAt]: data.createdAt,
+  };
+  const res = await graphPost<{ id: string }>(`${await getSiteListUrlAsync("Referrals")}`, { fields: body });
+  return { ...data, id: res.id };
+}
+
+export async function updateReferral(id: string, data: Partial<Referral>): Promise<void> {
+  if (useMock) {
+    const idx = stores.referrals.findIndex((r) => r.id === id);
+    if (idx !== -1) stores.referrals[idx] = { ...stores.referrals[idx], ...data };
+    return;
+  }
+  const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
+  await graphPatch(`${await getSiteListUrlAsync("Referrals")}('${id}')/fields`, data);
+}
+
+// ============================================================
+// Payouts
+// ============================================================
+export async function getPayouts(recipientId?: string): Promise<Payout[]> {
+  if (useMock) {
+    return recipientId
+      ? stores.payouts.filter((p) => p.recipientId === recipientId)
+      : stores.payouts;
+  }
+  const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
+  const filter = recipientId
+    ? `?$filter=fields/${PAY_COL.recipientId} eq '${recipientId}'&$expand=fields`
+    : `?$expand=fields`;
+  const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, unknown> }> }>(
+    `${await getSiteListUrlAsync("Payouts")}${filter}`
+  );
+  return res.value.map((item) => {
+    const f = item.fields;
+    return {
+      id: item.id,
+      recipientId: String(f[PAY_COL.recipientId] || ""),
+      recipientName: String(f[PAY_COL.recipientName] || ""),
+      recipientType: String(f[PAY_COL.recipientType] || "partner") as Payout["recipientType"],
+      relatedOrderId: String(f[PAY_COL.relatedOrderId] || ""),
+      relatedOrderNumber: f[PAY_COL.relatedOrderNumber] ? String(f[PAY_COL.relatedOrderNumber]) : undefined,
+      gross: Number(f[PAY_COL.gross] || 0),
+      deductions: Number(f[PAY_COL.deductions] || 0),
+      net: Number(f[PAY_COL.net] || 0),
+      currency: String(f[PAY_COL.currency] || "BDT") as "BDT" | "EUR",
+      status: String(f[PAY_COL.status] || "pending") as Payout["status"],
+      payoutDate: f[PAY_COL.payoutDate] ? String(f[PAY_COL.payoutDate]) : undefined,
+      notes: f[PAY_COL.notes] ? String(f[PAY_COL.notes]) : undefined,
+      createdAt: String(f[PAY_COL.createdAt] || new Date().toISOString()),
+    } as Payout;
+  });
+}
+
+export async function createPayout(data: Omit<Payout, "id">): Promise<Payout> {
+  if (useMock) {
+    const item: Payout = { ...data, id: genId("pay") };
+    stores.payouts.push(item);
+    return item;
+  }
+  const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
+  const body = {
+    [PAY_COL.recipientId]: data.recipientId,
+    [PAY_COL.recipientName]: data.recipientName,
+    [PAY_COL.recipientType]: data.recipientType,
+    [PAY_COL.relatedOrderId]: data.relatedOrderId,
+    [PAY_COL.relatedOrderNumber]: data.relatedOrderNumber,
+    [PAY_COL.gross]: data.gross,
+    [PAY_COL.deductions]: data.deductions,
+    [PAY_COL.net]: data.net,
+    [PAY_COL.currency]: data.currency,
+    [PAY_COL.status]: data.status,
+    [PAY_COL.createdAt]: data.createdAt,
+  };
+  const res = await graphPost<{ id: string }>(`${await getSiteListUrlAsync("Payouts")}`, { fields: body });
+  return { ...data, id: res.id };
+}
+
+export async function updatePayoutStatus(
+  id: string,
+  status: Payout["status"],
+  payoutDate?: string
+): Promise<void> {
+  if (useMock) {
+    const idx = stores.payouts.findIndex((p) => p.id === id);
+    if (idx !== -1) stores.payouts[idx] = { ...stores.payouts[idx], status, payoutDate };
+    return;
+  }
+  const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
+  await graphPatch(`${await getSiteListUrlAsync("Payouts")}('${id}')/fields`, {
+    [PAY_COL.status]: status,
+    [PAY_COL.payoutDate]: payoutDate,
+  });
+}
+
+// Suppress unused variable warning for extended column map
+void SO_COL_EXT;
