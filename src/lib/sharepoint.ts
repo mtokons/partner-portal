@@ -257,14 +257,69 @@ export async function getProducts(): Promise<Product[]> {
   return res.value.map((item) => {
     const f = item.fields;
     return {
-      id: String(f.id), 
-      name: String(f[PR_COL.name]), 
+      id: String(f.id),
+      name: String(f[PR_COL.name]),
       category: String(f[PR_COL.category] || ""),
-      price: Number(f[PR_COL.price]), 
+      price: Number(f[PR_COL.price]),
       description: String(f[PR_COL.description] || ""),
       stock: Number(f[PR_COL.stock]),
+      imageUrl: f[PR_COL.imageUrl] ? String(f[PR_COL.imageUrl]) : undefined,
+      discount: f[PR_COL.discount] ? Number(f[PR_COL.discount]) : undefined,
+      discountType: f[PR_COL.discountType] ? String(f[PR_COL.discountType]) as "fixed" | "percent" : undefined,
+      discountExpiry: f[PR_COL.discountExpiry] ? String(f[PR_COL.discountExpiry]) : undefined,
+      isAvailable: f[PR_COL.isAvailable] !== undefined ? Boolean(f[PR_COL.isAvailable]) : true,
+      tags: f[PR_COL.tags] ? String(f[PR_COL.tags]).split(",").map((t: string) => t.trim()).filter(Boolean) : [],
+      sortOrder: f[PR_COL.sortOrder] ? Number(f[PR_COL.sortOrder]) : 99,
     } as Product;
   });
+}
+
+export async function createProduct(data: Omit<Product, "id">): Promise<Product> {
+  if (useMock) {
+    const item: Product = { ...data, id: genId("prod") };
+    stores.products.push(item);
+    return item;
+  }
+  const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
+  const body = {
+    [PR_COL.name]: data.name,
+    [PR_COL.category]: data.category,
+    [PR_COL.price]: data.price,
+    [PR_COL.description]: data.description,
+    [PR_COL.stock]: data.stock,
+    [PR_COL.imageUrl]: data.imageUrl,
+    [PR_COL.discount]: data.discount,
+    [PR_COL.discountType]: data.discountType,
+    [PR_COL.discountExpiry]: data.discountExpiry,
+    [PR_COL.isAvailable]: data.isAvailable,
+    [PR_COL.tags]: data.tags?.join(","),
+    [PR_COL.sortOrder]: data.sortOrder,
+  };
+  const res = await graphPost<{ id: string }>(`${await getSiteListUrlAsync("Products")}`, { fields: body });
+  return { ...data, id: res.id };
+}
+
+export async function updateProduct(id: string, data: Partial<Product>): Promise<void> {
+  if (useMock) {
+    const idx = stores.products.findIndex((p) => p.id === id);
+    if (idx !== -1) stores.products[idx] = { ...stores.products[idx], ...data };
+    return;
+  }
+  const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
+  const body: Record<string, unknown> = {};
+  if (data.name !== undefined) body[PR_COL.name] = data.name;
+  if (data.category !== undefined) body[PR_COL.category] = data.category;
+  if (data.price !== undefined) body[PR_COL.price] = data.price;
+  if (data.description !== undefined) body[PR_COL.description] = data.description;
+  if (data.stock !== undefined) body[PR_COL.stock] = data.stock;
+  if (data.imageUrl !== undefined) body[PR_COL.imageUrl] = data.imageUrl;
+  if (data.discount !== undefined) body[PR_COL.discount] = data.discount;
+  if (data.discountType !== undefined) body[PR_COL.discountType] = data.discountType;
+  if (data.discountExpiry !== undefined) body[PR_COL.discountExpiry] = data.discountExpiry;
+  if (data.isAvailable !== undefined) body[PR_COL.isAvailable] = data.isAvailable;
+  if (data.tags !== undefined) body[PR_COL.tags] = data.tags.join(",");
+  if (data.sortOrder !== undefined) body[PR_COL.sortOrder] = data.sortOrder;
+  await graphPatch(`${await getSiteListUrlAsync("Products")}('${id}')/fields`, body);
 }
 
 // ============================================================
