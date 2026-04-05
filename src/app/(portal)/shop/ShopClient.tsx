@@ -9,6 +9,7 @@ import ClientSelectModal from "./ClientSelectModal";
 import CartDrawer from "./CartDrawer";
 import { ShoppingCart, Search, SlidersHorizontal, Store } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { createSalesOfferAction } from "../sales/actions";
 
 interface ShopClientProps {
   products: Product[];
@@ -71,26 +72,37 @@ export default function ShopClient({ products, promotions, clients, user }: Shop
   async function handleCheckout(saleType: SaleType, referralId?: string, referralName?: string, referralPercent?: number) {
     if (!selectedClient || cart.length === 0) return;
 
-    // Encode cart as URL params then redirect to new offer page
-    const params = new URLSearchParams({
-      clientId: selectedClient.id,
-      clientName: selectedClient.name,
-      clientEmail: selectedClient.email,
-      saleType,
-      ...(referralId ? { referralId, referralName: referralName || "", referralPercent: String(referralPercent || 0) } : {}),
-    });
-
-    // Store cart in sessionStorage for the new offer page to pick up
-    sessionStorage.setItem("shopCart", JSON.stringify(
-      cart.map((i) => ({
+    try {
+      const items = cart.map((i) => ({
         productId: i.product.id,
         productName: i.product.name,
         quantity: i.quantity,
         unitPrice: i.effectivePrice,
-      }))
-    ));
+      }));
 
-    router.push(`/sales/offers/new?${params.toString()}`);
+      const result = await createSalesOfferAction({
+        clientId: selectedClient.id,
+        clientName: selectedClient.name,
+        clientEmail: selectedClient.email,
+        items,
+        saleType,
+        referralId: referralId || undefined,
+        referralName: referralName || undefined,
+        referralPercent,
+        discount: 0,
+        discountType: "fixed",
+        validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+      });
+
+      if (result.success) {
+        setCart([]);
+        setCartOpen(false);
+        router.push(`/sales/offers/${result.offerId}`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert(err instanceof Error ? err.message : "An error occurred while creating the offer.");
+    }
   }
 
   function handleClientSelect(client: Client) {

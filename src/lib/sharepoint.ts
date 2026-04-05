@@ -1025,7 +1025,11 @@ export async function createSalesOffer(offer: Omit<SalesOffer, "id">): Promise<S
       [SO_COL.clientId]: newOffer.clientId, 
       [SO_COL.clientName]: newOffer.clientName, 
       [SO_COL.clientEmail]: newOffer.clientEmail,
-      [SO_COL.status]: newOffer.status, 
+      [SO_COL.status]: newOffer.status,
+      [SO_COL_EXT.saleType]: newOffer.saleType,
+      [SO_COL_EXT.referralId]: newOffer.referralId,
+      [SO_COL_EXT.referralName]: newOffer.referralName,
+      [SO_COL_EXT.referralPercent]: newOffer.referralPercent,
       [SO_COL.subtotal]: newOffer.subtotal, 
       [SO_COL.discount]: newOffer.discount,
       [SO_COL.discountType]: newOffer.discountType, 
@@ -1059,6 +1063,10 @@ export async function updateSalesOffer(id: string, data: Partial<SalesOffer>): P
   if (data.discount !== undefined) fields[SO_COL.discount] = data.discount;
   if (data.discountType) fields[SO_COL.discountType] = data.discountType;
   if (data.validUntil) fields[SO_COL.validUntil] = data.validUntil;
+  if (data.saleType) fields[SO_COL_EXT.saleType] = data.saleType;
+  if (data.referralId !== undefined) fields[SO_COL_EXT.referralId] = data.referralId;
+  if (data.referralName !== undefined) fields[SO_COL_EXT.referralName] = data.referralName;
+  if (data.referralPercent !== undefined) fields[SO_COL_EXT.referralPercent] = data.referralPercent;
   await graphPatch(`${await getSiteListUrlAsync("SalesOffers")}('${id}')/fields`, fields);
 }
 

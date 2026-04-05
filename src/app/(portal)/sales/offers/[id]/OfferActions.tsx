@@ -41,9 +41,6 @@ export default function OfferActions({ offer }: { offer: SalesOffer }) {
             return;
           }
           break;
-        case "email":
-          result = await sendOfferEmailAction(offer.id);
-          break;
       }
       if (result && !result.success && "message" in result) {
         alert(result.message);
@@ -56,22 +53,8 @@ export default function OfferActions({ offer }: { offer: SalesOffer }) {
 
   return (
     <div className="flex flex-wrap gap-2">
-      {/* Email */}
+      {/* Send Email (Triggers SharePoint Flow via Status = Sent) */}
       {(offer.status === "draft" || offer.status === "sent") && (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => handleAction("email")}
-          disabled={loading !== null}
-          className="gap-1"
-        >
-          <Mail className="h-4 w-4" />
-          {loading === "email" ? "Sending..." : "Email Offer"}
-        </Button>
-      )}
-
-      {/* Mark as Sent */}
-      {offer.status === "draft" && (
         <Button
           variant="outline"
           size="sm"
@@ -79,8 +62,8 @@ export default function OfferActions({ offer }: { offer: SalesOffer }) {
           disabled={loading !== null}
           className="gap-1"
         >
-          <Send className="h-4 w-4" />
-          {loading === "send" ? "..." : "Mark Sent"}
+          <Mail className="h-4 w-4" />
+          {loading === "send" ? "Sending..." : "Send Email"}
         </Button>
       )}
 

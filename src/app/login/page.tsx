@@ -213,6 +213,8 @@ export default function LoginPage() {
                 {[
                   { role: "Partner", email: "alice@partner.com", pass: "password123" },
                   { role: "Admin", email: "admin@portal.com", pass: "admin123" },
+                  { role: "Customer", email: "maria@customer.com", pass: "customer123" },
+                  { role: "Expert", email: "andreas@expert.com", pass: "expert123" },
                 ].map((c) => (
                   <button
                     key={c.role}
