@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend,
 } from "recharts";
 
@@ -12,15 +12,19 @@ interface SalesLineChartProps {
 function LineTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-white/95 backdrop-blur-sm border border-gray-100 rounded-2xl p-3 shadow-xl">
-      <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">{label}</p>
-      {payload.map((p: any) => (
-        <div key={p.dataKey} className="flex items-center gap-2 text-sm mb-1">
-          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: p.color }} />
-          <span className="text-gray-600">{p.name}:</span>
-          <span className="font-bold text-gray-900">BDT {Number(p.value).toLocaleString()}</span>
-        </div>
-      ))}
+    <div className="glass shadow-2xl rounded-2xl p-4 min-w-[160px] border-white/40 animate-in fade-in zoom-in duration-200">
+      <p className="text-[10px] font-black text-primary/60 mb-2 uppercase tracking-[0.1em]">{label}</p>
+      <div className="space-y-2">
+        {payload.map((p: any) => (
+          <div key={p.dataKey} className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full shadow-[0_0_8px_currentcolor]" style={{ backgroundColor: p.color }} />
+              <span className="text-xs font-medium text-muted-foreground">{p.name}</span>
+            </div>
+            <span className="text-xs font-black text-foreground">BDT {Number(p.value).toLocaleString()}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -28,46 +32,67 @@ function LineTooltip({ active, payload, label }: any) {
 export default function SalesLineChart({ data }: SalesLineChartProps) {
   return (
     <ResponsiveContainer width="100%" height={280}>
-      <LineChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.12)" vertical={false} />
+      <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+        <defs>
+          <linearGradient id="salesRev" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
+            <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+          </linearGradient>
+          <linearGradient id="salesPaid" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+            <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.1)" vertical={false} />
         <XAxis
           dataKey="period"
-          tick={{ fontSize: 11, fill: "#94a3b8", fontFamily: "Inter" }}
+          tick={{ fontSize: 10, fill: "#94a3b8", fontWeight: 500 }}
           axisLine={false}
           tickLine={false}
+          dy={10}
         />
         <YAxis
-          tick={{ fontSize: 11, fill: "#94a3b8", fontFamily: "Inter" }}
+          tick={{ fontSize: 10, fill: "#94a3b8", fontWeight: 500 }}
           axisLine={false}
           tickLine={false}
           tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`}
-          width={36}
+          width={40}
         />
-        <Tooltip content={<LineTooltip />} />
+        <Tooltip content={<LineTooltip />} cursor={{ stroke: "rgba(99,102,241,0.2)", strokeWidth: 2 }} />
         <Legend
-          wrapperStyle={{ fontSize: "12px", fontFamily: "Inter", color: "#64748b", paddingTop: "12px" }}
+          verticalAlign="top"
+          align="right"
           iconType="circle"
           iconSize={8}
+          wrapperStyle={{
+            paddingBottom: "24px",
+            fontSize: "11px",
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+          }}
         />
-        <Line
+        <Area
           type="monotone"
           dataKey="revenue"
           stroke="#6366f1"
-          strokeWidth={2.5}
+          strokeWidth={3}
+          fill="url(#salesRev)"
           name="Revenue"
-          dot={{ r: 4, fill: "#6366f1", stroke: "white", strokeWidth: 2 }}
-          activeDot={{ r: 6, fill: "#6366f1", stroke: "white", strokeWidth: 2 }}
+          animationDuration={1500}
+          activeDot={{ r: 6, fill: "#6366f1", stroke: "white", strokeWidth: 2, className: "shadow-lg" }}
         />
-        <Line
+        <Area
           type="monotone"
           dataKey="paid"
           stroke="#10b981"
-          strokeWidth={2.5}
+          strokeWidth={3}
+          fill="url(#salesPaid)"
           name="Paid"
-          dot={{ r: 4, fill: "#10b981", stroke: "white", strokeWidth: 2 }}
-          activeDot={{ r: 6, fill: "#10b981", stroke: "white", strokeWidth: 2 }}
+          animationDuration={1500}
+          activeDot={{ r: 6, fill: "#10b981", stroke: "white", strokeWidth: 2, className: "shadow-lg" }}
         />
-      </LineChart>
+      </AreaChart>
     </ResponsiveContainer>
   );
 }

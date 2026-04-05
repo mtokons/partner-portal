@@ -12,15 +12,19 @@ interface RevenueBarChartProps {
 function BarTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-white/95 backdrop-blur-sm border border-gray-100 rounded-2xl p-3 shadow-xl min-w-[160px]">
-      <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">{label}</p>
-      {payload.map((p: any) => (
-        <div key={p.dataKey} className="flex items-center gap-2 text-sm mb-1">
-          <span className="h-2.5 w-2.5 rounded-sm shrink-0" style={{ backgroundColor: p.fill }} />
-          <span className="text-gray-600 capitalize">{p.name}:</span>
-          <span className="font-bold text-gray-900 ml-auto">{(Number(p.value) / 1000).toFixed(1)}K</span>
-        </div>
-      ))}
+    <div className="glass shadow-2xl rounded-2xl p-4 min-w-[170px] border-white/40 animate-in fade-in zoom-in duration-200">
+      <p className="text-[10px] font-black text-primary/60 mb-2 uppercase tracking-[0.1em]">{label}</p>
+      <div className="space-y-2">
+        {payload.map((p: any) => (
+          <div key={p.dataKey} className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <div className="h-2.5 w-2.5 rounded shadow-[0_0_8px_currentcolor]" style={{ backgroundColor: p.fill }} />
+              <span className="text-xs font-medium text-muted-foreground capitalize">{p.name}</span>
+            </div>
+            <span className="text-xs font-black text-foreground">BDT {(Number(p.value) / 1000).toFixed(1)}K</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -44,14 +48,22 @@ export default function RevenueBarChart({ data }: RevenueBarChartProps) {
           width={36}
         />
         <Tooltip content={<BarTooltip />} cursor={{ fill: "rgba(99,102,241,0.04)", radius: 8 }} />
+        <Bar dataKey="income" name="Income" fill="#6366f1" radius={[4, 4, 0, 0]} maxBarSize={24} animationDuration={1500} />
+        <Bar dataKey="expenses" name="Expenses" fill="#f43f5e" radius={[4, 4, 0, 0]} maxBarSize={24} animationDuration={1500} />
+        <Bar dataKey="profit" name="Profit" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={24} animationDuration={1500} />
         <Legend
-          wrapperStyle={{ fontSize: "12px", fontFamily: "Inter", color: "#64748b", paddingTop: "12px" }}
+          verticalAlign="top"
+          align="right"
           iconType="square"
           iconSize={8}
+          wrapperStyle={{
+            paddingBottom: "24px",
+            fontSize: "11px",
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+          }}
         />
-        <Bar dataKey="income" name="Income" fill="#6366f1" radius={[6, 6, 0, 0]} maxBarSize={32} />
-        <Bar dataKey="expenses" name="Expenses" fill="#f43f5e" radius={[6, 6, 0, 0]} maxBarSize={32} />
-        <Bar dataKey="profit" name="Profit" fill="#10b981" radius={[6, 6, 0, 0]} maxBarSize={32} />
       </BarChart>
     </ResponsiveContainer>
   );

@@ -4,6 +4,7 @@ import type { SessionUser } from "@/types";
 import {
   getOrders, getClients, getFinancials, getActivities,
   getInstallments, getInvoices,
+  getSalesOffers, getSalesOrders,
 } from "@/lib/sharepoint";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,9 +23,10 @@ export default async function DashboardPage() {
   const user = session.user as SessionUser;
   const pid = user.role === "admin" ? undefined : user.partnerId;
 
-  const [orders, clients, financials, activities, installments, invoices] = await Promise.all([
+  const [orders, clients, financials, activities, installments, invoices, sOrders, sOffers] = await Promise.all([
     getOrders(pid), getClients(pid), getFinancials(pid),
     getActivities(pid), getInstallments(pid), getInvoices(pid),
+    getSalesOrders(pid), getSalesOffers(pid),
   ]);
 
   const totalRevenue = financials.reduce((s, f) => s + f.revenue, 0);
@@ -49,8 +51,12 @@ export default async function DashboardPage() {
     .sort((a, b) => a.period.localeCompare(b.period))
     .map((f) => ({ period: f.period, revenue: f.revenue, paid: f.paid }));
 
+  // Sales Pipeline Calc
+  const acceptedOffers = sOffers.filter(o => o.status === "accepted" && !o.salesOrderId);
+  const pipelineValue = acceptedOffers.reduce((s, o) => s + o.totalAmount, 0);
+
   const statusCounts: Record<string, number> = {};
-  orders.forEach((o) => { statusCounts[o.status] = (statusCounts[o.status] || 0) + 1; });
+  sOrders.forEach((o) => { statusCounts[o.status] = (statusCounts[o.status] || 0) + 1; });
   const orderStatusData = Object.entries(statusCounts).map(([name, value]) => ({ name, value }));
 
   const plData = financials
@@ -69,24 +75,24 @@ export default async function DashboardPage() {
       detail: "vs last period",
     },
     {
-      label: "Total Orders",
-      value: orders.length.toString(),
-      sub: `${deliveredOrders} delivered`,
-      icon: ShoppingCart,
-      gradient: "gradient-purple",
-      trend: `${pendingOrders} pending`,
-      trendUp: pendingOrders === 0,
-      detail: "active pipeline",
+      label: "Sales Pipeline",
+      value: `BDT ${(pipelineValue / 1000).toFixed(1)}K`,
+      sub: `${acceptedOffers.length} accepted offers`,
+      icon: Zap,
+      gradient: "gradient-cosmic",
+      trend: "Ready to confirm",
+      trendUp: acceptedOffers.length > 0,
+      detail: "unconverted value",
     },
     {
-      label: "Active Clients",
-      value: clients.length.toString(),
-      sub: "Partner network",
-      icon: Users,
-      gradient: "gradient-green",
-      trend: "+3 this month",
+      label: "Active Orders",
+      value: sOrders.length.toString(),
+      sub: `${sOrders.filter(o => o.status === "completed").length} fulfilled`,
+      icon: ShoppingCart,
+      gradient: "gradient-purple",
+      trend: `${sOrders.filter(o => o.status === "pending").length} pending`,
       trendUp: true,
-      detail: "client accounts",
+      detail: "fulfillment tracking",
     },
     {
       label: "Outstanding",
@@ -251,7 +257,7 @@ export default async function DashboardPage() {
               <Zap className="h-4 w-4 text-violet-500" />
               Order Status
             </CardTitle>
-            <p className="text-xs text-muted-foreground mt-0.5">{orders.length} orders total</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{sOrders.length} active orders</p>
           </CardHeader>
           <CardContent className="px-6 pb-6">
             <OrderStatusPieChart data={orderStatusData} />

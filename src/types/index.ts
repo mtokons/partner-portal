@@ -325,3 +325,93 @@ export interface SessionStats {
   pending: number;
   cancelled: number;
 }
+
+// ============================================================
+// Sales Offers & Sales Orders Module
+// ============================================================
+
+export type SalesOfferStatus = "draft" | "sent" | "accepted" | "rejected";
+export type SalesOrderStatus = "pending" | "in-progress" | "completed" | "cancelled";
+export type ServiceTaskStatus = "planned" | "in-progress" | "completed" | "cancelled";
+
+/** Sales Offer header — stored in SharePoint list "SalesOffers" */
+export interface SalesOffer {
+  id: string;
+  offerNumber: string;          // Unique, e.g. "SO-2026-00001"
+  partnerId: string;
+  partnerName?: string;
+  clientId: string;
+  clientName?: string;
+  clientEmail?: string;
+  status: SalesOfferStatus;
+  subtotal: number;             // Sum of line totals (BDT)
+  discount: number;             // Discount amount or percentage value
+  discountType: "fixed" | "percent";
+  totalAmount: number;          // Final total after discount
+  validUntil: string;           // ISO date
+  notes?: string;
+  createdBy: string;            // partnerId or admin id
+  createdAt: string;
+  updatedAt: string;
+  sentAt?: string;
+  acceptedAt?: string;
+  rejectedAt?: string;
+  /** Reference to the Sales Order created from this offer */
+  salesOrderId?: string;
+}
+
+/** Sales Offer line item — stored in SharePoint list "SalesOfferItems" */
+export interface SalesOfferItem {
+  id: string;
+  salesOfferId: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;            // BDT
+  totalPrice: number;           // quantity * unitPrice
+}
+
+/** Sales Order header — stored in SharePoint list "SalesOrders" */
+export interface SalesOrder {
+  id: string;
+  orderNumber: string;          // Unique, e.g. "ORD-2026-00001"
+  salesOfferId: string;         // Reference to the originating offer
+  offerNumber: string;
+  partnerId: string;
+  partnerName?: string;
+  clientId: string;
+  clientName?: string;
+  clientEmail?: string;
+  status: SalesOrderStatus;
+  totalAmount: number;
+  notes?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string;
+}
+
+/** Sales Order line item — stored in SharePoint list "SalesOrderItems" */
+export interface SalesOrderItem {
+  id: string;
+  salesOrderId: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+}
+
+/** Service task linked to a Sales Order — stored in SharePoint list "ServiceTasks" */
+export interface ServiceTask {
+  id: string;
+  salesOrderId: string;
+  orderNumber?: string;
+  title: string;
+  description?: string;
+  assignedTo?: string;          // expert or partner name
+  status: ServiceTaskStatus;
+  dueDate?: string;
+  completedAt?: string;
+  createdAt: string;
+}
