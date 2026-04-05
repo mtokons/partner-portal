@@ -38,7 +38,7 @@ export default async function OfferDetailPage({ params }: { params: Promise<{ id
   return (
     <div className="space-y-6 page-enter">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between flex-wrap gap-4">
         <div className="flex items-center gap-3">
           <Link href="/sales/offers">
             <Button variant="ghost" size="sm"><ArrowLeft className="h-4 w-4 mr-1" /> Back</Button>
@@ -53,7 +53,14 @@ export default async function OfferDetailPage({ params }: { params: Promise<{ id
             </p>
           </div>
         </div>
-        <OfferActions offer={offer} />
+        <div className="flex items-center gap-2">
+          {(offer.status === "draft" || offer.status === "sent") && (
+            <Link href={`/sales/offers/${offer.id}/edit`}>
+              <Button variant="outline" size="sm">Edit Offer</Button>
+            </Link>
+          )}
+          <OfferActions offer={offer} />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
