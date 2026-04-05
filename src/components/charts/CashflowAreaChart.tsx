@@ -12,15 +12,19 @@ interface CashflowAreaChartProps {
 function CustomTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-white/95 backdrop-blur-sm border border-gray-100 rounded-2xl p-3 shadow-xl">
-      <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">{label}</p>
-      {payload.map((p: any) => (
-        <div key={p.dataKey} className="flex items-center gap-2 text-sm">
-          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: p.color }} />
-          <span className="text-gray-600">{p.name}:</span>
-          <span className="font-bold text-gray-900">BDT {Number(p.value).toLocaleString()}</span>
-        </div>
-      ))}
+    <div className="glass shadow-2xl rounded-2xl p-4 min-w-[160px] border-white/40 animate-in fade-in zoom-in duration-200">
+      <p className="text-[10px] font-black text-primary/60 mb-2 uppercase tracking-[0.1em]">{label}</p>
+      <div className="space-y-2">
+        {payload.map((p: any) => (
+          <div key={p.dataKey} className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full shadow-[0_0_8px_currentcolor]" style={{ backgroundColor: p.color }} />
+              <span className="text-xs font-medium text-muted-foreground">{p.name}</span>
+            </div>
+            <span className="text-xs font-black text-foreground">BDT {Number(p.value).toLocaleString()}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

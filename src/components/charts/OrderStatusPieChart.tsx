@@ -20,9 +20,9 @@ function DonutTooltip({ active, payload }: any) {
   if (!active || !payload?.length) return null;
   const { name, value } = payload[0].payload;
   return (
-    <div className="bg-white/95 backdrop-blur-sm border border-gray-100 rounded-2xl px-4 py-3 shadow-xl">
-      <p className="text-xs text-gray-500 capitalize font-medium mb-1">{name}</p>
-      <p className="text-lg font-black text-gray-900">{value} <span className="text-sm font-normal text-gray-500">orders</span></p>
+    <div className="glass shadow-2xl rounded-2xl p-4 min-w-[140px] border-white/40 animate-in fade-in zoom-in duration-200">
+      <p className="text-[10px] font-black text-primary/60 mb-1 uppercase tracking-[0.1em]">{name}</p>
+      <p className="text-sm font-black text-foreground">{value} <span className="text-[10px] font-medium text-muted-foreground uppercase opacity-70 ml-1">Orders</span></p>
     </div>
   );
 }

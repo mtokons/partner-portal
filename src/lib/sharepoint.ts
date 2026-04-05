@@ -3,6 +3,7 @@ import type {
   Installment, Transaction, Expense, Invoice,
   Customer, Expert, ServicePackage, CustomerPackage,
   Session, ExpertPayment, AppNotification,
+  SalesOffer, SalesOfferItem, SalesOrder, SalesOrderItem, ServiceTask,
 } from "@/types";
 import {
   mockPartners, mockProducts, mockOrders, mockClients,
@@ -11,9 +12,107 @@ import {
   mockCustomers, mockExperts, mockServicePackages,
   mockCustomerPackages, mockSessions,
   mockExpertPayments, mockNotifications,
+  mockSalesOffers, mockSalesOfferItems,
+  mockSalesOrders, mockSalesOrderItems, mockServiceTasks,
 } from "@/lib/mock-data";
 
 const useMock = process.env.USE_MOCK_DATA === "true";
+
+// ============================================================
+// SharePoint Internal Field Mappings
+// ============================================================
+// If your SharePoint list uses internal names like 'field_1', 'field_2' instead 
+// of 'Name', 'Email', etc., update these mappings below.
+// ============================================================
+
+const CL_COL = { // SCCG Client
+  partnerId: "PartnerId",
+  name: "Name",
+  email: "Email",
+  phone: "Phone",
+  company: "Company",
+  address: "Address",
+  createdAt: "CreatedAt",
+};
+
+const SO_COL = { // SCCG Sales Offers
+  offerNumber: "OfferNumber",
+  partnerId: "PartnerId",
+  partnerName: "PartnerName",
+  clientId: "ClientId",
+  clientName: "ClientName",
+  clientEmail: "ClientEmail",
+  status: "Status",
+  subtotal: "Subtotal",
+  discount: "Discount",
+  discountType: "DiscountType",
+  totalAmount: "TotalAmount",
+  validUntil: "ValidUntil",
+  notes: "Notes",
+  createdBy: "CreatedBy",
+  createdAt: "CreatedAt",
+  updatedAt: "UpdatedAt",
+  sentAt: "SentAt",
+  acceptedAt: "AcceptedAt",
+  rejectedAt: "RejectedAt",
+  salesOrderId: "SalesOrderId",
+};
+
+const SOI_COL = { // SCCG Sales Offer Items
+  salesOfferId: "SalesOfferId",
+  productId: "ProductId",
+  productName: "ProductName",
+  quantity: "Quantity",
+  unitPrice: "UnitPrice",
+  totalPrice: "TotalPrice",
+};
+
+const ORD_COL = { // SCCG Sales Orders
+  orderNumber: "OrderNumber",
+  salesOfferId: "SalesOfferId",
+  offerNumber: "OfferNumber",
+  partnerId: "PartnerId",
+  partnerName: "PartnerName",
+  clientId: "ClientId",
+  clientName: "ClientName",
+  clientEmail: "ClientEmail",
+  status: "Status",
+  totalAmount: "TotalAmount",
+  notes: "Notes",
+  createdBy: "CreatedBy",
+  createdAt: "CreatedAt",
+  updatedAt: "UpdatedAt",
+  completedAt: "CompletedAt",
+};
+
+const ORDI_COL = { // SCCG Sales Order Items
+  salesOrderId: "SalesOrderId",
+  productId: "ProductId",
+  productName: "ProductName",
+  quantity: "Quantity",
+  unitPrice: "UnitPrice",
+  totalPrice: "TotalPrice",
+};
+
+const ST_COL = { // SCCG Service Tasks
+  salesOrderId: "SalesOrderId",
+  orderNumber: "OrderNumber",
+  title: "Title",
+  description: "Description",
+  assignedTo: "AssignedTo",
+  status: "Status",
+  dueDate: "DueDate",
+  completedAt: "CompletedAt",
+  createdAt: "CreatedAt",
+};
+
+const PR_COL = { // SCCG Products
+  name: "Title", // Default SharePoint name field
+  category: "Category",
+  price: "Price",
+  description: "Description",
+  stock: "Stock",
+};
 
 // ============================================================
 // In-memory mutable stores (for demo CRUD without SharePoint)
@@ -36,6 +135,11 @@ const stores = {
   sessions: [...mockSessions],
   expertPayments: [...mockExpertPayments],
   notifications: [...mockNotifications],
+  salesOffers: [...mockSalesOffers],
+  salesOfferItems: [...mockSalesOfferItems],
+  salesOrders: [...mockSalesOrders],
+  salesOrderItems: [...mockSalesOrderItems],
+  serviceTasks: [...mockServiceTasks],
 };
 
 function genId(prefix: string): string {
@@ -85,11 +189,19 @@ export async function updatePartnerStatus(id: string, status: Partner["status"])
 export async function getProducts(): Promise<Product[]> {
   if (useMock) return stores.products;
   const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
-  const url = `${await getSiteListUrlAsync("Products")}?$expand=fields`;
-  const res = await graphGet<{ value: Array<{ fields: Record<string, string | number> }> }>(url);
+  const res = await graphGet<{ value: Array<{ fields: Record<string, unknown> }> }>(
+    `${await getSiteListUrlAsync("Products")}?$expand=fields`
+  );
   return res.value.map((item) => {
     const f = item.fields;
-    return { id: String(f.id), name: String(f.Name), description: String(f.Description), price: Number(f.Price), stock: Number(f.Stock), category: String(f.Category), imageUrl: String(f.ImageUrl || "") } as Product;
+    return {
+      id: String(f.id), 
+      name: String(f[PR_COL.name]), 
+      category: String(f[PR_COL.category] || ""),
+      price: Number(f[PR_COL.price]), 
+      description: String(f[PR_COL.description] || ""),
+      stock: Number(f[PR_COL.stock]),
+    } as Product;
   });
 }
 
@@ -683,4 +795,489 @@ export async function generateSessionsForPackage(pkg: CustomerPackage): Promise<
     if (useMock) stores.sessions.push(session);
   }
   return sessions;
+}
+
+// ============================================================
+// Sales Offers
+// ============================================================
+
+/** Generate next offer number: SO-YYYY-NNNNN */
+export async function generateOfferNumber(): Promise<string> {
+  const year = new Date().getFullYear();
+  const offers = await getSalesOffers();
+  const thisYear = offers.filter((o) => o.offerNumber.startsWith(`SO-${year}-`));
+  const maxSeq = thisYear.reduce((max, o) => {
+    const seq = parseInt(o.offerNumber.split("-")[2], 10);
+    return seq > max ? seq : max;
+  }, 0);
+  return `SO-${year}-${String(maxSeq + 1).padStart(5, "0")}`;
+}
+
+/** Generate next order number: ORD-YYYY-NNNNN */
+export async function generateOrderNumber(): Promise<string> {
+  const year = new Date().getFullYear();
+  const orders = await getSalesOrders();
+  const thisYear = orders.filter((o) => o.orderNumber.startsWith(`ORD-${year}-`));
+  const maxSeq = thisYear.reduce((max, o) => {
+    const seq = parseInt(o.orderNumber.split("-")[2], 10);
+    return seq > max ? seq : max;
+  }, 0);
+  return `ORD-${year}-${String(maxSeq + 1).padStart(5, "0")}`;
+}
+
+export async function getSalesOffers(partnerId?: string): Promise<SalesOffer[]> {
+  if (useMock) {
+    const list = partnerId ? stores.salesOffers.filter((o) => o.partnerId === partnerId) : stores.salesOffers;
+    return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+  const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
+  let url = `${await getSiteListUrlAsync("SalesOffers")}?$expand=fields&$orderby=fields/CreatedAt desc`;
+  if (partnerId) url += `&$filter=fields/PartnerId eq '${partnerId}'`;
+  const res = await graphGet<{ value: Array<{ fields: Record<string, unknown> }> }>(url);
+  return res.value.map((item) => {
+    const f = item.fields;
+    return {
+      id: String(f.id), 
+      offerNumber: String(f[SO_COL.offerNumber]), 
+      partnerId: String(f[SO_COL.partnerId]),
+      partnerName: String(f[SO_COL.partnerName] || ""), 
+      clientId: String(f[SO_COL.clientId]),
+      clientName: String(f[SO_COL.clientName] || ""), 
+      clientEmail: String(f[SO_COL.clientEmail] || ""),
+      status: String(f[SO_COL.status]) as SalesOffer["status"], 
+      subtotal: Number(f[SO_COL.subtotal]),
+      discount: Number(f[SO_COL.discount]), 
+      discountType: String(f[SO_COL.discountType] || "fixed") as SalesOffer["discountType"],
+      totalAmount: Number(f[SO_COL.totalAmount]), 
+      validUntil: String(f[SO_COL.validUntil]),
+      notes: String(f[SO_COL.notes] || ""), 
+      createdBy: String(f[SO_COL.createdBy]),
+      createdAt: String(f[SO_COL.createdAt]), 
+      updatedAt: String(f[SO_COL.updatedAt]),
+      sentAt: f[SO_COL.sentAt] ? String(f[SO_COL.sentAt]) : undefined,
+      acceptedAt: f[SO_COL.acceptedAt] ? String(f[SO_COL.acceptedAt]) : undefined,
+      rejectedAt: f[SO_COL.rejectedAt] ? String(f[SO_COL.rejectedAt]) : undefined,
+      salesOrderId: f[SO_COL.salesOrderId] ? String(f[SO_COL.salesOrderId]) : undefined,
+    } as SalesOffer;
+  });
+}
+
+export async function getSalesOfferById(id: string): Promise<SalesOffer | null> {
+  if (useMock) return stores.salesOffers.find((o) => o.id === id) || null;
+  const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
+  const url = `${await getSiteListUrlAsync("SalesOffers")}('${id}')?$expand=fields`;
+  const res = await graphGet<{ fields: Record<string, unknown> }>(url);
+  const f = res.fields;
+  return {
+    id: String(f.id), 
+    offerNumber: String(f[SO_COL.offerNumber]), 
+    partnerId: String(f[SO_COL.partnerId]),
+    partnerName: String(f[SO_COL.partnerName] || ""), 
+    clientId: String(f[SO_COL.clientId]),
+    clientName: String(f[SO_COL.clientName] || ""), 
+    clientEmail: String(f[SO_COL.clientEmail] || ""),
+    status: String(f[SO_COL.status]) as SalesOffer["status"], 
+    subtotal: Number(f[SO_COL.subtotal]),
+    discount: Number(f[SO_COL.discount]), 
+    discountType: String(f[SO_COL.discountType] || "fixed") as SalesOffer["discountType"],
+    totalAmount: Number(f[SO_COL.totalAmount]), 
+    validUntil: String(f[SO_COL.validUntil]),
+    notes: String(f[SO_COL.notes] || ""), 
+    createdBy: String(f[SO_COL.createdBy]),
+    createdAt: String(f[SO_COL.createdAt]), 
+    updatedAt: String(f[SO_COL.updatedAt]),
+    sentAt: f[SO_COL.sentAt] ? String(f[SO_COL.sentAt]) : undefined,
+    acceptedAt: f[SO_COL.acceptedAt] ? String(f[SO_COL.acceptedAt]) : undefined,
+    rejectedAt: f[SO_COL.rejectedAt] ? String(f[SO_COL.rejectedAt]) : undefined,
+    salesOrderId: f[SO_COL.salesOrderId] ? String(f[SO_COL.salesOrderId]) : undefined,
+  } as SalesOffer;
+}
+
+export async function createSalesOffer(offer: Omit<SalesOffer, "id">): Promise<SalesOffer> {
+  const newOffer = { ...offer, id: genId("sof") } as SalesOffer;
+  if (useMock) {
+    stores.salesOffers.push(newOffer);
+    return newOffer;
+  }
+  const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
+  await graphPost(await getSiteListUrlAsync("SalesOffers"), {
+    fields: {
+      [SO_COL.offerNumber]: newOffer.offerNumber, 
+      [SO_COL.partnerId]: newOffer.partnerId, 
+      [SO_COL.partnerName]: newOffer.partnerName,
+      [SO_COL.clientId]: newOffer.clientId, 
+      [SO_COL.clientName]: newOffer.clientName, 
+      [SO_COL.clientEmail]: newOffer.clientEmail,
+      [SO_COL.status]: newOffer.status, 
+      [SO_COL.subtotal]: newOffer.subtotal, 
+      [SO_COL.discount]: newOffer.discount,
+      [SO_COL.discountType]: newOffer.discountType, 
+      [SO_COL.totalAmount]: newOffer.totalAmount, 
+      [SO_COL.validUntil]: newOffer.validUntil,
+      [SO_COL.notes]: newOffer.notes, 
+      [SO_COL.createdBy]: newOffer.createdBy,
+      [SO_COL.createdAt]: newOffer.createdAt, 
+      [SO_COL.updatedAt]: newOffer.updatedAt,
+    },
+  });
+  return newOffer;
+}
+
+export async function updateSalesOffer(id: string, data: Partial<SalesOffer>): Promise<void> {
+  if (useMock) {
+    const o = stores.salesOffers.find((x) => x.id === id);
+    if (o) Object.assign(o, data, { updatedAt: new Date().toISOString() });
+    return;
+  }
+  const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
+  const fields: Record<string, unknown> = { [SO_COL.updatedAt]: new Date().toISOString() };
+  if (data.status) fields[SO_COL.status] = data.status;
+  if (data.notes !== undefined) fields[SO_COL.notes] = data.notes;
+  if (data.sentAt) fields[SO_COL.sentAt] = data.sentAt;
+  if (data.acceptedAt) fields[SO_COL.acceptedAt] = data.acceptedAt;
+  if (data.rejectedAt) fields[SO_COL.rejectedAt] = data.rejectedAt;
+  if (data.salesOrderId) fields[SO_COL.salesOrderId] = data.salesOrderId;
+  if (data.totalAmount !== undefined) fields[SO_COL.totalAmount] = data.totalAmount;
+  if (data.subtotal !== undefined) fields[SO_COL.subtotal] = data.subtotal;
+  if (data.discount !== undefined) fields[SO_COL.discount] = data.discount;
+  if (data.discountType) fields[SO_COL.discountType] = data.discountType;
+  if (data.validUntil) fields[SO_COL.validUntil] = data.validUntil;
+  await graphPatch(`${await getSiteListUrlAsync("SalesOffers")}('${id}')/fields`, fields);
+}
+
+export async function deleteSalesOffer(id: string): Promise<void> {
+  if (useMock) {
+    const idx = stores.salesOffers.findIndex((o) => o.id === id);
+    if (idx !== -1) stores.salesOffers.splice(idx, 1);
+    // Also delete items
+    stores.salesOfferItems = stores.salesOfferItems.filter((i) => i.salesOfferId !== id) as typeof stores.salesOfferItems;
+    return;
+  }
+  const { graphDelete, getSiteListUrlAsync } = await import("@/lib/graph");
+  // Delete items first
+  const items = await getSalesOfferItems(id);
+  for (const item of items) {
+    await graphDelete(`${await getSiteListUrlAsync("SalesOfferItems")}('${item.id}')`);
+  }
+  await graphDelete(`${await getSiteListUrlAsync("SalesOffers")}('${id}')`);
+}
+
+// ============================================================
+// Sales Offer Items
+// ============================================================
+
+export async function getSalesOfferItems(salesOfferId: string): Promise<SalesOfferItem[]> {
+  if (useMock) return stores.salesOfferItems.filter((i) => i.salesOfferId === salesOfferId);
+  const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
+  const url = `${await getSiteListUrlAsync("SalesOfferItems")}?$expand=fields&$filter=fields/SalesOfferId eq '${salesOfferId}'`;
+  const res = await graphGet<{ value: Array<{ fields: Record<string, unknown> }> }>(url);
+  return res.value.map((item) => {
+    const f = item.fields;
+    return {
+      id: String(f.id), 
+      salesOfferId: String(f[SOI_COL.salesOfferId]), 
+      productId: String(f[SOI_COL.productId]),
+      productName: String(f[SOI_COL.productName]), 
+      quantity: Number(f[SOI_COL.quantity]),
+      unitPrice: Number(f[SOI_COL.unitPrice]), 
+      totalPrice: Number(f[SOI_COL.totalPrice]),
+    } as SalesOfferItem;
+  });
+}
+
+export async function createSalesOfferItem(item: Omit<SalesOfferItem, "id">): Promise<SalesOfferItem> {
+  const newItem = { ...item, id: genId("sofi") } as SalesOfferItem;
+  if (useMock) {
+    stores.salesOfferItems.push(newItem);
+    return newItem;
+  }
+  const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
+  await graphPost(await getSiteListUrlAsync("SalesOfferItems"), {
+    fields: {
+      [SOI_COL.salesOfferId]: newItem.salesOfferId, 
+      [SOI_COL.productId]: newItem.productId,
+      [SOI_COL.productName]: newItem.productName, 
+      [SOI_COL.quantity]: newItem.quantity,
+      [SOI_COL.unitPrice]: newItem.unitPrice, 
+      [SOI_COL.totalPrice]: newItem.totalPrice,
+    },
+  });
+  return newItem;
+}
+
+export async function deleteSalesOfferItem(id: string): Promise<void> {
+  if (useMock) {
+    const idx = stores.salesOfferItems.findIndex((i) => i.id === id);
+    if (idx !== -1) stores.salesOfferItems.splice(idx, 1);
+    return;
+  }
+  const { graphDelete, getSiteListUrlAsync } = await import("@/lib/graph");
+  await graphDelete(`${await getSiteListUrlAsync("SalesOfferItems")}('${id}')`);
+}
+
+// ============================================================
+// Sales Orders
+// ============================================================
+
+export async function getSalesOrders(partnerId?: string): Promise<SalesOrder[]> {
+  if (useMock) {
+    const list = partnerId ? stores.salesOrders.filter((o) => o.partnerId === partnerId) : stores.salesOrders;
+    return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+  const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
+  let url = `${await getSiteListUrlAsync("SalesOrders")}?$expand=fields&$orderby=fields/CreatedAt desc`;
+  if (partnerId) url += `&$filter=fields/PartnerId eq '${partnerId}'`;
+  const res = await graphGet<{ value: Array<{ fields: Record<string, unknown> }> }>(url);
+  return res.value.map((item) => {
+    const f = item.fields;
+    return {
+      id: String(f.id), 
+      orderNumber: String(f[ORD_COL.orderNumber]), 
+      salesOfferId: String(f[ORD_COL.salesOfferId]),
+      offerNumber: String(f[ORD_COL.offerNumber]), 
+      partnerId: String(f[ORD_COL.partnerId]),
+      partnerName: String(f[ORD_COL.partnerName] || ""), 
+      clientId: String(f[ORD_COL.clientId]),
+      clientName: String(f[ORD_COL.clientName] || ""), 
+      clientEmail: String(f[ORD_COL.clientEmail] || ""),
+      status: String(f[ORD_COL.status]) as SalesOrder["status"], 
+      totalAmount: Number(f[ORD_COL.totalAmount]),
+      notes: String(f[ORD_COL.notes] || ""), 
+      createdBy: String(f[ORD_COL.createdBy]),
+      createdAt: String(f[ORD_COL.createdAt]), 
+      updatedAt: String(f[ORD_COL.updatedAt]),
+      completedAt: f[ORD_COL.completedAt] ? String(f[ORD_COL.completedAt]) : undefined,
+    } as SalesOrder;
+  });
+}
+
+export async function getSalesOrderById(id: string): Promise<SalesOrder | null> {
+  if (useMock) return stores.salesOrders.find((o) => o.id === id) || null;
+  const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
+  const url = `${await getSiteListUrlAsync("SalesOrders")}('${id}')?$expand=fields`;
+  const res = await graphGet<{ fields: Record<string, unknown> }>(url);
+  const f = res.fields;
+  return {
+    id: String(f.id), 
+    orderNumber: String(f[ORD_COL.orderNumber]), 
+    salesOfferId: String(f[ORD_COL.salesOfferId]),
+    offerNumber: String(f[ORD_COL.offerNumber]), 
+    partnerId: String(f[ORD_COL.partnerId]),
+    partnerName: String(f[ORD_COL.partnerName] || ""), 
+    clientId: String(f[ORD_COL.clientId]),
+    clientName: String(f[ORD_COL.clientName] || ""), 
+    clientEmail: String(f[ORD_COL.clientEmail] || ""),
+    status: String(f[ORD_COL.status]) as SalesOrder["status"], 
+    totalAmount: Number(f[ORD_COL.totalAmount]),
+    notes: String(f[ORD_COL.notes] || ""), 
+    createdBy: String(f[ORD_COL.createdBy]),
+    createdAt: String(f[ORD_COL.createdAt]), 
+    updatedAt: String(f[ORD_COL.updatedAt]),
+    completedAt: f[ORD_COL.completedAt] ? String(f[ORD_COL.completedAt]) : undefined,
+  } as SalesOrder;
+}
+
+export async function createSalesOrder(order: Omit<SalesOrder, "id">): Promise<SalesOrder> {
+  const newOrder = { ...order, id: genId("sord") } as SalesOrder;
+  if (useMock) {
+    stores.salesOrders.push(newOrder);
+    return newOrder;
+  }
+  const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
+  await graphPost(await getSiteListUrlAsync("SalesOrders"), {
+    fields: {
+      [ORD_COL.orderNumber]: newOrder.orderNumber, 
+      [ORD_COL.salesOfferId]: newOrder.salesOfferId,
+      [ORD_COL.offerNumber]: newOrder.offerNumber, 
+      [ORD_COL.partnerId]: newOrder.partnerId,
+      [ORD_COL.partnerName]: newOrder.partnerName, 
+      [ORD_COL.clientId]: newOrder.clientId,
+      [ORD_COL.clientName]: newOrder.clientName, 
+      [ORD_COL.clientEmail]: newOrder.clientEmail,
+      [ORD_COL.status]: newOrder.status, 
+      [ORD_COL.totalAmount]: newOrder.totalAmount,
+      [ORD_COL.notes]: newOrder.notes, 
+      [ORD_COL.createdBy]: newOrder.createdBy,
+      [ORD_COL.createdAt]: newOrder.createdAt, 
+      [ORD_COL.updatedAt]: newOrder.updatedAt,
+    },
+  });
+  return newOrder;
+}
+
+export async function updateSalesOrder(id: string, data: Partial<SalesOrder>): Promise<void> {
+  if (useMock) {
+    const o = stores.salesOrders.find((x) => x.id === id);
+    if (o) Object.assign(o, data, { updatedAt: new Date().toISOString() });
+    return;
+  }
+  const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
+  const fields: Record<string, unknown> = { [ORD_COL.updatedAt]: new Date().toISOString() };
+  if (data.status) fields[ORD_COL.status] = data.status;
+  if (data.notes !== undefined) fields[ORD_COL.notes] = data.notes;
+  if (data.completedAt) fields[ORD_COL.completedAt] = data.completedAt;
+  await graphPatch(`${await getSiteListUrlAsync("SalesOrders")}('${id}')/fields`, fields);
+}
+
+// ============================================================
+// Sales Order Items
+// ============================================================
+
+export async function getSalesOrderItems(salesOrderId: string): Promise<SalesOrderItem[]> {
+  if (useMock) return stores.salesOrderItems.filter((i) => i.salesOrderId === salesOrderId);
+  const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
+  const url = `${await getSiteListUrlAsync("SalesOrderItems")}?$expand=fields&$filter=fields/SalesOrderId eq '${salesOrderId}'`;
+  const res = await graphGet<{ value: Array<{ fields: Record<string, unknown> }> }>(url);
+  return res.value.map((item) => {
+    const f = item.fields;
+    return {
+      id: String(f.id), 
+      salesOrderId: String(f[ORDI_COL.salesOrderId]), 
+      productId: String(f[ORDI_COL.productId]),
+      productName: String(f[ORDI_COL.productName]), 
+      quantity: Number(f[ORDI_COL.quantity]),
+      unitPrice: Number(f[ORDI_COL.unitPrice]), 
+      totalPrice: Number(f[ORDI_COL.totalPrice]),
+    } as SalesOrderItem;
+  });
+}
+
+export async function createSalesOrderItem(item: Omit<SalesOrderItem, "id">): Promise<SalesOrderItem> {
+  const newItem = { ...item, id: genId("sordi") } as SalesOrderItem;
+  if (useMock) {
+    stores.salesOrderItems.push(newItem);
+    return newItem;
+  }
+  const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
+  await graphPost(await getSiteListUrlAsync("SalesOrderItems"), {
+    fields: {
+      [ORDI_COL.salesOrderId]: newItem.salesOrderId, 
+      [ORDI_COL.productId]: newItem.productId,
+      [ORDI_COL.productName]: newItem.productName, 
+      [ORDI_COL.quantity]: newItem.quantity,
+      [ORDI_COL.unitPrice]: newItem.unitPrice, 
+      [ORDI_COL.totalPrice]: newItem.totalPrice,
+    },
+  });
+  return newItem;
+}
+
+// ============================================================
+// Service Tasks
+// ============================================================
+
+export async function getServiceTasks(salesOrderId?: string): Promise<ServiceTask[]> {
+  if (useMock) {
+    const list = salesOrderId ? stores.serviceTasks.filter((t) => t.salesOrderId === salesOrderId) : stores.serviceTasks;
+    return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+  const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
+  let url = `${await getSiteListUrlAsync("ServiceTasks")}?$expand=fields`;
+  if (salesOrderId) url += `&$filter=fields/SalesOrderId eq '${salesOrderId}'`;
+  const res = await graphGet<{ value: Array<{ fields: Record<string, unknown> }> }>(url);
+  return res.value.map((item) => {
+    const f = item.fields;
+    return {
+      id: String(f.id), 
+      salesOrderId: String(f[ST_COL.salesOrderId]), 
+      orderNumber: String(f[ST_COL.orderNumber] || ""),
+      title: String(f[ST_COL.title]), 
+      description: String(f[ST_COL.description] || ""),
+      assignedTo: String(f[ST_COL.assignedTo] || ""), 
+      status: String(f[ST_COL.status]) as ServiceTask["status"],
+      dueDate: f[ST_COL.dueDate] ? String(f[ST_COL.dueDate]) : undefined,
+      completedAt: f[ST_COL.completedAt] ? String(f[ST_COL.completedAt]) : undefined,
+      createdAt: String(f[ST_COL.createdAt]),
+    } as ServiceTask;
+  });
+}
+
+export async function createServiceTask(task: Omit<ServiceTask, "id">): Promise<ServiceTask> {
+  const newTask = { ...task, id: genId("st") } as ServiceTask;
+  if (useMock) {
+    stores.serviceTasks.push(newTask);
+    return newTask;
+  }
+  const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
+  await graphPost(await getSiteListUrlAsync("ServiceTasks"), {
+    fields: {
+      [ST_COL.salesOrderId]: newTask.salesOrderId, 
+      [ST_COL.orderNumber]: newTask.orderNumber,
+      [ST_COL.title]: newTask.title, 
+      [ST_COL.description]: newTask.description,
+      [ST_COL.assignedTo]: newTask.assignedTo, 
+      [ST_COL.status]: newTask.status,
+      [ST_COL.dueDate]: newTask.dueDate, 
+      [ST_COL.createdAt]: newTask.createdAt,
+    },
+  });
+  return newTask;
+}
+
+export async function updateServiceTask(id: string, data: Partial<ServiceTask>): Promise<void> {
+  if (useMock) {
+    const t = stores.serviceTasks.find((x) => x.id === id);
+    if (t) Object.assign(t, data);
+    return;
+  }
+  const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
+  const fields: Record<string, unknown> = {};
+  if (data.status) fields[ST_COL.status] = data.status;
+  if (data.assignedTo !== undefined) fields[ST_COL.assignedTo] = data.assignedTo;
+  if (data.completedAt) fields[ST_COL.completedAt] = data.completedAt;
+  if (data.title) fields[ST_COL.title] = data.title;
+  if (data.description !== undefined) fields[ST_COL.description] = data.description;
+  if (data.dueDate) fields[ST_COL.dueDate] = data.dueDate;
+  await graphPatch(`${await getSiteListUrlAsync("ServiceTasks")}('${id}')/fields`, fields);
+}
+
+/**
+ * Convert an accepted Sales Offer into a Sales Order.
+ * - Creates a new SalesOrder with a unique order number.
+ * - Copies all SalesOfferItems to SalesOrderItems.
+ * - Updates the SalesOffer with the new salesOrderId.
+ */
+export async function convertOfferToOrder(offerId: string): Promise<SalesOrder> {
+  const offer = await getSalesOfferById(offerId);
+  if (!offer) throw new Error("Sales Offer not found");
+  if (offer.status !== "accepted") throw new Error("Only accepted offers can be converted");
+  if (offer.salesOrderId) throw new Error("Offer already converted to order");
+
+  const orderNumber = await generateOrderNumber();
+  const now = new Date().toISOString();
+
+  const newOrder = await createSalesOrder({
+    orderNumber,
+    salesOfferId: offer.id,
+    offerNumber: offer.offerNumber,
+    partnerId: offer.partnerId,
+    partnerName: offer.partnerName,
+    clientId: offer.clientId,
+    clientName: offer.clientName,
+    clientEmail: offer.clientEmail,
+    status: "pending",
+    totalAmount: offer.totalAmount,
+    notes: `Converted from offer ${offer.offerNumber}`,
+    createdBy: offer.createdBy,
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  // Copy items
+  const offerItems = await getSalesOfferItems(offerId);
+  for (const item of offerItems) {
+    await createSalesOrderItem({
+      salesOrderId: newOrder.id,
+      productId: item.productId,
+      productName: item.productName,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      totalPrice: item.totalPrice,
+    });
+  }
+
+  // Update offer with order reference
+  await updateSalesOffer(offerId, { salesOrderId: newOrder.id });
+
+  return newOrder;
 }

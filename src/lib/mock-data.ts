@@ -4,6 +4,7 @@ import type {
   Installment, Transaction, Expense, Invoice,
   Customer, Expert, ServicePackage, CustomerPackage,
   Session, ExpertPayment, AppNotification,
+  SalesOffer, SalesOfferItem, SalesOrder, SalesOrderItem, ServiceTask,
 } from "@/types";
 
 // ---- Partners ----
@@ -349,4 +350,137 @@ export const mockNotifications: AppNotification[] = [
   { id: "notif6", userId: "exp1", userType: "expert", type: "session_reminder", title: "Session Tomorrow", message: "Reminder: Session #4 with Maria Schmidt is scheduled for tomorrow at 10:00.", read: false, relatedId: "ses4", createdAt: "2026-03-27T09:00:00Z" },
   { id: "notif7", userId: "exp2", userType: "expert", type: "payment_approved", title: "Payment Approved", message: "Your payment of BDT 100 for session #4 with Julia Braun has been approved and will be processed.", read: true, relatedId: "ep7", createdAt: "2026-01-20T09:00:00Z" },
   { id: "notif8", userId: "exp2", userType: "expert", type: "payment_eligible", title: "Payment Eligible", message: "You are now eligible for payment of BDT 100 for completing session #5 with Julia Braun.", read: false, relatedId: "ep8", createdAt: "2026-02-15T16:00:00Z" },
+];
+
+// ============================================================
+// Sales Offers & Sales Orders Mock Data
+// ============================================================
+
+export const mockSalesOffers: SalesOffer[] = [
+  {
+    id: "sof1",
+    offerNumber: "SO-2026-00001",
+    partnerId: "p1",
+    partnerName: "Alice Weber",
+    clientId: "c1",
+    clientName: "TechCorp Industries",
+    clientEmail: "procurement@techcorp.com",
+    status: "accepted",
+    subtotal: 7498.5,
+    discount: 5,
+    discountType: "percent",
+    totalAmount: 7123.58,
+    validUntil: "2026-03-01",
+    notes: "Bulk order for Q1 2026",
+    createdBy: "p1",
+    createdAt: "2026-01-15T10:00:00Z",
+    updatedAt: "2026-01-20T10:00:00Z",
+    sentAt: "2026-01-16T09:00:00Z",
+    acceptedAt: "2026-01-20T10:00:00Z",
+    salesOrderId: "sord1",
+  },
+  {
+    id: "sof2",
+    offerNumber: "SO-2026-00002",
+    partnerId: "p1",
+    partnerName: "Alice Weber",
+    clientId: "c2",
+    clientName: "SmartBuild AG",
+    clientEmail: "orders@smartbuild.de",
+    status: "sent",
+    subtotal: 4499.5,
+    discount: 0,
+    discountType: "fixed",
+    totalAmount: 4499.5,
+    validUntil: "2026-04-15",
+    notes: "Connector kits for Hamburg warehouse",
+    createdBy: "p1",
+    createdAt: "2026-02-10T10:00:00Z",
+    updatedAt: "2026-02-11T08:00:00Z",
+    sentAt: "2026-02-11T08:00:00Z",
+  },
+  {
+    id: "sof3",
+    offerNumber: "SO-2026-00003",
+    partnerId: "p2",
+    partnerName: "Bob Müller",
+    clientId: "c4",
+    clientName: "AutoParts Direct",
+    clientEmail: "info@autoparts.de",
+    status: "draft",
+    subtotal: 2599.87,
+    discount: 100,
+    discountType: "fixed",
+    totalAmount: 2499.87,
+    validUntil: "2026-05-01",
+    createdBy: "p2",
+    createdAt: "2026-03-20T10:00:00Z",
+    updatedAt: "2026-03-20T10:00:00Z",
+  },
+  {
+    id: "sof4",
+    offerNumber: "SO-2026-00004",
+    partnerId: "p1",
+    partnerName: "Alice Weber",
+    clientId: "c3",
+    clientName: "GreenEnergy Solutions",
+    clientEmail: "buy@greenenergy.eu",
+    status: "rejected",
+    subtotal: 12999,
+    discount: 10,
+    discountType: "percent",
+    totalAmount: 11699.1,
+    validUntil: "2026-03-15",
+    notes: "Large sensor deployment — client chose competitor",
+    createdBy: "p1",
+    createdAt: "2026-02-01T10:00:00Z",
+    updatedAt: "2026-02-20T10:00:00Z",
+    sentAt: "2026-02-02T08:00:00Z",
+    rejectedAt: "2026-02-20T10:00:00Z",
+  },
+];
+
+export const mockSalesOfferItems: SalesOfferItem[] = [
+  // sof1 items
+  { id: "sofi1", salesOfferId: "sof1", productId: "prod1", productName: "Premium Widget A", quantity: 100, unitPrice: 49.99, totalPrice: 4999 },
+  { id: "sofi2", salesOfferId: "sof1", productId: "prod2", productName: "Standard Widget B", quantity: 100, unitPrice: 24.99, totalPrice: 2499.5 },
+  // sof2 items
+  { id: "sofi3", salesOfferId: "sof2", productId: "prod3", productName: "Connector Kit X", quantity: 50, unitPrice: 89.99, totalPrice: 4499.5 },
+  // sof3 items
+  { id: "sofi4", salesOfferId: "sof3", productId: "prod4", productName: "Sensor Module S1", quantity: 10, unitPrice: 129.99, totalPrice: 1299.9 },
+  { id: "sofi5", salesOfferId: "sof3", productId: "prod5", productName: "Cable Bundle Pro", quantity: 5, unitPrice: 199.99, totalPrice: 999.97 },
+  { id: "sofi6", salesOfferId: "sof3", productId: "prod2", productName: "Standard Widget B", quantity: 12, unitPrice: 24.99, totalPrice: 300 },
+  // sof4 items
+  { id: "sofi7", salesOfferId: "sof4", productId: "prod4", productName: "Sensor Module S1", quantity: 100, unitPrice: 129.99, totalPrice: 12999 },
+];
+
+export const mockSalesOrders: SalesOrder[] = [
+  {
+    id: "sord1",
+    orderNumber: "ORD-2026-00001",
+    salesOfferId: "sof1",
+    offerNumber: "SO-2026-00001",
+    partnerId: "p1",
+    partnerName: "Alice Weber",
+    clientId: "c1",
+    clientName: "TechCorp Industries",
+    clientEmail: "procurement@techcorp.com",
+    status: "in-progress",
+    totalAmount: 7123.58,
+    notes: "Converted from offer SO-2026-00001",
+    createdBy: "p1",
+    createdAt: "2026-01-20T10:30:00Z",
+    updatedAt: "2026-01-25T10:00:00Z",
+  },
+];
+
+export const mockSalesOrderItems: SalesOrderItem[] = [
+  { id: "sordi1", salesOrderId: "sord1", productId: "prod1", productName: "Premium Widget A", quantity: 100, unitPrice: 49.99, totalPrice: 4999 },
+  { id: "sordi2", salesOrderId: "sord1", productId: "prod2", productName: "Standard Widget B", quantity: 100, unitPrice: 24.99, totalPrice: 2499.5 },
+];
+
+export const mockServiceTasks: ServiceTask[] = [
+  { id: "st1", salesOrderId: "sord1", orderNumber: "ORD-2026-00001", title: "Prepare shipment for Widget A", description: "Package 100 units of Premium Widget A", assignedTo: "Alice Weber", status: "completed", dueDate: "2026-02-01", completedAt: "2026-01-30T10:00:00Z", createdAt: "2026-01-20T11:00:00Z" },
+  { id: "st2", salesOrderId: "sord1", orderNumber: "ORD-2026-00001", title: "Deliver Standard Widget B", description: "Ship 100 units to Berlin warehouse", assignedTo: "Alice Weber", status: "in-progress", dueDate: "2026-02-15", createdAt: "2026-01-20T11:00:00Z" },
+  { id: "st3", salesOrderId: "sord1", orderNumber: "ORD-2026-00001", title: "Quality inspection", description: "Final QA check post-delivery", status: "planned", dueDate: "2026-02-20", createdAt: "2026-01-20T11:00:00Z" },
 ];

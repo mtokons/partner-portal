@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Package, ShoppingCart, Users, Activity,
   DollarSign, Shield, BarChart3, FileText, Receipt, Handshake,
   UserCheck, Calendar, CreditCard, Zap, Mail, ChevronRight,
-  FlaskConical,
+  FlaskConical, ClipboardList,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +24,8 @@ const partnerLinks = [
   { href: "/financials/expenses", label: "Expenses", icon: Receipt, group: "finance" },
   { href: "/financials/invoices", label: "Invoices", icon: FileText, group: "finance" },
   { href: "/financials/sales-offer", label: "Sales Offer", icon: Handshake, group: "finance" },
+  { href: "/sales/offers", label: "Sales Offers", icon: Handshake, group: "sales" },
+  { href: "/sales/orders", label: "Sales Orders", icon: ClipboardList, group: "sales" },
 ];
 
 const adminLinks = [
@@ -39,12 +41,15 @@ const adminLinks = [
   { href: "/admin/send-email", label: "Send Email", icon: Mail, group: "admin" },
   { href: "/products", label: "Products", icon: Package, group: "main" },
   { href: "/activity", label: "Activity", icon: Activity, group: "main" },
+  { href: "/sales/offers", label: "Sales Offers", icon: Handshake, group: "sales" },
+  { href: "/sales/orders", label: "Sales Orders", icon: ClipboardList, group: "sales" },
   { href: "/sp-test", label: "SP CRUD Test", icon: FlaskConical, group: "dev" },
 ];
 
 const groupLabels: Record<string, string> = {
   main: "Main",
   finance: "Finance",
+  sales: "Sales",
   admin: "Administration",
   dev: "Developer",
 };
