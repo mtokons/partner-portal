@@ -23,7 +23,10 @@ export default async function SalesOrdersPage() {
   if (!session?.user) redirect("/login");
   const user = session.user as SessionUser;
 
-  const orders = await getSalesOrders(user.role === "admin" ? undefined : user.partnerId);
+  let orders = await getSalesOrders(user.role === "admin" ? undefined : user.partnerId);
+  if (user.role === "partner") {
+    orders = orders.filter((o) => o.createdBy === user.id);
+  }
 
   const pending = orders.filter((o) => o.status === "pending").length;
   const inProgress = orders.filter((o) => o.status === "in-progress").length;
