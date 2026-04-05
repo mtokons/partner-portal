@@ -182,6 +182,13 @@ export default function LoginPage() {
                 </div>
               )}
 
+              {/* Forgot password */}
+              <div className="flex justify-end">
+                <a href="/forgot-password" className="text-xs text-indigo-400 hover:text-indigo-300 font-medium transition-colors">
+                  Forgot password?
+                </a>
+              </div>
+
               {/* Submit */}
               <button
                 type="submit"
@@ -231,6 +238,14 @@ export default function LoginPage() {
                 ))}
               </div>
             </div>
+
+            {/* Create account link */}
+            <p className="text-center text-sm text-white/40 mt-5">
+              Don&apos;t have an account?{" "}
+              <a href="/register" className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors">
+                Create account
+              </a>
+            </p>
           </div>
         </div>
       </div>

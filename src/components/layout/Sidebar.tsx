@@ -6,12 +6,14 @@ import {
   LayoutDashboard, Package, ShoppingCart, Users, Activity,
   DollarSign, Shield, BarChart3, FileText, Receipt, Handshake,
   UserCheck, Calendar, CreditCard, Zap, Mail, ChevronRight,
-  FlaskConical, ClipboardList, Store, Tag, Share2, Wallet,
+  FlaskConical, ClipboardList, Store, Tag, Share2, Wallet, User, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SidebarProps {
   role: "partner" | "admin";
+  open: boolean;
+  onClose: () => void;
 }
 
 const partnerLinks = [
@@ -26,6 +28,7 @@ const partnerLinks = [
   { href: "/financials/expenses", label: "Expenses", icon: Receipt, group: "finance" },
   { href: "/financials/invoices", label: "Invoices", icon: FileText, group: "finance" },
   { href: "/financials/payouts", label: "My Payouts", icon: Wallet, group: "finance" },
+  { href: "/profile", label: "My Profile", icon: User, group: "account" },
 ];
 
 const adminLinks = [
@@ -48,6 +51,7 @@ const adminLinks = [
   { href: "/admin/send-email", label: "Send Email", icon: Mail, group: "admin" },
   { href: "/activity", label: "Activity", icon: Activity, group: "main" },
   { href: "/sp-test", label: "SP CRUD Test", icon: FlaskConical, group: "dev" },
+  { href: "/profile", label: "My Profile", icon: User, group: "account" },
 ];
 
 const groupLabels: Record<string, string> = {
@@ -55,10 +59,11 @@ const groupLabels: Record<string, string> = {
   shop: "Sales Shop",
   finance: "Finance",
   admin: "Administration",
+  account: "Account",
   dev: "Developer",
 };
 
-export default function Sidebar({ role }: SidebarProps) {
+export default function Sidebar({ role, open, onClose }: SidebarProps) {
   const pathname = usePathname();
   const links = role === "admin" ? adminLinks : partnerLinks;
 
@@ -70,29 +75,53 @@ export default function Sidebar({ role }: SidebarProps) {
   });
 
   return (
-    <aside className="fixed left-0 top-0 z-40 h-screen w-64 sidebar-mesh text-sidebar-foreground flex flex-col shadow-2xl">
-      {/* Decorative border right */}
-      <div className="absolute right-0 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-[rgba(99,130,245,0.3)] to-transparent pointer-events-none" />
+    <>
+      {/* Mobile overlay */}
+      {open && (
+        <div
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
+          onClick={onClose}
+        />
+      )}
 
-      {/* Brand */}
-      <div className="p-6 pb-5">
-        <div className="flex items-center gap-3">
-          <div className="relative h-10 w-10 rounded-2xl gradient-cosmic flex items-center justify-center shadow-lg">
-            <Zap className="h-5 w-5 text-white drop-shadow" />
-            <div className="absolute inset-0 rounded-2xl bg-white/10 shimmer" />
+      <aside
+        className={cn(
+          "fixed left-0 top-0 z-50 h-screen w-64 sidebar-mesh text-sidebar-foreground flex flex-col shadow-2xl transition-transform duration-300 ease-in-out",
+          "lg:translate-x-0 lg:z-40",
+          open ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
+        {/* Decorative border right */}
+        <div className="absolute right-0 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-[rgba(99,130,245,0.3)] to-transparent pointer-events-none" />
+
+        {/* Brand */}
+        <div className="p-6 pb-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="relative h-10 w-10 rounded-2xl gradient-cosmic flex items-center justify-center shadow-lg">
+                <Zap className="h-5 w-5 text-white drop-shadow" />
+                <div className="absolute inset-0 rounded-2xl bg-white/10 shimmer" />
+              </div>
+              <div>
+                <h1 className="text-[15px] font-bold text-white tracking-tight leading-none font-[family-name:var(--font-outfit)]">
+                  Partner Portal
+                </h1>
+                <p className="text-[10px] text-sidebar-foreground/50 uppercase tracking-[0.12em] mt-0.5">
+                  {role === "admin" ? "Admin" : "Partner"} Console
+                </p>
+              </div>
+            </div>
+            {/* Mobile close button */}
+            <button
+              onClick={onClose}
+              className="lg:hidden h-8 w-8 rounded-xl bg-white/10 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/15 transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
-          <div>
-            <h1 className="text-[15px] font-bold text-white tracking-tight leading-none font-[family-name:var(--font-outfit)]">
-              Partner Portal
-            </h1>
-            <p className="text-[10px] text-sidebar-foreground/50 uppercase tracking-[0.12em] mt-0.5">
-              {role === "admin" ? "Admin" : "Partner"} Console
-            </p>
-          </div>
+          {/* Divider */}
+          <div className="mt-5 h-px bg-gradient-to-r from-transparent via-sidebar-border to-transparent" />
         </div>
-        {/* Divider */}
-        <div className="mt-5 h-px bg-gradient-to-r from-transparent via-sidebar-border to-transparent" />
-      </div>
 
       {/* Navigation */}
       <nav className="flex-1 px-3 pb-4 overflow-y-auto space-y-5">
@@ -108,6 +137,7 @@ export default function Sidebar({ role }: SidebarProps) {
                   <Link
                     key={link.href}
                     href={link.href}
+                    onClick={onClose}
                     className={cn(
                       "group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 relative overflow-hidden",
                       isActive
@@ -145,5 +175,6 @@ export default function Sidebar({ role }: SidebarProps) {
         <p className="text-[10px] text-sidebar-foreground/25 text-center mt-2">Powered by SCCG © 2026</p>
       </div>
     </aside>
+    </>
   );
 }

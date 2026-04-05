@@ -2,8 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import type { SessionUser } from "@/types";
 import { getInstallments, getInvoices } from "@/lib/sharepoint";
-import Sidebar from "@/components/layout/Sidebar";
-import Header from "@/components/layout/Header";
+import PortalShell from "@/components/layout/PortalShell";
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -20,19 +19,14 @@ export default async function PortalLayout({ children }: { children: React.React
   const unpaidInvoicesCount = invoices.filter((i) => i.status === "overdue" || i.status === "sent").length;
 
   return (
-    <div className="min-h-screen bg-background">
-      <Sidebar role={partnerOrAdminRole} />
-      <Header
-        userName={user.name || "User"}
-        company={user.company}
-        overdueCount={overdueCount}
-        unpaidInvoicesCount={unpaidInvoicesCount}
-      />
-      <main className="ml-64 mt-16 min-h-[calc(100vh-4rem)]">
-        <div className="p-7 max-w-[1600px]">
-          {children}
-        </div>
-      </main>
-    </div>
+    <PortalShell
+      role={partnerOrAdminRole}
+      userName={user.name || "User"}
+      company={user.company}
+      overdueCount={overdueCount}
+      unpaidInvoicesCount={unpaidInvoicesCount}
+    >
+      {children}
+    </PortalShell>
   );
 }
