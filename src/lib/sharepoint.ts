@@ -235,6 +235,19 @@ export async function getPartners(): Promise<Partner[]> {
   });
 }
 
+export async function createPartner(data: Omit<Partner, "id" | "createdAt">): Promise<Partner> {
+  if (useMock) {
+    const newPartner: Partner = {
+      ...data,
+      id: genId("ptn_"),
+      createdAt: new Date().toISOString(),
+    };
+    stores.partners.push(newPartner);
+    return newPartner;
+  }
+  throw new Error("Registration via SharePoint is currently unsupported. USE_MOCK_DATA must be true.");
+}
+
 export async function updatePartnerStatus(id: string, status: Partner["status"]): Promise<void> {
   if (useMock) {
     const p = stores.partners.find((x) => x.id === id);
@@ -671,16 +684,25 @@ export async function getCustomerById(id: string): Promise<Customer | null> {
   return null;
 }
 
+export async function createCustomer(data: Omit<Customer, "id" | "createdAt">): Promise<Customer> {
+  if (useMock) {
+    const newCustomer: Customer = {
+      ...data,
+      id: genId("usr_"),
+      createdAt: new Date().toISOString(),
+    };
+    stores.customers.push(newCustomer);
+    return newCustomer;
+  }
+  throw new Error("Registration via SharePoint is currently unsupported. USE_MOCK_DATA must be true.");
+}
+
 export async function getCustomerByEmail(email: string): Promise<Customer | null> {
   if (useMock) return stores.customers.find((c) => c.email === email) || null;
   return null;
 }
 
-export async function createCustomer(customer: Omit<Customer, "id">): Promise<Customer> {
-  const newCustomer = { ...customer, id: genId("cust") } as Customer;
-  if (useMock) { stores.customers.push(newCustomer); return newCustomer; }
-  return newCustomer;
-}
+
 
 // ============================================================
 // Experts
