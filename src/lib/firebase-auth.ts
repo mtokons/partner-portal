@@ -182,44 +182,72 @@ export async function firebaseGoogleLogin(): Promise<{ success: boolean; uid?: s
     const cred = await signInWithPopup(auth, provider);
     const user = cred.user;
 
-    // Fetch profile (or create one if first time)
     const db = getFirestoreDb();
     const snap = await getDoc(doc(db, "users", user.uid));
     
-    let role: FirebaseUserRole = "customer"; 
-
-    if (snap.exists()) {
-      const profile = snap.data() as FirebaseUserProfile;
-      role = profile.role;
-    } else {
-      // Create a default profile
-      const profile: FirebaseUserProfile = {
-        uid: user.uid,
-        email: user.email || "",
-        displayName: user.displayName || "Google User",
-        phone: user.phoneNumber || "",
-        role: "customer",
-        photoURL: user.photoURL || "",
-        company: "",
-        specialization: "",
-        emailVerified: true,
-        status: "active", // Google logins are auto-assigned as 'customer' for now
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      };
-      await setDoc(doc(db, "users", user.uid), profile);
+    if (!snap.exists()) {
+      // If user doesn't exist in our DB, block them and log them out of Firebase Auth.
+      await auth.signOut();
+      return { success: false, error: "No account found. Please register first." };
     }
 
-    // Log activity
+    const profile = snap.data() as FirebaseUserProfile;
     await logActivity(user.uid, "login_google", "Google social login");
 
     return {
       success: true,
       uid: user.uid,
-      role,
+      role: profile.role,
     };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Google login failed";
+    return { success: false, error: msg };
+  }
+}
+
+export async function firebaseGoogleSignup(
+  role: FirebaseUserRole,
+  company: string = "",
+  specialization: string = ""
+): Promise<{ success: boolean; uid?: string; role?: FirebaseUserRole; error?: string }> {
+  try {
+    const auth = getFirebaseAuth();
+    const provider = new GoogleAuthProvider();
+    const cred = await signInWithPopup(auth, provider);
+    const user = cred.user;
+
+    const db = getFirestoreDb();
+    const snap = await getDoc(doc(db, "users", user.uid));
+    
+    if (!snap.exists()) {
+      const profile: FirebaseUserProfile = {
+        uid: user.uid,
+        email: user.email || "",
+        displayName: user.displayName || "Google User",
+        phone: user.phoneNumber || "",
+        role: role,
+        photoURL: user.photoURL || "",
+        company: company,
+        specialization: specialization,
+        emailVerified: true,
+        status: role === "customer" ? "active" : "pending",
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+      await setDoc(doc(db, "users", user.uid), profile);
+      await logActivity(user.uid, "account_created", `Registered as ${role} via Google`);
+    } else {
+      // Account already exists, just log them in
+      await logActivity(user.uid, "login_google", "Google social login (subsequent)");
+    }
+
+    return {
+      success: true,
+      uid: user.uid,
+      role: snap.exists() ? (snap.data() as FirebaseUserProfile).role : role,
+    };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Google registration failed";
     return { success: false, error: msg };
   }
 }

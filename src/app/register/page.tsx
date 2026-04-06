@@ -8,7 +8,7 @@ import {
   Shield, Users, UserCheck, CheckCircle2, AlertCircle, Clock,
 } from "lucide-react";
 import { firebaseAuthAction } from "@/lib/actions";
-import { firebaseRegister, firebaseGoogleLogin, getFirebaseAuth, type FirebaseUserRole } from "@/lib/firebase-auth";
+import { firebaseRegister, firebaseGoogleLogin, firebaseGoogleSignup, getFirebaseAuth, type FirebaseUserRole } from "@/lib/firebase-auth";
 
 type UserRole = FirebaseUserRole;
 
@@ -401,7 +401,7 @@ export default function RegisterPage() {
                 onClick={async () => {
                   setError("");
                   setLoading(true);
-                  const result = await firebaseGoogleLogin();
+                  const result = await firebaseGoogleSignup(form.role, form.company, form.specialization);
                   if (result.success) {
                     const idToken = await getFirebaseAuth().currentUser?.getIdToken();
                     if (idToken) await firebaseAuthAction(idToken);
