@@ -45,11 +45,11 @@ export const mockPartners: Partner[] = [
 
 // ---- Products ----
 export const mockProducts: Product[] = [
-  { id: "prod1", name: "Premium Widget A", description: "High-quality industrial widget", price: 49.99, stock: 500, category: "Widgets", imageUrl: "" },
-  { id: "prod2", name: "Standard Widget B", description: "Cost-effective widget for everyday use", price: 24.99, stock: 1200, category: "Widgets", imageUrl: "" },
-  { id: "prod3", name: "Connector Kit X", description: "Universal connector kit, 50 pieces", price: 89.99, stock: 300, category: "Connectors", imageUrl: "" },
-  { id: "prod4", name: "Sensor Module S1", description: "Temperature & humidity sensor module", price: 129.99, stock: 150, category: "Sensors", imageUrl: "" },
-  { id: "prod5", name: "Cable Bundle Pro", description: "Professional cable bundle, 100m", price: 199.99, stock: 80, category: "Cables", imageUrl: "" },
+  { id: "prod1", sku: 1001, unit: "Package", sessionsCount: 1, costPrice: 20, retailPriceVat: 49.99, name: "Premium Widget A", description: "High-quality industrial widget", price: 49.99, stock: 500, category: "Widgets", imageUrl: "" },
+  { id: "prod2", sku: 1002, unit: "Package", sessionsCount: 1, costPrice: 10, retailPriceVat: 24.99, name: "Standard Widget B", description: "Cost-effective widget for everyday use", price: 24.99, stock: 1200, category: "Widgets", imageUrl: "" },
+  { id: "prod3", sku: 1003, unit: "Package", sessionsCount: 1, costPrice: 40, retailPriceVat: 89.99, name: "Connector Kit X", description: "Universal connector kit, 50 pieces", price: 89.99, stock: 300, category: "Connectors", imageUrl: "" },
+  { id: "prod4", sku: 1004, unit: "Package", sessionsCount: 1, costPrice: 60, retailPriceVat: 129.99, name: "Sensor Module S1", description: "Temperature & humidity sensor module", price: 129.99, stock: 150, category: "Sensors", imageUrl: "" },
+  { id: "prod5", sku: 1005, unit: "Package", sessionsCount: 1, costPrice: 100, retailPriceVat: 199.99, name: "Cable Bundle Pro", description: "Professional cable bundle, 100m", price: 199.99, stock: 80, category: "Cables", imageUrl: "" },
 ];
 
 // ---- Clients ----

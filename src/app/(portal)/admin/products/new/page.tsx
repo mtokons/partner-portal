@@ -13,6 +13,11 @@ export default function NewProductPage() {
   const [isPending, startTransition] = useTransition();
   const [form, setForm] = useState({
     name: "",
+    sku: 0,
+    unit: "Package" as "Package" | "session" | "Course",
+    sessionsCount: 1,
+    costPrice: 0,
+    retailPriceVat: 0,
     description: "",
     category: "Widgets",
     price: 0,
