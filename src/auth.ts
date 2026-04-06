@@ -2,7 +2,11 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
 import { getPartnerByEmail, getCustomerByEmail, getExpertByEmail } from "@/lib/sharepoint";
+import { verifyIdToken } from "@/lib/firebase-admin";
 import type { SessionUser } from "@/types";
+import type { FirebaseUserProfile } from "@/lib/firebase-auth";
+import { getFirestoreDb } from "@/lib/firebase-auth";
+import { doc, getDoc } from "firebase/firestore";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -11,10 +15,80 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
-        // Identifies which portal is making the request
         portal: { label: "Portal", type: "text" },
+        // Used for Firebase-based auth
+        idToken: { label: "ID Token", type: "text" },
       },
       async authorize(credentials) {
+        // --- Firebase Token Auth ---
+        if (credentials?.idToken) {
+          const idToken = credentials.idToken as string;
+          try {
+            const decodedToken = await verifyIdToken(idToken);
+            if (!decodedToken) return null;
+
+            // 1. Check for Cloud/Firebase Profile Status
+            const db = getFirestoreDb();
+            const profileDoc = await getDoc(doc(db, "users", decodedToken.uid));
+            const profile = profileDoc.data() as FirebaseUserProfile | undefined;
+
+            if (profile) {
+              if (profile.status === "pending") {
+                throw new Error("Your account is pending admin approval.");
+              }
+              if (profile.status === "suspended") {
+                throw new Error("Your account has been suspended.");
+              }
+            }
+
+            // 2. Map to Portal Roles (Bridging Firebase and SharePoint)
+            const email = decodedToken.email || "";
+            
+            const partner = await getPartnerByEmail(email);
+            if (partner) {
+              // Legacy status check for SharePoint stores
+              if (partner.status === "suspended") throw new Error("Partner account suspended.");
+              
+              return { 
+                id: decodedToken.uid, 
+                name: partner.name, 
+                email: partner.email, 
+                role: "partner", 
+                partnerId: partner.id,
+                company: partner.company,
+              } as SessionUser;
+            }
+
+            const customer = await getCustomerByEmail(email);
+            if (customer) {
+              if (customer.status === "suspended") throw new Error("Customer account suspended.");
+              
+              return {
+                id: decodedToken.uid,
+                name: customer.name,
+                email: customer.email,
+                role: "customer",
+                partnerId: customer.partnerId,
+                company: customer.company || "",
+                customerId: customer.id,
+              } as SessionUser;
+            }
+
+            // Fallback for new/social users
+            return {
+              id: decodedToken.uid,
+              name: decodedToken.name || profile?.displayName || email.split("@")[0],
+              email: email,
+              role: profile?.role || "customer",
+              partnerId: "",
+            } as SessionUser;
+          } catch (error) {
+            console.error("Firebase token verification failed:", error);
+            return null;
+          }
+        }
+
+        // --- Standard Password Auth (Fallback/Legacy) ---
         if (!credentials?.email || !credentials?.password) return null;
         const email = credentials.email as string;
         const password = credentials.password as string;

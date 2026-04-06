@@ -17,6 +17,8 @@ import {
   getAuth,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
   signOut as fbSignOut,
   sendPasswordResetEmail,
   sendEmailVerification,
@@ -125,11 +127,11 @@ export async function firebaseRegister(
       displayName,
       phone,
       role,
-      company: extra?.company,
-      specialization: extra?.specialization,
+      company: extra?.company || "",
+      specialization: extra?.specialization || "",
       photoURL: "",
       emailVerified: false,
-      status: "active",
+      status: role === "customer" ? "active" : "pending",
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
@@ -169,6 +171,55 @@ export async function firebaseLogin(
     };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Login failed";
+    return { success: false, error: msg };
+  }
+}
+
+export async function firebaseGoogleLogin(): Promise<{ success: boolean; uid?: string; role?: FirebaseUserRole; error?: string }> {
+  try {
+    const auth = getFirebaseAuth();
+    const provider = new GoogleAuthProvider();
+    const cred = await signInWithPopup(auth, provider);
+    const user = cred.user;
+
+    // Fetch profile (or create one if first time)
+    const db = getFirestoreDb();
+    const snap = await getDoc(doc(db, "users", user.uid));
+    
+    let role: FirebaseUserRole = "customer"; 
+
+    if (snap.exists()) {
+      const profile = snap.data() as FirebaseUserProfile;
+      role = profile.role;
+    } else {
+      // Create a default profile
+      const profile: FirebaseUserProfile = {
+        uid: user.uid,
+        email: user.email || "",
+        displayName: user.displayName || "Google User",
+        phone: user.phoneNumber || "",
+        role: "customer",
+        photoURL: user.photoURL || "",
+        company: "",
+        specialization: "",
+        emailVerified: true,
+        status: "active", // Google logins are auto-assigned as 'customer' for now
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+      await setDoc(doc(db, "users", user.uid), profile);
+    }
+
+    // Log activity
+    await logActivity(user.uid, "login_google", "Google social login");
+
+    return {
+      success: true,
+      uid: user.uid,
+      role,
+    };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Google login failed";
     return { success: false, error: msg };
   }
 }

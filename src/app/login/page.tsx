@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { loginAction } from "@/lib/actions";
+import { firebaseAuthAction } from "@/lib/actions";
+import { firebaseLogin, firebaseGoogleLogin, getFirebaseAuth } from "@/lib/firebase-auth";
 import { Eye, EyeOff, Zap, ArrowRight, Shield, BarChart3, Globe } from "lucide-react";
 
 const features = [
@@ -24,14 +25,28 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     setLoading(true);
-    const result = await loginAction(email, password);
-    setLoading(false);
+    
+    // 1. Firebase Login
+    const result = await firebaseLogin(email, password);
+    
     if (result.success) {
-      router.push("/dashboard");
-      router.refresh();
+      // 2. Get ID Token for NextAuth session
+      const auth = getFirebaseAuth();
+      const idToken = await auth.currentUser?.getIdToken();
+      
+      if (idToken) {
+        const sessionResult = await firebaseAuthAction(idToken);
+        if (sessionResult.success) {
+          router.push("/dashboard");
+          router.refresh();
+          return;
+        }
+      }
+      setError("Failed to synchronize session.");
     } else {
       setError(result.error || "Invalid credentials. Please try again.");
     }
+    setLoading(false);
   }
 
   return (
@@ -210,6 +225,47 @@ export default function LoginPage() {
                   )}
                 </span>
                 <div className="absolute inset-0 bg-white/0 group-hover:bg-white/10 transition-all" />
+              </button>
+
+              {/* Divider */}
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-white/10" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-[#0c1024] px-2 text-white/30 backdrop-blur-xl">Or continue with</span>
+                </div>
+              </div>
+
+              {/* Google Button */}
+              <button
+                type="button"
+                onClick={async () => {
+                  setError("");
+                  setLoading(true);
+                  const result = await firebaseGoogleLogin();
+                  if (result.success) {
+                    const idToken = await getFirebaseAuth().currentUser?.getIdToken();
+                    if (idToken) {
+                      const authResult = await firebaseAuthAction(idToken);
+                      if (!authResult.success) {
+                        setError(authResult.error || "Failed to synchronize session.");
+                        setLoading(false);
+                        return;
+                      }
+                    }
+                    router.push("/dashboard");
+                    router.refresh();
+                  } else {
+                    setError(result.error || "Google login failed");
+                    setLoading(false);
+                  }
+                }}
+                disabled={loading}
+                className="w-full h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center gap-3 font-semibold text-sm text-white/80 transition-all hover:bg-white/10 hover:border-white/20 disabled:opacity-50"
+              >
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5 font-[family-name:var(--font-outfit)]" />
+                Sign in with Google
               </button>
             </form>
 

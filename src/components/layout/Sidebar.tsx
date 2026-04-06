@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Package, ShoppingCart, Users, Activity,
   DollarSign, Shield, BarChart3, FileText, Receipt, Handshake,
   UserCheck, Calendar, CreditCard, Zap, Mail, ChevronRight,
-  FlaskConical, ClipboardList, Store, Tag, Share2, Wallet, User, X,
+  FlaskConical, ClipboardList, Store, Tag, Share2, Wallet, User, X, ClipboardCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -37,6 +37,7 @@ const adminLinks = [
   { href: "/sales/offers", label: "Sales Offers", icon: Handshake, group: "shop" },
   { href: "/sales/orders", label: "Sales Orders", icon: ClipboardList, group: "shop" },
   { href: "/admin/overview", label: "Admin Overview", icon: BarChart3, group: "admin" },
+  { href: "/admin/approvals", label: "Approvals", icon: ClipboardCheck, group: "admin" },
   { href: "/admin/partners", label: "Manage Partners", icon: Shield, group: "admin" },
   { href: "/admin/customers", label: "Customers", icon: Users, group: "admin" },
   { href: "/admin/experts", label: "Experts", icon: UserCheck, group: "admin" },
