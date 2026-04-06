@@ -269,34 +269,9 @@ export default function LoginPage() {
               </button>
             </form>
 
-            {/* Demo credentials */}
-            <div className="mt-6 rounded-2xl bg-white/4 border border-white/8 p-4">
-              <p className="text-[10px] font-bold text-white/30 uppercase tracking-[0.15em] mb-3">Demo Credentials</p>
-              <div className="space-y-2">
-                {[
-                  { role: "Partner", email: "alice@partner.com", pass: "password123" },
-                  { role: "Admin", email: "admin@portal.com", pass: "admin123" },
-                  { role: "Customer", email: "maria@customer.com", pass: "customer123" },
-                  { role: "Expert", email: "andreas@expert.com", pass: "expert123" },
-                ].map((c) => (
-                  <button
-                    key={c.role}
-                    type="button"
-                    onClick={() => { setEmail(c.email); setPassword(c.pass); }}
-                    className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-white/8 transition-colors group"
-                  >
-                    <div className="text-left">
-                      <p className="text-xs font-semibold text-white/60 group-hover:text-white/80 transition-colors">{c.role}</p>
-                      <p className="text-[10px] text-white/30 mt-0.5">{c.email}</p>
-                    </div>
-                    <ArrowRight className="h-3.5 w-3.5 text-white/20 group-hover:text-indigo-400 transition-colors" />
-                  </button>
-                ))}
-              </div>
-            </div>
 
             {/* Create account link */}
-            <p className="text-center text-sm text-white/40 mt-5">
+            <p className="text-center text-sm text-white/40 mt-8">
               Don&apos;t have an account?{" "}
               <a href="/register" className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors">
                 Create account
