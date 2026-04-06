@@ -112,8 +112,8 @@ const PR_COL = { // SCCG Products
   sku: "Sku",
   unit: "Unit",
   sessionsCount: "SessionsCount",
-  costPrice: "CostPrice",
-  retailPriceVat: "RetailPriceVat",
+  retailPriceEur: "RetailPriceEur",
+  retailPriceBdt: "RetailPriceBdt",
   category: "Category",
   price: "Price",
   description: "Description",
@@ -276,14 +276,14 @@ export async function getProducts(): Promise<Product[]> {
     const f = item.fields;
     return {
       id: String(f.id),
-      sku: Number(f[PR_COL.sku] || 0),
+      sku: String(f[PR_COL.sku] || ""),
       name: String(f[PR_COL.name] || ""),
       description: String(f[PR_COL.description] || ""),
-      unit: String(f[PR_COL.unit] || "Package") as "Package" | "session" | "Course",
+      unit: String(f[PR_COL.unit] || "Package") as "Package" | "Session" | "Course",
       sessionsCount: Number(f[PR_COL.sessionsCount] || 0),
-      costPrice: Number(f[PR_COL.costPrice] || 0),
-      retailPriceVat: Number(f[PR_COL.retailPriceVat] || 0),
-      price: Number(f[PR_COL.retailPriceVat] || 0), // fallback map for UI compatibility
+      retailPriceEur: Number(f[PR_COL.retailPriceEur] || 0),
+      retailPriceBdt: Number(f[PR_COL.retailPriceBdt] || 0),
+      price: Number(f[PR_COL.retailPriceBdt] || 0), // fallback map for UI compatibility (default to BDT)
       stock: Number(f[PR_COL.stock] || 99),
       category: String(f[PR_COL.category] || "General"),
       imageUrl: f[PR_COL.imageUrl] ? String(f[PR_COL.imageUrl]) : undefined,

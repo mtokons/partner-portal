@@ -1,0 +1,41 @@
+#!/bin/bash
+echo -n "firebase-adminsdk-fbsvc@sccgport.iam.gserviceaccount.com" > /tmp/email.txt
+echo -n "-----BEGIN PRIVATE KEY-----
+MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC00jRUPzmIsoyl
+QpVpzjb9i1U4nkMWNyVZt2Lh7YGxA2yVq/20G3z9hCoBl6NbIH0tME98+ZSv5pQj
+Knip+FOA6Ekrxc0bhTCdaVJHCoX4zHbBGmiCXQPmcaoL6L9tkUtShvPnY3ghNkun
+Itme5N9/WjO1rbkkZc4za3tPsf+19fbfZF40Nfwa4gmqpvIKAwVUAMismfgqfBd1
+sqt4Jd9n4p0DHznvVU+XOt59lyVXNO7LLBA7y50YHU31N6sRLUvE3gPf+wJm9Idw
+3c2z1vq3M253aMTTw+VcIXW8a/OFhMzL5wHtiSHblC6fx3r7hCLyJIzUZjQwI2iy
+Fbg9PQPtAgMBAAECggEARv63bBKM4OaVwTck2e+M+Lyxn7LHzVumjxSpPuKVRq58
+/kESshoO160CHzDuAxP9AfaTZxLJNc03AZ2l1bp58sWBIS4fC3yea1eUZe80Tczd
+nZDkUrb5louvQ9DFBFyFMehpsEKGQqgCSSOuRSxAskx0vBLy+976+IZtWoudRlAc
++4k/7Pvuz4FFEV64sJur6YWedMAbkvEnQe4Ik6n3m/dnF+m7l54wG60ZIWsxzxVA
+InycBvwRgzcoW8EzUZYJfAVkjr9dh4zTZKO170MqKuw+iP8/3iVof9FNb/l0843e
+S+pJ3gS+nWvTP7ENev+S9kZfx2Mwd2K4gPHnDbb30wKBgQDbem4xYaiZYm03xwoN
+JEkqK5Pst1tZ6RCNNKMIIKKaBoQo6mlJ/7mZMRWLhYVtbX9XzbWukK2MfqnHt425
+iWmuuWOczIOeQed6QSOVklnUzapqKgwwMfB8wNY7lZOoEkK+FpUBPhzduGTvybni
+OsPdNChdxoOKGvJrGDJ+z3O01wKBgQDS6QQWyIkADZA36eSJGHtOo0YdC4J025Ir
+bOhvMp3qmjEkAn8dIqIjIcAENBUrHQe19q9PF8iGNmIprqSV1Bkz/m5u7yxu9wnt
+mVqTJ02RdXy5sWoztMA3O6RlhWzVHOxefZnGszUVUj5Q+5ZY9w/BKiavWP1sY5Eg
+vnNiQ08w2wKBgDcKHeYuWmyUvVT2ijO/fMWhhggf9z2179upbpUUMhK0PaJRHrRa
+9/1NzNxfUJWflwa65KvxRkRsY0Fda6IyrpkNjsh8lSkz18vV2AmjWPm/1dOn1cSk
+UW3HojHxEcVdRvWKjjVwkSadHlrv2Li+Ce5ILTNPHB+fIFnxCIC6n4ajAoGAYRHz
+2tSTEV4suT9B+sM0xV2qQGXytfv0y13FoKAoRDiRU2R+wpcVDpxS9txNvdkPmnUd
+/IYSuYrAJTUG9Rp4OxDoHNChn7S9cgh5wm59aewr6n84RPH04bbmk/8TtwYn19lw
+9B242cZPfhA9A1c6fgn7YgrQIJm2yt481sXp5a8CgYEAyHC9HxvW5i/3uBBnxxb5
+AXG5PircBmzpYbM1FHtDAIvV7I6qtSvIkSqzL4Ijuvv6ktiCBN2JnponTMV4YaQa
+8YcjubEygFm/JkS4CfbtFbgEI042TRyo1TSi3jRlNNoiqtuqLyYzjaI8TCHG9b3D
+Ay/VxCUuNUFdT3KuqpsRcR4=
+-----END PRIVATE KEY-----" > /tmp/key.txt
+echo -n "15580111490-ovas1p6npsd23l1s7o16pt3tpj63ofjj.apps.googleusercontent.com" > /tmp/google.txt
+
+npx vercel env rm FIREBASE_CLIENT_EMAIL production --yes 2>/dev/null
+npx vercel env rm FIREBASE_PRIVATE_KEY production --yes 2>/dev/null
+npx vercel env rm GOOGLE_CLIENT_ID production --yes 2>/dev/null
+
+npx vercel env add FIREBASE_CLIENT_EMAIL production < /tmp/email.txt
+npx vercel env add FIREBASE_PRIVATE_KEY production < /tmp/key.txt
+npx vercel env add GOOGLE_CLIENT_ID production < /tmp/google.txt
+
+npx vercel --prod --yes

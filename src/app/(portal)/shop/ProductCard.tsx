@@ -118,10 +118,15 @@ export default function ProductCard({
           <div>
             {canSeePrice ? (
               <>
-                <p className="text-2xl font-black text-primary leading-none flex items-baseline gap-1">
-                  BDT {effectivePrice.toLocaleString()}
-                  <span className="text-[10px] font-semibold text-muted-foreground uppercase">Inc. VAT</span>
-                </p>
+                <div className="flex flex-col gap-0.5">
+                  <p className="text-2xl font-black text-primary leading-none flex items-baseline gap-1">
+                    BDT {effectivePrice.toLocaleString()}
+                    <span className="text-[10px] font-semibold text-muted-foreground uppercase">Inc. VAT</span>
+                  </p>
+                  <p className="text-sm font-semibold text-muted-foreground flex items-baseline gap-1 mt-1">
+                    € {product.retailPriceEur.toLocaleString("en-DE", { minimumFractionDigits: 2 })}
+                  </p>
+                </div>
                 {hasDiscount && (
                   <p className="text-xs text-muted-foreground line-through mt-0.5">
                     BDT {product.price.toLocaleString()}

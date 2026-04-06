@@ -14,11 +14,11 @@ export default function ProductEditForm({ product }: { product: Product }) {
   const [isPending, startTransition] = useTransition();
   const [form, setForm] = useState({
     name: product.name,
-    sku: product.sku ?? 0,
+    sku: product.sku ?? "",
     unit: product.unit ?? "Package",
     sessionsCount: product.sessionsCount ?? 1,
-    costPrice: product.costPrice ?? 0,
-    retailPriceVat: product.retailPriceVat ?? 0,
+    retailPriceEur: product.retailPriceEur ?? 0,
+    retailPriceBdt: product.retailPriceBdt ?? 0,
     description: product.description,
     category: product.category,
     price: product.price,

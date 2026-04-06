@@ -23,9 +23,16 @@ export interface Partner {
 }
 
 export interface Product {
-  id: string;
+  id: string;                    // Unique ID number
+  sku: string;                   // Stock Keeping Unit
   name: string;
-  description: string;
+  description: string;           // Detailed description
+  unit: "Package" | "Session" | "Course"; // The type of delivery
+  sessionsCount: number;         // Expert session amount
+  retailPriceEur: number;        // SCCG Retail Price in EUR
+  retailPriceBdt: number;        // SCCG Retail Price in BDT
+  
+  // Base B2B reference pricing/stock
   price: number;
   stock: number;
   category: string;
