@@ -30,8 +30,20 @@ export default async function ExpertDashboardPage() {
     loadRate(),
   ]);
 
-  if (!expert) redirect("/expert-login");
-
+  if (!expert) {
+    return (
+      <div className="flex flex-col flex-1 items-center justify-center min-h-[70vh] text-center px-4">
+        <div className="h-20 w-20 bg-indigo-500/10 rounded-full flex items-center justify-center mb-6">
+          <span className="text-4xl">⏳</span>
+        </div>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Account Under Review</h1>
+        <p className="text-gray-500 max-w-md mx-auto">
+          Your expert application is currently being reviewed by the SCCG administrators.
+          You will receive access to your dashboard once approved.
+        </p>
+      </div>
+    );
+  }
   // Get unique customer packages this expert is assigned to
   const packageIds = [...new Set(sessions.map((s) => s.customerPackageId))];
   const allPackages = await getCustomerPackages();
