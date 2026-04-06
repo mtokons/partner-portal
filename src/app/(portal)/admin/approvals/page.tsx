@@ -26,8 +26,8 @@ export default async function AdminApprovalsPage() {
 
   // Sort by newest first
   pendingUsers.sort((a, b) => {
-    const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
-    const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+    const timeA = (a.createdAt as any)?.toMillis ? (a.createdAt as any).toMillis() : 0;
+    const timeB = (b.createdAt as any)?.toMillis ? (b.createdAt as any).toMillis() : 0;
     return timeB - timeA;
   });
 
@@ -100,8 +100,8 @@ export default async function AdminApprovalsPage() {
                     </TableCell>
                     <TableCell className="py-4">
                       <span className="text-sm text-white/50">
-                        {applicant.createdAt?.toMillis 
-                          ? formatDistanceToNow(applicant.createdAt.toMillis(), { addSuffix: true }) 
+                        {(applicant.createdAt as any)?.toMillis 
+                          ? formatDistanceToNow((applicant.createdAt as any).toMillis(), { addSuffix: true }) 
                           : "Recently"}
                       </span>
                     </TableCell>
