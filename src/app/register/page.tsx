@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Zap, ArrowRight, Eye, EyeOff, User, Mail, Phone, Building,
-  Shield, Users, UserCheck, CheckCircle2, AlertCircle,
+  Shield, Users, UserCheck, CheckCircle2, AlertCircle, Clock,
 } from "lucide-react";
-import { registerAction } from "@/lib/actions";
+import { firebaseAuthAction } from "@/lib/actions";
+import { firebaseRegister, firebaseGoogleLogin, getFirebaseAuth, type FirebaseUserRole } from "@/lib/firebase-auth";
 
-type UserRole = "partner" | "customer" | "expert";
+type UserRole = FirebaseUserRole;
 
 const roleOptions: Array<{ value: UserRole; label: string; desc: string; icon: typeof Users; color: string }> = [
   { value: "partner", label: "Partner", desc: "Manage clients, orders & financials", icon: Building, color: "from-indigo-500 to-blue-600" },
@@ -57,22 +58,28 @@ export default function RegisterPage() {
     }
 
     setLoading(true);
-    // Use our local NextAction which handles hashing and mock insert automatically
-    const result = await registerAction(
-      form.name,
+    // 1. Firebase Registration (Real Cloud Auth)
+    const result = await firebaseRegister(
       form.email,
       form.password,
-      form.company || "",
-      form.role as "partner" | "customer"
+      form.name,
+      form.phone,
+      form.role,
+      { company: form.company || undefined, specialization: form.specialization || undefined }
     );
-    setLoading(false);
 
     if (result.success) {
-      router.push("/dashboard");
-      router.refresh();
+      // 2. Sync with NextAuth session
+      const auth = getFirebaseAuth();
+      const idToken = await auth.currentUser?.getIdToken();
+      if (idToken) {
+        await firebaseAuthAction(idToken);
+      }
+      setSuccess(true);
     } else {
       setError(result.error || "Registration failed. Please try again.");
     }
+    setLoading(false);
   }
 
   // Success state
@@ -82,22 +89,47 @@ export default function RegisterPage() {
         <Ambient />
         <div className="w-full max-w-md mx-auto p-6 relative z-10">
           <div className="rounded-3xl bg-white/[0.055] border border-white/10 backdrop-blur-xl p-10 shadow-2xl text-center">
-            <div className="mx-auto h-16 w-16 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center mb-6">
-              <CheckCircle2 className="h-8 w-8 text-emerald-400" />
+            <div className={`mx-auto h-16 w-16 rounded-full flex items-center justify-center mb-6 border ${
+              form.role === "customer" 
+                ? "bg-emerald-500/20 border-emerald-500/30" 
+                : "bg-amber-500/20 border-amber-500/30"
+            }`}>
+              {form.role === "customer" ? (
+                <CheckCircle2 className="h-8 w-8 text-emerald-400" />
+              ) : (
+                <Clock className="h-8 w-8 text-amber-400" />
+              )}
             </div>
-            <h2 className="text-2xl font-black text-white mb-2">Account Created!</h2>
+            <h2 className="text-2xl font-black text-white mb-2">
+              {form.role === "customer" ? "Account Created!" : "Application Received!"}
+            </h2>
             <p className="text-white/50 text-sm mb-6">
-              A verification email has been sent to <strong className="text-white/80">{form.email}</strong>.
-              Please verify your email before signing in.
+              {form.role === "customer" ? (
+                <>
+                  A verification email has been sent to <strong className="text-white/80">{form.email}</strong>.
+                  Please verify your email before signing in.
+                </>
+              ) : (
+                <>
+                  Your request to join as a <strong className="text-white/80 capitalize">{form.role}</strong> has been received. 
+                  Please verify your email first, then wait for an administrator to approve your portal access.
+                </>
+              )}
             </p>
-            <Link
-              href="/login"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm text-white transition-all group"
-              style={{ background: "linear-gradient(135deg, #6366f1 0%, #7c3aed 100%)" }}
-            >
-              Go to Sign In
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </Link>
+            {form.role === "customer" ? (
+              <Link
+                href="/login"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm text-white transition-all group"
+                style={{ background: "linear-gradient(135deg, #6366f1 0%, #7c3aed 100%)" }}
+              >
+                Go to Sign In
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+              </Link>
+            ) : (
+              <div className="text-xs text-white/30 italic">
+                You will receive an email once your account is active.
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -351,6 +383,40 @@ export default function RegisterPage() {
                   )}
                 </span>
                 <div className="absolute inset-0 bg-white/0 group-hover:bg-white/10 transition-all" />
+              </button>
+
+              {/* Divider */}
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-white/10" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-[#0c1024] px-2 text-white/30 backdrop-blur-xl">Or register with</span>
+                </div>
+              </div>
+
+              {/* Google Button */}
+              <button
+                type="button"
+                onClick={async () => {
+                  setError("");
+                  setLoading(true);
+                  const result = await firebaseGoogleLogin();
+                  if (result.success) {
+                    const idToken = await getFirebaseAuth().currentUser?.getIdToken();
+                    if (idToken) await firebaseAuthAction(idToken);
+                    router.push("/dashboard");
+                    router.refresh();
+                  } else {
+                    setError(result.error || "Google registration failed");
+                    setLoading(false);
+                  }
+                }}
+                disabled={loading}
+                className="w-full h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center gap-3 font-semibold text-sm text-white/80 transition-all hover:bg-white/10 hover:border-white/20 disabled:opacity-50"
+              >
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
+                Register with Google
               </button>
             </form>
 

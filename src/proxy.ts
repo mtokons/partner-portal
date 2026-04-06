@@ -7,7 +7,7 @@ export default auth((req: NextAuthRequest) => {
   const isLoggedIn = !!req.auth?.user;
   const role = (req.auth?.user as { role?: string } | undefined)?.role;
 
-  const publicPaths = ["/login", "/customer-login", "/expert-login"];
+  const publicPaths = ["/login", "/customer-login", "/expert-login", "/register", "/forgot-password"];
   const isPublic = publicPaths.some((p) => pathname === p) || pathname.startsWith("/api/auth");
 
   if (isPublic) {

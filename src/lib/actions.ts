@@ -15,6 +15,23 @@ export async function loginAction(email: string, password: string, portal?: stri
   }
 }
 
+import { AuthError } from "next-auth";
+
+export async function firebaseAuthAction(idToken: string) {
+  try {
+    await signIn("credentials", { idToken, redirect: false });
+    return { success: true };
+  } catch (err) {
+    if (err instanceof AuthError) {
+      // In Auth.js v5, errors are wrapped. We try to find the cause.
+      const cause = err.cause?.err as Error | undefined;
+      return { success: false, error: cause?.message || "Authentication failed" };
+    }
+    console.error("Firebase auth action error:", err);
+    return { success: false, error: "Authentication failed" };
+  }
+}
+
 export async function registerAction(name: string, email: string, password: string, company: string, role: "partner" | "customer") {
   try {
     const passwordHash = await hash(password, 10);
