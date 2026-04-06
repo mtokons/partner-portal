@@ -87,10 +87,14 @@ This system utilizes a relational SQL database structured into three schemas to 
 | Column | Type | Description |
 | :--- | :--- | :--- |
 | `id` (PK) | UUID | Unique identifier |
+| `sku` | String | Stock Keeping Unit |
 | `name` | String | Product Name |
-| `description` | Text | Full details |
-| `basePrice` | Decimal| Standard B2B price |
-| `isActive` | Boolean | Visibility toggle |
+| `description` | Text | Description in full detail |
+| `unit` | Enum | The type of delivery: 'Package', 'Session', or 'Course' |
+| `sessionsCount` | Int | Expert session amount included (e.g. 5) |
+| `retailPriceEur`| Decimal| SCCG Retail Price (EUR) |
+| `retailPriceBdt`| Decimal| SCCG Retail Price (BDT) |
+| `isActive` | Boolean | Visibility toggle in the shop |
 
 #### 7. Promotions
 | Column | Type | Description |
