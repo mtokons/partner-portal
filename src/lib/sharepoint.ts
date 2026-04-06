@@ -109,6 +109,11 @@ const ST_COL = { // SCCG Service Tasks
 
 const PR_COL = { // SCCG Products
   name: "Title", // Default SharePoint name field
+  sku: "Sku",
+  unit: "Unit",
+  sessionsCount: "SessionsCount",
+  costPrice: "CostPrice",
+  retailPriceVat: "RetailPriceVat",
   category: "Category",
   price: "Price",
   description: "Description",
@@ -118,7 +123,7 @@ const PR_COL = { // SCCG Products
   discountType: "DiscountType",
   discountExpiry: "DiscountExpiry",
   isAvailable: "IsAvailable",
-  tags: "Tags",
+  tags: "SalesTags",
   sortOrder: "SortOrder",
 };
 
@@ -262,7 +267,7 @@ export async function updatePartnerStatus(id: string, status: Partner["status"])
 // Products
 // ============================================================
 export async function getProducts(): Promise<Product[]> {
-  if (useMock) return stores.products;
+  // Always use live SharePoint data for Products, even if global useMock is true
   const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
   const res = await graphGet<{ value: Array<{ fields: Record<string, unknown> }> }>(
     `${await getSiteListUrlAsync("Products")}?$expand=fields`
@@ -271,11 +276,16 @@ export async function getProducts(): Promise<Product[]> {
     const f = item.fields;
     return {
       id: String(f.id),
-      name: String(f[PR_COL.name]),
-      category: String(f[PR_COL.category] || ""),
-      price: Number(f[PR_COL.price]),
+      sku: Number(f[PR_COL.sku] || 0),
+      name: String(f[PR_COL.name] || ""),
       description: String(f[PR_COL.description] || ""),
-      stock: Number(f[PR_COL.stock]),
+      unit: String(f[PR_COL.unit] || "Package") as "Package" | "session" | "Course",
+      sessionsCount: Number(f[PR_COL.sessionsCount] || 0),
+      costPrice: Number(f[PR_COL.costPrice] || 0),
+      retailPriceVat: Number(f[PR_COL.retailPriceVat] || 0),
+      price: Number(f[PR_COL.retailPriceVat] || 0), // fallback map for UI compatibility
+      stock: Number(f[PR_COL.stock] || 99),
+      category: String(f[PR_COL.category] || "General"),
       imageUrl: f[PR_COL.imageUrl] ? String(f[PR_COL.imageUrl]) : undefined,
       discount: f[PR_COL.discount] ? Number(f[PR_COL.discount]) : undefined,
       discountType: f[PR_COL.discountType] ? String(f[PR_COL.discountType]) as "fixed" | "percent" : undefined,
