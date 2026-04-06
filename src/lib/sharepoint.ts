@@ -1014,9 +1014,11 @@ export async function getSalesOffers(partnerId?: string): Promise<SalesOffer[]> 
 export async function getSalesOfferById(id: string): Promise<SalesOffer | null> {
   if (useMock) return stores.salesOffers.find((o) => o.id === id) || null;
   const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
-  const url = `${await getSiteListUrlAsync("SalesOffers")}('${id}')?$expand=fields`;
-  const res = await graphGet<{ fields: Record<string, unknown> }>(url);
-  const f = res.fields;
+  try {
+    const url = `${await getSiteListUrlAsync("SalesOffers")}('${id}')?$expand=fields`;
+    const res = await graphGet<{ fields: Record<string, unknown> }>(url);
+    if (!res || !res.fields) return null;
+    const f = res.fields;
   return {
     id: String(f.id), 
     offerNumber: String(f[SO_COL.offerNumber]), 
@@ -1040,6 +1042,9 @@ export async function getSalesOfferById(id: string): Promise<SalesOffer | null> 
     rejectedAt: f[SO_COL.rejectedAt] ? String(f[SO_COL.rejectedAt]) : undefined,
     salesOrderId: f[SO_COL.salesOrderId] ? String(f[SO_COL.salesOrderId]) : undefined,
   } as SalesOffer;
+  } catch (err) {
+    return null;
+  }
 }
 
 export async function createSalesOffer(offer: Omit<SalesOffer, "id">): Promise<SalesOffer> {
@@ -1049,7 +1054,7 @@ export async function createSalesOffer(offer: Omit<SalesOffer, "id">): Promise<S
     return newOffer;
   }
   const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
-  await graphPost(await getSiteListUrlAsync("SalesOffers"), {
+  const res = await graphPost<{ id: string; fields: Record<string, any> }>(await getSiteListUrlAsync("SalesOffers"), {
     fields: {
       [SO_COL.offerNumber]: newOffer.offerNumber, 
       [SO_COL.partnerId]: newOffer.partnerId, 
@@ -1073,7 +1078,7 @@ export async function createSalesOffer(offer: Omit<SalesOffer, "id">): Promise<S
       [SO_COL.updatedAt]: newOffer.updatedAt,
     },
   });
-  return newOffer;
+  return { ...newOffer, id: String(res.id) };
 }
 
 export async function updateSalesOffer(id: string, data: Partial<SalesOffer>): Promise<void> {
@@ -1149,7 +1154,7 @@ export async function createSalesOfferItem(item: Omit<SalesOfferItem, "id">): Pr
     return newItem;
   }
   const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
-  await graphPost(await getSiteListUrlAsync("SalesOfferItems"), {
+  const res = await graphPost<{ id: string }>(await getSiteListUrlAsync("SalesOfferItems"), {
     fields: {
       [SOI_COL.salesOfferId]: newItem.salesOfferId, 
       [SOI_COL.productId]: newItem.productId,
@@ -1159,7 +1164,7 @@ export async function createSalesOfferItem(item: Omit<SalesOfferItem, "id">): Pr
       [SOI_COL.totalPrice]: newItem.totalPrice,
     },
   });
-  return newItem;
+  return { ...newItem, id: String(res.id) };
 }
 
 export async function deleteSalesOfferItem(id: string): Promise<void> {
