@@ -95,10 +95,19 @@ export default function ProductCard({
 
       {/* Content */}
       <div className="flex flex-col flex-1 p-5">
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <h3 className="font-bold text-foreground leading-tight line-clamp-2">{product.name}</h3>
+        <div className="flex items-start justify-between gap-2 mb-1">
+          <div className="flex flex-col">
+            <span className="text-[10px] text-muted-foreground font-mono font-bold tracking-widest uppercase mb-1">SKU {product.sku}</span>
+            <h3 className="font-bold text-foreground leading-tight line-clamp-2">{product.name}</h3>
+          </div>
           <Badge variant="outline" className="shrink-0 text-[10px] rounded-full">
             {product.category}
+          </Badge>
+        </div>
+
+        <div className="flex items-center gap-2 mb-2">
+          <Badge variant="secondary" className="bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-0 text-[10px] font-bold">
+             {product.sessionsCount}x {product.unit}s
           </Badge>
         </div>
 
@@ -109,8 +118,9 @@ export default function ProductCard({
           <div>
             {canSeePrice ? (
               <>
-                <p className="text-2xl font-black text-primary leading-none">
+                <p className="text-2xl font-black text-primary leading-none flex items-baseline gap-1">
                   BDT {effectivePrice.toLocaleString()}
+                  <span className="text-[10px] font-semibold text-muted-foreground uppercase">Inc. VAT</span>
                 </p>
                 {hasDiscount && (
                   <p className="text-xs text-muted-foreground line-through mt-0.5">
