@@ -1,10 +1,10 @@
 import * as admin from "firebase-admin";
 
 const serviceAccount = {
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-  // Support both escaped newlines and literal newlines in the private key
-  privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.replace(/^"|"$/g, ''),
+  clientEmail: process.env.FIREBASE_CLIENT_EMAIL?.replace(/^"|"$/g, ''),
+  // Support both escaped newlines and literal newlines in the private key, and strip quotes
+  privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/^"|"$/g, '')?.replace(/\\n/g, "\n"),
 };
 
 export function getAdminApp() {
