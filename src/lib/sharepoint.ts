@@ -5,6 +5,9 @@ import type {
   Session, ExpertPayment, AppNotification,
   SalesOffer, SalesOfferItem, SalesOrder, SalesOrderItem, ServiceTask,
   Promotion, Referral, Payout,
+  EmailTracking, OfferAcceptanceLog,
+  PromoCode, PromoCodeUsage, CommissionRule, CommissionLedgerEntry,
+  CoinWallet, CoinTransaction, GiftCard, GiftCardTransaction, UserRoleEntry,
 } from "@/types";
 import {
   mockPartners, mockProducts, mockOrders, mockClients,
@@ -15,6 +18,7 @@ import {
   mockExpertPayments, mockNotifications,
   mockSalesOffers, mockSalesOfferItems,
   mockSalesOrders, mockSalesOrderItems, mockServiceTasks,
+  mockPromoCodes, mockCommissionRules, mockCoinWallets, mockGiftCards,
 } from "@/lib/mock-data";
 
 const useMock = process.env.USE_MOCK_DATA === "true";
@@ -178,10 +182,27 @@ const PAY_COL = { // SCCG Payouts
   createdAt: "CreatedAt",
 };
 
+const EXP_COL = { // SCCG Experts
+  name: "Name",
+  email: "Email",
+  phone: "Phone",
+  specialization: "Specialization",
+  bio: "Bio",
+  status: "Status",
+  rating: "Rating",
+  totalSessionsCompleted: "TotalSessionsCompleted",
+  ratePerSession: "RatePerSession",
+  firebaseUid: "FirebaseUid",
+  createdAt: "CreatedAt",
+};
+
 // ============================================================
 // In-memory mutable stores (for demo CRUD without SharePoint)
 // ============================================================
-const stores = {
+// Singleton pattern for local development to ensure state persistence
+// across hot-reloads and between different entry points (pages / API routes).
+
+const getInitialStores = () => ({
   partners: [...mockPartners],
   products: [...mockProducts],
   orders: [...mockOrders],
@@ -207,7 +228,27 @@ const stores = {
   promotions: [] as Promotion[],
   referrals: [] as Referral[],
   payouts: [] as Payout[],
-};
+  emailTracking: [] as EmailTracking[],
+  offerAcceptanceLogs: [] as OfferAcceptanceLog[],
+  // New feature stores
+  promoCodes: [...mockPromoCodes],
+  promoCodeUsages: [] as PromoCodeUsage[],
+  commissionRules: [...mockCommissionRules],
+  commissionLedger: [] as CommissionLedgerEntry[],
+  coinWallets: [...mockCoinWallets],
+  coinTransactions: [] as CoinTransaction[],
+  giftCards: [...mockGiftCards],
+  giftCardTransactions: [] as GiftCardTransaction[],
+  userRoles: [] as UserRoleEntry[],
+});
+
+type MockStores = ReturnType<typeof getInitialStores>;
+
+declare global {
+  var mockDataStores: MockStores | undefined;
+}
+
+const stores: MockStores = globalThis.mockDataStores || (globalThis.mockDataStores = getInitialStores());
 
 function genId(prefix: string): string {
   return `${prefix}${Date.now().toString(36)}`;
@@ -724,7 +765,53 @@ export async function getExperts(): Promise<Expert[]> {
 
 export async function getExpertById(id: string): Promise<Expert | null> {
   if (useMock) return stores.experts.find((e) => e.id === id) || null;
-  return null;
+  const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
+  try {
+    const url = `${await getSiteListUrlAsync("Experts")}?$filter=fields/${EXP_COL.firebaseUid} eq '${id}'&$expand=fields`;
+    const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, unknown> }> }>(url);
+    if (!res.value.length) return null;
+    const f = res.value[0].fields;
+    const item = res.value[0];
+    return {
+      id: item.id,
+      name: String(f[EXP_COL.name] || ""),
+      email: String(f[EXP_COL.email] || ""),
+      phone: f[EXP_COL.phone] ? String(f[EXP_COL.phone]) : undefined,
+      specialization: String(f[EXP_COL.specialization] || ""),
+      bio: f[EXP_COL.bio] ? String(f[EXP_COL.bio]) : undefined,
+      status: String(f[EXP_COL.status] || "active") as Expert["status"],
+      rating: Number(f[EXP_COL.rating] || 0),
+      totalSessionsCompleted: Number(f[EXP_COL.totalSessionsCompleted] || 0),
+      ratePerSession: Number(f[EXP_COL.ratePerSession] || 0),
+      createdAt: String(f[EXP_COL.createdAt] || ""),
+    } as Expert;
+  } catch (err) {
+    return null;
+  }
+}
+
+export async function createExpert(expert: Omit<Expert, "id"> & { id: string }): Promise<Expert> {
+  if (useMock) {
+    stores.experts.push(expert);
+    return expert;
+  }
+  const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
+  const res = await graphPost<{ id: string }>(await getSiteListUrlAsync("Experts"), {
+    fields: {
+      [EXP_COL.name]: expert.name,
+      [EXP_COL.email]: expert.email,
+      [EXP_COL.phone]: expert.phone || "",
+      [EXP_COL.specialization]: expert.specialization,
+      [EXP_COL.bio]: expert.bio || "",
+      [EXP_COL.status]: expert.status,
+      [EXP_COL.rating]: expert.rating,
+      [EXP_COL.totalSessionsCompleted]: expert.totalSessionsCompleted,
+      [EXP_COL.ratePerSession]: expert.ratePerSession,
+      [EXP_COL.firebaseUid]: expert.id,
+      [EXP_COL.createdAt]: expert.createdAt,
+    },
+  });
+  return { ...expert, id: res.id };
 }
 
 export async function getExpertByEmail(email: string): Promise<Expert | null> {
@@ -1663,3 +1750,308 @@ export async function updatePayoutStatus(
 
 // Suppress unused variable warning for extended column map
 void SO_COL_EXT;
+
+// ============================================================
+// Email Tracking
+// ============================================================
+
+export async function createEmailTracking(data: Omit<EmailTracking, "id">): Promise<EmailTracking> {
+  const entry = { ...data, id: genId("et") } as EmailTracking;
+  if (useMock) {
+    stores.emailTracking.push(entry);
+    return entry;
+  }
+  // In production, create in SharePoint list "EmailTracking"
+  return entry;
+}
+
+export async function getEmailTrackingByOffer(salesOfferId: string): Promise<EmailTracking[]> {
+  if (useMock) return stores.emailTracking.filter((e) => e.salesOfferId === salesOfferId);
+  return [];
+}
+
+export async function getEmailTrackingByToken(acceptToken: string): Promise<EmailTracking | null> {
+  if (useMock) return stores.emailTracking.find((e) => e.acceptToken === acceptToken) || null;
+  return null;
+}
+
+export async function updateEmailTracking(id: string, data: Partial<EmailTracking>): Promise<void> {
+  if (useMock) {
+    const entry = stores.emailTracking.find((e) => e.id === id);
+    if (entry) Object.assign(entry, data);
+  }
+}
+
+// ============================================================
+// Offer Acceptance Logs
+// ============================================================
+
+export async function createOfferAcceptanceLog(data: Omit<OfferAcceptanceLog, "id">): Promise<OfferAcceptanceLog> {
+  const entry = { ...data, id: genId("oal") } as OfferAcceptanceLog;
+  if (useMock) {
+    stores.offerAcceptanceLogs.push(entry);
+    return entry;
+  }
+  return entry;
+}
+
+export async function getOfferAcceptanceLogs(salesOfferId: string): Promise<OfferAcceptanceLog[]> {
+  if (useMock) return stores.offerAcceptanceLogs.filter((l) => l.salesOfferId === salesOfferId);
+  return [];
+}
+
+// ============================================================
+// Promo Codes
+// ============================================================
+
+export async function getPromoCodes(ownerId?: string): Promise<PromoCode[]> {
+  if (useMock) {
+    if (ownerId) return stores.promoCodes.filter((p) => p.ownerId === ownerId);
+    return stores.promoCodes;
+  }
+  return [];
+}
+
+export async function getPromoCodeByCode(code: string): Promise<PromoCode | null> {
+  if (useMock) return stores.promoCodes.find((p) => p.code === code) || null;
+  return null;
+}
+
+export async function getPromoCodeById(id: string): Promise<PromoCode | null> {
+  if (useMock) return stores.promoCodes.find((p) => p.id === id) || null;
+  return null;
+}
+
+export async function createPromoCode(data: Omit<PromoCode, "id">): Promise<PromoCode> {
+  const item = { ...data, id: genId("pc") } as PromoCode;
+  if (useMock) stores.promoCodes.push(item);
+  return item;
+}
+
+export async function updatePromoCode(id: string, data: Partial<PromoCode>): Promise<void> {
+  if (useMock) {
+    const p = stores.promoCodes.find((x) => x.id === id);
+    if (p) Object.assign(p, data);
+  }
+}
+
+export async function deletePromoCode(id: string): Promise<void> {
+  if (useMock) {
+    const idx = stores.promoCodes.findIndex((x) => x.id === id);
+    if (idx !== -1) stores.promoCodes.splice(idx, 1);
+  }
+}
+
+export async function getPromoCodeUsages(promoCodeId?: string): Promise<PromoCodeUsage[]> {
+  if (useMock) {
+    if (promoCodeId) return stores.promoCodeUsages.filter((u) => u.promoCodeId === promoCodeId);
+    return stores.promoCodeUsages;
+  }
+  return [];
+}
+
+export async function createPromoCodeUsage(data: Omit<PromoCodeUsage, "id">): Promise<PromoCodeUsage> {
+  const item = { ...data, id: genId("pcu") } as PromoCodeUsage;
+  if (useMock) stores.promoCodeUsages.push(item);
+  return item;
+}
+
+// ============================================================
+// Commission Rules
+// ============================================================
+
+export async function getCommissionRules(): Promise<CommissionRule[]> {
+  if (useMock) return stores.commissionRules.filter((r) => r.isActive).sort((a, b) => b.priority - a.priority);
+  return [];
+}
+
+export async function getCommissionRuleById(id: string): Promise<CommissionRule | null> {
+  if (useMock) return stores.commissionRules.find((r) => r.id === id) || null;
+  return null;
+}
+
+export async function createCommissionRule(data: Omit<CommissionRule, "id">): Promise<CommissionRule> {
+  const item = { ...data, id: genId("cr") } as CommissionRule;
+  if (useMock) stores.commissionRules.push(item);
+  return item;
+}
+
+export async function updateCommissionRule(id: string, data: Partial<CommissionRule>): Promise<void> {
+  if (useMock) {
+    const r = stores.commissionRules.find((x) => x.id === id);
+    if (r) Object.assign(r, data);
+  }
+}
+
+export async function deleteCommissionRule(id: string): Promise<void> {
+  if (useMock) {
+    const idx = stores.commissionRules.findIndex((x) => x.id === id);
+    if (idx !== -1) stores.commissionRules.splice(idx, 1);
+  }
+}
+
+// ============================================================
+// Commission Ledger
+// ============================================================
+
+export async function getCommissionLedger(recipientId?: string): Promise<CommissionLedgerEntry[]> {
+  if (useMock) {
+    const list = recipientId ? stores.commissionLedger.filter((e) => e.recipientId === recipientId) : stores.commissionLedger;
+    return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+  return [];
+}
+
+export async function createCommissionLedgerEntry(data: Omit<CommissionLedgerEntry, "id">): Promise<CommissionLedgerEntry> {
+  const item = { ...data, id: genId("cl") } as CommissionLedgerEntry;
+  if (useMock) stores.commissionLedger.push(item);
+  return item;
+}
+
+export async function getCommissionBalance(recipientId: string): Promise<number> {
+  if (useMock) {
+    return stores.commissionLedger
+      .filter((e) => e.recipientId === recipientId)
+      .reduce((sum, e) => sum + e.amount, 0);
+  }
+  return 0;
+}
+
+// ============================================================
+// SCCG Coin Wallets
+// ============================================================
+
+export async function getCoinWallet(userId: string): Promise<CoinWallet | null> {
+  if (useMock) return stores.coinWallets.find((w) => w.userId === userId) || null;
+  return null;
+}
+
+export async function getAllCoinWallets(): Promise<CoinWallet[]> {
+  if (useMock) return stores.coinWallets;
+  return [];
+}
+
+export async function createCoinWallet(data: Omit<CoinWallet, "id">): Promise<CoinWallet> {
+  const item = { ...data, id: genId("w") } as CoinWallet;
+  if (useMock) stores.coinWallets.push(item);
+  return item;
+}
+
+export async function updateCoinWallet(userId: string, data: Partial<CoinWallet>): Promise<void> {
+  if (useMock) {
+    const w = stores.coinWallets.find((x) => x.userId === userId);
+    if (w) Object.assign(w, data, { updatedAt: new Date().toISOString() });
+  }
+}
+
+export async function getCoinTransactions(userId: string): Promise<CoinTransaction[]> {
+  if (useMock) return stores.coinTransactions.filter((t) => t.userId === userId).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  return [];
+}
+
+export async function createCoinTransaction(data: Omit<CoinTransaction, "id">): Promise<CoinTransaction> {
+  const item = { ...data, id: genId("ct") } as CoinTransaction;
+  if (useMock) {
+    stores.coinTransactions.push(item);
+    const wallet = stores.coinWallets.find((w) => w.userId === data.userId);
+    if (wallet) {
+      wallet.balance += data.amount;
+      if (data.amount > 0) wallet.totalEarned += data.amount;
+      if (data.amount < 0) wallet.totalSpent += Math.abs(data.amount);
+      wallet.updatedAt = new Date().toISOString();
+    }
+  }
+  return item;
+}
+
+// ============================================================
+// SCCG Gift Cards
+// ============================================================
+
+export async function getGiftCards(userId?: string): Promise<GiftCard[]> {
+  if (useMock) {
+    if (userId) return stores.giftCards.filter((g) => g.issuedToUserId === userId);
+    return stores.giftCards;
+  }
+  return [];
+}
+
+export async function getGiftCardById(id: string): Promise<GiftCard | null> {
+  if (useMock) return stores.giftCards.find((g) => g.id === id) || null;
+  return null;
+}
+
+export async function getGiftCardByNumber(cardNumber: string): Promise<GiftCard | null> {
+  if (useMock) return stores.giftCards.find((g) => g.cardNumber === cardNumber) || null;
+  return null;
+}
+
+export async function createGiftCard(data: Omit<GiftCard, "id">): Promise<GiftCard> {
+  const item = { ...data, id: genId("gc") } as GiftCard;
+  if (useMock) stores.giftCards.push(item);
+  return item;
+}
+
+export async function updateGiftCard(id: string, data: Partial<GiftCard>): Promise<void> {
+  if (useMock) {
+    const g = stores.giftCards.find((x) => x.id === id);
+    if (g) Object.assign(g, data);
+  }
+}
+
+export async function getGiftCardTransactions(giftCardId: string): Promise<GiftCardTransaction[]> {
+  if (useMock) return stores.giftCardTransactions.filter((t) => t.giftCardId === giftCardId).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  return [];
+}
+
+export async function createGiftCardTransaction(data: Omit<GiftCardTransaction, "id">): Promise<GiftCardTransaction> {
+  const item = { ...data, id: genId("gct") } as GiftCardTransaction;
+  if (useMock) {
+    stores.giftCardTransactions.push(item);
+    const card = stores.giftCards.find((g) => g.id === data.giftCardId);
+    if (card) {
+      card.currentBalance += data.amount;
+      card.lastUsedAt = new Date().toISOString();
+      if (card.currentBalance <= 0) { card.currentBalance = 0; card.status = "depleted"; }
+    }
+  }
+  return item;
+}
+
+// ============================================================
+// User Roles
+// ============================================================
+
+export async function getUserRoles(userId: string): Promise<UserRoleEntry[]> {
+  if (useMock) return stores.userRoles.filter((r) => r.userAccountId === userId && r.status !== "revoked");
+  return [];
+}
+
+export async function addUserRole(entry: Omit<UserRoleEntry, "id">): Promise<UserRoleEntry> {
+  const item = { ...entry, id: genId("ur") } as UserRoleEntry;
+  if (useMock) stores.userRoles.push(item);
+  return item;
+}
+
+// ============================================================
+// Code Generation Helpers
+// ============================================================
+
+const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+export function generatePromoCodeString(prefix: string, length: number = 6): string {
+  let code = prefix;
+  for (let i = 0; i < length; i++) {
+    code += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
+  }
+  return code;
+}
+
+export function generateGiftCardNumber(): string {
+  const group = () => {
+    let s = "";
+    for (let i = 0; i < 4; i++) s += Math.floor(Math.random() * 10);
+    return s;
+  };
+  return `SCCG-GC-${group()}-${group()}-${group()}`;
+}

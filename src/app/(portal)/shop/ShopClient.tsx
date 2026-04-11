@@ -126,98 +126,100 @@ export default function ShopClient({ products, promotions, clients, user }: Shop
   }
 
   return (
-    <div className="space-y-8 page-enter">
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <div className="h-6 w-1 rounded-full gradient-blue" />
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">B2B Shop</p>
+    <>
+      <div className="space-y-8 page-enter">
+        {/* Header */}
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <div className="h-6 w-1 rounded-full gradient-blue" />
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">B2B Shop</p>
+            </div>
+            <h1 className="text-3xl font-black tracking-tight">
+              SCCG{" "}
+              <span className="bg-gradient-to-r from-primary to-violet-500 bg-clip-text text-transparent">
+                Sales Shop
+              </span>
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1.5">
+              {products.length} products available · Build your offer in seconds
+            </p>
           </div>
-          <h1 className="text-3xl font-black tracking-tight">
-            SCCG{" "}
-            <span className="bg-gradient-to-r from-primary to-violet-500 bg-clip-text text-transparent">
-              Sales Shop
-            </span>
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1.5">
-            {products.length} products available · Build your offer in seconds
-          </p>
+
+          {/* Cart button */}
+          <button
+            onClick={() => setCartOpen(true)}
+            className="relative flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-2xl font-semibold text-sm hover:opacity-90 shadow-lg shadow-primary/25 transition-all active:scale-95"
+          >
+            <ShoppingCart className="h-4 w-4" />
+            Cart
+            {cartCount > 0 && (
+              <span className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-rose-500 text-white text-[10px] font-black flex items-center justify-center border-2 border-background">
+                {cartCount}
+              </span>
+            )}
+          </button>
         </div>
 
-        {/* Cart button */}
-        <button
-          onClick={() => setCartOpen(true)}
-          className="relative flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-2xl font-semibold text-sm hover:opacity-90 shadow-lg shadow-primary/25 transition-all active:scale-95"
-        >
-          <ShoppingCart className="h-4 w-4" />
-          Cart
-          {cartCount > 0 && (
-            <span className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-rose-500 text-white text-[10px] font-black flex items-center justify-center border-2 border-background">
-              {cartCount}
-            </span>
-          )}
-        </button>
-      </div>
+        {/* News Slider */}
+        {promotions.length > 0 && (
+          <ProductNewsSlider promotions={promotions} />
+        )}
 
-      {/* News Slider */}
-      {promotions.length > 0 && (
-        <ProductNewsSlider promotions={promotions} />
-      )}
-
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3 items-center">
-        <div className="relative flex-1 min-w-[200px] max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search products..."
-            className="w-full pl-9 pr-4 py-2.5 bg-muted border-0 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-          />
-        </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          <SlidersHorizontal className="h-4 w-4 text-muted-foreground" />
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setCategoryFilter(cat)}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
-                categoryFilter === cat
-                  ? "bg-primary text-white shadow-sm"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
-              }`}
-            >
-              {cat === "all" ? "All Products" : cat}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Product Grid */}
-      {visibleProducts.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-          {visibleProducts.map((product) => (
-            <ProductCard
-              key={product.id}
-              product={product}
-              promotions={promotions}
-              canSeePrice={canSeePrice}
-              onAddToCart={addToCart}
-              cartQuantity={cart.find((c) => c.product.id === product.id)?.quantity || 0}
+        {/* Filters */}
+        <div className="flex flex-wrap gap-3 items-center">
+          <div className="relative flex-1 min-w-[200px] max-w-xs">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search products..."
+              className="w-full pl-9 pr-4 py-2.5 bg-muted border-0 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
-          ))}
-        </div>
-      ) : (
-        <div className="py-24 text-center">
-          <Store className="h-12 w-12 text-muted-foreground/20 mx-auto mb-4" />
-          <p className="text-lg font-semibold text-muted-foreground">No products found</p>
-          <p className="text-sm text-muted-foreground/60 mt-1">Try adjusting your filters</p>
-        </div>
-      )}
+          </div>
 
-      {/* Cart Drawer */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <SlidersHorizontal className="h-4 w-4 text-muted-foreground" />
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setCategoryFilter(cat)}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                  categoryFilter === cat
+                    ? "bg-primary text-white shadow-sm"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                }`}
+              >
+                {cat === "all" ? "All Products" : cat}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Product Grid */}
+        {visibleProducts.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            {visibleProducts.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                promotions={promotions}
+                canSeePrice={canSeePrice}
+                onAddToCart={addToCart}
+                cartQuantity={cart.find((c) => c.product.id === product.id)?.quantity || 0}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="py-24 text-center">
+            <Store className="h-12 w-12 text-muted-foreground/20 mx-auto mb-4" />
+            <p className="text-lg font-semibold text-muted-foreground">No products found</p>
+            <p className="text-sm text-muted-foreground/60 mt-1">Try adjusting your filters</p>
+          </div>
+        )}
+      </div>
+
+      {/* Cart Drawer - Rendered outside page-enter to avoid transform-induced fixed position issues */}
       {cartOpen && (
         <CartDrawer
           cart={cart}
@@ -240,6 +242,6 @@ export default function ShopClient({ products, promotions, clients, user }: Shop
           onClose={() => setClientModalOpen(false)}
         />
       )}
-    </div>
+    </>
   );
 }

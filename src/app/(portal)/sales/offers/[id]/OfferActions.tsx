@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Send, CheckCircle2, XCircle, Trash2, ArrowRightCircle, Mail } from "lucide-react";
+import { Send, CheckCircle2, XCircle, Trash2, ArrowRightCircle, Mail, Download } from "lucide-react";
 import type { SalesOffer } from "@/types";
 import {
   updateOfferStatusAction,
@@ -21,8 +21,8 @@ export default function OfferActions({ offer }: { offer: SalesOffer }) {
     try {
       let result;
       switch (action) {
-        case "send":
-          result = await updateOfferStatusAction(offer.id, "sent");
+        case "send-email":
+          result = await sendOfferEmailAction(offer.id);
           break;
         case "accept":
           result = await updateOfferStatusAction(offer.id, "accepted");
@@ -51,23 +51,38 @@ export default function OfferActions({ offer }: { offer: SalesOffer }) {
     }
   }
 
+  function handleDownloadPdf() {
+    window.open(`/api/offer-pdf?id=${offer.id}`, "_blank");
+  }
+
   return (
     <div className="flex flex-wrap gap-2">
-      {/* Send Email (Triggers SharePoint Flow via Status = Sent) */}
+      {/* Download PDF */}
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleDownloadPdf}
+        className="gap-1"
+      >
+        <Download className="h-4 w-4" />
+        Download PDF
+      </Button>
+
+      {/* Send Email with Accept/Reject buttons */}
       {(offer.status === "draft" || offer.status === "sent") && (
         <Button
           variant="outline"
           size="sm"
-          onClick={() => handleAction("send")}
+          onClick={() => handleAction("send-email")}
           disabled={loading !== null}
           className="gap-1"
         >
           <Mail className="h-4 w-4" />
-          {loading === "send" ? "Sending..." : "Send Email"}
+          {loading === "send-email" ? "Sending..." : "Send Email"}
         </Button>
       )}
 
-      {/* Accept */}
+      {/* Accept (manual — in case client accepts verbally) */}
       {offer.status === "sent" && (
         <Button
           size="sm"
@@ -76,11 +91,11 @@ export default function OfferActions({ offer }: { offer: SalesOffer }) {
           className="gap-1 bg-emerald-600 hover:bg-emerald-700"
         >
           <CheckCircle2 className="h-4 w-4" />
-          {loading === "accept" ? "..." : "Accept"}
+          {loading === "accept" ? "..." : "Mark Accepted"}
         </Button>
       )}
 
-      {/* Reject */}
+      {/* Reject (manual) */}
       {offer.status === "sent" && (
         <Button
           variant="destructive"
@@ -90,7 +105,7 @@ export default function OfferActions({ offer }: { offer: SalesOffer }) {
           className="gap-1"
         >
           <XCircle className="h-4 w-4" />
-          {loading === "reject" ? "..." : "Reject"}
+          {loading === "reject" ? "..." : "Mark Rejected"}
         </Button>
       )}
 

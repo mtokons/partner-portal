@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import type { SessionUser } from "@/types";
+import type { SessionUser, Expert } from "@/types";
 import {
   getExpertById,
   getSessionsByExpert,
@@ -16,31 +16,72 @@ function fmt(n: number, rate: number | null): string {
   return fmtBdt(n, rate, { compact: true });
 }
 
+import { getAdminFirestore } from "@/lib/firebase-admin";
+
 export default async function ExpertDashboardPage() {
   const session = await auth();
   if (!session?.user) redirect("/expert-login");
   const user = session.user as SessionUser;
 
-  const [[expert, sessions, payments], rate] = await Promise.all([
+  // 1. Fetch data from SharePoint and Firestore
+  let [[expert, sessions, payments], rate, dbProfile] = await Promise.all([
     Promise.all([
       getExpertById(user.id),
       getSessionsByExpert(user.id),
       getExpertPayments(user.id),
     ]),
     loadRate(),
+    getAdminFirestore().collection("users").doc(user.id).get().then(s => s.data()),
   ]);
 
+  // 1b. Auto-provision if approved in Firebase but missing in SharePoint
+  if (!expert && dbProfile?.status === "active") {
+    const { createExpert } = await import("@/lib/sharepoint");
+    try {
+      const expertData: Expert = {
+        id: user.id,
+        name: dbProfile.displayName || user.name || "Expert",
+        email: dbProfile.email || user.email,
+        phone: dbProfile.phone || "",
+        specialization: dbProfile.specialization || "General",
+        bio: "",
+        status: "active",
+        rating: 5,
+        totalSessionsCompleted: 0,
+        ratePerSession: 0,
+        createdAt: new Date().toISOString(),
+      };
+      expert = await createExpert(expertData);
+    } catch (err) {
+      console.error("Auto-provision loop failed:", err);
+    }
+  }
+
+  // 2. Handle approval states
   if (!expert) {
+    const isPending = dbProfile?.status === "pending";
+    
     return (
       <div className="flex flex-col flex-1 items-center justify-center min-h-[70vh] text-center px-4">
-        <div className="h-20 w-20 bg-indigo-500/10 rounded-full flex items-center justify-center mb-6">
-          <span className="text-4xl">⏳</span>
+        <div className={`h-20 w-20 ${isPending ? "bg-indigo-500/10" : "bg-emerald-500/10"} rounded-full flex items-center justify-center mb-6`}>
+          <span className="text-4xl">{isPending ? "⏳" : "⚙️"}</span>
         </div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Account Under Review</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          {isPending ? "Account Under Review" : "Finalizing Your Profile"}
+        </h1>
         <p className="text-gray-500 max-w-md mx-auto">
-          Your expert application is currently being reviewed by the SCCG administrators.
-          You will receive access to your dashboard once approved.
+          {isPending 
+            ? "Your expert application is currently being reviewed by the SCCG administrators. You will receive access to your dashboard once approved."
+            : "Your account has been approved! We are currently synchronizing your professional profile. This usually takes just a few seconds."}
         </p>
+        {!isPending && (
+          <Link 
+            href="/expert/dashboard"
+            className="mt-6 px-6 py-2 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition-all inline-block"
+          >
+            Refresh Dashboard
+          </Link>
+        )}
       </div>
     );
   }

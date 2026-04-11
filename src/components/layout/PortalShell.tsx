@@ -6,7 +6,7 @@ import Header from "@/components/layout/Header";
 
 interface PortalShellProps {
   children: React.ReactNode;
-  role: "partner" | "admin";
+  roles: string[];
   userName: string;
   company: string;
   overdueCount: number;
@@ -15,7 +15,7 @@ interface PortalShellProps {
 
 export default function PortalShell({
   children,
-  role,
+  roles,
   userName,
   company,
   overdueCount,
@@ -25,7 +25,7 @@ export default function PortalShell({
 
   return (
     <div className="min-h-screen bg-background">
-      <Sidebar role={role} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <Sidebar roles={roles} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <Header
         userName={userName}
         company={company}

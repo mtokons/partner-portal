@@ -5,6 +5,7 @@ import type {
   Customer, Expert, ServicePackage, CustomerPackage,
   Session, ExpertPayment, AppNotification,
   SalesOffer, SalesOfferItem, SalesOrder, SalesOrderItem, ServiceTask,
+  PromoCode, CommissionRule, CoinWallet, GiftCard,
 } from "@/types";
 
 // ---- Partners ----
@@ -18,6 +19,9 @@ export const mockPartners: Partner[] = [
     status: "active",
     company: "Weber Trading GmbH",
     phone: "+49 170 1234567",
+    partnerType: "individual",
+    commissionTier: "standard",
+    onboardingStatus: "approved",
     createdAt: "2025-06-15T10:00:00Z",
   },
   {
@@ -29,6 +33,9 @@ export const mockPartners: Partner[] = [
     status: "active",
     company: "Müller Distribution",
     phone: "+49 171 9876543",
+    partnerType: "institutional",
+    commissionTier: "premium",
+    onboardingStatus: "approved",
     createdAt: "2025-08-20T10:00:00Z",
   },
   {
@@ -39,6 +46,9 @@ export const mockPartners: Partner[] = [
     role: "admin",
     status: "active",
     company: "Portal Admin",
+    partnerType: "individual",
+    commissionTier: "enterprise",
+    onboardingStatus: "approved",
     createdAt: "2025-01-01T10:00:00Z",
   },
 ];
@@ -501,4 +511,33 @@ export const mockServiceTasks: ServiceTask[] = [
   { id: "st1", salesOrderId: "sord1", orderNumber: "ORD-2026-00001", title: "Prepare shipment for Widget A", description: "Package 100 units of Premium Widget A", assignedTo: "Alice Weber", status: "completed", dueDate: "2026-02-01", completedAt: "2026-01-30T10:00:00Z", createdAt: "2026-01-20T11:00:00Z" },
   { id: "st2", salesOrderId: "sord1", orderNumber: "ORD-2026-00001", title: "Deliver Standard Widget B", description: "Ship 100 units to Berlin warehouse", assignedTo: "Alice Weber", status: "in-progress", dueDate: "2026-02-15", createdAt: "2026-01-20T11:00:00Z" },
   { id: "st3", salesOrderId: "sord1", orderNumber: "ORD-2026-00001", title: "Quality inspection", description: "Final QA check post-delivery", status: "planned", dueDate: "2026-02-20", createdAt: "2026-01-20T11:00:00Z" },
+];
+
+// ---- Promo Codes ----
+export const mockPromoCodes: PromoCode[] = [
+  { id: "pc1", code: "SCCG2026", codeType: "promo-general", ownerId: "admin1", ownerName: "Admin User", discountType: "percent", discountValue: 10, maxUses: 100, currentUses: 5, maxUsesPerUser: 1, minOrderAmount: 5000, validFrom: "2026-01-01", validUntil: "2026-12-31", status: "active", shareableLink: "/shop?promo=SCCG2026", createdAt: "2026-01-01T00:00:00Z", createdBy: "admin1" },
+  { id: "pc2", code: "ALICE-REF", codeType: "referral-partner-individual", ownerId: "p1", ownerName: "Alice Weber", partnerProfileId: "p1", discountType: "percent", discountValue: 5, commissionRuleId: "cr1", maxUses: 0, currentUses: 2, maxUsesPerUser: 0, minOrderAmount: 0, validFrom: "2026-01-01", status: "active", shareableLink: "/shop?ref=ALICE-REF", createdAt: "2026-01-15T00:00:00Z", createdBy: "p1" },
+  { id: "pc3", code: "MULLER-INST", codeType: "referral-partner-institutional", ownerId: "p2", ownerName: "Bob Müller", partnerProfileId: "p2", discountType: "fixed", discountValue: 2000, commissionRuleId: "cr2", maxUses: 0, currentUses: 0, maxUsesPerUser: 0, minOrderAmount: 10000, validFrom: "2026-01-01", status: "active", shareableLink: "/shop?ref=MULLER-INST", createdAt: "2026-02-01T00:00:00Z", createdBy: "p2" },
+];
+
+// ---- Commission Rules ----
+export const mockCommissionRules: CommissionRule[] = [
+  { id: "cr1", name: "Individual Standard", codeType: "referral-partner-individual", partnerTier: "standard", productCategory: "all", commissionPercent: 15, minOrderAmount: 0, maxCommission: 50000, isActive: true, priority: 10, effectiveFrom: "2026-01-01", createdAt: "2026-01-01T00:00:00Z" },
+  { id: "cr2", name: "Institutional Standard", codeType: "referral-partner-institutional", partnerTier: "standard", productCategory: "all", commissionPercent: 25, minOrderAmount: 0, maxCommission: 200000, isActive: true, priority: 20, effectiveFrom: "2026-01-01", createdAt: "2026-01-01T00:00:00Z" },
+  { id: "cr3", name: "Individual Premium", codeType: "referral-partner-individual", partnerTier: "premium", productCategory: "all", commissionPercent: 20, minOrderAmount: 0, maxCommission: 100000, isActive: true, priority: 15, effectiveFrom: "2026-01-01", createdAt: "2026-01-01T00:00:00Z" },
+  { id: "cr4", name: "Institutional Enterprise", codeType: "referral-partner-institutional", partnerTier: "enterprise", productCategory: "all", commissionPercent: 30, minOrderAmount: 0, maxCommission: 500000, isActive: true, priority: 25, effectiveFrom: "2026-01-01", createdAt: "2026-01-01T00:00:00Z" },
+  { id: "cr5", name: "General Promo (0%)", codeType: "promo-general", partnerTier: "any", productCategory: "all", commissionPercent: 0, minOrderAmount: 0, maxCommission: 0, isActive: true, priority: 1, effectiveFrom: "2026-01-01", createdAt: "2026-01-01T00:00:00Z" },
+];
+
+// ---- Coin Wallets ----
+export const mockCoinWallets: CoinWallet[] = [
+  { id: "w1", userId: "p1", userName: "Alice Weber", balance: 1500, totalEarned: 2000, totalSpent: 500, status: "active", createdAt: "2026-01-15T00:00:00Z", updatedAt: "2026-04-01T00:00:00Z" },
+  { id: "w2", userId: "p2", userName: "Bob Müller", balance: 5000, totalEarned: 5000, totalSpent: 0, status: "active", createdAt: "2026-02-01T00:00:00Z", updatedAt: "2026-04-01T00:00:00Z" },
+  { id: "w3", userId: "admin1", userName: "Admin User", balance: 99999, totalEarned: 100000, totalSpent: 1, status: "active", createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-04-01T00:00:00Z" },
+];
+
+// ---- Gift Cards ----
+export const mockGiftCards: GiftCard[] = [
+  { id: "gc1", cardNumber: "SCCG-GC-1001-0001-0001", issuedToUserId: "p1", issuedToName: "Alice Weber", issuedToEmail: "alice@partner.com", issuedByUserId: "admin1", initialBalance: 5000, currentBalance: 3500, currency: "BDT", status: "active", designTemplate: "premium", activatedAt: "2026-02-01T00:00:00Z", expiresAt: "2027-02-01T00:00:00Z", createdAt: "2026-02-01T00:00:00Z" },
+  { id: "gc2", cardNumber: "SCCG-GC-1001-0002-0002", issuedToUserId: "p2", issuedToName: "Bob Müller", issuedToEmail: "bob@partner.com", issuedByUserId: "admin1", initialBalance: 10000, currentBalance: 10000, currency: "BDT", status: "active", designTemplate: "corporate", activatedAt: "2026-03-01T00:00:00Z", expiresAt: "2027-03-01T00:00:00Z", createdAt: "2026-03-01T00:00:00Z" },
 ];

@@ -14,15 +14,21 @@ export async function getBdtToEurRate(): Promise<number> {
     return _cache.rate;
   }
 
-  const url = `${DEFAULT_API}?base=BDT&symbols=EUR`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error("Failed to fetch exchange rates");
-  const data = await res.json();
-  const rate = Number(data?.rates?.EUR);
-  if (!rate || Number.isNaN(rate)) throw new Error("Invalid rate received");
+  try {
+    const url = `${DEFAULT_API}?base=BDT&symbols=EUR`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("Failed to fetch exchange rates");
+    const data = await res.json();
+    const rate = Number(data?.rates?.EUR);
+    if (!rate || Number.isNaN(rate)) throw new Error("Invalid rate received");
 
-  _cache = { rate, fetchedAt: now };
-  return rate;
+    _cache = { rate, fetchedAt: now };
+    return rate;
+  } catch (err) {
+    console.error("Currency API Error, using fallback:", err);
+    // Robust fallback: 1 BDT ≈ 0.0084 EUR (approximate market rate)
+    return 0.0084;
+  }
 }
 
 /**

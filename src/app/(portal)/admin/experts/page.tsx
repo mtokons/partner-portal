@@ -5,6 +5,8 @@ import { getExperts, getCustomerPackages } from "@/lib/sharepoint";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import AssignExpertButton from "./AssignExpertButton";
+import PendingExpertsList from "./ApproveExpertButton";
+import { getPendingExpertsAction } from "./actions";
 import ExpertRate from "@/components/ExpertRate";
 
 const statusColor: Record<string, string> = {
@@ -19,9 +21,10 @@ export default async function AdminExpertsPage() {
   const user = session.user as SessionUser;
   if (user.role !== "admin") redirect("/dashboard");
 
-  const [experts, packages] = await Promise.all([
+  const [experts, packages, pendingExperts] = await Promise.all([
     getExperts(),
     getCustomerPackages(),
+    getPendingExpertsAction(),
   ]);
 
   const unassignedPackages = packages.filter((p) => !p.expertId && p.status === "active");
@@ -39,6 +42,9 @@ export default async function AdminExpertsPage() {
           </span>
         )}
       </div>
+
+      {/* Pending Expert Applications */}
+      <PendingExpertsList experts={pendingExperts} />
 
       {/* Unassigned Packages */}
       {unassignedPackages.length > 0 && (
