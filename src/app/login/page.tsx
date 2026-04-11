@@ -26,27 +26,43 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     
-    // 1. Firebase Login
-    const result = await firebaseLogin(email, password);
-    
-    if (result.success) {
-      // 2. Get ID Token for NextAuth session
-      const auth = getFirebaseAuth();
-      const idToken = await auth.currentUser?.getIdToken();
+    try {
+      // 1. Firebase Login
+      const result = await firebaseLogin(email, password);
       
-      if (idToken) {
-        const sessionResult = await firebaseAuthAction(idToken);
-        if (sessionResult.success) {
-          router.push("/dashboard");
-          router.refresh();
-          return;
+      if (result.success) {
+        // 2. Get ID Token for NextAuth session
+        const auth = getFirebaseAuth();
+        const idToken = await auth.currentUser?.getIdToken();
+        
+        if (idToken) {
+          const sessionResult = await firebaseAuthAction(idToken);
+          if (sessionResult.success) {
+            // Role-based redirect
+            const role = result.role;
+            if (role === "expert") {
+              router.push("/expert/dashboard");
+            } else if (role === "customer") {
+              router.push("/customer/dashboard");
+            } else {
+              router.push("/dashboard");
+            }
+            router.refresh();
+            return;
+          }
+          // Auth action returned an error (e.g. pending, suspended)
+          setError(sessionResult.error || "Login failed. Your account may be pending approval.");
+        } else {
+          setError("Failed to get authentication token.");
         }
+      } else {
+        setError(result.error || "Invalid credentials. Please try again.");
       }
-      setError("Failed to synchronize session.");
-    } else {
-      setError(result.error || "Invalid credentials. Please try again.");
+    } catch {
+      setError("An unexpected error occurred.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   return (
@@ -243,21 +259,29 @@ export default function LoginPage() {
                 onClick={async () => {
                   setError("");
                   setLoading(true);
-                  const result = await firebaseGoogleLogin();
-                  if (result.success) {
-                    const idToken = await getFirebaseAuth().currentUser?.getIdToken();
-                    if (idToken) {
-                      const authResult = await firebaseAuthAction(idToken);
-                      if (!authResult.success) {
-                        setError(authResult.error || "Failed to synchronize session.");
-                        setLoading(false);
-                        return;
+                  try {
+                    const result = await firebaseGoogleLogin();
+                    if (result.success) {
+                      const idToken = await getFirebaseAuth().currentUser?.getIdToken();
+                      if (idToken) {
+                        const authResult = await firebaseAuthAction(idToken);
+                        if (!authResult.success) {
+                          setError(authResult.error || "Failed to synchronize session.");
+                          setLoading(false);
+                          return;
+                        }
                       }
+                      // Role-based redirect
+                      if (result.role === "expert") router.push("/expert/dashboard");
+                      else if (result.role === "customer") router.push("/customer/dashboard");
+                      else router.push("/dashboard");
+                      router.refresh();
+                    } else {
+                      setError(result.error || "Google login failed");
+                      setLoading(false);
                     }
-                    router.push("/dashboard");
-                    router.refresh();
-                  } else {
-                    setError(result.error || "Google login failed");
+                  } catch {
+                    setError("Google login failed.");
                     setLoading(false);
                   }
                 }}

@@ -41,13 +41,18 @@ export default function CartDrawer({
   const showReferral = saleType === "direct-referral";
   const canCheckout = cart.length > 0 && selectedClient !== null;
 
+  // Responsive cart drawer height: min-h based on cart size, max-h for overflow
+  const drawerMinHeight = Math.min(120 + cart.length * 90, 520); // px
   return (
-    <div className="fixed inset-0 z-50 flex">
+    <div className="fixed inset-0 z-50 flex items-start justify-end p-4 md:p-6 overflow-hidden pointer-events-none">
       {/* Backdrop */}
-      <div className="flex-1 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px] pointer-events-auto" onClick={onClose} />
 
-      {/* Drawer */}
-      <div className="w-full max-w-md bg-card border-l border-border flex flex-col shadow-2xl animate-in slide-in-from-right duration-300">
+      {/* Drawer Card */}
+      <div
+        className="relative w-full max-w-md bg-card border border-border flex flex-col shadow-2xl rounded-[2.5rem] pointer-events-auto animate-in fade-in slide-in-from-right-8 zoom-in-95 duration-300 overflow-hidden"
+        style={{ minHeight: drawerMinHeight, maxHeight: 600 }}
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-border">
           <div className="flex items-center gap-2">

@@ -36,7 +36,17 @@ export async function registerAction(name: string, email: string, password: stri
   try {
     const passwordHash = await hash(password, 10);
     if (role === "partner") {
-      await createPartner({ name, email, passwordHash, company, role: "partner", status: "active" });
+      await createPartner({
+        name,
+        email,
+        passwordHash,
+        company,
+        role: "partner",
+        status: "active",
+        partnerType: "individual",
+        commissionTier: "standard",
+        onboardingStatus: "application",
+      });
     } else {
       await createCustomer({ name, email, passwordHash, company, partnerId: "", status: "active" });
     }

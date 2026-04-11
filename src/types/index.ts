@@ -3,7 +3,10 @@
 // ============================================================
 
 export type UserRole = "partner" | "admin" | "customer" | "expert";
+export type PartnerType = "individual" | "institutional";
 export type PartnerStatus = "pending" | "active" | "suspended";
+export type PartnerOnboardingStatus = "application" | "review" | "approved" | "rejected";
+export type CommissionTier = "standard" | "premium" | "enterprise";
 export type OrderStatus = "pending" | "confirmed" | "shipped" | "delivered" | "cancelled";
 export type InstallmentStatus = "upcoming" | "paid" | "overdue";
 export type InvoiceStatus = "draft" | "sent" | "paid" | "overdue";
@@ -12,6 +15,7 @@ export type ActivityType = "order" | "client" | "payment" | "installment" | "log
 
 export interface Partner {
   id: string;
+  firebaseUid?: string;
   name: string;
   email: string;
   passwordHash: string;
@@ -19,6 +23,14 @@ export interface Partner {
   status: PartnerStatus;
   company: string;
   phone?: string;
+  partnerType: PartnerType;
+  partnerCode?: string;
+  commissionTier: CommissionTier;
+  taxId?: string;
+  legalEntityName?: string;
+  onboardingStatus: PartnerOnboardingStatus;
+  approvedBy?: string;
+  approvedAt?: string;
   createdAt: string;
 }
 
@@ -184,13 +196,16 @@ export interface SessionUser {
   id: string;
   name: string;
   email: string;
+  /** Primary role for routing — kept for backward compat */
   role: UserRole;
+  /** All active roles — multi-role support */
+  roles: string[];
   partnerId: string;
   company: string;
-  /** Set when role is "customer" */
   customerId?: string;
-  /** Set when role is "expert" */
   expertId?: string;
+  partnerType?: PartnerType;
+  coinBalance?: number;
 }
 
 // ============================================================
@@ -262,9 +277,10 @@ export interface CustomerPackage {
 
 export interface Expert {
   id: string;
+  firebaseUid?: string;
   name: string;
   email: string;
-  passwordHash: string;
+  passwordHash?: string;
   phone?: string;
   specialization: string;
   bio?: string;
@@ -376,6 +392,18 @@ export interface SalesOffer {
   rejectedAt?: string;
   /** Reference to the Sales Order created from this offer */
   salesOrderId?: string;
+  // Promo/commission integration
+  promoCodeId?: string;
+  promoCodeValue?: string;
+  promoDiscountAmount?: number;
+  attributedPartnerId?: string;
+  attributedPartnerType?: PartnerType;
+  commissionRuleId?: string;
+  commissionPercent?: number;
+  commissionAmount?: number;
+  sccgCoinUsed?: number;
+  giftCardId?: string;
+  giftCardAmountUsed?: number;
 }
 
 /** Sales Offer line item — stored in SharePoint list "SalesOfferItems" */
@@ -407,6 +435,20 @@ export interface SalesOrder {
   createdAt: string;
   updatedAt: string;
   completedAt?: string;
+  // Promo/commission integration (copied from offer)
+  promoCodeId?: string;
+  promoCodeValue?: string;
+  promoDiscountAmount?: number;
+  attributedPartnerId?: string;
+  attributedPartnerType?: PartnerType;
+  commissionRuleId?: string;
+  commissionPercent?: number;
+  commissionAmount?: number;
+  commissionStatus?: "pending" | "posted" | "settled" | "reversed";
+  sccgCoinUsed?: number;
+  giftCardId?: string;
+  giftCardAmountUsed?: number;
+  settledAt?: string;
 }
 
 /** Sales Order line item — stored in SharePoint list "SalesOrderItems" */
@@ -507,4 +549,260 @@ export interface CartItem {
   quantity: number;
   effectivePrice: number;      // price after active promotion/discount
   appliedPromotion?: Promotion; // which promotion was applied, if any
+}
+
+// ============================================================
+// Email Tracking & Offer Acceptance
+// ============================================================
+
+export type EmailStatus = "queued" | "sent" | "delivered" | "opened" | "failed";
+
+/** Tracks every email sent from the platform — stored in "EmailTracking" */
+export interface EmailTracking {
+  id: string;
+  salesOfferId?: string;
+  offerNumber?: string;
+  recipientEmail: string;
+  recipientName?: string;
+  senderName?: string;
+  subject: string;
+  status: EmailStatus;
+  sentAt: string;
+  openedAt?: string;
+  /** Unique token embedded in the accept link */
+  acceptToken?: string;
+  createdAt: string;
+}
+
+export type AcceptanceAction = "accepted" | "rejected" | "viewed";
+
+/** Logs when a client clicks Accept/Reject in a sales offer email */
+export interface OfferAcceptanceLog {
+  id: string;
+  salesOfferId: string;
+  offerNumber: string;
+  acceptToken: string;
+  clientEmail: string;
+  action: AcceptanceAction;
+  ipAddress?: string;
+  userAgent?: string;
+  timestamp: string;
+}
+
+// ============================================================
+// User Profiles (SharePoint mirror of Firebase users)
+// ============================================================
+
+export interface UserProfile {
+  id: string;
+  firebaseUid: string;
+  email: string;
+  displayName: string;
+  phone?: string;
+  role: "partner" | "customer" | "expert" | "admin";
+  company?: string;
+  specialization?: string;
+  status: "active" | "pending" | "suspended";
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ============================================================
+// Multi-Role System
+// ============================================================
+
+export type UserRoleType = "customer" | "expert" | "partner-individual" | "partner-institutional" | "admin";
+export type UserRoleStatus = "active" | "pending" | "suspended" | "revoked";
+
+export interface UserRoleEntry {
+  id: string;
+  userAccountId: string;
+  role: UserRoleType;
+  status: UserRoleStatus;
+  grantedAt: string;
+  grantedBy: string;
+  revokedAt?: string;
+  notes?: string;
+}
+
+// ============================================================
+// Promo Codes & Referrals
+// ============================================================
+
+export type PromoCodeType = "promo-general" | "referral-personal" | "referral-partner-individual" | "referral-partner-institutional";
+export type PromoCodeStatus = "active" | "paused" | "expired" | "revoked";
+
+export interface PromoCode {
+  id: string;
+  code: string;
+  codeType: PromoCodeType;
+  ownerId: string;
+  ownerName: string;
+  partnerProfileId?: string;
+  discountType: "fixed" | "percent" | "none";
+  discountValue: number;
+  commissionRuleId?: string;
+  maxUses: number;
+  currentUses: number;
+  maxUsesPerUser: number;
+  minOrderAmount: number;
+  applicableProducts?: string;
+  applicableCategories?: string;
+  validFrom: string;
+  validUntil?: string;
+  status: PromoCodeStatus;
+  shareableLink: string;
+  qrCodeData?: string;
+  createdAt: string;
+  createdBy: string;
+}
+
+export interface PromoCodeUsage {
+  id: string;
+  promoCodeId: string;
+  code: string;
+  usedByUserId: string;
+  usedByEmail: string;
+  salesOfferId: string;
+  salesOrderId?: string;
+  discountApplied: number;
+  commissionGenerated: number;
+  usedAt: string;
+}
+
+// ============================================================
+// Commission Engine
+// ============================================================
+
+export interface CommissionRule {
+  id: string;
+  name: string;
+  codeType: PromoCodeType;
+  partnerTier: CommissionTier | "any";
+  productCategory: string;
+  commissionPercent: number;
+  minOrderAmount: number;
+  maxCommission: number;
+  isActive: boolean;
+  priority: number;
+  effectiveFrom: string;
+  effectiveUntil?: string;
+  createdAt: string;
+}
+
+export type CommissionLedgerType =
+  | "commission-posted"
+  | "commission-adjustment"
+  | "commission-reversed"
+  | "commission-settled"
+  | "payout-requested"
+  | "payout-approved"
+  | "payout-completed";
+
+export interface CommissionLedgerEntry {
+  id: string;
+  entryType: CommissionLedgerType;
+  recipientId: string;
+  recipientName: string;
+  recipientType: string;
+  salesOrderId?: string;
+  orderNumber?: string;
+  promoCodeId?: string;
+  ruleId?: string;
+  amount: number;
+  currency: "BDT" | "EUR";
+  runningBalance: number;
+  description: string;
+  relatedEntryId?: string;
+  createdAt: string;
+  createdBy: string;
+}
+
+// ============================================================
+// SCCG Coin Wallet
+// ============================================================
+
+export type WalletStatus = "active" | "frozen" | "closed";
+
+export interface CoinWallet {
+  id: string;
+  userId: string;
+  userName: string;
+  balance: number;
+  totalEarned: number;
+  totalSpent: number;
+  status: WalletStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CoinTransactionType =
+  | "top-up"
+  | "earn-commission"
+  | "earn-referral"
+  | "earn-refund"
+  | "spend-purchase"
+  | "spend-gift"
+  | "adjustment-admin"
+  | "expiry";
+
+export interface CoinTransaction {
+  id: string;
+  walletId: string;
+  userId: string;
+  transactionType: CoinTransactionType;
+  amount: number;
+  runningBalance: number;
+  referenceType?: string;
+  referenceId?: string;
+  description: string;
+  expiresAt?: string;
+  createdAt: string;
+  createdBy: string;
+}
+
+// ============================================================
+// SCCG Gift Cards
+// ============================================================
+
+export type GiftCardStatus = "active" | "frozen" | "expired" | "depleted" | "cancelled";
+export type GiftCardDesign = "standard" | "premium" | "birthday" | "corporate";
+
+export interface GiftCard {
+  id: string;
+  cardNumber: string;
+  issuedToUserId: string;
+  issuedToName: string;
+  issuedToEmail: string;
+  issuedByUserId: string;
+  initialBalance: number;
+  currentBalance: number;
+  currency: "BDT";
+  status: GiftCardStatus;
+  designTemplate: GiftCardDesign;
+  activatedAt: string;
+  expiresAt: string;
+  lastUsedAt?: string;
+  qrCodeData?: string;
+  createdAt: string;
+}
+
+export type GiftCardTransactionType =
+  | "activation"
+  | "purchase-usage"
+  | "top-up"
+  | "refund"
+  | "admin-adjustment"
+  | "expiry-debit";
+
+export interface GiftCardTransaction {
+  id: string;
+  giftCardId: string;
+  transactionType: GiftCardTransactionType;
+  amount: number;
+  runningBalance: number;
+  salesOrderId?: string;
+  description: string;
+  createdAt: string;
+  createdBy: string;
 }

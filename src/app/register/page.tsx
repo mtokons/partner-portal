@@ -58,28 +58,41 @@ export default function RegisterPage() {
     }
 
     setLoading(true);
-    // 1. Firebase Registration (Real Cloud Auth)
-    const result = await firebaseRegister(
-      form.email,
-      form.password,
-      form.name,
-      form.phone,
-      form.role,
-      { company: form.company || undefined, specialization: form.specialization || undefined }
-    );
+    try {
+      // 1. Firebase Registration (Real Cloud Auth)
+      const result = await firebaseRegister(
+        form.email,
+        form.password,
+        form.name,
+        form.phone,
+        form.role,
+        { company: form.company || undefined, specialization: form.specialization || undefined }
+      );
 
-    if (result.success) {
-      // 2. Sync with NextAuth session
-      const auth = getFirebaseAuth();
-      const idToken = await auth.currentUser?.getIdToken();
-      if (idToken) {
-        await firebaseAuthAction(idToken);
+      if (result.success) {
+        // For customers (auto-active): create NextAuth session and redirect
+        if (form.role === "customer") {
+          const fbAuth = getFirebaseAuth();
+          const idToken = await fbAuth.currentUser?.getIdToken();
+          if (idToken) {
+            const sessionResult = await firebaseAuthAction(idToken);
+            if (sessionResult.success) {
+              router.push("/customer/dashboard");
+              router.refresh();
+              return;
+            }
+          }
+        }
+        // For partners/experts (pending approval): just show success, no session
+        setSuccess(true);
+      } else {
+        setError(result.error || "Registration failed. Please try again.");
       }
-      setSuccess(true);
-    } else {
-      setError(result.error || "Registration failed. Please try again.");
+    } catch {
+      setError("An unexpected error occurred. Please try again.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   // Success state

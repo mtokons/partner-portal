@@ -11,68 +11,93 @@ import {
 import { cn } from "@/lib/utils";
 
 interface SidebarProps {
-  role: "partner" | "admin";
+  roles: string[];
   open: boolean;
   onClose: () => void;
 }
 
-const partnerLinks = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, group: "main" },
-  { href: "/orders", label: "Orders", icon: ShoppingCart, group: "main" },
-  { href: "/clients", label: "Clients", icon: Users, group: "main" },
-  { href: "/activity", label: "Activity", icon: Activity, group: "main" },
-  { href: "/shop", label: "Sales Shop", icon: Store, group: "shop" },
-  { href: "/sales/offers", label: "My Offers", icon: Handshake, group: "shop" },
-  { href: "/sales/orders", label: "My Orders", icon: ClipboardList, group: "shop" },
-  { href: "/financials", label: "P&L Overview", icon: DollarSign, group: "finance" },
-  { href: "/financials/expenses", label: "Expenses", icon: Receipt, group: "finance" },
-  { href: "/financials/invoices", label: "Invoices", icon: FileText, group: "finance" },
-  { href: "/financials/payouts", label: "My Payouts", icon: Wallet, group: "finance" },
-  { href: "/profile", label: "My Profile", icon: User, group: "account" },
-];
+interface LinkItem {
+  href: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  group: string;
+  roles: string[];
+}
 
-const adminLinks = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, group: "main" },
-  { href: "/shop", label: "Sales Shop", icon: Store, group: "shop" },
-  { href: "/sales/offers", label: "Sales Offers", icon: Handshake, group: "shop" },
-  { href: "/sales/orders", label: "Sales Orders", icon: ClipboardList, group: "shop" },
-  { href: "/admin/overview", label: "Admin Overview", icon: BarChart3, group: "admin" },
-  { href: "/admin/approvals", label: "Approvals", icon: ClipboardCheck, group: "admin" },
-  { href: "/admin/partners", label: "Manage Partners", icon: Shield, group: "admin" },
-  { href: "/admin/customers", label: "Customers", icon: Users, group: "admin" },
-  { href: "/admin/experts", label: "Experts", icon: UserCheck, group: "admin" },
-  { href: "/admin/sessions", label: "All Sessions", icon: Calendar, group: "admin" },
-  { href: "/admin/expert-payments", label: "Expert Payments", icon: CreditCard, group: "admin" },
-  { href: "/admin/orders", label: "All Orders", icon: ShoppingCart, group: "admin" },
-  { href: "/admin/financials", label: "Global Financials", icon: DollarSign, group: "admin" },
-  { href: "/admin/referrals", label: "Referrals", icon: Share2, group: "admin" },
-  { href: "/admin/payouts", label: "Payouts", icon: Wallet, group: "admin" },
-  { href: "/admin/promotions", label: "Promotions", icon: Tag, group: "admin" },
-  { href: "/admin/products", label: "Manage Products", icon: Package, group: "admin" },
-  { href: "/admin/send-email", label: "Send Email", icon: Mail, group: "admin" },
-  { href: "/activity", label: "Activity", icon: Activity, group: "main" },
-  { href: "/sp-test", label: "SP CRUD Test", icon: FlaskConical, group: "dev" },
-  { href: "/profile", label: "My Profile", icon: User, group: "account" },
+const allLinks: LinkItem[] = [
+  // Main
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, group: "main", roles: ["partner", "admin"] },
+  { href: "/orders", label: "Orders", icon: ShoppingCart, group: "main", roles: ["partner"] },
+  { href: "/clients", label: "Clients", icon: Users, group: "main", roles: ["partner"] },
+  { href: "/activity", label: "Activity", icon: Activity, group: "main", roles: ["partner", "admin"] },
+  // Sales Shop
+  { href: "/shop", label: "Sales Shop", icon: Store, group: "shop", roles: ["partner", "admin"] },
+  { href: "/sales/offers", label: "Sales Offers", icon: Handshake, group: "shop", roles: ["partner", "admin"] },
+  { href: "/sales/orders", label: "Sales Orders", icon: ClipboardList, group: "shop", roles: ["partner", "admin"] },
+  // Finance
+  { href: "/financials", label: "P&L Overview", icon: DollarSign, group: "finance", roles: ["partner"] },
+  { href: "/financials/expenses", label: "Expenses", icon: Receipt, group: "finance", roles: ["partner"] },
+  { href: "/financials/invoices", label: "Invoices", icon: FileText, group: "finance", roles: ["partner"] },
+  { href: "/financials/payouts", label: "My Payouts", icon: Wallet, group: "finance", roles: ["partner"] },
+  // Wallet & rewards
+  { href: "/wallets", label: "SCCG Wallet", icon: Wallet, group: "wallet", roles: ["partner"] },
+  { href: "/referrals", label: "My Referral Code", icon: Share2, group: "wallet", roles: ["partner"] },
+  { href: "/commissions", label: "My Commissions", icon: DollarSign, group: "wallet", roles: ["partner"] },
+  // Admin
+  { href: "/admin/overview", label: "Admin Overview", icon: BarChart3, group: "admin", roles: ["admin"] },
+  { href: "/admin/approvals", label: "Approvals", icon: ClipboardCheck, group: "admin", roles: ["admin"] },
+  { href: "/admin/partners", label: "Manage Partners", icon: Shield, group: "admin", roles: ["admin"] },
+  { href: "/admin/customers", label: "Customers", icon: Users, group: "admin", roles: ["admin"] },
+  { href: "/admin/experts", label: "Experts", icon: UserCheck, group: "admin", roles: ["admin"] },
+  { href: "/admin/sessions", label: "All Sessions", icon: Calendar, group: "admin", roles: ["admin"] },
+  { href: "/admin/expert-payments", label: "Expert Payments", icon: CreditCard, group: "admin", roles: ["admin"] },
+  { href: "/admin/orders", label: "All Orders", icon: ShoppingCart, group: "admin", roles: ["admin"] },
+  { href: "/admin/financials", label: "Global Financials", icon: DollarSign, group: "admin", roles: ["admin"] },
+  { href: "/admin/referrals", label: "Referrals", icon: Share2, group: "admin", roles: ["admin"] },
+  { href: "/admin/payouts", label: "Payouts", icon: Wallet, group: "admin", roles: ["admin"] },
+  { href: "/admin/promo-codes", label: "Promo Codes", icon: Tag, group: "admin", roles: ["admin"] },
+  { href: "/admin/commission-rules", label: "Commission Rules", icon: DollarSign, group: "admin", roles: ["admin"] },
+  { href: "/admin/commissions", label: "Commission Ledger", icon: FileText, group: "admin", roles: ["admin"] },
+  { href: "/admin/wallets", label: "Manage Wallets", icon: Wallet, group: "admin", roles: ["admin"] },
+  { href: "/admin/gift-cards", label: "Gift Cards", icon: CreditCard, group: "admin", roles: ["admin"] },
+  { href: "/admin/promotions", label: "Promotions", icon: Tag, group: "admin", roles: ["admin"] },
+  { href: "/admin/products", label: "Manage Products", icon: Package, group: "admin", roles: ["admin"] },
+  { href: "/admin/send-email", label: "Send Email", icon: Mail, group: "admin", roles: ["admin"] },
+  // Account
+  { href: "/profile", label: "My Profile", icon: User, group: "account", roles: ["partner", "admin"] },
+  // Dev
+  { href: "/sp-test", label: "SP CRUD Test", icon: FlaskConical, group: "dev", roles: ["admin"] },
 ];
 
 const groupLabels: Record<string, string> = {
   main: "Main",
   shop: "Sales Shop",
   finance: "Finance",
+  wallet: "Wallet & Rewards",
   admin: "Administration",
   account: "Account",
   dev: "Developer",
 };
 
-export default function Sidebar({ role, open, onClose }: SidebarProps) {
+export default function Sidebar({ roles, open, onClose }: SidebarProps) {
   const pathname = usePathname();
-  const links = role === "admin" ? adminLinks : partnerLinks;
+  // Filter by user's active roles and deduplicate
+  const seen = new Set<string>();
+  const links = allLinks.filter((l) => {
+    if (!l.roles.some((r) => roles.includes(r))) return false;
+    if (seen.has(l.href)) return false;
+    seen.add(l.href);
+    return true;
+  });
+
+  const isAdmin = roles.includes("admin");
+  const roleLabel = isAdmin ? "Admin" : roles.includes("partner") ? "Partner" : "User";
 
   // Compute groups in order
-  const seen = new Set<string>();
+  const seenGroups = new Set<string>();
   const orderedGroups: string[] = [];
   links.forEach((l) => {
-    if (!seen.has(l.group)) { seen.add(l.group); orderedGroups.push(l.group); }
+    if (!seenGroups.has(l.group)) { seenGroups.add(l.group); orderedGroups.push(l.group); }
   });
 
   return (
@@ -108,7 +133,7 @@ export default function Sidebar({ role, open, onClose }: SidebarProps) {
                   Partner Portal
                 </h1>
                 <p className="text-[10px] text-sidebar-foreground/50 uppercase tracking-[0.12em] mt-0.5">
-                  {role === "admin" ? "Admin" : "Partner"} Console
+                  {roleLabel} Console
                 </p>
               </div>
             </div>
