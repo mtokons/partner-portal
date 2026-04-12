@@ -7,7 +7,7 @@ import {
   DollarSign, Shield, BarChart3, FileText, Receipt, Handshake,
   UserCheck, Calendar, CreditCard, Zap, Mail, ChevronRight,
   FlaskConical, ClipboardList, Store, Tag, Share2, Wallet, User, X, ClipboardCheck,
-  Building2, UserPlus, GraduationCap, BookOpen, Layers, Award,
+  Building2, UserPlus, GraduationCap, BookOpen, Layers, Award, ShoppingBag,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -30,6 +30,7 @@ const allLinks: LinkItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, group: "main", roles: ["partner", "admin", "finance", "hr", "school-manager"] },
   { href: "/orders", label: "Orders", icon: ShoppingCart, group: "main", roles: ["partner"] },
   { href: "/clients", label: "Clients", icon: Users, group: "main", roles: ["partner"] },
+  { href: "/marketplace", label: "SCCG Marketplace", icon: ShoppingBag, group: "main", roles: ["partner", "admin", "customer", "expert"] },
   { href: "/activity", label: "Activity", icon: Activity, group: "main", roles: ["partner", "admin"] },
   // Offer Builder (renamed from Sales Shop)
   { href: "/shop", label: "Offer Builder", icon: Store, group: "offer", roles: ["partner", "admin"] },

@@ -1061,6 +1061,13 @@ export async function generateOrderNumber(): Promise<string> {
   }, 0);
   return `ORD-${year}-${String(maxSeq + 1).padStart(5, "0")}`;
 }
+/** Generate next invoice number: INV-YYYY-NNNNN */
+export async function generateInvoiceNumber(): Promise<string> {
+  const year = new Date().getFullYear();
+  const invoices = await getInvoices();
+  return `INV-${year}-${String(invoices.length + 1).padStart(5, "0")}`;
+}
+
 
 export async function getSalesOffers(partnerId?: string): Promise<SalesOffer[]> {
   if (useMock) {
