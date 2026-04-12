@@ -42,7 +42,7 @@ const allLinks: LinkItem[] = [
   { href: "/financials/invoices", label: "Invoices", icon: FileText, group: "finance", roles: ["partner", "finance"] },
   { href: "/financials/payouts", label: "My Payouts", icon: Wallet, group: "finance", roles: ["partner"] },
   // Wallet & rewards
-  { href: "/wallets", label: "SCCG Wallet", icon: Wallet, group: "wallet", roles: ["partner"] },
+  { href: "/wallets", label: "SCCG Wallet", icon: Wallet, group: "wallet", roles: ["partner", "expert", "customer"] },
   { href: "/referrals", label: "My Referral Code", icon: Share2, group: "wallet", roles: ["partner"] },
   { href: "/commissions", label: "My Commissions", icon: DollarSign, group: "wallet", roles: ["partner"] },
   // HR (new)

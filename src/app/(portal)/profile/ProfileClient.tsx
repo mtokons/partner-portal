@@ -11,13 +11,15 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   User, Mail, Building, Shield, Activity, ShoppingCart,
   Users, CheckCircle2, Clock, Edit3, Lock, Camera,
-  BarChart3, TrendingUp, ArrowRight,
+  BarChart3, TrendingUp, ArrowRight, Fingerprint,
 } from "lucide-react";
-import type { UserRole } from "@/types";
+import type { UserRole, SccgCard } from "@/types";
+import SCCGCard from "@/components/ui/SCCGCard";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   CartesianGrid, Area, AreaChart,
 } from "recharts";
+import { cn } from "@/lib/utils";
 
 interface ProfileClientProps {
   user: {
@@ -41,6 +43,7 @@ interface ProfileClientProps {
     recentActivities: number;
     deliveredOrders: number;
   };
+  card: SccgCard | null;
 }
 
 const roleColors: Record<string, { bg: string; text: string; gradient: string }> = {
@@ -57,7 +60,7 @@ const activityIcons: Record<string, typeof Activity> = {
   login: User,
 };
 
-export default function ProfileClient({ user, activities, chartData, stats }: ProfileClientProps) {
+export default function ProfileClient({ user, activities, chartData, stats, card }: ProfileClientProps) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(user.name);
@@ -158,6 +161,51 @@ export default function ProfileClient({ user, activities, chartData, stats }: Pr
 
         {/* Right column */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Digital Identity Section (New) */}
+          <Card className="border-0 shadow-lg rounded-[2.5rem] overflow-hidden bg-gradient-to-br from-card to-background border-primary/5">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-base font-black flex items-center gap-2">
+                 <Fingerprint className="h-4 w-4 text-primary" />
+                 My Digital Identity
+              </CardTitle>
+              <Badge variant="secondary" className="bg-primary/5 text-primary border-0 font-bold uppercase tracking-tighter text-[10px]">Blockchain Verified</Badge>
+            </CardHeader>
+            <CardContent className="flex flex-col md:flex-row items-center gap-8 py-8">
+              <div className="flex-1 w-full max-w-sm">
+                 <SCCGCard 
+                   cardNumber={card?.cardNumber}
+                   cardholder={card?.clientName || user.name}
+                   expiry={card?.expiresAt ? new Date(card.expiresAt).toLocaleDateString("en-GB", { month: "2-digit", year: "2-digit" }) : "IND-LIFE"}
+                   tier={card?.tier || (user.role === "admin" ? "platinum" : "not-issued")}
+                   balance={card?.balance}
+                   currency={card?.currency}
+                 />
+              </div>
+              <div className="flex-1 space-y-4">
+                 <div className="p-4 rounded-2xl bg-muted/30 border border-dashed border-border/60">
+                    <p className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-1">Status</p>
+                    <div className="flex items-center gap-2">
+                       <div className={cn("h-2 w-2 rounded-full", card ? "bg-emerald-500" : "bg-amber-500")} />
+                       <p className="font-bold text-sm">{card ? "Card Active & Ready" : "Digital Pass Only (No Card Issued)"}</p>
+                    </div>
+                 </div>
+                 <div className="p-4 rounded-2xl bg-muted/30 border border-dashed border-border/60">
+                    <p className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-1">Privileges</p>
+                    <ul className="text-xs font-medium space-y-1">
+                       <li className="flex items-center gap-2">🚀 Instant Checkout Enabled</li>
+                       <li className="flex items-center gap-2">🛡️ Secured by SCCG Multi-Auth</li>
+                       {user.role === "admin" && <li className="flex items-center gap-2">👑 Management Override Access</li>}
+                    </ul>
+                 </div>
+                 {!card && user.role !== "admin" && (
+                   <Button variant="outline" className="w-full rounded-xl border-dashed py-6 text-primary hover:bg-primary/5 font-bold">
+                      Apply for Physical SCCG Card
+                   </Button>
+                 )}
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Stats grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[
