@@ -10,7 +10,8 @@ export default async function CustomerLayout({ children }: { children: React.Rea
   if (!session?.user) redirect("/customer-login");
 
   const user = session.user as SessionUser;
-  if (user.role !== "customer") redirect("/customer-login");
+  const userRoles = user.roles || [user.role];
+  if (!userRoles.includes("customer")) redirect("/customer-login");
 
   const notifications = await getNotifications(user.id);
   const unreadCount = notifications.filter((n) => !n.read).length;

@@ -5,7 +5,7 @@ import type {
   Customer, Expert, ServicePackage, CustomerPackage,
   Session, ExpertPayment, AppNotification,
   SalesOffer, SalesOfferItem, SalesOrder, SalesOrderItem, ServiceTask,
-  PromoCode, CommissionRule, CoinWallet, GiftCard,
+  PromoCode, CommissionRule, CoinWallet, SccgCard,
 } from "@/types";
 
 // ---- Partners ----
@@ -536,8 +536,48 @@ export const mockCoinWallets: CoinWallet[] = [
   { id: "w3", userId: "admin1", userName: "Admin User", balance: 99999, totalEarned: 100000, totalSpent: 1, status: "active", createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-04-01T00:00:00Z" },
 ];
 
-// ---- Gift Cards ----
-export const mockGiftCards: GiftCard[] = [
-  { id: "gc1", cardNumber: "SCCG-GC-1001-0001-0001", issuedToUserId: "p1", issuedToName: "Alice Weber", issuedToEmail: "alice@partner.com", issuedByUserId: "admin1", initialBalance: 5000, currentBalance: 3500, currency: "BDT", status: "active", designTemplate: "premium", activatedAt: "2026-02-01T00:00:00Z", expiresAt: "2027-02-01T00:00:00Z", createdAt: "2026-02-01T00:00:00Z" },
-  { id: "gc2", cardNumber: "SCCG-GC-1001-0002-0002", issuedToUserId: "p2", issuedToName: "Bob Müller", issuedToEmail: "bob@partner.com", issuedByUserId: "admin1", initialBalance: 10000, currentBalance: 10000, currency: "BDT", status: "active", designTemplate: "corporate", activatedAt: "2026-03-01T00:00:00Z", expiresAt: "2027-03-01T00:00:00Z", createdAt: "2026-03-01T00:00:00Z" },
+// ---- SCCG Cards (formerly Gift Cards) ----
+export const mockGiftCards: SccgCard[] = [
+  { 
+    id: "gc1", 
+    sccgId: "SCCG-CARD-0001",
+    cardNumber: "SCCG-GC-1001-0001-0001", 
+    pinHash: "placeholder", 
+    pinAttempts: 0,
+    issuedToUserId: "p1", 
+    issuedToName: "Alice Weber", 
+    issuedToEmail: "alice@partner.com", 
+    issuedByUserId: "admin1", 
+    initialBalance: 5000, 
+    currentBalance: 3500, 
+    currency: "BDT", 
+    status: "active", 
+    designTemplate: "premium", 
+    balance: 3500,
+    activatedAt: "2026-02-01T00:00:00Z", 
+    expiresAt: "2027-02-01T00:00:00Z", 
+    createdAt: "2026-02-01T00:00:00Z",
+    updatedAt: "2026-02-01T00:00:00Z" 
+  },
+  { 
+    id: "gc2", 
+    sccgId: "SCCG-CARD-0002",
+    cardNumber: "SCCG-GC-1001-0002-0002", 
+    pinHash: "placeholder", 
+    pinAttempts: 0,
+    issuedToUserId: "p2", 
+    issuedToName: "Bob Müller", 
+    issuedToEmail: "bob@partner.com", 
+    issuedByUserId: "admin1", 
+    initialBalance: 10000, 
+    currentBalance: 10000, 
+    currency: "BDT", 
+    status: "active", 
+    designTemplate: "corporate", 
+    balance: 10000,
+    activatedAt: "2026-03-01T00:00:00Z", 
+    expiresAt: "2027-03-01T00:00:00Z", 
+    createdAt: "2026-03-01T00:00:00Z",
+    updatedAt: "2026-03-01T00:00:00Z" 
+  },
 ];

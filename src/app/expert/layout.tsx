@@ -10,7 +10,8 @@ export default async function ExpertLayout({ children }: { children: React.React
   if (!session?.user) redirect("/expert-login");
 
   const user = session.user as SessionUser;
-  if (user.role !== "expert") redirect("/expert-login");
+  const userRoles = user.roles || [user.role];
+  if (!userRoles.includes("expert") && !userRoles.includes("teacher")) redirect("/expert-login");
 
   const notifications = await getNotifications(user.id);
   const unreadCount = notifications.filter((n) => !n.read).length;
