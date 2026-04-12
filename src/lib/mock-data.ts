@@ -71,6 +71,10 @@ export const mockProducts: Product[] = [
   { id: "15", sku: "SCCG-LAN-B1", name: "German B1", description: "Standard B1 level German language course led by a language teacher.", unit: "Course", sessionsCount: 1, retailPriceEur: 120, retailPriceBdt: 16900, price: 16900, stock: 500, category: "Language", imageUrl: "" },
   { id: "16", sku: "SCCG-LAN-IA2", name: "Intensive A1-A2", description: "Intensive dual-level German language program from A1 through A2.", unit: "Course", sessionsCount: 1, retailPriceEur: 177, retailPriceBdt: 25000, price: 25000, stock: 500, category: "Language", imageUrl: "" },
   { id: "17", sku: "SCCG-LAN-IB1", name: "Intensive A1-B1", description: "Intensive triple-level German language program from A1 through B1.", unit: "Course", sessionsCount: 1, retailPriceEur: 282, retailPriceBdt: 39800, price: 39800, stock: 500, category: "Language", imageUrl: "" },
+  // Gift Cards
+  { id: "gc-3500", sku: "SCCG-GC-3500", name: "SCCG Gift Card (৳3,500)", description: "Redeemable for 3,500 SCCG Coins. Valid for 1 year.", unit: "Package", sessionsCount: 0, retailPriceEur: 25, retailPriceBdt: 3500, price: 3500, stock: 9999, category: "Gift Card", imageUrl: "" },
+  { id: "gc-5000", sku: "SCCG-GC-5000", name: "SCCG Gift Card (৳5,000)", description: "Redeemable for 5,000 SCCG Coins. Valid for 1 year.", unit: "Package", sessionsCount: 0, retailPriceEur: 35, retailPriceBdt: 5000, price: 5000, stock: 9999, category: "Gift Card", imageUrl: "" },
+  { id: "gc-10000", sku: "SCCG-GC-10000", name: "SCCG Gift Card (৳10,000)", description: "Redeemable for 10,000 SCCG Coins. Valid for 1 year.", unit: "Package", sessionsCount: 0, retailPriceEur: 70, retailPriceBdt: 10000, price: 10000, stock: 9999, category: "Gift Card", imageUrl: "" },
 ];
 
 // ---- Clients ----

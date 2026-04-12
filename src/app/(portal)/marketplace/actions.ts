@@ -5,7 +5,7 @@ import type { SessionUser, SalesOrder, SalesOrderItem, Invoice, Transaction, Ser
 import { 
   createSalesOrder, createSalesOrderItem, createInvoice, createTransaction, 
   generateOrderNumber, generateInvoiceNumber, getProducts,
-  createCustomerPackage
+  createCustomerPackage, createGiftCard, generateGiftCardNumber, generateGiftCardPin
 } from "@/lib/sharepoint";
 import { revalidatePath } from "next/cache";
 
@@ -103,6 +103,35 @@ export async function createDirectOrderAction(data: {
         status: "active",
         createdAt: now,
       });
+    }
+
+    // 6. Logic for Gift Cards (Auto-issuance)
+    if (product && product.category === "Gift Card") {
+       for (let q = 0; q < item.quantity; q++) {
+          await createGiftCard({
+             sccgId: `GC-${orderNumber}-${q+1}`,
+             cardNumber: generateGiftCardNumber(),
+             pinHash: generateGiftCardPin(4), // Storing plain text for this demo/MVP
+             pinAttempts: 0,
+             issuedToUserId: user.id,
+             issuedToName: data.customerName,
+             issuedToEmail: data.customerEmail,
+             issuedByUserId: user.id,
+             issuedBy: user.name,
+             initialBalance: item.unitPrice,
+             currentBalance: item.unitPrice,
+             balance: item.unitPrice,
+             currency: "BDT",
+             tier: "standard",
+             status: "active",
+             designTemplate: "standard",
+             notes: `Purchased via Order ${orderNumber}`,
+             activatedAt: now,
+             expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+             issuedAt: now,
+             createdAt: now,
+          });
+       }
     }
   }
 
