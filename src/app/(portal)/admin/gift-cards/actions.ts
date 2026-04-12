@@ -19,18 +19,26 @@ export async function issueGiftCardAction(data: {
   if (!roles.includes("admin")) throw new Error("Admin only");
 
   const card = await createGiftCard({
+    sccgId: `SCCG-ID-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
     cardNumber: generateGiftCardNumber(),
+    pinHash: "placeholder",
+    pinAttempts: 0,
     issuedToUserId: data.issuedToUserId,
     issuedToName: data.issuedToName,
     issuedToEmail: data.issuedToEmail,
     issuedByUserId: user.id,
+    issuedBy: user.name,
     initialBalance: data.initialBalance,
     currentBalance: data.initialBalance,
+    balance: data.initialBalance,
     currency: "BDT",
+    tier: "standard",
     status: "active",
     designTemplate: data.designTemplate,
+    notes: "",
     activatedAt: new Date().toISOString(),
     expiresAt: data.expiresAt,
+    issuedAt: new Date().toISOString(),
     createdAt: new Date().toISOString(),
   });
 

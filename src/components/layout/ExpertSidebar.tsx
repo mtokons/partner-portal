@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard, Users, Calendar, CreditCard, Bell, GraduationCap,
+  LayoutDashboard, Users, Calendar, CreditCard, Bell, GraduationCap, BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -11,6 +11,7 @@ const navLinks = [
   { href: "/expert/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/expert/clients", label: "My Clients", icon: Users },
   { href: "/expert/sessions", label: "Sessions", icon: Calendar },
+  { href: "/expert/teaching", label: "My Teaching", icon: BookOpen },
   { href: "/expert/payments", label: "My Earnings", icon: CreditCard },
   { href: "/expert/notifications", label: "Notifications", icon: Bell },
 ];

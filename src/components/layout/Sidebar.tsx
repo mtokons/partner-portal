@@ -7,6 +7,7 @@ import {
   DollarSign, Shield, BarChart3, FileText, Receipt, Handshake,
   UserCheck, Calendar, CreditCard, Zap, Mail, ChevronRight,
   FlaskConical, ClipboardList, Store, Tag, Share2, Wallet, User, X, ClipboardCheck,
+  Building2, UserPlus, GraduationCap, BookOpen, Layers, Award,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -26,23 +27,36 @@ interface LinkItem {
 
 const allLinks: LinkItem[] = [
   // Main
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, group: "main", roles: ["partner", "admin"] },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, group: "main", roles: ["partner", "admin", "finance", "hr", "school-manager"] },
   { href: "/orders", label: "Orders", icon: ShoppingCart, group: "main", roles: ["partner"] },
   { href: "/clients", label: "Clients", icon: Users, group: "main", roles: ["partner"] },
   { href: "/activity", label: "Activity", icon: Activity, group: "main", roles: ["partner", "admin"] },
-  // Sales Shop
-  { href: "/shop", label: "Sales Shop", icon: Store, group: "shop", roles: ["partner", "admin"] },
-  { href: "/sales/offers", label: "Sales Offers", icon: Handshake, group: "shop", roles: ["partner", "admin"] },
-  { href: "/sales/orders", label: "Sales Orders", icon: ClipboardList, group: "shop", roles: ["partner", "admin"] },
+  // Offer Builder (renamed from Sales Shop)
+  { href: "/shop", label: "Offer Builder", icon: Store, group: "offer", roles: ["partner", "admin"] },
+  { href: "/sales/offers", label: "Quotations", icon: Handshake, group: "offer", roles: ["partner", "admin"] },
+  { href: "/sales/orders", label: "Sales Orders", icon: ClipboardList, group: "offer", roles: ["partner", "admin"] },
   // Finance
-  { href: "/financials", label: "P&L Overview", icon: DollarSign, group: "finance", roles: ["partner"] },
-  { href: "/financials/expenses", label: "Expenses", icon: Receipt, group: "finance", roles: ["partner"] },
-  { href: "/financials/invoices", label: "Invoices", icon: FileText, group: "finance", roles: ["partner"] },
+  { href: "/financials", label: "P&L Overview", icon: DollarSign, group: "finance", roles: ["partner", "finance"] },
+  { href: "/financials/expenses", label: "Expenses", icon: Receipt, group: "finance", roles: ["partner", "finance"] },
+  { href: "/financials/invoices", label: "Invoices", icon: FileText, group: "finance", roles: ["partner", "finance"] },
   { href: "/financials/payouts", label: "My Payouts", icon: Wallet, group: "finance", roles: ["partner"] },
   // Wallet & rewards
   { href: "/wallets", label: "SCCG Wallet", icon: Wallet, group: "wallet", roles: ["partner"] },
   { href: "/referrals", label: "My Referral Code", icon: Share2, group: "wallet", roles: ["partner"] },
   { href: "/commissions", label: "My Commissions", icon: DollarSign, group: "wallet", roles: ["partner"] },
+  // HR (new)
+  { href: "/admin/hr", label: "HR Dashboard", icon: Building2, group: "hr", roles: ["admin", "hr"] },
+  { href: "/admin/hr/employees", label: "Employees", icon: Users, group: "hr", roles: ["admin", "hr"] },
+  { href: "/admin/hr/employees/new", label: "Add Employee", icon: UserPlus, group: "hr", roles: ["admin", "hr"] },
+  { href: "/admin/hr/reports", label: "HR Reports", icon: BarChart3, group: "hr", roles: ["admin", "hr"] },
+  // Language School (new)
+  { href: "/admin/school", label: "School Dashboard", icon: GraduationCap, group: "school", roles: ["admin", "school-manager"] },
+  { href: "/admin/school/courses", label: "Courses", icon: BookOpen, group: "school", roles: ["admin", "school-manager"] },
+  { href: "/admin/school/batches", label: "Batches", icon: Layers, group: "school", roles: ["admin", "school-manager"] },
+  { href: "/admin/school/enrollments", label: "Enrollments", icon: ClipboardList, group: "school", roles: ["admin", "school-manager"] },
+  { href: "/admin/school/teachers", label: "Teachers", icon: UserCheck, group: "school", roles: ["admin", "school-manager"] },
+  { href: "/admin/school/certificates", label: "Certificates", icon: Award, group: "school", roles: ["admin", "school-manager"] },
+  { href: "/admin/school/reports", label: "School Reports", icon: BarChart3, group: "school", roles: ["admin", "school-manager"] },
   // Admin
   { href: "/admin/overview", label: "Admin Overview", icon: BarChart3, group: "admin", roles: ["admin"] },
   { href: "/admin/approvals", label: "Approvals", icon: ClipboardCheck, group: "admin", roles: ["admin"] },
@@ -52,28 +66,33 @@ const allLinks: LinkItem[] = [
   { href: "/admin/sessions", label: "All Sessions", icon: Calendar, group: "admin", roles: ["admin"] },
   { href: "/admin/expert-payments", label: "Expert Payments", icon: CreditCard, group: "admin", roles: ["admin"] },
   { href: "/admin/orders", label: "All Orders", icon: ShoppingCart, group: "admin", roles: ["admin"] },
-  { href: "/admin/financials", label: "Global Financials", icon: DollarSign, group: "admin", roles: ["admin"] },
+  { href: "/admin/financials", label: "Global Financials", icon: DollarSign, group: "admin", roles: ["admin", "finance"] },
   { href: "/admin/referrals", label: "Referrals", icon: Share2, group: "admin", roles: ["admin"] },
-  { href: "/admin/payouts", label: "Payouts", icon: Wallet, group: "admin", roles: ["admin"] },
+  { href: "/admin/payouts", label: "Payouts", icon: Wallet, group: "admin", roles: ["admin", "finance"] },
   { href: "/admin/promo-codes", label: "Promo Codes", icon: Tag, group: "admin", roles: ["admin"] },
   { href: "/admin/commission-rules", label: "Commission Rules", icon: DollarSign, group: "admin", roles: ["admin"] },
-  { href: "/admin/commissions", label: "Commission Ledger", icon: FileText, group: "admin", roles: ["admin"] },
+  { href: "/admin/commissions", label: "Commission Ledger", icon: FileText, group: "admin", roles: ["admin", "finance"] },
   { href: "/admin/wallets", label: "Manage Wallets", icon: Wallet, group: "admin", roles: ["admin"] },
-  { href: "/admin/gift-cards", label: "Gift Cards", icon: CreditCard, group: "admin", roles: ["admin"] },
+  { href: "/admin/sccg-cards", label: "SCCG Cards", icon: CreditCard, group: "admin", roles: ["admin", "finance"] },
+  { href: "/admin/payments", label: "Payments", icon: DollarSign, group: "admin", roles: ["admin", "finance"] },
+  { href: "/admin/invoices", label: "Invoices", icon: FileText, group: "admin", roles: ["admin", "finance"] },
+  { href: "/admin/reports", label: "Financial Reports", icon: BarChart3, group: "admin", roles: ["admin", "finance"] },
   { href: "/admin/promotions", label: "Promotions", icon: Tag, group: "admin", roles: ["admin"] },
   { href: "/admin/products", label: "Manage Products", icon: Package, group: "admin", roles: ["admin"] },
   { href: "/admin/send-email", label: "Send Email", icon: Mail, group: "admin", roles: ["admin"] },
   // Account
-  { href: "/profile", label: "My Profile", icon: User, group: "account", roles: ["partner", "admin"] },
+  { href: "/profile", label: "My Profile", icon: User, group: "account", roles: ["partner", "admin", "finance", "hr", "school-manager"] },
   // Dev
   { href: "/sp-test", label: "SP CRUD Test", icon: FlaskConical, group: "dev", roles: ["admin"] },
 ];
 
 const groupLabels: Record<string, string> = {
   main: "Main",
-  shop: "Sales Shop",
+  offer: "Offer Builder",
   finance: "Finance",
   wallet: "Wallet & Rewards",
+  hr: "Human Resources",
+  school: "Language School",
   admin: "Administration",
   account: "Account",
   dev: "Developer",

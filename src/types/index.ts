@@ -611,7 +611,17 @@ export interface UserProfile {
 // Multi-Role System
 // ============================================================
 
-export type UserRoleType = "customer" | "expert" | "partner-individual" | "partner-institutional" | "admin";
+export type UserRoleType =
+  | "admin"
+  | "customer"
+  | "partner-individual"
+  | "partner-institutional"
+  | "expert"
+  | "finance"
+  | "hr"
+  | "teacher"
+  | "school-manager";
+
 export type UserRoleStatus = "active" | "pending" | "suspended" | "revoked";
 
 export interface UserRoleEntry {
@@ -762,47 +772,619 @@ export interface CoinTransaction {
 }
 
 // ============================================================
-// SCCG Gift Cards
+// SCCG Card (renamed from Gift Card)
 // ============================================================
 
-export type GiftCardStatus = "active" | "frozen" | "expired" | "depleted" | "cancelled";
-export type GiftCardDesign = "standard" | "premium" | "birthday" | "corporate";
+export type SccgCardStatus = "active" | "frozen" | "expired" | "depleted" | "cancelled";
+export type SccgCardDesign = "standard" | "premium" | "birthday" | "corporate";
 
-export interface GiftCard {
+/** @deprecated Use SccgCard instead */
+export type GiftCardStatus = SccgCardStatus;
+/** @deprecated Use SccgCardDesign instead */
+export type GiftCardDesign = SccgCardDesign;
+
+export interface SccgCard {
   id: string;
+  sccgId: string;
   cardNumber: string;
+  pinHash: string;
+  pinAttempts: number;
+  clientId?: string;     // for B2B association
+  clientName?: string;
+  clientEmail?: string;
   issuedToUserId: string;
   issuedToName: string;
   issuedToEmail: string;
   issuedByUserId: string;
+  issuedBy?: string;     // Display name of issuer
   initialBalance: number;
   currentBalance: number;
-  currency: "BDT";
-  status: GiftCardStatus;
-  designTemplate: GiftCardDesign;
+  balance: number;       // alias for currentBalance
+  currency: "BDT" | "EUR";
+  tier?: "standard" | "premium" | "platinum";
+  status: SccgCardStatus;
+  designTemplate: SccgCardDesign;
+  notes?: string;
   activatedAt: string;
   expiresAt: string;
   lastUsedAt?: string;
+  frozenAt?: string;
+  frozenReason?: string;
+  reissuedFromCardId?: string;
   qrCodeData?: string;
-  createdAt: string;
+  issuedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-export type GiftCardTransactionType =
+/** @deprecated Use SccgCard instead */
+export type GiftCard = SccgCard;
+
+export type SccgCardTransactionType =
   | "activation"
   | "purchase-usage"
   | "top-up"
   | "refund"
   | "admin-adjustment"
-  | "expiry-debit";
+  | "expiry-debit"
+  | "load"
+  | "redeem";
 
-export interface GiftCardTransaction {
+/** @deprecated Use SccgCardTransactionType instead */
+export type GiftCardTransactionType = SccgCardTransactionType;
+
+export interface SccgCardTransaction {
   id: string;
-  giftCardId: string;
-  transactionType: GiftCardTransactionType;
+  sccgCardId: string;
+  cardId?: string;        // alias for Firestore-based module
+  giftCardId?: string;
+  transactionType: SccgCardTransactionType;
+  type?: SccgCardTransactionType; // alias for Firestore-based module
   amount: number;
   runningBalance: number;
+  balanceAfter: number;   // alias for runningBalance
   salesOrderId?: string;
+  referenceId?: string;
+  currency?: "BDT" | "EUR";
   description: string;
   createdAt: string;
+  performedAt?: string;   // alias for createdAt
   createdBy: string;
+  performedBy?: string;   // alias for createdBy
+}
+
+/** @deprecated Use SccgCardTransaction instead */
+export type GiftCardTransaction = SccgCardTransaction;
+
+// ============================================================
+// Payment Architecture
+// ============================================================
+
+export type PaymentStatus =
+  | "initiated"
+  | "slip-uploaded"
+  | "under-review"
+  | "verified"
+  | "rejected"
+  | "failed"
+  | "refunded"
+  | "partially-refunded";
+
+export type PaymentMethod =
+  | "bkash"
+  | "city-bank"
+  | "brac-bank"
+  | "dbbl"
+  | "paypal"
+  | "sccg-card"
+  | "bank-transfer-other";
+
+export type PaymentContext = "sales-order" | "school-enrollment";
+
+export interface Payment {
+  id: string;
+  sccgId: string;
+  salesOrderId?: string;
+  orderNumber?: string;
+  invoiceId?: string;
+  invoiceSccgId?: string;
+  installmentId?: string;
+  paymentContext: PaymentContext;
+  schoolEnrollmentId?: string;
+  payerUserId: string;
+  payerName: string;
+  payerEmail: string;
+  amount: number;
+  amountEur?: number;
+  conversionRate?: number;
+  currency: "BDT" | "EUR";
+  paymentMethod: PaymentMethod;
+  paymentMethodName: string;
+  transactionReference?: string;
+  slipImageUrl?: string;
+  slipUploadedAt?: string;
+  gatewayTransactionId?: string;
+  gatewayResponse?: string;
+  sccgCardId?: string;
+  sccgCardLast4?: string;
+  status: PaymentStatus;
+  verifiedByUserId?: string;
+  verifiedByName?: string;
+  verifiedAt?: string;
+  rejectionReason?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PaymentMethodConfig {
+  id: string;
+  name: string;
+  type: "mobile-wallet" | "bank-transfer" | "online-gateway" | "internal";
+  accountNumber?: string;
+  accountName?: string;
+  bankName?: string;
+  branchName?: string;
+  routingNumber?: string;
+  instructions?: string;
+  isActive: boolean;
+  requiresSlipUpload: boolean;
+}
+
+// ============================================================
+// Invoice Engine (Enhanced)
+// ============================================================
+
+export type InvoiceType = "proforma" | "tax-invoice" | "receipt" | "credit-note";
+export type EnhancedInvoiceStatus = "draft" | "sent" | "partially-paid" | "paid" | "overdue" | "cancelled" | "void";
+
+export interface EnhancedInvoice {
+  id: string;
+  sccgId: string;
+  invoiceNumber: string;
+  invoiceType: InvoiceType;
+  partnerId?: string;
+  clientId: string;
+  clientName?: string;
+  clientEmail?: string;
+  salesOrderId?: string;
+  orderNumber?: string;
+  schoolEnrollmentId?: string;
+  amount: number;
+  amountPaid: number;
+  amountRemaining: number;
+  amountEur?: number;
+  conversionRate?: number;
+  currency: "BDT" | "EUR";
+  status: EnhancedInvoiceStatus;
+  dueDate: string;
+  pdfUrl?: string;
+  sentAt?: string;
+  paidAt?: string;
+  notes?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ============================================================
+// Installment Engine (Enhanced)
+// ============================================================
+
+export interface InstallmentRule {
+  id: string;
+  minAmount: number;
+  maxAmount: number;
+  installments: number;
+  splitPercents: number[];
+  dueDaysFromOrder: number[];
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type EnhancedInstallmentStatus = "upcoming" | "due" | "paid" | "overdue" | "waived";
+
+export interface EnhancedInstallment {
+  id: string;
+  sccgId: string;
+  relatedEntityType: "sales-order" | "school-enrollment";
+  relatedEntityId: string;
+  orderId?: string;
+  orderNumber?: string;
+  schoolEnrollmentId?: string;
+  clientId: string;
+  clientName?: string;
+  partnerId?: string;
+  installmentNumber: number;
+  totalInstallments: number;
+  amount: number;
+  amountPaid: number;
+  amountEur?: number;
+  conversionRate?: number;
+  dueDate: string;
+  paidDate?: string;
+  status: EnhancedInstallmentStatus;
+  paymentId?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ============================================================
+// Audit Logs
+// ============================================================
+
+export interface AuditLogEntry {
+  id: string;
+  sccgId: string;
+  action: string;
+  actorId: string;
+  actorEmail: string;
+  targetId: string;
+  targetType: string;
+  before?: Record<string, unknown>;
+  after?: Record<string, unknown>;
+  ipAddress?: string;
+  userAgent?: string;
+  metadata?: Record<string, unknown>;
+  createdAt: string;
+}
+
+// ============================================================
+// Role Change Request (two-admin approval)
+// ============================================================
+
+export interface RoleChangeRequest {
+  id: string;
+  targetUserId: string;
+  targetEmail: string;
+  requestedRole: UserRoleType;
+  action: "add" | "remove";
+  requestedBy: string;
+  requestedByEmail: string;
+  approvedBy?: string;
+  status: "pending" | "approved" | "rejected";
+  createdAt: string;
+  resolvedAt?: string;
+  notes?: string;
+}
+
+// ============================================================
+// HR Module
+// ============================================================
+
+export type EmployeeStatus =
+  | "onboarding"
+  | "probation"
+  | "active"
+  | "on-leave"
+  | "suspended"
+  | "notice-period"
+  | "terminated"
+  | "resigned"
+  | "retired";
+
+export type EmployeeDepartment =
+  | "management"
+  | "technology"
+  | "finance"
+  | "hr"
+  | "sales"
+  | "marketing"
+  | "operations"
+  | "language-school"
+  | "education"
+  | "support"
+  | "other";
+
+export type EmploymentType =
+  | "full-time"
+  | "part-time"
+  | "contract"
+  | "intern"
+  | "probation";
+
+export interface Employee {
+  id: string;
+  sccgId: string;
+  firebaseUid: string;
+  fullName: string;
+  email: string;
+  personalEmail?: string;
+  phone: string;
+  dateOfBirth?: string;
+  gender?: "male" | "female" | "other" | "prefer-not-to-say";
+  nationality?: string;
+  nidOrPassport?: string;
+  address?: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+  profilePhotoUrl?: string;
+  designation: string;
+  department: EmployeeDepartment;
+  role?: string;
+  team?: string;
+  employmentType: EmploymentType;
+  joiningDate: string;
+  confirmationDate?: string;
+  contractEndDate?: string;
+  lastWorkingDate?: string;
+  probationMonths: number;
+  reportsToEmployeeId?: string;
+  reportsToName?: string;
+  baseSalary?: number;
+  salaryCurrency?: "BDT" | "EUR";
+  bankAccountName?: string;
+  bankAccountNumber?: string;
+  bankName?: string;
+  bankBranch?: string;
+  tinNumber?: string;
+  status: EmployeeStatus;
+  portalRoles: string[];
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string;
+  updatedBy: string;
+}
+
+export type EmployeeDocType =
+  | "cv-resume"
+  | "nid-copy"
+  | "passport-copy"
+  | "offer-letter"
+  | "employment-contract"
+  | "nda"
+  | "photograph"
+  | "educational-certificate"
+  | "experience-letter"
+  | "bank-details-form"
+  | "tin-certificate"
+  | "termination-letter"
+  | "resignation-letter"
+  | "performance-review"
+  | "other";
+
+export interface EmployeeDocument {
+  id: string;
+  employeeId: string;
+  employeeSccgId: string;
+  documentType: EmployeeDocType;
+  fileName: string;
+  fileUrl: string;
+  fileSize: number;
+  mimeType: string;
+  uploadedBy: string;
+  uploadedAt: string;
+  notes?: string;
+  isConfidential: boolean;
+}
+
+export interface OnboardingTask {
+  id: string;
+  employeeId: string;
+  taskName: string;
+  category: "documents" | "access" | "equipment" | "training" | "introduction";
+  isRequired: boolean;
+  isCompleted: boolean;
+  completedAt?: string;
+  completedBy?: string;
+  dueDate?: string;
+  notes?: string;
+}
+
+// ============================================================
+// Language School Module
+// ============================================================
+
+export type CourseLanguage = "german" | "english" | "japanese" | "other";
+export type CourseLevel = "A1" | "A2" | "B1" | "B2" | "C1" | "C2" | "custom";
+export type CourseStatus = "draft" | "published" | "archived";
+
+export interface SchoolCourse {
+  id: string;
+  sccgId: string;
+  courseName: string;
+  courseCode: string;
+  language: CourseLanguage;
+  level: CourseLevel;
+  description: string;
+  totalSessions: number;
+  sessionDurationMinutes: number;
+  totalDurationWeeks: number;
+  courseFee: number;
+  courseFeeCurrency: "BDT" | "EUR";
+  maxStudentsPerBatch: number;
+  prerequisites?: string;
+  syllabusUrl?: string;
+  status: CourseStatus;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type BatchStatus =
+  | "planned"
+  | "enrollment-open"
+  | "in-progress"
+  | "active"
+  | "completed"
+  | "results-published"
+  | "cancelled"
+  | "archived";
+
+export interface SchoolBatch {
+  id: string;
+  sccgId: string;
+  courseId: string;
+  courseName: string;
+  batchCode: string;
+  batchName: string;
+  teacherId: string;
+  teacherName: string;
+  startDate: string;
+  endDate: string;
+  schedule: string;
+  maxStudents: number;
+  enrolledStudents: number;
+  status: BatchStatus;
+  classroomOrLink?: string;
+  notes?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type SchoolStudentStatus =
+  | "applied"
+  | "enrolled"
+  | "active"
+  | "on-hold"
+  | "completed"
+  | "dropped"
+  | "expelled";
+
+export interface SchoolEnrollment {
+  id: string;
+  sccgId: string;
+  studentUserId: string;
+  studentName: string;
+  studentEmail: string;
+  studentPhone?: string;
+  batchId: string;
+  batchCode: string;
+  courseId: string;
+  courseName: string;
+  totalFee: number;
+  discountAmount: number;
+  discountReason?: string;
+  netFee: number;
+  amountPaid: number;
+  amountRemaining: number;
+  paymentStatus: "unpaid" | "partial" | "paid" | "refunded";
+  enrolledAt: string;
+  status: SchoolStudentStatus;
+  completedAt?: string;
+  droppedAt?: string;
+  dropReason?: string;
+  finalGrade?: string;
+  examScore?: number;
+  participationCertId?: string;
+  completionCertId?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ContentType = "pdf" | "video" | "link" | "document" | "audio" | "image";
+
+export interface SchoolContent {
+  id: string;
+  courseId: string;
+  batchId?: string;
+  title: string;
+  description?: string;
+  contentType: ContentType;
+  fileUrl?: string;
+  externalUrl?: string;
+  fileSize?: number;
+  sessionNumber?: number;
+  sortOrder: number;
+  isPublished: boolean;
+  uploadedBy: string;
+  uploadedByName: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SchoolAttendance {
+  id: string;
+  batchId: string;
+  sessionNumber: number;
+  sessionDate: string;
+  studentUserId: string;
+  studentName: string;
+  status: "present" | "absent" | "late" | "excused";
+  markedBy: string;
+  markedAt: string;
+  notes?: string;
+}
+
+export type ExamType = "midterm" | "final" | "quiz" | "practical" | "oral" | "assignment";
+export type ExamResultStatus = "draft" | "published";
+
+export interface SchoolExamResult {
+  id: string;
+  batchId: string;
+  courseId: string;
+  studentUserId: string;
+  studentName: string;
+  enrollmentId: string;
+  examType: ExamType;
+  examName: string;
+  examDate: string;
+  maxScore: number;
+  obtainedScore: number;
+  percentage: number;
+  grade?: string;
+  isPassed: boolean;
+  remarks?: string;
+  status: ExamResultStatus;
+  publishedAt?: string;
+  enteredBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ============================================================
+// Certificates
+// ============================================================
+
+export type CertificateType = "participation" | "completion";
+export type CertificateStatus = "issued" | "revoked" | "expired" | "replaced";
+
+export interface SchoolCertificate {
+  id: string;
+  sccgId: string;
+  certificateNumber: string;
+  certificateType: CertificateType;
+  studentUserId: string;
+  studentName: string;
+  studentSccgId: string;
+  enrollmentId: string;
+  courseId: string;
+  courseName: string;
+  courseLevel: CourseLevel;
+  batchId: string;
+  batchCode: string;
+  attendancePercentage: number;
+  finalGrade?: string;
+  examScore?: number;
+  issuedDate: string;
+  validUntil?: string;
+  issuedBy: string;
+  issuedByName: string;
+  verificationCode: string;
+  verificationUrl: string;
+  qrCodeData: string;
+  qrCodeUrl?: string;
+  status: CertificateStatus;
+  revokedAt?: string;
+  revocationReason?: string;
+  revokedBy?: string;
+  replacedByCertId?: string;
+  pdfUrl?: string;
+  createdAt: string;
+}
+
+// ============================================================
+// Grading Scale
+// ============================================================
+
+export interface SchoolGradingScale {
+  id: string;
+  courseId?: string;
+  minScore: number;
+  maxScore: number;
+  grade: string;
+  isPassing: boolean;
 }

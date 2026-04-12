@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { GiftCard } from "@/types";
+import type { SccgCard } from "@/types";
 import { CreditCard, Plus, Trash2, ShieldAlert, CheckCircle2, Copy, Check, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { issueGiftCardAction, freezeGiftCardAction, activateGiftCardAction } from "./actions";
 
-export default function GiftCardsClient({ giftCards }: { giftCards: GiftCard[] }) {
+export default function GiftCardsClient({ giftCards }: { giftCards: SccgCard[] }) {
   const router = useRouter();
   const [showCreate, setShowCreate] = useState(false);
   const [loading, setLoading] = useState(false);

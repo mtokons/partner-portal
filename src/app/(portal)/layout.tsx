@@ -11,8 +11,9 @@ export default async function PortalLayout({ children }: { children: React.React
   const user = session.user as SessionUser;
   const userRoles = user.roles || [user.role];
 
-  // If user doesn't have partner or admin role, redirect to login
-  if (!userRoles.includes("partner") && !userRoles.includes("admin")) redirect("/login");
+  // Allow partner, admin, finance, hr, school-manager, teacher roles
+  const portalRoles = ["partner", "admin", "finance", "hr", "school-manager", "teacher"];
+  if (!userRoles.some((r) => portalRoles.includes(r))) redirect("/login");
 
   const isAdmin = userRoles.includes("admin");
   const installments = await getInstallments(isAdmin ? undefined : user.partnerId);

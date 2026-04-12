@@ -8,6 +8,7 @@ import type {
   EmailTracking, OfferAcceptanceLog,
   PromoCode, PromoCodeUsage, CommissionRule, CommissionLedgerEntry,
   CoinWallet, CoinTransaction, GiftCard, GiftCardTransaction, UserRoleEntry,
+  SccgCard, SccgCardTransaction,
 } from "@/types";
 import {
   mockPartners, mockProducts, mockOrders, mockClients,
@@ -1981,20 +1982,20 @@ export async function getGiftCardById(id: string): Promise<GiftCard | null> {
   return null;
 }
 
-export async function getGiftCardByNumber(cardNumber: string): Promise<GiftCard | null> {
-  if (useMock) return stores.giftCards.find((g) => g.cardNumber === cardNumber) || null;
+export async function getGiftCardByNumber(cardNumber: string): Promise<SccgCard | null> {
+  if (useMock) return (stores.giftCards as SccgCard[]).find((g) => g.cardNumber === cardNumber) || null;
   return null;
 }
 
-export async function createGiftCard(data: Omit<GiftCard, "id">): Promise<GiftCard> {
-  const item = { ...data, id: genId("gc") } as GiftCard;
-  if (useMock) stores.giftCards.push(item);
+export async function createGiftCard(data: Omit<SccgCard, "id">): Promise<SccgCard> {
+  const item = { ...data, id: genId("gc") } as SccgCard;
+  if (useMock) (stores.giftCards as SccgCard[]).push(item);
   return item;
 }
 
-export async function updateGiftCard(id: string, data: Partial<GiftCard>): Promise<void> {
+export async function updateGiftCard(id: string, data: Partial<SccgCard>): Promise<void> {
   if (useMock) {
-    const g = stores.giftCards.find((x) => x.id === id);
+    const g = (stores.giftCards as SccgCard[]).find((x) => x.id === id);
     if (g) Object.assign(g, data);
   }
 }

@@ -4,13 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Package, Calendar, CreditCard,
-  FileText, Bell, Sparkles,
+  FileText, Bell, Sparkles, GraduationCap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navLinks = [
   { href: "/customer/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/customer/packages", label: "My Packages", icon: Package },
+  { href: "/customer/school", label: "My Courses", icon: GraduationCap },
   { href: "/customer/sessions", label: "Sessions", icon: Calendar },
   { href: "/customer/payments", label: "Payments", icon: CreditCard },
   { href: "/customer/invoices", label: "Invoices", icon: FileText },
