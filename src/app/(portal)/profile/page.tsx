@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import type { SessionUser } from "@/types";
-import { getActivities, getOrders, getClients } from "@/lib/sharepoint";
+import { getActivities, getOrders, getClients, getGiftCards } from "@/lib/sharepoint";
 import ProfileClient from "./ProfileClient";
 
 export default async function ProfilePage() {
@@ -10,10 +10,11 @@ export default async function ProfilePage() {
   const user = session.user as SessionUser;
 
   const partnerId = user.role === "admin" ? undefined : user.partnerId;
-  const [activities, orders, clients] = await Promise.all([
+  const [activities, orders, clients, cards] = await Promise.all([
     getActivities(partnerId).then((a) => a.slice(0, 10)),
     getOrders(partnerId),
     getClients(partnerId),
+    getGiftCards(user.id),
   ]);
 
   // Activity chart data — group by month
@@ -53,6 +54,7 @@ export default async function ProfilePage() {
       }))}
       chartData={chartData}
       stats={stats}
+      card={cards[0] || null}
     />
   );
 }

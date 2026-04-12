@@ -6,8 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
-import { ArrowLeft, CreditCard, ArrowUpCircle, ArrowDownCircle } from "lucide-react";
+import { ArrowLeft, CreditCard, ArrowUpCircle, ArrowDownCircle, History } from "lucide-react";
 import type { SccgCard, SccgCardTransaction } from "@/types";
+import SCCGCard from "@/components/ui/SCCGCard";
 
 export default function SccgCardDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const [cardId, setCardId] = useState<string | null>(null);
@@ -83,33 +84,16 @@ export default function SccgCardDetailPage({ params }: { params: Promise<{ id: s
         <Badge variant={card.status === "active" ? "default" : "destructive"} className="capitalize">{card.status}</Badge>
       </div>
 
-      {/* Card Visual */}
-      <div className="relative overflow-hidden rounded-2xl p-6 text-white" style={{
-        background: card.tier === "platinum" ? "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)"
-          : card.tier === "premium" ? "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
-          : "linear-gradient(135deg, #2d3436 0%, #636e72 100%)",
-      }}>
-        <div className="flex justify-between items-start mb-8">
-          <div>
-            <p className="text-xs opacity-70 uppercase tracking-wider">SCCG Card</p>
-            <p className="text-sm font-bold uppercase">{card.tier}</p>
-          </div>
-          <CreditCard className="h-8 w-8 opacity-70" />
-        </div>
-        <p className="text-lg font-mono tracking-widest mb-4">
-          {card.cardNumber.replace(/(.{4})/g, "$1 ").trim()}
-        </p>
-        <div className="flex justify-between items-end">
-          <div>
-            <p className="text-xs opacity-70">Card Holder</p>
-            <p className="font-medium">{card.clientName}</p>
-          </div>
-          <div className="text-right">
-            <p className="text-xs opacity-70">Balance</p>
-            <p className="text-2xl font-bold">{currencySymbol}{card.balance.toLocaleString()}</p>
-          </div>
-        </div>
-        {card.sccgId && <p className="mt-2 text-xs opacity-50 font-mono">{card.sccgId}</p>}
+      {/* Card Visual Standardized */}
+      <div className="flex justify-center bg-muted/20 py-10 rounded-[2.5rem] border border-dashed">
+        <SCCGCard 
+          cardNumber={card.cardNumber}
+          cardholder={card.clientName}
+          expiry={card.expiresAt ? new Date(card.expiresAt).toLocaleDateString("en-GB", { month: "2-digit", year: "2-digit" }) : "N/A"}
+          tier={card.tier}
+          balance={card.balance}
+          currency={card.currency}
+        />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
