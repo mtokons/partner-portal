@@ -5,7 +5,8 @@ import type { SessionUser, SalesOrder, SalesOrderItem, Invoice, Transaction, Ser
 import { 
   createSalesOrder, createSalesOrderItem, createInvoice, createTransaction, 
   generateOrderNumber, generateInvoiceNumber, getProducts,
-  createCustomerPackage, createGiftCard, generateGiftCardNumber, generateGiftCardPin
+  createCustomerPackage, createGiftCard, generateGiftCardNumber, generateGiftCardPin,
+  getCoinWallet, updateCoinWallet, createCoinTransaction
 } from "@/lib/sharepoint";
 import { revalidatePath } from "next/cache";
 
@@ -16,6 +17,7 @@ export async function createDirectOrderAction(data: {
   customerPhone?: string;
   reference?: string;
   notes?: string;
+  paymentMethod?: "fiat" | "coin";
 }) {
   const session = await auth();
   if (!session?.user) throw new Error("Unauthorized");
@@ -26,6 +28,32 @@ export async function createDirectOrderAction(data: {
   const subtotal = data.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
   const totalAmount = subtotal; // Simpler for marketplace direct buy
   const now = new Date().toISOString();
+
+  // 0. Handle Payment Method logic (Coins)
+  if (data.paymentMethod === "coin") {
+    const wallet = await getCoinWallet(user.id);
+    if (!wallet) throw new Error("No SCCG Coin wallet found for this user.");
+    if (wallet.balance < totalAmount) {
+      throw new Error(`Insufficient balance. You have ${wallet.balance} SCCG Coins, but the order total is ${totalAmount}.`);
+    }
+
+    // Debit the wallet
+    await createCoinTransaction({
+      walletId: user.id,
+      userId: user.id,
+      transactionType: "spend-purchase",
+      amount: totalAmount,
+      runningBalance: wallet.balance - totalAmount,
+      description: `Payment for Marketplace Order ${orderNumber}`,
+      createdAt: now,
+      createdBy: user.id,
+    });
+
+    await updateCoinWallet(user.id, {
+      balance: wallet.balance - totalAmount,
+      totalSpent: (wallet.totalSpent || 0) + totalAmount,
+    });
+  }
 
   // 1. Create the Sales Order directly in "pending" or "confirmed" status
   const order = await createSalesOrder({
