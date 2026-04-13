@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import type { CartItem, SessionUser } from "@/types";
+import type { CartItem, SessionUser, CoinWallet } from "@/types";
 import { createDirectOrderAction } from "../actions";
+import { fetchWalletsForCurrentUser } from "../../wallets/actions";
 import { 
   ArrowLeft, CreditCard, ShieldCheck, Truck, 
   CheckCircle2, Loader2, AlertCircle, ShoppingBag, 
@@ -15,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -30,6 +32,8 @@ export default function CheckoutPage() {
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [reference, setReference] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<"fiat" | "coin">("fiat");
+  const [wallet, setWallet] = useState<CoinWallet | null>(null);
 
   useEffect(() => {
     const storedCart = localStorage.getItem("marketplace_cart");
@@ -42,6 +46,11 @@ export default function CheckoutPage() {
     if (user) {
       setCustomerName(user.name || "");
       setCustomerEmail(user.email || "");
+      
+      // Fetch wallet balance
+      fetchWalletsForCurrentUser().then(wallets => {
+        if (wallets && wallets.length > 0) setWallet(wallets[0]);
+      });
     }
   }, [user]);
 
@@ -75,6 +84,7 @@ export default function CheckoutPage() {
         customerName,
         customerEmail,
         reference,
+        paymentMethod,
         notes: "Checkout from SCCG Marketplace"
       });
 
@@ -177,26 +187,73 @@ export default function CheckoutPage() {
             </CardContent>
           </Card>
 
-          <Card className="rounded-[2rem] border-primary/10 shadow-xl shadow-primary/5 overlow-hidden">
+          <Card className="rounded-[2rem] border-primary/10 shadow-xl shadow-primary/5 overflow-hidden">
             <CardHeader className="bg-primary/5">
               <CardTitle className="flex items-center gap-2 text-primary">
                 <CreditCard className="h-5 w-5" />
                 Payment Method
               </CardTitle>
             </CardHeader>
-            <CardContent className="pt-6 space-y-6">
-              <div className="p-6 border-2 border-primary rounded-[1.5rem] bg-primary/5 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-xl bg-primary text-white flex items-center justify-center font-black">
+            <CardContent className="pt-6 space-y-4">
+              {/* Fiat Option */}
+              <button 
+                onClick={() => setPaymentMethod("fiat")}
+                className={cn(
+                  "w-full p-6 border-2 rounded-[1.5rem] flex items-center justify-between transition-all",
+                  paymentMethod === "fiat" 
+                    ? "border-primary bg-primary/5" 
+                    : "border-border bg-transparent hover:border-primary/20"
+                )}
+              >
+                <div className="flex items-center gap-4 text-left">
+                  <div className={cn(
+                    "h-12 w-12 rounded-xl flex items-center justify-center font-black",
+                    paymentMethod === "fiat" ? "bg-primary text-white" : "bg-muted text-muted-foreground"
+                  )}>
                     $
                   </div>
                   <div>
                     <p className="font-bold">Digital Direct Payment</p>
-                    <p className="text-xs text-muted-foreground">Instant activation after verification</p>
+                    <p className="text-xs text-muted-foreground">Bank, Card, or Stripe</p>
                   </div>
                 </div>
-                <Badge className="bg-primary text-white font-black">ACTIVE</Badge>
-              </div>
+                {paymentMethod === "fiat" && <Badge className="bg-primary text-white font-black uppercase text-[10px]">SELECTED</Badge>}
+              </button>
+
+              {/* Coin Option */}
+              <button 
+                onClick={() => setPaymentMethod("coin")}
+                disabled={!wallet || wallet.balance < cartTotal}
+                className={cn(
+                  "w-full p-6 border-2 rounded-[1.5rem] flex items-center justify-between transition-all group",
+                  paymentMethod === "coin" 
+                    ? "border-primary bg-primary/5" 
+                    : "border-border bg-transparent hover:border-primary/20 disabled:opacity-50 disabled:grayscale"
+                )}
+              >
+                <div className="flex items-center gap-4 text-left">
+                  <div className={cn(
+                    "h-12 w-12 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110",
+                    paymentMethod === "coin" ? "bg-primary text-white" : "bg-muted text-muted-foreground"
+                  )}>
+                    <ShoppingBag className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <p className="font-bold flex items-center gap-2">
+                      SCCG Coin Balance
+                      <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">1:1 Ratio</span>
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Available: <span className="font-black text-foreground">{wallet?.balance ?? 0} SCC</span>
+                      {wallet && wallet.balance < cartTotal && (
+                        <span className="text-rose-500 ml-2 font-bold">(Insufficient)</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+                {paymentMethod === "coin" && <Badge className="bg-primary text-white font-black uppercase text-[10px]">SELECTED</Badge>}
+              </button>
+
 
               {paymentStep !== "idle" && (
                 <div className="p-8 text-center bg-muted/30 rounded-[1.5rem] animate-in fade-in zoom-in duration-500">
