@@ -39,7 +39,7 @@ export interface Product {
   sku: string;                   // Stock Keeping Unit
   name: string;
   description: string;           // Detailed description
-  unit: "Package" | "Session" | "Course"; // The type of delivery
+  unit: "Package" | "Session" | "Course" | "Card"; // The type of delivery
   sessionsCount: number;         // Expert session amount
   retailPriceEur: number;        // SCCG Retail Price in EUR
   retailPriceBdt: number;        // SCCG Retail Price in BDT
