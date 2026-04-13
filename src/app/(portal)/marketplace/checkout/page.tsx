@@ -35,10 +35,8 @@ export default function CheckoutPage() {
     const storedCart = localStorage.getItem("marketplace_cart");
     if (storedCart) {
       setCart(JSON.parse(storedCart));
-    } else {
-      router.push("/marketplace");
     }
-  }, [router]);
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -95,7 +93,27 @@ export default function CheckoutPage() {
     }
   }
 
-  if (cart.length === 0) return null;
+  if (cart.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6 animate-in fade-in duration-500">
+        <div className="h-24 w-24 rounded-full bg-muted flex items-center justify-center">
+          <ShoppingBag className="h-10 w-10 text-muted-foreground" />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-2xl font-black">Your cart is empty</h2>
+          <p className="text-muted-foreground max-w-sm mx-auto">
+            It looks like you haven't added any premium service packages to your marketplace cart yet.
+          </p>
+        </div>
+        <Link 
+          href="/marketplace"
+          className="px-8 py-3 bg-primary text-white rounded-2xl font-bold hover:opacity-90 transition-all shadow-xl shadow-primary/20"
+        >
+          Return to Marketplace
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 page-enter pb-20">

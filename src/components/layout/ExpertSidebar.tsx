@@ -14,6 +14,9 @@ const navLinks = [
   { href: "/expert/teaching", label: "My Teaching", icon: BookOpen },
   { href: "/expert/payments", label: "My Earnings", icon: CreditCard },
   { href: "/expert/notifications", label: "Notifications", icon: Bell },
+  { href: "/marketplace", label: "Marketplace", icon: LayoutDashboard },
+  { href: "/wallets", label: "SCCG Wallet", icon: CreditCard },
+  { href: "/profile", label: "My Profile", icon: Users },
 ];
 
 export default function ExpertSidebar({ unreadCount }: { unreadCount: number }) {

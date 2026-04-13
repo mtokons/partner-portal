@@ -28,6 +28,8 @@ interface LinkItem {
 const allLinks: LinkItem[] = [
   // Main
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, group: "main", roles: ["partner", "admin", "finance", "hr", "school-manager"] },
+  { href: "/customer/dashboard", label: "My Dashboard", icon: LayoutDashboard, group: "main", roles: ["customer"] },
+  { href: "/expert/dashboard", label: "Expert Console", icon: LayoutDashboard, group: "main", roles: ["expert"] },
   { href: "/orders", label: "Orders", icon: ShoppingCart, group: "main", roles: ["partner"] },
   { href: "/clients", label: "Clients", icon: Users, group: "main", roles: ["partner"] },
   { href: "/marketplace", label: "SCCG Marketplace", icon: ShoppingBag, group: "main", roles: ["partner", "admin", "customer", "expert"] },
