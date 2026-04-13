@@ -1,3 +1,5 @@
+"use server";
+
 import { 
   getCoinWallet, 
   getGiftCards, 
@@ -48,21 +50,28 @@ export async function redeemGiftCardToCoinsAction(cardNumber: string, pin: strin
   // 3. Atomic transfer (Simulated by two sequential transactions in mock)
   // Debit Card
   await createGiftCardTransaction({
+    sccgCardId: card.id,
     giftCardId: card.id,
-    amount: -amount,
+    transactionType: "redeem",
     type: "redeem",
+    amount: -amount,
+    runningBalance: 0,
+    balanceAfter: 0,
     description: `Redeemed to SCCG Coins by user ${userId}`,
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    createdBy: userId,
   });
 
   // Credit Wallet
   await createCoinTransaction({
+    walletId: userId,
     userId,
-    userName: session.user.name || "User",
+    transactionType: "top-up",
     amount: amount,
-    type: "load",
+    runningBalance: amount, // Approximate; actual balance computed by store
     description: `Redeemed from Gift Card ${cardNumber}`,
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    createdBy: userId,
   });
 
   return { success: true, amount };

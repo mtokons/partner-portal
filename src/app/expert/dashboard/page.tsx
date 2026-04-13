@@ -35,7 +35,7 @@ export default async function ExpertDashboardPage() {
   ]);
 
   // 1b. Auto-provision if approved in Firebase but missing in SharePoint
-  if (!expert && dbProfile?.status === "active") {
+  if (!expert && dbProfile && dbProfile.status === "active") {
     const { createExpert } = await import("@/lib/sharepoint");
     try {
       const expertData: Expert = {
@@ -59,10 +59,14 @@ export default async function ExpertDashboardPage() {
 
   // 2. Handle approval states
   if (!expert) {
-    const isPending = dbProfile?.status === "pending";
+    const isPending = !dbProfile || dbProfile.status === "pending";
     
     return (
       <div className="flex flex-col flex-1 items-center justify-center min-h-[70vh] text-center px-4">
+        {/* Auto-refresh when in finalizing state */}
+        {!isPending && (
+          <meta httpEquiv="refresh" content="3" />
+        )}
         <div className={`h-20 w-20 ${isPending ? "bg-indigo-500/10" : "bg-emerald-500/10"} rounded-full flex items-center justify-center mb-6`}>
           <span className="text-4xl">{isPending ? "⏳" : "⚙️"}</span>
         </div>
@@ -72,7 +76,7 @@ export default async function ExpertDashboardPage() {
         <p className="text-gray-500 max-w-md mx-auto">
           {isPending 
             ? "Your expert application is currently being reviewed by the SCCG administrators. You will receive access to your dashboard once approved."
-            : "Your account has been approved! We are currently synchronizing your professional profile. This usually takes just a few seconds."}
+            : "Your account has been approved! We are currently synchronizing your professional profile. This page will refresh automatically."}
         </p>
         {!isPending && (
           <Link 

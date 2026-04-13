@@ -10,7 +10,6 @@ import { Wallet, Coins, ArrowUpRight, TrendingUp, History, CreditCard, Gift, Key
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner"; // Assuming toast is available, or I'll use simple feedback
 
 export default function WalletsClient() {
   const [wallets, setWallets] = useState<CoinWallet[]>([]);

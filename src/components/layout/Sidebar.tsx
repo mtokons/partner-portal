@@ -42,7 +42,7 @@ const allLinks: LinkItem[] = [
   { href: "/financials/invoices", label: "Invoices", icon: FileText, group: "finance", roles: ["partner", "finance"] },
   { href: "/financials/payouts", label: "My Payouts", icon: Wallet, group: "finance", roles: ["partner"] },
   // Wallet & rewards
-  { href: "/wallets", label: "SCCG Wallet", icon: Wallet, group: "wallet", roles: ["partner", "expert", "customer"] },
+  { href: "/wallets", label: "SCCG Wallet", icon: Wallet, group: "wallet", roles: ["partner", "admin", "expert", "customer"] },
   { href: "/referrals", label: "My Referral Code", icon: Share2, group: "wallet", roles: ["partner"] },
   { href: "/commissions", label: "My Commissions", icon: DollarSign, group: "wallet", roles: ["partner"] },
   // HR (new)
@@ -82,7 +82,7 @@ const allLinks: LinkItem[] = [
   { href: "/admin/products", label: "Manage Products", icon: Package, group: "admin", roles: ["admin"] },
   { href: "/admin/send-email", label: "Send Email", icon: Mail, group: "admin", roles: ["admin"] },
   // Account
-  { href: "/profile", label: "My Profile", icon: User, group: "account", roles: ["partner", "admin", "finance", "hr", "school-manager"] },
+  { href: "/profile", label: "My Profile", icon: User, group: "account", roles: ["partner", "admin", "finance", "hr", "school-manager", "customer", "expert"] },
   // Dev
   { href: "/sp-test", label: "SP CRUD Test", icon: FlaskConical, group: "dev", roles: ["admin"] },
 ];
@@ -111,7 +111,7 @@ export default function Sidebar({ roles, open, onClose }: SidebarProps) {
   });
 
   const isAdmin = roles.includes("admin");
-  const roleLabel = isAdmin ? "Admin" : roles.includes("partner") ? "Partner" : "User";
+  const roleLabel = isAdmin ? "Admin" : roles.includes("partner") ? "Partner" : roles.includes("expert") ? "Expert" : roles.includes("customer") ? "Customer" : "User";
 
   // Compute groups in order
   const seenGroups = new Set<string>();

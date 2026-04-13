@@ -1,4 +1,4 @@
-import NextAuth from "next-auth";
+import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
 import { getPartnerByEmail, getCustomerByEmail, getExpertByEmail, getCoinWallet } from "@/lib/sharepoint";
@@ -78,10 +78,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
             if (profile) {
               if (profile.status === "pending") {
-                throw new Error("Your account is pending admin approval.");
+                const err = new CredentialsSignin("Your account is pending admin approval.");
+                err.cause = { err: new Error("Your account is pending admin approval.") };
+                throw err;
               }
               if (profile.status === "suspended") {
-                throw new Error("Your account has been suspended.");
+                const err = new CredentialsSignin("Your account has been suspended.");
+                err.cause = { err: new Error("Your account has been suspended.") };
+                throw err;
               }
             }
 
