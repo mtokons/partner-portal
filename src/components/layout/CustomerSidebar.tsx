@@ -16,6 +16,9 @@ const navLinks = [
   { href: "/customer/payments", label: "Payments", icon: CreditCard },
   { href: "/customer/invoices", label: "Invoices", icon: FileText },
   { href: "/customer/notifications", label: "Notifications", icon: Bell },
+  { href: "/marketplace", label: "Marketplace", icon: Package },
+  { href: "/wallets", label: "SCCG Wallet", icon: CreditCard },
+  { href: "/profile", label: "My Profile", icon: FileText },
 ];
 
 export default function CustomerSidebar({ unreadCount }: { unreadCount: number }) {
