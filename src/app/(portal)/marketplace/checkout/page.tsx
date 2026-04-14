@@ -244,7 +244,7 @@ export default function CheckoutPage() {
                       <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">1:1 Ratio</span>
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      Available: <span className="font-black text-foreground">{wallet?.balance ?? 0} SCC</span>
+                      Available: <span className="font-black text-foreground">{(wallet?.balance ?? 0).toLocaleString()} SCC</span>
                       {wallet && wallet.balance < cartTotal && (
                         <span className="text-rose-500 ml-2 font-bold">(Insufficient)</span>
                       )}
