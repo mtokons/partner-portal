@@ -43,6 +43,22 @@ export async function graphGet<T>(url: string): Promise<T> {
   return client.api(url).get();
 }
 
+/**
+ * Executes a GET request but returns null instead of throwing on 404 (Not Found).
+ * Critical for preventing server crashes when SharePoint lists are missing.
+ */
+export async function graphGetSafe<T>(url: string): Promise<T | null> {
+  try {
+    const client = await getGraphClient();
+    return await client.api(url).get();
+  } catch (err: any) {
+    if (err.statusCode === 404 || err.code === "itemNotFound") {
+      return null;
+    }
+    throw err;
+  }
+}
+
 export async function graphPost<T>(url: string, body: Record<string, unknown>): Promise<T> {
   const client = await getGraphClient();
   return client.api(url).post(body);
