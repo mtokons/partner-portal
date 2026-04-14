@@ -23,6 +23,7 @@ import type {
   SchoolStudentStatus, ContentType, ExamType,
   CertificateType, SchoolEnrollment,
 } from "@/types";
+import { revalidatePath } from "next/cache";
 
 // ── Courses ──
 
@@ -68,6 +69,7 @@ export async function createCourse(data: {
     after: { courseName: course.courseName, courseCode: course.courseCode, status: course.status },
   });
 
+  revalidatePath("/admin/school/courses");
   return course;
 }
 
@@ -82,6 +84,8 @@ export async function publishCourse(id: string) {
     targetId: id,
     targetType: "school-course",
   });
+  
+  revalidatePath("/admin/school/courses");
 }
 
 // ── Batches ──
@@ -127,6 +131,7 @@ export async function createBatch(data: {
     after: { batchCode: batch.batchCode, courseName: data.courseName },
   });
 
+  revalidatePath("/admin/school/batches");
   return batch;
 }
 
@@ -142,6 +147,8 @@ export async function updateBatchStatus(id: string, status: BatchStatus) {
     targetType: "school-batch",
     after: { status },
   });
+  
+  revalidatePath("/admin/school/batches");
 }
 
 // ── Enrollments ──
@@ -248,6 +255,7 @@ export async function enrollStudent(data: {
     after: { studentName: data.studentName, batchCode: data.batchCode, netFee },
   });
 
+  revalidatePath("/admin/school/enrollments");
   return enrollment;
 }
 
@@ -592,6 +600,7 @@ export async function issueCertificate(data: {
     },
   });
 
+  revalidatePath("/admin/school/certificates");
   return cert;
 }
 

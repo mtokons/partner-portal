@@ -8,6 +8,7 @@ import Link from "next/link";
 import { ArrowLeft, Award, Shield, ExternalLink } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import type { SchoolCertificate } from "@/types";
+import CertificatePrintView from "@/components/ui/CertificatePrintView";
 
 export default function CertificateDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const [certId, setCertId] = useState<string | null>(null);
@@ -43,8 +44,8 @@ export default function CertificateDetailPage({ params }: { params: Promise<{ id
   if (loading || !cert) return <div className="text-center py-12 text-muted-foreground">Loading...</div>;
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      <div className="flex items-center gap-3">
+    <div className="max-w-3xl mx-auto space-y-6 print:m-0 print:absolute print:inset-0 print:max-w-none">
+      <div className="flex items-center gap-3 print:hidden">
         <Link href="/admin/school/certificates" className="p-2 rounded-lg hover:bg-muted">
           <ArrowLeft className="h-4 w-4" />
         </Link>
@@ -52,10 +53,16 @@ export default function CertificateDetailPage({ params }: { params: Promise<{ id
           <h1 className="text-2xl font-bold">Certificate Details</h1>
           <p className="text-sm text-muted-foreground font-mono">{cert.certificateNumber}</p>
         </div>
+        <button 
+          onClick={() => window.print()}
+          className="px-4 py-2 bg-primary text-white text-sm font-bold rounded-lg hover:bg-primary/90 hidden sm:block"
+        >
+          Print Certificate
+        </button>
         <Badge variant={cert.status === "issued" ? "default" : "destructive"} className="capitalize">{cert.status}</Badge>
       </div>
 
-      <Card className={cert.status === "revoked" ? "border-red-200 bg-red-50/50" : ""}>
+      <Card className={`print:hidden ${cert.status === "revoked" ? "border-red-200 bg-red-50/50" : ""}`}>
         <CardContent className="pt-6">
           <div className="flex items-center justify-center mb-6">
             <div className={`p-4 rounded-full ${cert.status === "issued" ? "bg-green-100" : "bg-red-100"}`}>
@@ -105,7 +112,7 @@ export default function CertificateDetailPage({ params }: { params: Promise<{ id
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="print:hidden">
         <CardHeader><CardTitle className="flex items-center gap-2"><Shield className="h-4 w-4" /> Verification</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <div className="flex items-center gap-2">
@@ -126,7 +133,7 @@ export default function CertificateDetailPage({ params }: { params: Promise<{ id
       </Card>
 
       {cert.status === "revoked" && (
-        <Card className="border-red-200">
+        <Card className="border-red-200 print:hidden">
           <CardHeader><CardTitle className="text-red-700">Revocation Details</CardTitle></CardHeader>
           <CardContent className="text-sm">
             <p><span className="text-muted-foreground">Reason:</span> {cert.revocationReason}</p>
@@ -137,7 +144,7 @@ export default function CertificateDetailPage({ params }: { params: Promise<{ id
       )}
 
       {cert.status === "issued" && (
-        <Card>
+        <Card className="print:hidden">
           <CardContent className="pt-6">
             {!showRevoke ? (
               <button onClick={() => setShowRevoke(true)}
@@ -160,6 +167,11 @@ export default function CertificateDetailPage({ params }: { params: Promise<{ id
           </CardContent>
         </Card>
       )}
+      
+      {/* Print View Layer */}
+      <div className="hidden print:block fixed inset-0 bg-white z-[9999]">
+        <CertificatePrintView certificate={cert} />
+      </div>
     </div>
   );
 }
