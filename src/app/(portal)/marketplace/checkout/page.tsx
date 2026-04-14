@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const user = session?.user as SessionUser;
 
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -101,6 +101,15 @@ export default function CheckoutPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (status === "loading") {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
+        <Loader2 className="h-10 w-10 text-primary animate-spin" />
+        <p className="text-muted-foreground font-medium animate-pulse">Authenticating checkout...</p>
+      </div>
+    );
   }
 
   if (cart.length === 0) {
