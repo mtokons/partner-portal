@@ -180,6 +180,18 @@ export default function ProfileClient({ user, activities, chartData, stats, card
                    balance={card?.balance}
                    currency={card?.currency}
                  />
+                 {card?.cardNumber && (
+                   <div className="mt-3 flex items-center gap-2 bg-muted/40 rounded-xl px-4 py-2.5 border border-border/50">
+                     <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Card №</span>
+                     <span className="font-mono text-sm font-bold text-foreground tracking-wider flex-1">{card.cardNumber}</span>
+                     <button
+                       onClick={() => { navigator.clipboard.writeText(card.cardNumber); }}
+                       className="text-[10px] font-bold text-primary hover:underline"
+                     >
+                       Copy
+                     </button>
+                   </div>
+                 )}
               </div>
               <div className="flex-1 space-y-4">
                  <div className="p-4 rounded-2xl bg-muted/30 border border-dashed border-border/60">

@@ -45,6 +45,13 @@ export default function WalletsClient({ wallets, partners }: { wallets: CoinWall
           </h1>
           <p className="text-sm text-muted-foreground mt-1">{wallets.length} wallets · Manage balances & recharge coins</p>
         </div>
+        <button
+          onClick={() => setRechargeTarget("new")}
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl font-bold hover:shadow-lg hover:shadow-primary/25 transition-all"
+        >
+          <Plus className="h-4 w-4" />
+          Top Up User
+        </button>
       </div>
 
       {/* Summary cards */}
@@ -67,7 +74,29 @@ export default function WalletsClient({ wallets, partners }: { wallets: CoinWall
       {rechargeTarget && (
         <div className="bg-card border-2 border-primary/30 rounded-2xl p-6 space-y-4">
           <h3 className="font-bold text-lg flex items-center gap-2"><Coins className="h-5 w-5 text-primary" /> Recharge Wallet</h3>
-          <p className="text-sm text-muted-foreground">User: <span className="font-semibold text-foreground">{wallets.find((w) => w.userId === rechargeTarget)?.userName || rechargeTarget}</span></p>
+          
+          {rechargeTarget === "new" ? (
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-muted-foreground uppercase">Select User</label>
+              <select 
+                onChange={(e) => setRechargeTarget(e.target.value)} 
+                defaultValue=""
+                className="w-full px-3 py-2 bg-muted rounded-xl text-sm border-0 focus:outline-none focus:ring-2 focus:ring-primary/30"
+              >
+                <option value="" disabled>Select a user to top up...</option>
+                {partners.map(p => (
+                  <option key={p.id} value={p.id}>{p.name} ({p.email})</option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              User: <span className="font-semibold text-foreground">
+                {wallets.find((w) => w.userId === rechargeTarget)?.userName || partners.find((p) => p.id === rechargeTarget)?.name || rechargeTarget}
+              </span>
+            </p>
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="text-xs font-semibold text-muted-foreground uppercase">Amount (coins)</label>
@@ -78,8 +107,12 @@ export default function WalletsClient({ wallets, partners }: { wallets: CoinWall
               <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Admin top-up" className="w-full mt-1 px-3 py-2 bg-muted rounded-xl text-sm border-0 focus:outline-none focus:ring-2 focus:ring-primary/30" />
             </div>
           </div>
-          <div className="flex gap-2">
-            <button onClick={handleRecharge} disabled={loading || amount <= 0} className="px-6 py-2.5 bg-primary text-white rounded-xl font-semibold text-sm hover:opacity-90 disabled:opacity-50">
+          <div className="flex gap-2 mt-4">
+            <button 
+              onClick={handleRecharge} 
+              disabled={loading || amount <= 0 || rechargeTarget === "new"} 
+              className="px-6 py-2.5 bg-primary text-white rounded-xl font-semibold text-sm hover:opacity-90 disabled:opacity-50"
+            >
               {loading ? "Recharging..." : `Add ${amount.toLocaleString()} Coins`}
             </button>
             <button onClick={() => setRechargeTarget(null)} className="px-6 py-2.5 bg-muted rounded-xl font-semibold text-sm">Cancel</button>
