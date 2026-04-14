@@ -309,11 +309,18 @@ export async function updatePartnerStatus(id: string, status: Partner["status"])
 // Products
 // ============================================================
 export async function getProducts(): Promise<Product[]> {
-  // Always use live SharePoint data for Products, even if global useMock is true
-  const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
-  const res = await graphGet<{ value: Array<{ fields: Record<string, unknown> }> }>(
+  // Try to use live SharePoint data for Products
+  const { graphGetSafe, getSiteListUrlAsync } = await import("@/lib/graph");
+  const res = await graphGetSafe<{ value: Array<{ fields: Record<string, unknown> }> }>(
     `${await getSiteListUrlAsync("Products")}?$expand=fields`
   );
+
+  // If list is missing or error occurred, fallback to mock data to prevent app crash
+  if (!res) {
+    console.warn("SharePoint 'Products' list not found. Falling back to mock data.");
+    return mockProducts;
+  }
+
   return res.value.map((item) => {
     const f = item.fields;
     return {
@@ -1931,7 +1938,20 @@ export async function getCommissionBalance(recipientId: string): Promise<number>
 
 export async function getCoinWallet(userId: string): Promise<CoinWallet | null> {
   if (useMock) return stores.coinWallets.find((w) => w.userId === userId) || null;
-  return null;
+  
+  const { graphGetSafe, getSiteListUrlAsync } = await import("@/lib/graph");
+  const url = `${await getSiteListUrlAsync("CoinWallets")}?$filter=fields/UserId eq '${userId}'&$expand=fields`;
+  const res = await graphGetSafe<{ value: Array<{ fields: Record<string, any> }> }>(url);
+  
+  if (!res || !res.value || res.value.length === 0) return null;
+  const f = res.value[0].fields;
+  return {
+    id: f.id,
+    userId: f.UserId,
+    balance: Number(f.Balance || 0),
+    totalSpent: Number(f.TotalSpent || 0),
+    lastUpdated: f.LastUpdated,
+  } as CoinWallet;
 }
 
 export async function getAllCoinWallets(): Promise<CoinWallet[]> {
@@ -1968,20 +1988,56 @@ export async function createCoinTransaction(data: Omit<CoinTransaction, "id">): 
       if (data.amount < 0) wallet.totalSpent += Math.abs(data.amount);
       wallet.updatedAt = new Date().toISOString();
     }
+    return item;
   }
-  return item;
+
+  const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
+  const res = await graphPost<any>(await getSiteListUrlAsync("CoinTransactions"), {
+    fields: {
+      WalletId: data.walletId,
+      UserId: data.userId,
+      TransactionType: data.transactionType,
+      Amount: data.amount,
+      RunningBalance: data.runningBalance,
+      Description: data.description,
+      CreatedAt: data.createdAt,
+      CreatedBy: data.createdBy,
+    }
+  });
+  return { ...data, id: res.id } as CoinTransaction;
 }
 
 // ============================================================
 // SCCG Gift Cards
 // ============================================================
 
-export async function getGiftCards(userId?: string): Promise<GiftCard[]> {
+export async function getGiftCards(userId?: string): Promise<SccgCard[]> {
   if (useMock) {
-    if (userId) return stores.giftCards.filter((g) => g.issuedToUserId === userId);
-    return stores.giftCards;
+    if (userId) return (stores.giftCards as SccgCard[]).filter((g) => g.issuedToUserId === userId);
+    return (stores.giftCards as SccgCard[]);
   }
-  return [];
+
+  const { graphGetSafe, getSiteListUrlAsync } = await import("@/lib/graph");
+  let url = `${await getSiteListUrlAsync("GiftCards")}?$expand=fields`;
+  if (userId) url += `&$filter=fields/IssuedToUserId eq '${userId}'`;
+
+  const res = await graphGetSafe<{ value: Array<{ fields: Record<string, any> }> }>(url);
+  if (!res || !res.value) return [];
+
+  return res.value.map(item => {
+    const f = item.fields;
+    return {
+      id: f.id,
+      sccgId: f.SccgId,
+      cardNumber: f.CardNumber,
+      pinHash: f.PinHash,
+      status: f.Status,
+      currentBalance: Number(f.Balance || 0),
+      balance: Number(f.Balance || 0),
+      issuedToName: f.IssuedToName,
+      issuedAt: f.IssuedAt,
+    } as SccgCard;
+  });
 }
 
 export async function getGiftCardById(id: string): Promise<GiftCard | null> {
@@ -1991,13 +2047,50 @@ export async function getGiftCardById(id: string): Promise<GiftCard | null> {
 
 export async function getGiftCardByNumber(cardNumber: string): Promise<SccgCard | null> {
   if (useMock) return (stores.giftCards as SccgCard[]).find((g) => g.cardNumber === cardNumber) || null;
-  return null;
+  
+  const { graphGetSafe, getSiteListUrlAsync } = await import("@/lib/graph");
+  const url = `${await getSiteListUrlAsync("GiftCards")}?$filter=fields/CardNumber eq '${cardNumber}'&$expand=fields`;
+  const res = await graphGetSafe<{ value: Array<{ fields: Record<string, any> }> }>(url);
+  
+  if (!res || !res.value || res.value.length === 0) return null;
+  const f = res.value[0].fields;
+  return {
+    id: f.id,
+    sccgId: f.SccgId,
+    cardNumber: f.CardNumber,
+    pinHash: f.PinHash,
+    status: f.Status,
+    currentBalance: Number(f.Balance || 0),
+    balance: Number(f.Balance || 0),
+    issuedToUserId: f.IssuedToUserId,
+    issuedToName: f.IssuedToName,
+  } as SccgCard;
 }
 
 export async function createGiftCard(data: Omit<SccgCard, "id">): Promise<SccgCard> {
-  const item = { ...data, id: genId("gc") } as SccgCard;
-  if (useMock) (stores.giftCards as SccgCard[]).push(item);
-  return item;
+  if (useMock) {
+    const item = { ...data, id: genId("gc") } as SccgCard;
+    (stores.giftCards as SccgCard[]).push(item);
+    return item;
+  }
+
+  const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
+  const res = await graphPost<any>(await getSiteListUrlAsync("GiftCards"), {
+    fields: {
+      SccgId: data.sccgId,
+      CardNumber: data.cardNumber,
+      PinHash: data.pinHash,
+      Status: data.status,
+      Balance: data.balance,
+      IssuedToUserId: data.issuedToUserId,
+      IssuedToName: data.issuedToName,
+      IssuedToEmail: data.issuedToEmail,
+      IssuedAt: data.issuedAt,
+      ExpiresAt: data.expiresAt,
+    }
+  });
+
+  return { ...data, id: res.id } as SccgCard;
 }
 
 export async function updateGiftCard(id: string, data: Partial<SccgCard>): Promise<void> {
@@ -2013,8 +2106,8 @@ export async function getGiftCardTransactions(giftCardId: string): Promise<GiftC
 }
 
 export async function createGiftCardTransaction(data: Omit<GiftCardTransaction, "id">): Promise<GiftCardTransaction> {
-  const item = { ...data, id: genId("gct") } as GiftCardTransaction;
   if (useMock) {
+    const item = { ...data, id: genId("gct") } as GiftCardTransaction;
     stores.giftCardTransactions.push(item);
     const card = stores.giftCards.find((g) => g.id === data.giftCardId);
     if (card) {
@@ -2022,8 +2115,25 @@ export async function createGiftCardTransaction(data: Omit<GiftCardTransaction, 
       card.lastUsedAt = new Date().toISOString();
       if (card.currentBalance <= 0) { card.currentBalance = 0; card.status = "depleted"; }
     }
+    return item;
   }
-  return item;
+
+  const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
+  const res = await graphPost<any>(await getSiteListUrlAsync("GiftCardTransactions"), {
+    fields: {
+      GiftCardId: data.giftCardId,
+      TransactionType: data.transactionType,
+      Type: data.type,
+      Amount: data.amount,
+      RunningBalance: data.runningBalance,
+      BalanceAfter: data.balanceAfter,
+      Description: data.description,
+      CreatedAt: data.createdAt,
+      CreatedBy: data.createdBy,
+    }
+  });
+
+  return { ...data, id: res.id } as GiftCardTransaction;
 }
 
 // ============================================================
