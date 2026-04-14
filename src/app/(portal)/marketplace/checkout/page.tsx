@@ -223,7 +223,7 @@ export default function CheckoutPage() {
                   </div>
                   <div>
                     <p className="font-bold">Digital Direct Payment</p>
-                    <p className="text-xs text-muted-foreground">Bank, Card, or Stripe</p>
+                    <p className="text-xs text-muted-foreground">bKash, Nagad, Rocket, DBBL or Bank Transfer</p>
                   </div>
                 </div>
                 {paymentMethod === "fiat" && <Badge className="bg-primary text-white font-black uppercase text-[10px]">SELECTED</Badge>}
@@ -263,6 +263,36 @@ export default function CheckoutPage() {
                 {paymentMethod === "coin" && <Badge className="bg-primary text-white font-black uppercase text-[10px]">SELECTED</Badge>}
               </button>
 
+              {/* City Bank Instructions for Fiat */}
+              {paymentMethod === "fiat" && (
+                <div className="p-5 bg-muted/40 rounded-2xl border border-border/50 text-sm space-y-3 animate-in fade-in zoom-in duration-300">
+                  <p className="font-bold text-foreground">Payment Instructions</p>
+                  <p className="text-muted-foreground">
+                    Please send the total amount to our City Bank account using any digital payment gateway (bKash, Nagad, Rocket, DBBL) or via direct bank transfer.
+                  </p>
+                  <div className="bg-background p-4 rounded-xl border border-border/30 space-y-2 font-mono text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Bank Name:</span>
+                      <span className="font-bold">The City Bank Limited</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Account Name:</span>
+                      <span className="font-bold">SCCG PARTNER PORTAL</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Account Number:</span>
+                      <span className="font-bold text-primary">1234567890123</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Branch:</span>
+                      <span className="font-bold">Dhaka Main Branch</span>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground bg-amber-500/10 text-amber-600 p-2 rounded-lg border border-amber-500/20">
+                    * Reference your Order Email or Name when making the transfer for faster processing.
+                  </p>
+                </div>
+              )}
 
               {paymentStep !== "idle" && (
                 <div className="p-8 text-center bg-muted/30 rounded-[1.5rem] animate-in fade-in zoom-in duration-500">
