@@ -105,11 +105,13 @@ export default function ProductCard({
           </Badge>
         </div>
 
-        <div className="flex items-center gap-2 mb-2">
-          <Badge variant="secondary" className="bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-0 text-[10px] font-bold">
-             {product.sessionsCount}x {product.unit}s
-          </Badge>
-        </div>
+        {product.sessionsCount > 0 && (
+          <div className="flex items-center gap-2 mb-2">
+            <Badge variant="secondary" className="bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-0 text-[10px] font-bold">
+               {product.sessionsCount}x {product.unit}s
+            </Badge>
+          </div>
+        )}
 
         <p className="text-xs text-muted-foreground line-clamp-2 flex-1 mb-4">{product.description}</p>
 
