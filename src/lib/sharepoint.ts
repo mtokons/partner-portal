@@ -1948,9 +1948,13 @@ export async function getCoinWallet(userId: string): Promise<CoinWallet | null> 
   return {
     id: f.id,
     userId: f.UserId,
+    userName: String(f.UserName || ""),
     balance: Number(f.Balance || 0),
+    totalEarned: Number(f.TotalEarned || 0),
     totalSpent: Number(f.TotalSpent || 0),
-    lastUpdated: f.LastUpdated,
+    status: (f.Status as CoinWallet["status"]) || "active",
+    createdAt: String(f.CreatedAt || new Date().toISOString()),
+    updatedAt: String(f.UpdatedAt || f.LastUpdated || new Date().toISOString()),
   } as CoinWallet;
 }
 
