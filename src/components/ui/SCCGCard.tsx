@@ -54,7 +54,7 @@ const tierStyles = {
 
 export default function SCCGCard({ 
   bankName = "SCCG GLOBAL", 
-  cardNumber = "•••• •••• •••• ••••", 
+  cardNumber = "4512 8890 1234 5678", 
   cardholder = "CARDHOLDER NAME", 
   expiry = "MM/YY",
   tier = "standard",
@@ -86,7 +86,13 @@ export default function SCCGCard({
               </div>
             </div>
             <div className="text-right">
-               <p className={cn("text-xs font-black uppercase tracking-widest bg-white/20 px-2 py-0.5 rounded-lg", style.accent)}>{style.label}</p>
+               {balance !== undefined && (
+                 <div className="mb-2">
+                   <p className={cn("text-[8px] font-black uppercase tracking-widest", style.textOpacity)}>Account Balance</p>
+                   <p className="text-xl font-black text-emerald-400 drop-shadow-md">{currencySymbol}{balance.toLocaleString()}</p>
+                 </div>
+               )}
+               <p className={cn("text-xs font-black uppercase tracking-widest bg-white/20 px-2 py-0.5 rounded-lg inline-block text-right", style.accent)}>{style.label}</p>
             </div>
           </div>
 
@@ -105,7 +111,7 @@ export default function SCCGCard({
           {/* Card Number */}
           <div className="flex flex-col gap-1">
             <p className="text-2xl font-mono tracking-[0.2em] leading-none drop-shadow-md">
-              {cardNumber.replace(/(.{4})/g, "$1 ").trim() || "•••• •••• •••• ••••"}
+              {cardNumber.replace(/\s+/g, "").replace(/(.{4})/g, "$1 ").trim()}
             </p>
           </div>
 
@@ -121,22 +127,14 @@ export default function SCCGCard({
                   <p className="text-sm font-bold font-mono">{expiry}</p>
                </div>
                
-               {/* Mastercard-style mark */}
-               <div className="relative flex -space-x-4 h-10 items-center justify-center">
-                  <div className="h-10 w-10 rounded-full bg-rose-500/90 mix-blend-screen" />
-                  <div className="h-10 w-10 rounded-full bg-amber-500/90 mix-blend-screen" />
+               {/* SCCG mark */}
+               <div className="flex h-10 items-center justify-center font-black text-2xl tracking-tighter opacity-80 mix-blend-overlay">
+                  SCCG
                </div>
             </div>
           </div>
         </div>
 
-        {/* Conditional Balance (if admin or authorized) */}
-        {balance !== undefined && (
-          <div className="absolute top-32 right-8 text-right z-10">
-             <p className={cn("text-[8px] font-black uppercase tracking-widest", style.textOpacity)}>Account Balance</p>
-             <p className="text-2xl font-black">{currencySymbol}{balance.toLocaleString()}</p>
-          </div>
-        )}
       </div>
     </div>
   );
