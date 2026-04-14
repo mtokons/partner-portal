@@ -7,7 +7,7 @@ import { Wallet, Plus, Coins } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { rechargeWalletAction } from "./actions";
 
-export default function WalletsClient({ wallets, partners }: { wallets: CoinWallet[]; partners: Partner[] }) {
+export default function WalletsClient({ wallets, users }: { wallets: CoinWallet[]; users: { id: string; name: string; email: string; role: string }[] }) {
   const router = useRouter();
   const [rechargeTarget, setRechargeTarget] = useState<string | null>(null);
   const [amount, setAmount] = useState(1000);
@@ -17,10 +17,10 @@ export default function WalletsClient({ wallets, partners }: { wallets: CoinWall
   async function handleRecharge() {
     if (!rechargeTarget) return;
     const wallet = wallets.find((w) => w.userId === rechargeTarget);
-    const partner = partners.find((p) => p.id === rechargeTarget);
+    const user = users.find((u) => u.id === rechargeTarget);
     setLoading(true);
     try {
-      await rechargeWalletAction(rechargeTarget, wallet?.userName || partner?.name || "User", amount, description);
+      await rechargeWalletAction(rechargeTarget, wallet?.userName || user?.name || "User", amount, description);
       setRechargeTarget(null);
       setAmount(1000);
       setDescription("");
@@ -84,15 +84,15 @@ export default function WalletsClient({ wallets, partners }: { wallets: CoinWall
                 className="w-full px-3 py-2 bg-muted rounded-xl text-sm border-0 focus:outline-none focus:ring-2 focus:ring-primary/30"
               >
                 <option value="" disabled>Select a user to top up...</option>
-                {partners.map(p => (
-                  <option key={p.id} value={p.id}>{p.name} ({p.email})</option>
+                {users.map(u => (
+                  <option key={u.id} value={u.id}>{u.name} ({u.email}) - {u.role}</option>
                 ))}
               </select>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">
               User: <span className="font-semibold text-foreground">
-                {wallets.find((w) => w.userId === rechargeTarget)?.userName || partners.find((p) => p.id === rechargeTarget)?.name || rechargeTarget}
+                {wallets.find((w) => w.userId === rechargeTarget)?.userName || users.find((u) => u.id === rechargeTarget)?.name || rechargeTarget}
               </span>
             </p>
           )}
