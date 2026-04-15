@@ -5,7 +5,8 @@ import { getPayouts } from "@/lib/sharepoint";
 import { COMMISSION_RATES } from "@/lib/payouts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Wallet, CheckCircle2, Clock, Users, DollarSign } from "lucide-react";
+import { Wallet, CheckCircle2, Clock, Users, DollarSign, RefreshCw } from "lucide-react";
+import { refreshPayoutsAction } from "./actions";
 
 const statusColors: Record<string, string> = {
   pending: "bg-amber-100 text-amber-700 border-amber-200",
@@ -28,17 +29,29 @@ export default async function AdminPayoutsPage() {
   const paidCount = payouts.filter((p) => p.status === "paid").length;
 
   return (
-    <div className="space-y-7 page-enter">
       {/* Header */}
-      <div>
-        <div className="flex items-center gap-2 mb-1">
-          <div className="h-6 w-1 rounded-full gradient-blue" />
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Finance</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <div className="h-6 w-1 rounded-full gradient-blue" />
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Finance</p>
+          </div>
+          <h1 className="text-3xl font-black tracking-tight">Payout Management</h1>
+          <p className="text-sm text-muted-foreground mt-1.5">
+            Manage partner, expert, and referrer payouts across all orders.
+          </p>
         </div>
-        <h1 className="text-3xl font-black tracking-tight">Payout Management</h1>
-        <p className="text-sm text-muted-foreground mt-1.5">
-          Manage partner, expert, and referrer payouts across all orders.
-        </p>
+        <div className="flex items-center gap-3">
+          <form action={refreshPayoutsAction}>
+            <button 
+              type="submit"
+              className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-border/50 text-muted-foreground rounded-2xl font-semibold text-sm hover:text-foreground transition-all"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Refresh
+            </button>
+          </form>
+        </div>
       </div>
 
       {/* Commission rates info */}

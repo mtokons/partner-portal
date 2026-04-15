@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import AddClientButton from "./AddClientButton";
-import { Users, Building2, Mail, Phone, ExternalLink, UserPlus } from "lucide-react";
+import { Users, Building2, Mail, Phone, ExternalLink, UserPlus, RefreshCw } from "lucide-react";
+import { refreshClientsAction } from "./actions";
 
 export default async function ClientsPage() {
   const session = await auth();
@@ -42,7 +43,29 @@ export default async function ClientsPage() {
           <p className="text-sm text-muted-foreground mt-1.5">{clients.length} active client{clients.length !== 1 ? "s" : ""} in your portfolio</p>
         </div>
         {user.role === "partner" && (
-          <AddClientButton partnerId={user.partnerId} />
+          <div className="flex items-center gap-3">
+            <form action={refreshClientsAction}>
+              <button 
+                type="submit"
+                className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-border/50 text-muted-foreground rounded-2xl font-semibold text-sm hover:text-foreground transition-all"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Refresh
+              </button>
+            </form>
+            <AddClientButton partnerId={user.partnerId} />
+          </div>
+        )}
+        {user.role === "admin" && (
+          <form action={refreshClientsAction}>
+            <button 
+              type="submit"
+              className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-border/50 text-muted-foreground rounded-2xl font-semibold text-sm hover:text-foreground transition-all"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Refresh
+            </button>
+          </form>
         )}
       </div>
 

@@ -32,3 +32,9 @@ export async function addClientAction(input: AddClientInput) {
 
   return client;
 }
+
+export async function refreshClientsAction() {
+  const { revalidatePath } = await import("next/cache");
+  revalidatePath("/clients");
+  return { success: true };
+}

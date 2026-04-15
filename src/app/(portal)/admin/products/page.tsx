@@ -35,17 +35,24 @@ export default async function AdminProductsPage() {
             Manage your product catalog — images, pricing, discounts, and availability.
           </p>
         </div>
-          Add Product
-        </Link>
-        <form action={refreshProductsAction}>
-          <button
-            type="submit"
-            className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-border/50 text-muted-foreground rounded-2xl font-semibold text-sm hover:text-foreground transition-all"
+        <div className="flex items-center gap-3">
+          <Link
+            href="/admin/products/new"
+            className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-2xl font-semibold text-sm hover:opacity-90 shadow-lg shadow-primary/25 transition-all active:scale-95"
           >
-            <RefreshCw className="h-4 w-4" />
-            Refresh
-          </button>
-        </form>
+            <Plus className="h-4 w-4" />
+            Add Product
+          </Link>
+          <form action={refreshProductsAction}>
+            <button
+              type="submit"
+              className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-border/50 text-muted-foreground rounded-2xl font-semibold text-sm hover:text-foreground transition-all"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Refresh
+            </button>
+          </form>
+        </div>
       </div>
 
       {/* KPIs */}
