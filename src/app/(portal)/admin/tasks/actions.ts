@@ -6,7 +6,8 @@ import {
   getKanbanTasks, 
   createKanbanTask, 
   updateKanbanTask, 
-  deleteKanbanTask 
+  deleteKanbanTask,
+  getSharePointConnectionInfo
 } from "@/lib/sharepoint";
 import { KanbanTask } from "@/types";
 
@@ -101,5 +102,15 @@ export async function moveTaskAction(taskId: string, newStatus: string) {
   } catch (error: any) {
     console.error("Move task error:", error);
     return { success: false, error: error.message || "Failed to move task" };
+  }
+}
+
+export async function refreshTaskBoardAction() {
+  try {
+    revalidatePath("/admin/tasks");
+    const connection = await getSharePointConnectionInfo();
+    return { success: true, connection };
+  } catch (error: any) {
+    return { success: false, error: error.message };
   }
 }
