@@ -7,7 +7,6 @@ import {
   Users, Search, Shield, Save, X, Edit2, 
   Activity, XCircle, CheckCircle2 
 } from "lucide-react";
-import { toast } from "sonner";
 
 const AVAILABLE_ROLES: { id: UserRoleType; label: string }[] = [
   { id: "admin", label: "Administrator" },
@@ -41,10 +40,10 @@ export default function UsersClient() {
       if (res.success && res.data) {
         setUsers(res.data as (UserProfile & { roles: string[] })[]);
       } else {
-        toast.error(res.error || "Failed to load users");
+        alert(res.error || "Failed to load users");
       }
     } catch (err: any) {
-      toast.error(err.message || "An error occurred");
+      alert(err.message || "An error occurred");
     } finally {
       setIsLoading(false);
     }
@@ -76,14 +75,14 @@ export default function UsersClient() {
     try {
       const res = await updateUserRolesAction(editingUser.id, selectedRoles);
       if (res.success) {
-        toast.success("User roles updated successfully");
+        alert("User roles updated successfully");
         setEditingUser(null);
         loadUsers(); // Refresh the list
       } else {
-        toast.error(res.error || "Failed to update roles");
+        alert(res.error || "Failed to update roles");
       }
     } catch (err: any) {
-      toast.error("Failed to update roles");
+      alert("Failed to update roles");
     } finally {
       setIsUpdating(false);
     }
