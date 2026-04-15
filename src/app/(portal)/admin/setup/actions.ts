@@ -703,6 +703,23 @@ const PORTAL_SCHEMA: ListSchema[] = [
       { name: "UploadedByName", type: "text" },
     ],
   },
+  // ── Task Board ──
+  {
+    name: "KanbanTasks",
+    displayName: "SCCG Kanban Tasks",
+    columns: [
+      { name: "Description", type: "note" },
+      { name: "Status", type: "text" },
+      { name: "Priority", type: "text" },
+      { name: "DueDate", type: "dateTime" },
+      { name: "AssignedTo", type: "text" },
+      { name: "AssignedToName", type: "text" },
+      { name: "AssignedToEmail", type: "text" },
+      { name: "CreatedBy", type: "text" },
+      { name: "CreatedAt", type: "dateTime" },
+      { name: "UpdatedAt", type: "dateTime" },
+    ],
+  },
 ];
 
 export async function checkInfrastructureAction() {

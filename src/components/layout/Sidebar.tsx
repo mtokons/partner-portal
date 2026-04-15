@@ -83,6 +83,7 @@ const allLinks: LinkItem[] = [
   { href: "/admin/promotions", label: "Promotions", icon: Tag, group: "admin", roles: ["admin"] },
   { href: "/admin/products", label: "Manage Products", icon: Package, group: "admin", roles: ["admin"] },
   { href: "/admin/send-email", label: "Send Email", icon: Mail, group: "admin", roles: ["admin"] },
+  { href: "/admin/tasks", label: "Planning Board", icon: ClipboardList, group: "admin", roles: ["admin"] },
   // Account
   { href: "/profile", label: "My Profile", icon: User, group: "account", roles: ["partner", "admin", "finance", "hr", "school-manager", "customer", "expert"] },
   // Dev
