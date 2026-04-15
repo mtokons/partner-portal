@@ -24,7 +24,7 @@ import {
   mockKanbanTasks,
 } from "@/lib/mock-data";
 
-const useMock = process.env.USE_MOCK_DATA === "true";
+const useMock = process.env.USE_MOCK_DATA === "true" && process.env.VERCEL_ENV !== "production";
 
 // ============================================================
 // SharePoint Internal Field Mappings
