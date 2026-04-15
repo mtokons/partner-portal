@@ -199,6 +199,29 @@ const EXP_COL = { // SCCG Experts
   createdAt: "CreatedAt",
 };
 
+const UP_COL = { // SCCG User Profiles
+  displayName: "Title", // Default SharePoint Name field
+  email: "Email",
+  phone: "Phone",
+  role: "Role",
+  company: "Company",
+  specialization: "Specialization",
+  status: "Status",
+  firebaseUid: "FirebaseUid",
+  createdAt: "CreatedAt",
+  updatedAt: "UpdatedAt",
+};
+
+const UR_COL = { // User Roles list
+  userAccountId: "UserAccountId",
+  role: "Role",
+  status: "Status",
+  grantedAt: "GrantedAt",
+  grantedBy: "GrantedBy",
+  revokedAt: "RevokedAt",
+  notes: "Notes",
+};
+
 // ============================================================
 // In-memory mutable stores (for demo CRUD without SharePoint)
 // ============================================================
@@ -2234,7 +2257,82 @@ export async function getAllUserProfiles(): Promise<(UserProfile & { roles: stri
 
     return profiles;
   }
-  return [];
+  
+  const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
+  const [profRes, roleRes] = await Promise.all([
+    graphGet<{ value: Array<{ fields: Record<string, unknown>; id: string }> }>(`${await getSiteListUrlAsync("UserProfiles")}?$expand=fields`),
+    graphGet<{ value: Array<{ fields: Record<string, unknown>; id: string }> }>(`${await getSiteListUrlAsync("UserRoles")}?$expand=fields&$filter=fields/Status eq 'active'`),
+  ]);
+
+  const rolesMap = new Map<string, string[]>();
+  roleRes.value.forEach(item => {
+    const f = item.fields;
+    const uid = String(f[UR_COL.userAccountId]);
+    const role = String(f[UR_COL.role]);
+    if (!rolesMap.has(uid)) rolesMap.set(uid, []);
+    rolesMap.get(uid)!.push(role);
+  });
+
+  return profRes.value.map(item => {
+    const f = item.fields;
+    const userId = String(item.id);
+    return {
+      id: userId,
+      firebaseUid: String(f[UP_COL.firebaseUid] || ""),
+      email: String(f[UP_COL.email] || ""),
+      displayName: String(f[UP_COL.displayName] || ""),
+      phone: String(f[UP_COL.phone] || ""),
+      role: String(f[UP_COL.role]) as any,
+      company: String(f[UP_COL.company] || ""),
+      specialization: String(f[UP_COL.specialization] || ""),
+      status: String(f[UP_COL.status]) as any,
+      createdAt: String(f[UP_COL.createdAt] || ""),
+      updatedAt: String(f[UP_COL.updatedAt] || ""),
+      roles: rolesMap.get(userId) || [String(f[UP_COL.role])],
+    };
+  });
+}
+
+export async function createUserProfile(data: Omit<UserProfile, "id">): Promise<UserProfile> {
+  const newItem = { ...data, id: genId("up") } as UserProfile;
+  if (useMock) {
+    // Add to relevant mock store or just handle in memory
+    return newItem;
+  }
+  
+  const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
+  const res = await graphPost<{ id: string }>(await getSiteListUrlAsync("UserProfiles"), {
+    fields: {
+      [UP_COL.displayName]: newItem.displayName,
+      [UP_COL.email]: newItem.email,
+      [UP_COL.phone]: newItem.phone,
+      [UP_COL.role]: newItem.role,
+      [UP_COL.company]: newItem.company,
+      [UP_COL.status]: newItem.status,
+      [UP_COL.firebaseUid]: newItem.firebaseUid || newItem.id,
+      [UP_COL.createdAt]: newItem.createdAt,
+      [UP_COL.updatedAt]: newItem.updatedAt,
+    }
+  });
+  
+  return { ...newItem, id: String(res.id) };
+}
+
+export async function createUserRole(data: Omit<UserRoleEntry, "id">): Promise<void> {
+  if (useMock) {
+    stores.userRoles.push({ ...data, id: genId("ur") } as UserRoleEntry);
+    return;
+  }
+  const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
+  await graphPost(await getSiteListUrlAsync("UserRoles"), {
+    fields: {
+      [UR_COL.userAccountId]: data.userAccountId,
+      [UR_COL.role]: data.role,
+      [UR_COL.status]: data.status,
+      [UR_COL.grantedAt]: data.grantedAt,
+      [UR_COL.grantedBy]: data.grantedBy,
+    }
+  });
 }
 
 export async function updateUserProfileRoles(userId: string, newRoles: UserRoleType[]): Promise<void> {
@@ -2256,8 +2354,38 @@ export async function updateUserProfileRoles(userId: string, newRoles: UserRoleT
         grantedBy: "admin",
       });
     });
+    return;
   }
+
+  const { graphGet, graphPost, graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
+  // 1. Get existing active roles
+  const listUrl = await getSiteListUrlAsync("UserRoles");
+  const existing = await graphGet<{ value: Array<{ id: string; fields: Record<string, unknown> }> }>(
+    `${listUrl}?$expand=fields&$filter=fields/UserAccountId eq '${userId}' and fields/Status eq 'active'`
+  );
+
+  // 2. Revoke them
+  await Promise.all(existing.value.map(item => 
+    graphPatch(`${listUrl}('${item.id}')/fields`, {
+      [UR_COL.status]: "revoked",
+      [UR_COL.revokedAt]: new Date().toISOString()
+    })
+  ));
+
+  // 3. Add new ones
+  await Promise.all(newRoles.map(role => 
+    graphPost(listUrl, {
+      fields: {
+        [UR_COL.userAccountId]: userId,
+        [UR_COL.role]: role,
+        [UR_COL.status]: "active",
+        [UR_COL.grantedAt]: new Date().toISOString(),
+        [UR_COL.grantedBy]: "admin"
+      }
+    })
+  ));
 }
+
 
 // ============================================================
 // Code Generation Helpers

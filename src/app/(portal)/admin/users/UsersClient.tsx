@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { fetchAllUsersAction, updateUserRolesAction } from "./actions";
+import { fetchAllUsersAction, updateUserRolesAction, createUserAction } from "./actions";
 import { UserProfile, UserRoleType } from "@/types";
 import { 
   Users, Search, Shield, Save, X, Edit2, 
-  Activity, XCircle, CheckCircle2 
+  Activity, XCircle, CheckCircle2, UserPlus, Phone, Briefcase, Mail, User as UserIcon
 } from "lucide-react";
 
 const AVAILABLE_ROLES: { id: UserRoleType; label: string }[] = [
@@ -28,6 +28,18 @@ export default function UsersClient() {
   const [editingUser, setEditingUser] = useState<(UserProfile & { roles: string[] }) | null>(null);
   const [selectedRoles, setSelectedRoles] = useState<UserRoleType[]>([]);
   const [isUpdating, setIsUpdating] = useState(false);
+
+  // Add User State
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
+  const [newUser, setNewUser] = useState<Partial<UserProfile>>({
+    displayName: "",
+    email: "",
+    phone: "",
+    role: "customer",
+    company: "",
+    status: "active",
+  });
 
   useEffect(() => {
     loadUsers();
@@ -88,6 +100,39 @@ export default function UsersClient() {
     }
   };
 
+  const handleAddUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newUser.displayName || !newUser.email) return;
+    setIsAdding(true);
+    try {
+      const res = await createUserAction({
+        ...newUser,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      } as Omit<UserProfile, "id">);
+
+      if (res.success) {
+        alert("User created successfully");
+        setShowAddModal(false);
+        setNewUser({
+          displayName: "",
+          email: "",
+          phone: "",
+          role: "customer",
+          company: "",
+          status: "active",
+        });
+        loadUsers();
+      } else {
+        alert(res.error || "Failed to create user");
+      }
+    } catch (err: any) {
+      alert("Failed to create user");
+    } finally {
+      setIsAdding(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -101,6 +146,13 @@ export default function UsersClient() {
             Manage system access and assign roles to platform users.
           </p>
         </div>
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-all font-medium shadow-sm shadow-primary/20"
+        >
+          <UserPlus className="w-4 h-4" />
+          Add New User
+        </button>
       </div>
 
       {/* Toolbar / Search */}
@@ -298,6 +350,129 @@ export default function UsersClient() {
                 {isUpdating ? "Saving..." : "Save Roles"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add User Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-card w-full max-w-lg rounded-2xl shadow-2xl border border-border/50 flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between p-5 border-b border-border/50 bg-muted/20">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-500/10 text-blue-600 rounded-lg">
+                  <UserPlus className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg">Add New User</h3>
+                  <p className="text-xs text-muted-foreground">Create a new platform profile</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="p-2 rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddUser} className="p-6 space-y-4 overflow-y-auto">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 uppercase tracking-wider">
+                    <UserIcon className="w-3 h-3" /> Full Name
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newUser.displayName}
+                    onChange={(e) => setNewUser(prev => ({ ...prev, displayName: e.target.value }))}
+                    className="w-full px-4 py-2 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/50 outline-none transition-all"
+                    placeholder="e.g. John Doe"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 uppercase tracking-wider">
+                    <Mail className="w-3 h-3" /> Email Address
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={newUser.email}
+                    onChange={(e) => setNewUser(prev => ({ ...prev, email: e.target.value }))}
+                    className="w-full px-4 py-2 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/50 outline-none transition-all"
+                    placeholder="john@example.com"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 uppercase tracking-wider">
+                    <Phone className="w-3 h-3" /> Phone Number
+                  </label>
+                  <input
+                    type="tel"
+                    value={newUser.phone}
+                    onChange={(e) => setNewUser(prev => ({ ...prev, phone: e.target.value }))}
+                    className="w-full px-4 py-2 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/50 outline-none transition-all"
+                    placeholder="+1 234 567 890"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 uppercase tracking-wider">
+                    <Briefcase className="w-3 h-3" /> Company
+                  </label>
+                  <input
+                    type="text"
+                    value={newUser.company}
+                    onChange={(e) => setNewUser(prev => ({ ...prev, company: e.target.value }))}
+                    className="w-full px-4 py-2 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/50 outline-none transition-all"
+                    placeholder="e.g. Acme Corp"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Primary Role
+                </label>
+                <select
+                  value={newUser.role}
+                  onChange={(e) => setNewUser(prev => ({ ...prev, role: e.target.value as any }))}
+                  className="w-full px-4 py-2 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/50 outline-none transition-all appearance-none"
+                >
+                  {AVAILABLE_ROLES.map(r => (
+                    <option key={r.id} value={r.id}>{r.label}</option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-muted-foreground px-1">
+                  This sets the base profile type. You can add secondary roles later.
+                </p>
+              </div>
+
+              <div className="pt-4 flex justify-end gap-3 border-t border-border/50">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="px-6 py-2.5 font-medium bg-background text-foreground border border-border rounded-xl hover:bg-muted transition-colors text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isAdding}
+                  className="px-6 py-2.5 font-medium bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-all text-sm flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed shadow-md shadow-primary/20"
+                >
+                  {isAdding ? (
+                    <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4" />
+                  )}
+                  {isAdding ? "Creating..." : "Create User"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
