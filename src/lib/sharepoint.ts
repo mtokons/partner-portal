@@ -2159,6 +2159,107 @@ export async function addUserRole(entry: Omit<UserRoleEntry, "id">): Promise<Use
 }
 
 // ============================================================
+// User Profiles
+// ============================================================
+import type { UserProfile, UserRoleType } from "@/types";
+
+export async function getAllUserProfiles(): Promise<(UserProfile & { roles: string[] })[]> {
+  if (useMock) {
+    const rolesMap = new Map<string, string[]>();
+    stores.userRoles.forEach(r => {
+      if (r.status !== "revoked") {
+        if (!rolesMap.has(r.userAccountId)) rolesMap.set(r.userAccountId, []);
+        rolesMap.get(r.userAccountId)!.push(r.role);
+      }
+    });
+
+    const profiles: (UserProfile & { roles: string[] })[] = [];
+    
+    stores.partners.forEach(p => {
+      const prf = {
+        id: p.id,
+        firebaseUid: p.firebaseUid || "uid_" + p.id,
+        email: p.email,
+        displayName: p.name,
+        phone: p.phone,
+        role: "partner" as const,
+        company: p.company,
+        status: p.status === "active" ? "active" as const : "suspended" as const,
+        createdAt: p.createdAt,
+        updatedAt: p.createdAt,
+        roles: [] as string[],
+      };
+      if (!rolesMap.has(p.id)) rolesMap.set(p.id, [p.role]);
+      prf.roles = Array.from(new Set(rolesMap.get(p.id)));
+      profiles.push(prf);
+    });
+
+    stores.customers.forEach(p => {
+      const prf = {
+        id: p.id,
+        firebaseUid: "uid_" + p.id,
+        email: p.email,
+        displayName: p.name,
+        phone: p.phone,
+        role: "customer" as const,
+        company: p.company,
+        status: p.status === "active" ? "active" as const : "suspended" as const,
+        createdAt: p.createdAt,
+        updatedAt: p.createdAt,
+        roles: [] as string[],
+      };
+      if (!rolesMap.has(p.id)) rolesMap.set(p.id, ["customer"]);
+      prf.roles = Array.from(new Set(rolesMap.get(p.id)));
+      profiles.push(prf);
+    });
+    
+    stores.experts.forEach(p => {
+      const prf = {
+        id: p.id,
+        firebaseUid: p.firebaseUid || "uid_" + p.id,
+        email: p.email,
+        displayName: p.name,
+        phone: p.phone,
+        role: "expert" as const,
+        specialization: p.specialization,
+        status: p.status === "active" ? "active" as const : "suspended" as const,
+        createdAt: p.createdAt,
+        updatedAt: p.createdAt,
+        roles: [] as string[],
+      };
+      if (!rolesMap.has(p.id)) rolesMap.set(p.id, ["expert"]);
+      prf.roles = Array.from(new Set(rolesMap.get(p.id)));
+      profiles.push(prf);
+    });
+
+    return profiles;
+  }
+  return [];
+}
+
+export async function updateUserProfileRoles(userId: string, newRoles: UserRoleType[]): Promise<void> {
+  if (useMock) {
+    stores.userRoles.forEach(r => {
+      if (r.userAccountId === userId && r.status !== "revoked") {
+        r.status = "revoked";
+        r.revokedAt = new Date().toISOString();
+      }
+    });
+
+    newRoles.forEach(role => {
+      stores.userRoles.push({
+        id: genId("ur"),
+        userAccountId: userId,
+        role,
+        status: "active",
+        grantedAt: new Date().toISOString(),
+        grantedBy: "admin",
+      });
+    });
+  }
+}
+
+// ============================================================
 // Code Generation Helpers
 // ============================================================
 
