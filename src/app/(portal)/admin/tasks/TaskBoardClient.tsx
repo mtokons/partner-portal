@@ -38,21 +38,21 @@ const initTasks = [
   { id: "t8", title: "User permissions system", desc: "Implement role-based access control for admin, editor, viewer.", col: "done", assignee: "m4", priority: "High", due: "2026-04-14", tags: ["Backend", "Feature"], comments: [{ author: "Sara Ahmed", text: "Tested and approved!", ts: "Apr 14" }], created: "Apr 05" },
 ];
 
-function Avatar({ member, size = 28 }) {
+function Avatar({ member, size = 28 }: any) {
   if (!member) return <div style={{ width: size, height: size, borderRadius: "50%", background: "#D3D1C7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.38, color: "#5F5E5A", fontWeight: 500, flexShrink: 0 }}>?</div>;
   return <div title={member.name} style={{ width: size, height: size, borderRadius: "50%", background: member.color + "22", border: `1.5px solid ${member.color}55`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.36, color: member.color, fontWeight: 500, flexShrink: 0, cursor: "default" }}>{member.initials}</div>;
 }
 
-function PriorityBadge({ priority }) {
-  const c = PRIORITY_COLORS[priority] || {};
+function PriorityBadge({ priority }: any) {
+  const c = PRIORITY_COLORS[priority as keyof typeof PRIORITY_COLORS] || {};
   return <span style={{ fontSize: 11, fontWeight: 500, padding: "2px 7px", borderRadius: 4, background: c.bg, color: c.text, border: `1px solid ${c.border}`, whiteSpace: "nowrap" }}>{priority}</span>;
 }
 
-function TagBadge({ tag }) {
+function TagBadge({ tag }: any) {
   return <span style={{ fontSize: 11, padding: "2px 6px", borderRadius: 4, background: "var(--color-background-secondary)", color: "var(--color-text-secondary)", border: "0.5px solid var(--color-border-secondary)", whiteSpace: "nowrap" }}>{tag}</span>;
 }
 
-function EmailNotificationModal({ task, member, onClose }) {
+function EmailNotificationModal({ task, member, onClose }: any) {
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState("");
@@ -107,7 +107,7 @@ function EmailNotificationModal({ task, member, onClose }) {
   );
 }
 
-function TaskModal({ task, onClose, onUpdate, onDelete }) {
+function TaskModal({ task, onClose, onUpdate, onDelete }: any) {
   const [editTitle, setEditTitle] = useState(task.title);
   const [editDesc, setEditDesc] = useState(task.desc);
   const [editAssignee, setEditAssignee] = useState(task.assignee);
@@ -133,7 +133,7 @@ function TaskModal({ task, onClose, onUpdate, onDelete }) {
     setNewComment("");
   };
 
-  const toggleTag = (t) => setEditTags((prev) => prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]);
+  const toggleTag = (t: any) => setEditTags((prev: any) => prev.includes(t) ? prev.filter((x: any) => x !== t) : [...prev, t]);
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "flex-start", justifyContent: "center", zIndex: 900, overflowY: "auto", padding: "2rem 1rem" }} onClick={onClose}>
@@ -211,7 +211,7 @@ function TaskModal({ task, onClose, onUpdate, onDelete }) {
   );
 }
 
-function NewTaskModal({ onClose, onCreate, defaultCol }) {
+function NewTaskModal({ onClose, onCreate, defaultCol }: any) {
   const [title, setTitle] = useState("");
   const [desc, setDesc] = useState("");
   const [assignee, setAssignee] = useState("");
@@ -225,7 +225,7 @@ function NewTaskModal({ onClose, onCreate, defaultCol }) {
     onCreate({ id: "t" + Date.now(), title: title.trim(), desc, assignee, priority, due, col, tags, comments: [], created: "Today" });
     onClose();
   };
-  const toggleTag = (t) => setTags((prev) => prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]);
+  const toggleTag = (t: any) => setTags((prev: any) => prev.includes(t) ? prev.filter((x: any) => x !== t) : [...prev, t]);
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 900 }} onClick={onClose}>
@@ -262,7 +262,7 @@ function NewTaskModal({ onClose, onCreate, defaultCol }) {
   );
 }
 
-function TaskCard({ task, onClick, onDragStart, onDragEnd }) {
+function TaskCard({ task, onClick, onDragStart, onDragEnd }: any) {
   const member = MEMBERS.find((m) => m.id === task.assignee);
   const isOverdue = task.due && new Date(task.due) < new Date() && task.col !== "done";
   return (
@@ -288,7 +288,7 @@ function TaskCard({ task, onClick, onDragStart, onDragEnd }) {
   );
 }
 
-function Column({ col, tasks, onCardClick, onDrop, onDragOver, onDragLeave, isDragOver, onAddTask, draggingId }) {
+function Column({ col, tasks, onCardClick, onDrop, onDragOver, onDragLeave, isDragOver, onAddTask, draggingId }: any) {
   return (
     <div style={{ minWidth: 240, width: 260, flexShrink: 0 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, padding: "0 2px" }}>
@@ -307,9 +307,9 @@ function Column({ col, tasks, onCardClick, onDrop, onDragOver, onDragLeave, isDr
   );
 }
 
-function StatsBar({ tasks }) {
+function StatsBar({ tasks }: any) {
   const total = tasks.length;
-  const done = tasks.filter((t) => t.col === "done").length;
+  const done = tasks.filter((t: any) => t.col === "done").length;
   const overdue = tasks.filter((t) => t.due && new Date(t.due) < new Date() && t.col !== "done").length;
   const inprog = tasks.filter((t) => t.col === "inprogress").length;
   const pct = total ? Math.round((done / total) * 100) : 0;
@@ -351,17 +351,17 @@ export default function TaskBoard() {
     return true;
   });
 
-  const handleDrop = (colId, e) => {
+  const handleDrop = (colId: any, e: any) => {
     e.preventDefault();
     const taskId = e.dataTransfer.getData("taskId");
-    if (taskId) setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, col: colId } : t));
+    if (taskId) setTasks((prev: any) => prev.map((t: any) => t.id === taskId ? { ...t, col: colId } : t));
     setDragOverCol(null);
     setDraggingId(null);
   };
 
-  const handleUpdate = (updated) => setTasks((prev) => prev.map((t) => t.id === updated.id ? updated : t));
-  const handleDelete = (id) => setTasks((prev) => prev.filter((t) => t.id !== id));
-  const handleCreate = (task) => setTasks((prev) => [...prev, task]);
+  const handleUpdate = (updated: any) => setTasks((prev: any) => prev.map((t: any) => t.id === updated.id ? updated : t));
+  const handleDelete = (id: any) => setTasks((prev: any) => prev.filter((t: any) => t.id !== id));
+  const handleCreate = (task: any) => setTasks((prev: any) => [...prev, task]);
 
   return (
     <div style={{ fontFamily: "var(--font-sans)", padding: "0 0 2rem" }}>
