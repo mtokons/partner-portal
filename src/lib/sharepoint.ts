@@ -222,6 +222,22 @@ const UR_COL = { // User Roles list
   notes: "Notes",
 };
 
+const KT_COL = { // Kanban Tasks
+  title: "Title",
+  description: "Description",
+  status: "Status",
+  priority: "Priority",
+  dueDate: "DueDate",
+  assignedTo: "AssignedTo",
+  assignedToName: "AssignedToName",
+  assignedToEmail: "AssignedToEmail",
+  tags: "Tags",
+  comments: "Comments",
+  createdBy: "CreatedBy",
+  createdAt: "CreatedAt",
+  updatedAt: "UpdatedAt",
+};
+
 // ============================================================
 // In-memory mutable stores (for demo CRUD without SharePoint)
 // ============================================================
@@ -2424,33 +2440,128 @@ export function generateGiftCardPin(length: number = 4): string {
 
 export async function getKanbanTasks(): Promise<KanbanTask[]> {
   if (useMock) return stores.kanbanTasks.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-  return [];
+  
+  const { graphGetSafe, getSiteListUrlAsync } = await import("@/lib/graph");
+  const res = await graphGetSafe<{ value: Array<{ fields: Record<string, unknown> }> }>(
+    `${await getSiteListUrlAsync("KanbanTasks")}?$expand=fields`
+  );
+
+  if (!res) {
+    console.warn("SharePoint 'KanbanTasks' list not found. Falling back to mock data.");
+    return stores.kanbanTasks;
+  }
+
+  return res.value.map((item) => {
+    const f = item.fields;
+    return {
+      id: String(f.id),
+      title: String(f[KT_COL.title] || ""),
+      description: f[KT_COL.description] ? String(f[KT_COL.description]) : undefined,
+      status: String(f[KT_COL.status] || "todo") as any,
+      priority: String(f[KT_COL.priority] || "medium") as any,
+      dueDate: f[KT_COL.dueDate] ? String(f[KT_COL.dueDate]) : undefined,
+      assignedTo: f[KT_COL.assignedTo] ? String(f[KT_COL.assignedTo]) : undefined,
+      assignedToName: f[KT_COL.assignedToName] ? String(f[KT_COL.assignedToName]) : undefined,
+      assignedToEmail: f[KT_COL.assignedToEmail] ? String(f[KT_COL.assignedToEmail]) : undefined,
+      tags: f[KT_COL.tags] ? String(f[KT_COL.tags]).split(",").filter(Boolean) : [],
+      comments: f[KT_COL.comments] ? JSON.parse(String(f[KT_COL.comments])) : [],
+      createdBy: String(f[KT_COL.createdBy] || ""),
+      createdAt: String(f[KT_COL.createdAt] || new Date().toISOString()),
+      updatedAt: String(f[KT_COL.updatedAt] || new Date().toISOString()),
+    } as KanbanTask;
+  }).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 }
 
 export async function getKanbanTaskById(id: string): Promise<KanbanTask | null> {
   if (useMock) return stores.kanbanTasks.find((t) => t.id === id) || null;
-  return null;
+  
+  const { graphGetSafe, getSiteListUrlAsync } = await import("@/lib/graph");
+  const url = `${await getSiteListUrlAsync("KanbanTasks")}/items('${id}')?$expand=fields`;
+  const res = await graphGetSafe<{ fields: Record<string, unknown> }>(url);
+  if (!res) return null;
+  
+  const f = res.fields;
+  return {
+    id: String(f.id),
+    title: String(f[KT_COL.title] || ""),
+    description: f[KT_COL.description] ? String(f[KT_COL.description]) : undefined,
+    status: String(f[KT_COL.status] || "todo") as any,
+    priority: String(f[KT_COL.priority] || "medium") as any,
+    dueDate: f[KT_COL.dueDate] ? String(f[KT_COL.dueDate]) : undefined,
+    assignedTo: f[KT_COL.assignedTo] ? String(f[KT_COL.assignedTo]) : undefined,
+    assignedToName: f[KT_COL.assignedToName] ? String(f[KT_COL.assignedToName]) : undefined,
+    assignedToEmail: f[KT_COL.assignedToEmail] ? String(f[KT_COL.assignedToEmail]) : undefined,
+    tags: f[KT_COL.tags] ? String(f[KT_COL.tags]).split(",").filter(Boolean) : [],
+    comments: f[KT_COL.comments] ? JSON.parse(String(f[KT_COL.comments])) : [],
+    createdBy: String(f[KT_COL.createdBy] || ""),
+    createdAt: String(f[KT_COL.createdAt] || ""),
+    updatedAt: String(f[KT_COL.updatedAt] || ""),
+  } as KanbanTask;
 }
 
 export async function createKanbanTask(data: Omit<KanbanTask, "id">): Promise<KanbanTask> {
-  const item = { ...data, id: genId("task") } as KanbanTask;
-  if (useMock) stores.kanbanTasks.push(item);
-  return item;
+  const now = new Date().toISOString();
+  if (useMock) {
+    const item = { ...data, id: genId("task"), createdAt: now, updatedAt: now } as KanbanTask;
+    stores.kanbanTasks.push(item);
+    return item;
+  }
+
+  const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
+  const body = {
+    [KT_COL.title]: data.title,
+    [KT_COL.description]: data.description || "",
+    [KT_COL.status]: data.status,
+    [KT_COL.priority]: data.priority,
+    [KT_COL.dueDate]: data.dueDate || null,
+    [KT_COL.assignedTo]: data.assignedTo || null,
+    [KT_COL.assignedToName]: data.assignedToName || null,
+    [KT_COL.assignedToEmail]: data.assignedToEmail || null,
+    [KT_COL.tags]: (data as any).tags?.join(",") || "",
+    [KT_COL.comments]: JSON.stringify((data as any).comments || []),
+    [KT_COL.createdBy]: data.createdBy,
+    [KT_COL.createdAt]: now,
+    [KT_COL.updatedAt]: now,
+  };
+
+  const res = await graphPost<{ id: string }>(`${await getSiteListUrlAsync("KanbanTasks")}`, { fields: body });
+  return { ...data, id: res.id, createdAt: now, updatedAt: now } as KanbanTask;
 }
 
 export async function updateKanbanTask(id: string, data: Partial<KanbanTask>): Promise<KanbanTask | null> {
+  const now = new Date().toISOString();
   if (useMock) {
     const idx = stores.kanbanTasks.findIndex((t) => t.id === id);
     if (idx === -1) return null;
-    stores.kanbanTasks[idx] = { ...stores.kanbanTasks[idx], ...data, updatedAt: new Date().toISOString() };
+    stores.kanbanTasks[idx] = { ...stores.kanbanTasks[idx], ...data, updatedAt: now };
     return stores.kanbanTasks[idx];
   }
-  return null;
+
+  const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
+  const body: Record<string, unknown> = {
+    [KT_COL.updatedAt]: now,
+  };
+  if (data.title !== undefined) body[KT_COL.title] = data.title;
+  if (data.description !== undefined) body[KT_COL.description] = data.description;
+  if (data.status !== undefined) body[KT_COL.status] = data.status;
+  if (data.priority !== undefined) body[KT_COL.priority] = data.priority;
+  if (data.dueDate !== undefined) body[KT_COL.dueDate] = data.dueDate;
+  if (data.assignedTo !== undefined) body[KT_COL.assignedTo] = data.assignedTo;
+  if (data.assignedToName !== undefined) body[KT_COL.assignedToName] = data.assignedToName;
+  if (data.assignedToEmail !== undefined) body[KT_COL.assignedToEmail] = data.assignedToEmail;
+  if ((data as any).tags !== undefined) body[KT_COL.tags] = (data as any).tags?.join(",");
+  if ((data as any).comments !== undefined) body[KT_COL.comments] = JSON.stringify((data as any).comments);
+
+  await graphPatch(`${await getSiteListUrlAsync("KanbanTasks")}('${id}')/fields`, body);
+  return getKanbanTaskById(id);
 }
 
 export async function deleteKanbanTask(id: string): Promise<void> {
   if (useMock) {
     const idx = stores.kanbanTasks.findIndex((t) => t.id === id);
     if (idx !== -1) stores.kanbanTasks.splice(idx, 1);
+    return;
   }
+  const { graphDelete, getSiteListUrlAsync } = await import("@/lib/graph");
+  await graphDelete(`${await getSiteListUrlAsync("KanbanTasks")}('${id}')`);
 }

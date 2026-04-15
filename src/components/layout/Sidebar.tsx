@@ -29,6 +29,7 @@ interface LinkItem {
 const allLinks: LinkItem[] = [
   // Main
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, group: "main", roles: ["partner", "admin", "finance", "hr", "school-manager"] },
+  { href: "/admin/tasks", label: "Task Board", icon: ClipboardList, group: "main", roles: ["admin"] },
   { href: "/customer/dashboard", label: "My Dashboard", icon: LayoutDashboard, group: "main", roles: ["customer"] },
   { href: "/expert/dashboard", label: "Expert Console", icon: LayoutDashboard, group: "main", roles: ["expert"] },
   
@@ -92,7 +93,6 @@ const allLinks: LinkItem[] = [
   { href: "/admin/sessions", label: "All Sessions", icon: Calendar, group: "admin", roles: ["admin"] },
   { href: "/admin/orders", label: "All Orders", icon: ShoppingCart, group: "admin", roles: ["admin"] },
   { href: "/admin/send-email", label: "Send Email", icon: Mail, group: "admin", roles: ["admin"] },
-  { href: "/admin/tasks", label: "Task Board", icon: ClipboardList, group: "admin", roles: ["admin"] },
   { href: "/activity", label: "Activity Logs", icon: Activity, group: "admin", roles: ["admin"] },
   
   // Account
