@@ -9,6 +9,7 @@ import type {
   PromoCode, PromoCodeUsage, CommissionRule, CommissionLedgerEntry,
   CoinWallet, CoinTransaction, GiftCard, GiftCardTransaction, UserRoleEntry,
   SccgCard, SccgCardTransaction,
+  KanbanTask,
 } from "@/types";
 import {
   mockPartners, mockProducts, mockOrders, mockClients,
@@ -20,6 +21,7 @@ import {
   mockSalesOffers, mockSalesOfferItems,
   mockSalesOrders, mockSalesOrderItems, mockServiceTasks,
   mockPromoCodes, mockCommissionRules, mockCoinWallets, mockGiftCards,
+  mockKanbanTasks,
 } from "@/lib/mock-data";
 
 const useMock = process.env.USE_MOCK_DATA === "true";
@@ -241,6 +243,7 @@ const getInitialStores = () => ({
   giftCards: [...mockGiftCards],
   giftCardTransactions: [] as GiftCardTransaction[],
   userRoles: [] as UserRoleEntry[],
+  kanbanTasks: [...mockKanbanTasks],
 });
 
 type MockStores = ReturnType<typeof getInitialStores>;
@@ -2184,4 +2187,41 @@ export function generateGiftCardPin(length: number = 4): string {
     pin += Math.floor(Math.random() * 10).toString();
   }
   return pin;
+}
+
+// ============================================================
+// Kanban Task Board
+// ============================================================
+
+export async function getKanbanTasks(): Promise<KanbanTask[]> {
+  if (useMock) return stores.kanbanTasks.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  return [];
+}
+
+export async function getKanbanTaskById(id: string): Promise<KanbanTask | null> {
+  if (useMock) return stores.kanbanTasks.find((t) => t.id === id) || null;
+  return null;
+}
+
+export async function createKanbanTask(data: Omit<KanbanTask, "id">): Promise<KanbanTask> {
+  const item = { ...data, id: genId("task") } as KanbanTask;
+  if (useMock) stores.kanbanTasks.push(item);
+  return item;
+}
+
+export async function updateKanbanTask(id: string, data: Partial<KanbanTask>): Promise<KanbanTask | null> {
+  if (useMock) {
+    const idx = stores.kanbanTasks.findIndex((t) => t.id === id);
+    if (idx === -1) return null;
+    stores.kanbanTasks[idx] = { ...stores.kanbanTasks[idx], ...data, updatedAt: new Date().toISOString() };
+    return stores.kanbanTasks[idx];
+  }
+  return null;
+}
+
+export async function deleteKanbanTask(id: string): Promise<void> {
+  if (useMock) {
+    const idx = stores.kanbanTasks.findIndex((t) => t.id === id);
+    if (idx !== -1) stores.kanbanTasks.splice(idx, 1);
+  }
 }

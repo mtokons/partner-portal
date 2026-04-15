@@ -1388,3 +1388,25 @@ export interface SchoolGradingScale {
   grade: string;
   isPassing: boolean;
 }
+
+// ============================================================
+// Task Board (Kanban)
+// ============================================================
+
+export type TaskStatus = "todo" | "in-progress" | "review" | "done";
+export type TaskPriority = "low" | "medium" | "high";
+
+export interface KanbanTask {
+  id: string;
+  title: string;
+  description?: string;
+  status: TaskStatus;
+  priority: TaskPriority;
+  dueDate?: string;
+  assignedTo?: string;          // user id (student/partner/expert)
+  assignedToName?: string;
+  assignedToEmail?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}

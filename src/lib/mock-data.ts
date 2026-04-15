@@ -585,3 +585,62 @@ export const mockGiftCards: SccgCard[] = [
     updatedAt: "2026-03-01T00:00:00Z" 
   },
 ];
+
+// ============================================================
+// Kanban Tasks
+// ============================================================
+import type { KanbanTask } from "@/types";
+
+export const mockKanbanTasks: KanbanTask[] = [
+  {
+    id: "task-1",
+    title: "Onboard new partner: GlobalTech",
+    description: "Complete compliance docs and activate account.",
+    status: "todo",
+    priority: "high",
+    dueDate: "2026-04-20T00:00:00Z",
+    assignedTo: "p1",
+    assignedToName: "Rahim Uddin",
+    assignedToEmail: "rahim@example.com",
+    createdBy: "admin1",
+    createdAt: "2026-04-10T09:00:00Z",
+    updatedAt: "2026-04-10T09:00:00Z",
+  },
+  {
+    id: "task-2",
+    title: "Review Q1 commission payouts",
+    description: "Verify calculations for all partner tiers.",
+    status: "in-progress",
+    priority: "medium",
+    dueDate: "2026-04-18T00:00:00Z",
+    assignedTo: "admin1",
+    assignedToName: "Admin User",
+    assignedToEmail: "admin@sccg.de",
+    createdBy: "admin1",
+    createdAt: "2026-04-08T10:00:00Z",
+    updatedAt: "2026-04-12T14:30:00Z",
+  },
+  {
+    id: "task-3",
+    title: "Update product pricing for BDT",
+    status: "review",
+    priority: "low",
+    dueDate: "2026-04-22T00:00:00Z",
+    createdBy: "admin1",
+    createdAt: "2026-04-05T08:00:00Z",
+    updatedAt: "2026-04-14T11:00:00Z",
+  },
+  {
+    id: "task-4",
+    title: "Send welcome emails to batch-3 students",
+    description: "Use the new SCCG template.",
+    status: "done",
+    priority: "medium",
+    assignedTo: "p1",
+    assignedToName: "Rahim Uddin",
+    assignedToEmail: "rahim@example.com",
+    createdBy: "admin1",
+    createdAt: "2026-04-01T10:00:00Z",
+    updatedAt: "2026-04-10T16:00:00Z",
+  },
+];
