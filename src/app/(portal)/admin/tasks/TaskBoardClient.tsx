@@ -129,7 +129,7 @@ function TaskModal({ task, onClose, onUpdate, onDelete }: any) {
   const addComment = () => {
     if (!newComment.trim()) return;
     const c = { author: "You", text: newComment.trim(), ts: "Just now" };
-    setComments((prev) => [...prev, c]);
+    setComments((prev: any) => [...prev, c]);
     setNewComment("");
   };
 
