@@ -614,6 +614,7 @@ export interface UserProfile {
 export type UserRoleType =
   | "admin"
   | "customer"
+  | "partner"
   | "partner-individual"
   | "partner-institutional"
   | "expert"

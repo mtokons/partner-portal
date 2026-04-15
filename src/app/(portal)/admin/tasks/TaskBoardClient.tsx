@@ -72,7 +72,7 @@ function EmailNotificationModal({ task, member, onClose }: any) {
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }} onClick={onClose}>
-      <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-secondary)", borderRadius: 12, padding: "1.5rem", width: 460, maxWidth: "90vw", position: "relative" }} onClick={(e) => e.stopPropagation()}>
+      <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-secondary)", borderRadius: 12, padding: "1.5rem", width: 460, maxWidth: "90vw", position: "relative" }} onClick={(e: any) => e.stopPropagation()}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <span style={{ fontWeight: 500, fontSize: 15 }}>Send email notification</span>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "var(--color-text-secondary)", padding: "0 4px" }}>×</button>
@@ -94,7 +94,7 @@ function EmailNotificationModal({ task, member, onClose }: any) {
             </div>
             <div style={{ marginBottom: 16 }}>
               <label style={{ fontSize: 12, color: "var(--color-text-secondary)", display: "block", marginBottom: 4 }}>Message</label>
-              <textarea value={preview} onChange={(e) => setPreview(e.target.value)} rows={8} style={{ width: "100%", fontSize: 13, fontFamily: "var(--font-mono)", padding: "8px 10px", borderRadius: 6, border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", resize: "vertical", boxSizing: "border-box" }} />
+              <textarea value={preview} onChange={(e: any) => setPreview(e.target.value)} rows={8} style={{ width: "100%", fontSize: 13, fontFamily: "var(--font-mono)", padding: "8px 10px", borderRadius: 6, border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", resize: "vertical", boxSizing: "border-box" }} />
             </div>
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
               <button onClick={onClose} style={{ padding: "8px 16px", borderRadius: 6, border: "0.5px solid var(--color-border-secondary)", background: "none", cursor: "pointer", fontSize: 13, color: "var(--color-text-secondary)" }}>Cancel</button>
@@ -119,7 +119,8 @@ function TaskModal({ task, onClose, onUpdate, onDelete }: any) {
   const [comments, setComments] = useState(task.comments || []);
   const [showEmail, setShowEmail] = useState(false);
 
-  const member = MEMBERS.find((m) => m.id === editAssignee);
+  const member = MEMBERS.find((m: any) => m.id === editAssignee);
+  const currentColumn = COLUMNS.find((c: any) => c.id === editCol);
 
   const save = () => {
     onUpdate({ ...task, title: editTitle, desc: editDesc, assignee: editAssignee, priority: editPriority, due: editDue, tags: editTags, col: editCol, comments });
@@ -137,7 +138,7 @@ function TaskModal({ task, onClose, onUpdate, onDelete }: any) {
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "flex-start", justifyContent: "center", zIndex: 900, overflowY: "auto", padding: "2rem 1rem" }} onClick={onClose}>
-      <div style={{ background: "var(--color-background-primary)", borderRadius: 12, border: "0.5px solid var(--color-border-secondary)", width: 640, maxWidth: "100%", position: "relative" }} onClick={(e) => e.stopPropagation()}>
+      <div style={{ background: "var(--color-background-primary)", borderRadius: 12, border: "0.5px solid var(--color-border-secondary)", width: 640, maxWidth: "100%", position: "relative" }} onClick={(e: any) => e.stopPropagation()}>
         <div style={{ padding: "1.25rem 1.5rem", borderBottom: "0.5px solid var(--color-border-tertiary)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span style={{ fontSize: 12, color: "var(--color-text-secondary)", fontFamily: "var(--font-mono)" }}>{task.id.toUpperCase()}</span>
           <div style={{ display: "flex", gap: 8 }}>
@@ -148,18 +149,18 @@ function TaskModal({ task, onClose, onUpdate, onDelete }: any) {
         </div>
         <div style={{ padding: "1.5rem", display: "grid", gridTemplateColumns: "1fr 220px", gap: "1.5rem" }}>
           <div>
-            <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} style={{ width: "100%", fontSize: 18, fontWeight: 500, border: "none", borderBottom: "0.5px solid var(--color-border-tertiary)", background: "none", color: "var(--color-text-primary)", padding: "4px 0 8px", marginBottom: 12, outline: "none", boxSizing: "border-box" }} />
+            <input value={editTitle} onChange={(e: any) => setEditTitle(e.target.value)} style={{ width: "100%", fontSize: 18, fontWeight: 500, border: "none", borderBottom: "0.5px solid var(--color-border-tertiary)", background: "none", color: "var(--color-text-primary)", padding: "4px 0 8px", marginBottom: 12, outline: "none", boxSizing: "border-box" }} />
             <label style={{ fontSize: 12, color: "var(--color-text-secondary)", display: "block", marginBottom: 4 }}>Description</label>
-            <textarea value={editDesc} onChange={(e) => setEditDesc(e.target.value)} rows={4} style={{ width: "100%", fontSize: 13, border: "0.5px solid var(--color-border-secondary)", borderRadius: 6, background: "var(--color-background-secondary)", color: "var(--color-text-primary)", padding: "8px 10px", resize: "vertical", boxSizing: "border-box", marginBottom: 16 }} />
+            <textarea value={editDesc} onChange={(e: any) => setEditDesc(e.target.value)} rows={4} style={{ width: "100%", fontSize: 13, border: "0.5px solid var(--color-border-secondary)", borderRadius: 6, background: "var(--color-background-secondary)", color: "var(--color-text-primary)", padding: "8px 10px", resize: "vertical", boxSizing: "border-box", marginBottom: 16 }} />
             <label style={{ fontSize: 12, color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>Tags</label>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 20 }}>
-              {TAGS.map((t) => (
+              {TAGS.map((t: any) => (
                 <span key={t} onClick={() => toggleTag(t)} style={{ fontSize: 12, padding: "3px 8px", borderRadius: 4, cursor: "pointer", background: editTags.includes(t) ? "#E6F1FB" : "var(--color-background-secondary)", color: editTags.includes(t) ? "#185FA5" : "var(--color-text-secondary)", border: editTags.includes(t) ? "1px solid #185FA555" : "0.5px solid var(--color-border-secondary)", userSelect: "none" }}>{t}</span>
               ))}
             </div>
             <div style={{ borderTop: "0.5px solid var(--color-border-tertiary)", paddingTop: 16 }}>
               <label style={{ fontSize: 12, color: "var(--color-text-secondary)", display: "block", marginBottom: 10 }}>Comments ({comments.length})</label>
-              {comments.map((c, i) => (
+              {comments.map((c: any, i: any) => (
                 <div key={i} style={{ marginBottom: 10, padding: "8px 10px", borderRadius: 6, background: "var(--color-background-secondary)", border: "0.5px solid var(--color-border-tertiary)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                     <span style={{ fontSize: 12, fontWeight: 500 }}>{c.author}</span>
@@ -169,18 +170,18 @@ function TaskModal({ task, onClose, onUpdate, onDelete }: any) {
                 </div>
               ))}
               <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                <input value={newComment} onChange={(e) => setNewComment(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addComment()} placeholder="Add comment…" style={{ flex: 1, fontSize: 13, padding: "7px 10px", borderRadius: 6, border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)" }} />
+                <input value={newComment} onChange={(e: any) => setNewComment(e.target.value)} onKeyDown={(e: any) => e.key === "Enter" && addComment()} placeholder="Add comment…" style={{ flex: 1, fontSize: 13, padding: "7px 10px", borderRadius: 6, border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)" }} />
                 <button onClick={addComment} style={{ padding: "7px 14px", borderRadius: 6, border: "0.5px solid #185FA5", background: "#185FA5", color: "#fff", cursor: "pointer", fontSize: 13 }}>Add</button>
               </div>
             </div>
           </div>
           <div style={{ fontSize: 13 }}>
             {[
-              ["Status", <select value={editCol} onChange={(e) => setEditCol(e.target.value)} style={{ width: "100%", fontSize: 13, padding: "6px 8px", borderRadius: 6, border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)" }}>{COLUMNS.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}</select>],
-              ["Assignee", <select value={editAssignee} onChange={(e) => setEditAssignee(e.target.value)} style={{ width: "100%", fontSize: 13, padding: "6px 8px", borderRadius: 6, border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)" }}><option value="">Unassigned</option>{MEMBERS.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select>],
-              ["Priority", <select value={editPriority} onChange={(e) => setEditPriority(e.target.value)} style={{ width: "100%", fontSize: 13, padding: "6px 8px", borderRadius: 6, border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)" }}>{PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}</select>],
-              ["Due date", <input type="date" value={editDue} onChange={(e) => setEditDue(e.target.value)} style={{ width: "100%", fontSize: 13, padding: "6px 8px", borderRadius: 6, border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", boxSizing: "border-box" }} />],
-            ].map(([label, ctrl]) => (
+              ["Status", <select value={editCol} onChange={(e) => setEditCol(e.target.value)} style={{ width: "100%", fontSize: 13, padding: "6px 8px", borderRadius: 6, border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)" }}>{COLUMNS.map((c: any) => <option key={c.id} value={c.id}>{c.label}</option>)}</select>],
+              ["Assignee", <select value={editAssignee} onChange={(e) => setEditAssignee(e.target.value)} style={{ width: "100%", fontSize: 13, padding: "6px 8px", borderRadius: 6, border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)" }}><option value="">Unassigned</option>{MEMBERS.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}</select>],
+              ["Priority", <select value={editPriority} onChange={(e) => setEditPriority(e.target.value)} style={{ width: "100%", fontSize: 13, padding: "6px 8px", borderRadius: 6, border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)" }}>{PRIORITIES.map((p: any) => <option key={p} value={p}>{p}</option>)}</select>],
+              ["Due date", <input type="date" value={editDue} onChange={(e: any) => setEditDue(e.target.value)} style={{ width: "100%", fontSize: 13, padding: "6px 8px", borderRadius: 6, border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", boxSizing: "border-box" }} />],
+            ].map(([label, ctrl]: any) => (
               <div key={label as string} style={{ marginBottom: 14 }}>
                 <label style={{ fontSize: 11, color: "var(--color-text-secondary)", display: "block", marginBottom: 4 }}>{label as string}</label>
                 {ctrl}
@@ -218,7 +219,7 @@ function NewTaskModal({ onClose, onCreate, defaultCol }: any) {
   const [priority, setPriority] = useState("Medium");
   const [due, setDue] = useState("");
   const [col, setCol] = useState(defaultCol || "backlog");
-  const [tags, setTags] = useState([]);
+  const [tags, setTags] = useState<any[]>([]);
 
   const create = () => {
     if (!title.trim()) return;
@@ -229,19 +230,19 @@ function NewTaskModal({ onClose, onCreate, defaultCol }: any) {
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 900 }} onClick={onClose}>
-      <div style={{ background: "var(--color-background-primary)", borderRadius: 12, border: "0.5px solid var(--color-border-secondary)", width: 520, maxWidth: "90vw", padding: "1.5rem" }} onClick={(e) => e.stopPropagation()}>
+      <div style={{ background: "var(--color-background-primary)", borderRadius: 12, border: "0.5px solid var(--color-border-secondary)", width: 520, maxWidth: "90vw", padding: "1.5rem" }} onClick={(e: any) => e.stopPropagation()}>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 20 }}>
           <span style={{ fontWeight: 500, fontSize: 15 }}>Create new task</span>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, color: "var(--color-text-secondary)" }}>×</button>
         </div>
         {[
-          ["Title *", <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Task title…" style={{ width: "100%", fontSize: 14, padding: "8px 10px", borderRadius: 6, border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", boxSizing: "border-box" }} />],
-          ["Description", <textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={3} placeholder="Describe the task…" style={{ width: "100%", fontSize: 13, padding: "8px 10px", borderRadius: 6, border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", resize: "vertical", boxSizing: "border-box" }} />],
-          ["Status", <select value={col} onChange={(e) => setCol(e.target.value)} style={{ width: "100%", fontSize: 13, padding: "7px 8px", borderRadius: 6, border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)" }}>{COLUMNS.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}</select>],
-          ["Assignee", <select value={assignee} onChange={(e) => setAssignee(e.target.value)} style={{ width: "100%", fontSize: 13, padding: "7px 8px", borderRadius: 6, border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)" }}><option value="">Unassigned</option>{MEMBERS.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select>],
-          ["Priority", <select value={priority} onChange={(e) => setPriority(e.target.value)} style={{ width: "100%", fontSize: 13, padding: "7px 8px", borderRadius: 6, border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)" }}>{PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}</select>],
-          ["Due date", <input type="date" value={due} onChange={(e) => setDue(e.target.value)} style={{ width: "100%", fontSize: 13, padding: "7px 8px", borderRadius: 6, border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", boxSizing: "border-box" }} />],
-        ].map(([label, ctrl]) => (
+          ["Title *", <input autoFocus value={title} onChange={(e: any) => setTitle(e.target.value)} placeholder="Task title…" style={{ width: "100%", fontSize: 14, padding: "8px 10px", borderRadius: 6, border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", boxSizing: "border-box" }} />],
+          ["Description", <textarea value={desc} onChange={(e: any) => setDesc(e.target.value)} rows={3} placeholder="Describe the task…" style={{ width: "100%", fontSize: 13, padding: "8px 10px", borderRadius: 6, border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", resize: "vertical", boxSizing: "border-box" }} />],
+          ["Status", <select value={col} onChange={(e: any) => setCol(e.target.value)} style={{ width: "100%", fontSize: 13, padding: "7px 8px", borderRadius: 6, border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)" }}>{COLUMNS.map((c: any) => <option key={c.id} value={c.id}>{c.label}</option>)}</select>],
+          ["Assignee", <select value={assignee} onChange={(e: any) => setAssignee(e.target.value)} style={{ width: "100%", fontSize: 13, padding: "7px 8px", borderRadius: 6, border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)" }}><option value="">Unassigned</option>{MEMBERS.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}</select>],
+          ["Priority", <select value={priority} onChange={(e: any) => setPriority(e.target.value)} style={{ width: "100%", fontSize: 13, padding: "7px 8px", borderRadius: 6, border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)" }}>{PRIORITIES.map((p: any) => <option key={p} value={p}>{p}</option>)}</select>],
+          ["Due date", <input type="date" value={due} onChange={(e: any) => setDue(e.target.value)} style={{ width: "100%", fontSize: 13, padding: "7px 8px", borderRadius: 6, border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", boxSizing: "border-box" }} />],
+        ].map(([label, ctrl]: any) => (
           <div key={label as string} style={{ marginBottom: 12 }}>
             <label style={{ fontSize: 12, color: "var(--color-text-secondary)", display: "block", marginBottom: 4 }}>{label as string}</label>
             {ctrl}
@@ -250,7 +251,7 @@ function NewTaskModal({ onClose, onCreate, defaultCol }: any) {
         <div style={{ marginBottom: 20 }}>
           <label style={{ fontSize: 12, color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>Tags</label>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {TAGS.map((t) => <span key={t} onClick={() => toggleTag(t)} style={{ fontSize: 12, padding: "3px 8px", borderRadius: 4, cursor: "pointer", background: tags.includes(t) ? "#E6F1FB" : "var(--color-background-secondary)", color: tags.includes(t) ? "#185FA5" : "var(--color-text-secondary)", border: tags.includes(t) ? "1px solid #185FA555" : "0.5px solid var(--color-border-secondary)", userSelect: "none" }}>{t}</span>)}
+            {TAGS.map((t: any) => <span key={t} onClick={() => toggleTag(t)} style={{ fontSize: 12, padding: "3px 8px", borderRadius: 4, cursor: "pointer", background: tags.includes(t) ? "#E6F1FB" : "var(--color-background-secondary)", color: tags.includes(t) ? "#185FA5" : "var(--color-text-secondary)", border: tags.includes(t) ? "1px solid #185FA555" : "0.5px solid var(--color-border-secondary)", userSelect: "none" }}>{t}</span>)}
           </div>
         </div>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
@@ -263,20 +264,20 @@ function NewTaskModal({ onClose, onCreate, defaultCol }: any) {
 }
 
 function TaskCard({ task, onClick, onDragStart, onDragEnd }: any) {
-  const member = MEMBERS.find((m) => m.id === task.assignee);
+  const member = MEMBERS.find((m: any) => m.id === task.assignee);
   const isOverdue = task.due && new Date(task.due) < new Date() && task.col !== "done";
   return (
-    <div draggable onDragStart={(e) => { e.dataTransfer.setData("taskId", task.id); onDragStart(task.id); }} onDragEnd={onDragEnd} onClick={onClick}
+    <div draggable onDragStart={(e: any) => { e.dataTransfer.setData("taskId", task.id); onDragStart(task.id); }} onDragEnd={onDragEnd} onClick={onClick}
       style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: 8, padding: "12px", marginBottom: 8, cursor: "grab", userSelect: "none", transition: "box-shadow 0.15s", position: "relative" }}
-      onMouseEnter={(e) => e.currentTarget.style.borderColor = "var(--color-border-secondary)"}
-      onMouseLeave={(e) => e.currentTarget.style.borderColor = "var(--color-border-tertiary)"}
+      onMouseEnter={(e: any) => e.currentTarget.style.borderColor = "var(--color-border-secondary)"}
+      onMouseLeave={(e: any) => e.currentTarget.style.borderColor = "var(--color-border-tertiary)"}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6, gap: 8 }}>
         <p style={{ margin: 0, fontSize: 13, fontWeight: 500, lineHeight: 1.4, color: "var(--color-text-primary)", flex: 1 }}>{task.title}</p>
         <PriorityBadge priority={task.priority} />
       </div>
       {task.desc && <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--color-text-secondary)", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{task.desc}</p>}
-      {task.tags?.length > 0 && <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 8 }}>{task.tags.map((t) => <TagBadge key={t} tag={t} />)}</div>}
+      {task.tags?.length > 0 && <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 8 }}>{task.tags.map((t: any) => <TagBadge key={t} tag={t} />)}</div>}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <Avatar member={member} size={22} />
@@ -300,7 +301,7 @@ function Column({ col, tasks, onCardClick, onDrop, onDragOver, onDragLeave, isDr
         <button onClick={onAddTask} title="Add task" style={{ background: "none", border: "0.5px solid var(--color-border-secondary)", borderRadius: 4, width: 22, height: 22, cursor: "pointer", fontSize: 14, color: "var(--color-text-secondary)", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>+</button>
       </div>
       <div onDrop={onDrop} onDragOver={onDragOver} onDragLeave={onDragLeave} style={{ minHeight: 120, borderRadius: 8, padding: "4px", transition: "background 0.15s", background: isDragOver ? col.color + "11" : "transparent", border: isDragOver ? `1.5px dashed ${col.color}55` : "1.5px dashed transparent" }}>
-        {tasks.map((t) => <TaskCard key={t.id} task={t} onClick={() => onCardClick(t)} onDragStart={() => {}} onDragEnd={() => {}} />)}
+        {tasks.map((t: any) => <TaskCard key={t.id} task={t} onClick={() => onCardClick(t)} onDragStart={() => {}} onDragEnd={() => {}} />)}
         {tasks.length === 0 && <div style={{ textAlign: "center", padding: "24px 0", fontSize: 12, color: "var(--color-text-secondary)" }}>No tasks</div>}
       </div>
     </div>
@@ -310,8 +311,8 @@ function Column({ col, tasks, onCardClick, onDrop, onDragOver, onDragLeave, isDr
 function StatsBar({ tasks }: any) {
   const total = tasks.length;
   const done = tasks.filter((t: any) => t.col === "done").length;
-  const overdue = tasks.filter((t) => t.due && new Date(t.due) < new Date() && t.col !== "done").length;
-  const inprog = tasks.filter((t) => t.col === "inprogress").length;
+  const overdue = tasks.filter((t: any) => t.due && new Date(t.due) < new Date() && t.col !== "done").length;
+  const inprog = tasks.filter((t: any) => t.col === "inprogress").length;
   const pct = total ? Math.round((done / total) * 100) : 0;
   return (
     <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
@@ -321,7 +322,7 @@ function StatsBar({ tasks }: any) {
         ["In progress", inprog, "#EF9F27"],
         ["Overdue", overdue, "#E24B4A"],
         ["Progress", pct + "%", "#185FA5"],
-      ].map(([label, val, color]) => (
+      ].map(([label, val, color]: any) => (
         <div key={label as string} style={{ background: "var(--color-background-secondary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: 8, padding: "10px 16px", minWidth: 100 }}>
           <p style={{ margin: "0 0 2px", fontSize: 11, color: "var(--color-text-secondary)" }}>{label as string}</p>
           <p style={{ margin: 0, fontSize: 20, fontWeight: 500, color: color as string }}>{val as string | number}</p>
@@ -333,18 +334,18 @@ function StatsBar({ tasks }: any) {
 
 export default function TaskBoard() {
   const [tasks, setTasks] = useState(initTasks);
-  const [selectedTask, setSelectedTask] = useState(null);
+  const [selectedTask, setSelectedTask] = useState<any>(null);
   const [showNew, setShowNew] = useState(false);
   const [newDefaultCol, setNewDefaultCol] = useState("backlog");
-  const [dragOverCol, setDragOverCol] = useState(null);
-  const [draggingId, setDraggingId] = useState(null);
+  const [dragOverCol, setDragOverCol] = useState<any>(null);
+  const [draggingId, setDraggingId] = useState<any>(null);
   const [filterMember, setFilterMember] = useState("");
   const [filterPriority, setFilterPriority] = useState("");
   const [searchQ, setSearchQ] = useState("");
   const [view, setView] = useState("board");
   const [showEmailNotif, setShowEmailNotif] = useState<{task: any; member: any} | null>(null);
 
-  const filtered = tasks.filter((t) => {
+  const filtered = tasks.filter((t: any) => {
     if (filterMember && t.assignee !== filterMember) return false;
     if (filterPriority && t.priority !== filterPriority) return false;
     if (searchQ && !t.title.toLowerCase().includes(searchQ.toLowerCase())) return false;
@@ -375,7 +376,7 @@ export default function TaskBoard() {
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
           <div style={{ display: "flex", border: "0.5px solid var(--color-border-secondary)", borderRadius: 6, overflow: "hidden" }}>
-            {["board", "list"].map((v) => <button key={v} onClick={() => setView(v)} style={{ padding: "6px 14px", border: "none", background: view === v ? "var(--color-background-secondary)" : "none", cursor: "pointer", fontSize: 12, color: view === v ? "var(--color-text-primary)" : "var(--color-text-secondary)", fontWeight: view === v ? 500 : 400 }}>{v === "board" ? "⬜ Board" : "☰ List"}</button>)}
+            {["board", "list"].map((v: any) => <button key={v} onClick={() => setView(v)} style={{ padding: "6px 14px", border: "none", background: view === v ? "var(--color-background-secondary)" : "none", cursor: "pointer", fontSize: 12, color: view === v ? "var(--color-text-primary)" : "var(--color-text-secondary)", fontWeight: view === v ? 500 : 400 }}>{v === "board" ? "⬜ Board" : "☰ List"}</button>)}
           </div>
           <button onClick={() => { setNewDefaultCol("backlog"); setShowNew(true); }} style={{ padding: "7px 14px", borderRadius: 6, border: "0.5px solid #185FA5", background: "#185FA5", color: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 500 }}>+ New task</button>
         </div>
@@ -383,14 +384,14 @@ export default function TaskBoard() {
 
       {/* Filters */}
       <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
-        <input value={searchQ} onChange={(e) => setSearchQ(e.target.value)} placeholder="Search tasks…" style={{ fontSize: 13, padding: "6px 10px", borderRadius: 6, border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", width: 180 }} />
-        <select value={filterMember} onChange={(e) => setFilterMember(e.target.value)} style={{ fontSize: 13, padding: "6px 8px", borderRadius: 6, border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)" }}>
+        <input value={searchQ} onChange={(e: any) => setSearchQ(e.target.value)} placeholder="Search tasks…" style={{ fontSize: 13, padding: "6px 10px", borderRadius: 6, border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", width: 180 }} />
+        <select value={filterMember} onChange={(e: any) => setFilterMember(e.target.value)} style={{ fontSize: 13, padding: "6px 8px", borderRadius: 6, border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)" }}>
           <option value="">All members</option>
-          {MEMBERS.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+          {MEMBERS.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}
         </select>
-        <select value={filterPriority} onChange={(e) => setFilterPriority(e.target.value)} style={{ fontSize: 13, padding: "6px 8px", borderRadius: 6, border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)" }}>
+        <select value={filterPriority} onChange={(e: any) => setFilterPriority(e.target.value)} style={{ fontSize: 13, padding: "6px 8px", borderRadius: 6, border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)" }}>
           <option value="">All priorities</option>
-          {PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}
+          {PRIORITIES.map((p: any) => <option key={p} value={p}>{p}</option>)}
         </select>
         {(filterMember || filterPriority || searchQ) && <button onClick={() => { setFilterMember(""); setFilterPriority(""); setSearchQ(""); }} style={{ fontSize: 12, padding: "6px 10px", borderRadius: 6, border: "0.5px solid var(--color-border-secondary)", background: "none", cursor: "pointer", color: "var(--color-text-secondary)" }}>Clear filters</button>}
       </div>
@@ -399,13 +400,13 @@ export default function TaskBoard() {
 
       {view === "board" ? (
         <div style={{ display: "flex", gap: 16, overflowX: "auto", paddingBottom: 16 }}>
-          {COLUMNS.map((col) => (
+          {COLUMNS.map((col: any) => (
             <Column key={col.id} col={col}
-              tasks={filtered.filter((t) => t.col === col.id)}
-              onCardClick={(t) => setSelectedTask(t)}
-              onDrop={(e) => handleDrop(col.id, e)}
-              onDragOver={(e) => { e.preventDefault(); setDragOverCol(col.id); }}
-              onDragLeave={() => setDragOverCol(null)}
+              tasks={filtered.filter((t: any) => t.col === col.id)}
+               onCardClick={(t: any) => setSelectedTask(t)}
+               onDrop={(e: any) => handleDrop(col.id, e)}
+               onDragOver={(e: any) => { e.preventDefault(); setDragOverCol(col.id); }}
+               onDragLeave={() => setDragOverCol(null)}
               isDragOver={dragOverCol === col.id}
               onAddTask={() => { setNewDefaultCol(col.id); setShowNew(true); }}
               draggingId={draggingId}
@@ -415,23 +416,23 @@ export default function TaskBoard() {
       ) : (
         <div style={{ border: "0.5px solid var(--color-border-tertiary)", borderRadius: 8, overflow: "hidden" }}>
           <div style={{ display: "grid", gridTemplateColumns: "2fr 120px 120px 120px 100px 80px", gap: 0, background: "var(--color-background-secondary)", padding: "8px 16px", borderBottom: "0.5px solid var(--color-border-tertiary)" }}>
-            {["Task", "Status", "Assignee", "Priority", "Due date", ""].map((h) => <span key={h} style={{ fontSize: 11, color: "var(--color-text-secondary)", fontWeight: 500 }}>{h}</span>)}
+            {["Task", "Status", "Assignee", "Priority", "Due date", ""].map((h: any) => <span key={h} style={{ fontSize: 11, color: "var(--color-text-secondary)", fontWeight: 500 }}>{h}</span>)}
           </div>
-          {filtered.map((t, i) => {
-            const member = MEMBERS.find((m) => m.id === t.assignee);
+          {filtered.map((t: any, i: any) => {
+            const member = MEMBERS.find((m: any) => m.id === t.assignee);
             const col = COLUMNS.find((c) => c.id === t.col);
             const isOverdue = t.due && new Date(t.due) < new Date() && t.col !== "done";
             return (
               <div key={t.id} onClick={() => setSelectedTask(t)} style={{ display: "grid", gridTemplateColumns: "2fr 120px 120px 120px 100px 80px", gap: 0, padding: "10px 16px", borderBottom: i < filtered.length - 1 ? "0.5px solid var(--color-border-tertiary)" : "none", cursor: "pointer", alignItems: "center", background: "var(--color-background-primary)", transition: "background 0.1s" }}
-                onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-background-secondary)"}
-                onMouseLeave={(e) => e.currentTarget.style.background = "var(--color-background-primary)"}
+                onMouseEnter={(e: any) => e.currentTarget.style.background = "var(--color-background-secondary)"}
+                onMouseLeave={(e: any) => e.currentTarget.style.background = "var(--color-background-primary)"}
               >
                 <span style={{ fontSize: 13, fontWeight: 500 }}>{t.title}</span>
                 <span style={{ fontSize: 12, color: col?.color, fontWeight: 500 }}>{col?.label}</span>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}><Avatar member={member} size={20} /><span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{member?.name.split(" ")[0]}</span></div>
                 <PriorityBadge priority={t.priority} />
                 <span style={{ fontSize: 12, color: isOverdue ? "#A32D2D" : "var(--color-text-secondary)", fontWeight: isOverdue ? 500 : 400 }}>{t.due || "—"}</span>
-                <button onClick={(e) => { e.stopPropagation(); const m = MEMBERS.find((m) => m.id === t.assignee); setShowEmailNotif({ task: t, member: m }); }} style={{ fontSize: 11, padding: "4px 8px", border: "0.5px solid var(--color-border-secondary)", background: "none", borderRadius: 4, cursor: "pointer", color: "var(--color-text-secondary)" }}>✉</button>
+                <button onClick={(e: any) => { e.stopPropagation(); const m = MEMBERS.find((m: any) => m.id === t.assignee); setShowEmailNotif({ task: t, member: m }); }} style={{ fontSize: 11, padding: "4px 8px", border: "0.5px solid var(--color-border-secondary)", background: "none", borderRadius: 4, cursor: "pointer", color: "var(--color-text-secondary)" }}>✉</button>
               </div>
             );
           })}
