@@ -63,6 +63,19 @@ async function runSafe<T>(liveFn: () => Promise<T>, fallbackFn: () => T | Promis
   }
 }
 
+/**
+ * Returns diagnostic information about the SharePoint connection.
+ */
+export async function getSharePointConnectionInfo() {
+  return {
+    isProduction,
+    mockExplicitlyRequested,
+    useMock,
+    env: process.env.VERCEL_ENV || process.env.NODE_ENV,
+    hasConfig: !!(process.env.AZURE_AD_CLIENT_ID && process.env.AZURE_AD_CLIENT_SECRET),
+  };
+}
+
 // ============================================================
 // SharePoint Internal Field Mappings
 // ============================================================

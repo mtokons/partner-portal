@@ -1,21 +1,25 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { updatePartnerStatus } from "@/lib/sharepoint";
-import { triggerFlow } from "@/lib/powerautomate";
-import { auth } from "@/auth";
-import type { SessionUser, PartnerStatus } from "@/types";
+import type { PartnerStatus } from "@/types";
 
-export async function updatePartnerStatusAction(partnerId: string, status: PartnerStatus) {
-  const session = await auth();
-  if (!session?.user) return;
-  const user = session.user as SessionUser;
-  if (user.role !== "admin") return;
+export async function updatePartnerStatusAction(id: string, status: PartnerStatus) {
+  try {
+    await updatePartnerStatus(id, status);
+    revalidatePath("/admin/partners");
+    return { success: true };
+  } catch (error: any) {
+    console.error("Update partner status error:", error);
+    return { success: false, error: error.message };
+  }
+}
 
-  await updatePartnerStatus(partnerId, status);
-
-  await triggerFlow("partner-status-changed", {
-    partnerId,
-    newStatus: status,
-    changedBy: user.email,
-  });
+export async function refreshPartnersAction() {
+  try {
+    revalidatePath("/admin/partners");
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
 }

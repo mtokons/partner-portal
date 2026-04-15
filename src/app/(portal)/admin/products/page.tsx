@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Package, Plus, Tag, Star, AlertCircle, Image as ImageIcon } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { refreshProductsAction } from "./actions";
+import { RefreshCw } from "lucide-react";
 
 export default async function AdminProductsPage() {
   const session = await auth();
@@ -33,13 +35,17 @@ export default async function AdminProductsPage() {
             Manage your product catalog — images, pricing, discounts, and availability.
           </p>
         </div>
-        <Link
-          href="/admin/products/new"
-          className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-2xl font-semibold text-sm hover:opacity-90 shadow-lg shadow-primary/25 transition-all active:scale-95"
-        >
-          <Plus className="h-4 w-4" />
           Add Product
         </Link>
+        <form action={refreshProductsAction}>
+          <button
+            type="submit"
+            className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-border/50 text-muted-foreground rounded-2xl font-semibold text-sm hover:text-foreground transition-all"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Refresh
+          </button>
+        </form>
       </div>
 
       {/* KPIs */}

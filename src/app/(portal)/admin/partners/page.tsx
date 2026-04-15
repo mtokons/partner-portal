@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import PartnerStatusButtons from "./PartnerStatusButtons";
+import { refreshPartnersAction } from "./actions";
+import { RefreshCw } from "lucide-react";
 
 const statusColor: Record<string, string> = {
   active: "bg-green-100 text-green-800",
@@ -24,7 +26,18 @@ export default async function AdminPartnersPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Manage Partners</h1>
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold text-gray-900">Manage Partners</h1>
+        <form action={refreshPartnersAction}>
+          <button
+            type="submit"
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:text-gray-900 shadow-sm transition-all"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Refresh
+          </button>
+        </form>
+      </div>
 
       <div className="grid grid-cols-3 gap-4 text-center">
         <Card>

@@ -6,10 +6,16 @@ import {
   Clock, MessageSquare, AlertTriangle, CheckCircle2, 
   BarChart3, Layout, List, Mail, Trash2, X, ChevronRight,
   Shield, User as UserIcon, Calendar, Tag as TagIcon,
-  ChevronDown
+  ChevronDown, RefreshCw, Wifi, WifiOff
 } from "lucide-react";
 
-import { fetchTaskBoardDataAction, saveTaskAction, deleteTaskAction, moveTaskAction } from "./actions";
+import { 
+  fetchTaskBoardDataAction, 
+  saveTaskAction, 
+  deleteTaskAction, 
+  moveTaskAction,
+  refreshTaskBoardAction
+} from "./actions";
 import { KanbanTask } from "@/types";
 
 const PRIORITIES = ["Low", "Medium", "High", "Critical"];
@@ -636,6 +642,8 @@ export default function TaskBoard() {
   const [searchQ, setSearchQ] = useState("");
   const [view, setView] = useState("board");
   const [showEmailNotif, setShowEmailNotif] = useState<{task: any; member: any} | null>(null);
+  const [connectionInfo, setConnectionInfo] = useState<any>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -657,6 +665,16 @@ export default function TaskBoard() {
       setMembers(res.data.members);
     }
     setLoading(false);
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    const res = await refreshTaskBoardAction();
+    if (res.success) {
+      setConnectionInfo(res.connection);
+      await loadData();
+    }
+    setRefreshing(false);
   };
 
   useEffect(() => {
@@ -743,15 +761,34 @@ export default function TaskBoard() {
           </h2>
           <div className="flex items-center gap-4 mt-1">
             <p className="text-muted-foreground text-sm font-medium">Manage flow and monitor team efficiency.</p>
-            {loading && (
+            {loading && !refreshing && (
               <div className="flex items-center gap-2 px-3 py-1 bg-primary/10 border border-primary/20 rounded-full animate-pulse">
                 <div className="w-1.5 h-1.5 bg-primary rounded-full animate-ping" />
                 <span className="text-[10px] font-bold text-primary uppercase tracking-widest">Syncing</span>
               </div>
             )}
+            {connectionInfo && (
+              <div className={cn(
+                "flex items-center gap-2 px-3 py-1 rounded-full border text-[10px] font-bold uppercase tracking-widest",
+                connectionInfo.useMock 
+                  ? "bg-amber-500/10 border-amber-500/20 text-amber-600" 
+                  : "bg-emerald-500/10 border-emerald-500/20 text-emerald-600"
+              )}>
+                {connectionInfo.useMock ? <WifiOff className="w-3 h-3" /> : <Wifi className="w-3 h-3" />}
+                {connectionInfo.useMock ? "Mock Sync" : "Live Sync"}
+              </div>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <button 
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-secondary border border-border/50 text-muted-foreground hover:text-foreground font-bold text-sm transition-all disabled:opacity-50"
+          >
+            <RefreshCw className={cn("w-4 h-4", refreshing && "animate-spin")} />
+            {refreshing ? "Refreshing..." : "Refresh"}
+          </button>
           <div className="flex p-1 bg-secondary rounded-xl border border-border/50">
             <button 
               onClick={() => setView("board")} 
