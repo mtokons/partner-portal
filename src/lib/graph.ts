@@ -12,11 +12,15 @@ async function getGraphClient(): Promise<Client> {
   ]);
   const { Client: GraphClient } = await import("@microsoft/microsoft-graph-client");
 
+  if (!process.env.AZURE_AD_CLIENT_ID || !process.env.AZURE_AD_TENANT_ID || !process.env.AZURE_AD_CLIENT_SECRET) {
+    throw new Error("MICROSOFT_GRAPH_CONFIG_MISSING");
+  }
+
   const msalConfig = {
     auth: {
-      clientId: process.env.AZURE_AD_CLIENT_ID!,
+      clientId: process.env.AZURE_AD_CLIENT_ID,
       authority: `https://login.microsoftonline.com/${process.env.AZURE_AD_TENANT_ID}`,
-      clientSecret: process.env.AZURE_AD_CLIENT_SECRET!,
+      clientSecret: process.env.AZURE_AD_CLIENT_SECRET,
     },
   };
 

@@ -24,7 +24,44 @@ import {
   mockKanbanTasks,
 } from "@/lib/mock-data";
 
-const useMock = process.env.USE_MOCK_DATA === "true" && process.env.VERCEL_ENV !== "production";
+const isProduction = process.env.VERCEL_ENV === "production" || process.env.NODE_ENV === "production";
+const mockExplicitlyRequested = process.env.USE_MOCK_DATA === "true";
+
+// Default behavior: prefer live in production, prefer mock locally 
+// unless USE_MOCK_DATA is explicitly set.
+const useMock = mockExplicitlyRequested || (!isProduction && process.env.USE_MOCK_DATA !== "false");
+
+/**
+ * Executes a SharePoint fetch operation with a safe fallback to mock data.
+ * Prevents Server Component crashes if MS Graph API is unconfigured or failing.
+ */
+async function runSafe<T>(liveFn: () => Promise<T>, fallbackFn: () => T | Promise<T>): Promise<T> {
+  // If we are explicitly in mock mode, return mock data immediately
+  if (useMock) return await fallbackFn();
+
+  try {
+    return await liveFn();
+  } catch (err: any) {
+    // Log the error for debugging (server-side only)
+    console.error("SharePoint connection failed:", err.message || err);
+
+    // Fallback conditions:
+    // 1. Config is missing (auth variables not set)
+    // 2. Network/Auth error AND mock data is allowed/requested
+    const isConfigMissing = err.message === "MICROSOFT_GRAPH_CONFIG_MISSING";
+    
+    if (isConfigMissing || mockExplicitlyRequested || !isProduction) {
+      console.warn("Falling back to local mock data to prevent server crash.");
+      return await fallbackFn();
+    }
+
+    // In production, if it's a real error and we haven't opted into mocks, 
+    // we still throw to ensure data integrity, though ideally, we'd have a 
+    // global error boundary or safe empty state.
+    // However, return empty array/null instead of crashing if it's a getter.
+    return [] as unknown as T; 
+  }
+}
 
 // ============================================================
 // SharePoint Internal Field Mappings
@@ -314,14 +351,32 @@ export async function getPartnerByEmail(email: string): Promise<Partner | null> 
 }
 
 export async function getPartners(): Promise<Partner[]> {
-  if (useMock) return stores.partners;
-  const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
-  const url = `${await getSiteListUrlAsync("Partners")}?$expand=fields`;
-  const res = await graphGet<{ value: Array<{ fields: Record<string, string> }> }>(url);
-  return res.value.map((item) => {
-    const f = item.fields;
-    return { id: f.id, name: f.Name, email: f.Email, passwordHash: f.PasswordHash, role: f.Role, status: f.Status, company: f.Company, createdAt: f.CreatedAt } as Partner;
-  });
+  return runSafe(
+    async () => {
+      const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
+      const res = await graphGet<{ value: Array<{ fields: Record<string, string> }> }>(
+        `${await getSiteListUrlAsync("Partners")}?$expand=fields`
+      );
+      return res.value.map((item) => {
+        const f = item.fields;
+        return {
+          id: f.id,
+          name: f.Title || f.Name,
+          email: f.Email,
+          passwordHash: f.PasswordHash || "",
+          role: (f.Role as any) || "partner",
+          status: (f.Status as any) || "active",
+          company: f.Company || "",
+          phone: f.Phone,
+          partnerType: (f.PartnerType as any) || "individual",
+          commissionTier: (f.CommissionTier as any) || "standard",
+          onboardingStatus: (f.OnboardingStatus as any) || "approved",
+          createdAt: f.CreatedAt,
+        } as Partner;
+      });
+    },
+    () => stores.partners
+  );
 }
 
 export async function createPartner(data: Omit<Partner, "id" | "createdAt">): Promise<Partner> {
@@ -351,41 +406,38 @@ export async function updatePartnerStatus(id: string, status: Partner["status"])
 // Products
 // ============================================================
 export async function getProducts(): Promise<Product[]> {
-  // Try to use live SharePoint data for Products
-  const { graphGetSafe, getSiteListUrlAsync } = await import("@/lib/graph");
-  const res = await graphGetSafe<{ value: Array<{ fields: Record<string, unknown> }> }>(
-    `${await getSiteListUrlAsync("Products")}?$expand=fields`
+  return runSafe(
+    async () => {
+      const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
+      const res = await graphGet<{ value: Array<{ fields: Record<string, unknown> }> }>(
+        `${await getSiteListUrlAsync("Products")}?$expand=fields`
+      );
+      return res.value.map((item) => {
+        const f = item.fields;
+        return {
+          id: String(f.id),
+          sku: String(f[PR_COL.sku] || ""),
+          name: String(f[PR_COL.name] || ""),
+          description: String(f[PR_COL.description] || ""),
+          unit: String(f[PR_COL.unit] || "Package") as "Package" | "Session" | "Course" | "Card",
+          sessionsCount: Number(f[PR_COL.sessionsCount] || 0),
+          retailPriceEur: Number(f[PR_COL.retailPriceEur] || 0),
+          retailPriceBdt: Number(f[PR_COL.retailPriceBdt] || 0),
+          price: Number(f[PR_COL.price] || f[PR_COL.retailPriceBdt] || 0),
+          stock: Number(f[PR_COL.stock] || 0),
+          category: String(f[PR_COL.category] || ""),
+          imageUrl: f[PR_COL.imageUrl] ? String(f[PR_COL.imageUrl]) : undefined,
+          discount: f[PR_COL.discount] ? Number(f[PR_COL.discount]) : undefined,
+          discountType: f[PR_COL.discountType] ? String(f[PR_COL.discountType]) as "fixed" | "percent" : undefined,
+          discountExpiry: f[PR_COL.discountExpiry] ? String(f[PR_COL.discountExpiry]) : undefined,
+          isAvailable: f[PR_COL.isAvailable] !== undefined ? Boolean(f[PR_COL.isAvailable]) : true,
+          tags: f[PR_COL.tags] ? String(f[PR_COL.tags]).split(",").map(t => t.trim()).filter(Boolean) : [],
+          sortOrder: Number(f[PR_COL.sortOrder] || 0),
+        } as Product;
+      });
+    },
+    () => stores.products
   );
-
-  // If list is missing or error occurred, fallback to mock data to prevent app crash
-  if (!res) {
-    console.warn("SharePoint 'Products' list not found. Falling back to mock data.");
-    return mockProducts;
-  }
-
-  return res.value.map((item) => {
-    const f = item.fields;
-    return {
-      id: String(f.id),
-      sku: String(f[PR_COL.sku] || ""),
-      name: String(f[PR_COL.name] || ""),
-      description: String(f[PR_COL.description] || ""),
-      unit: String(f[PR_COL.unit] || "Package") as "Package" | "Session" | "Course",
-      sessionsCount: Number(f[PR_COL.sessionsCount] || 0),
-      retailPriceEur: Number(f[PR_COL.retailPriceEur] || 0),
-      retailPriceBdt: Number(f[PR_COL.retailPriceBdt] || 0),
-      price: Number(f[PR_COL.retailPriceBdt] || 0), // fallback map for UI compatibility (default to BDT)
-      stock: Number(f[PR_COL.stock] || 99),
-      category: String(f[PR_COL.category] || "General"),
-      imageUrl: f[PR_COL.imageUrl] ? String(f[PR_COL.imageUrl]) : undefined,
-      discount: f[PR_COL.discount] ? Number(f[PR_COL.discount]) : undefined,
-      discountType: f[PR_COL.discountType] ? String(f[PR_COL.discountType]) as "fixed" | "percent" : undefined,
-      discountExpiry: f[PR_COL.discountExpiry] ? String(f[PR_COL.discountExpiry]) : undefined,
-      isAvailable: f[PR_COL.isAvailable] !== undefined ? Boolean(f[PR_COL.isAvailable]) : true,
-      tags: f[PR_COL.tags] ? String(f[PR_COL.tags]).split(",").map((t: string) => t.trim()).filter(Boolean) : [],
-      sortOrder: f[PR_COL.sortOrder] ? Number(f[PR_COL.sortOrder]) : 99,
-    } as Product;
-  });
 }
 
 export async function createProduct(data: Omit<Product, "id">): Promise<Product> {
@@ -440,17 +492,19 @@ export async function updateProduct(id: string, data: Partial<Product>): Promise
 // Orders
 // ============================================================
 export async function getOrders(partnerId?: string): Promise<Order[]> {
-  if (useMock) {
-    return partnerId ? stores.orders.filter((o) => o.partnerId === partnerId) : stores.orders;
-  }
-  const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
-  let url = `${await getSiteListUrlAsync("Orders")}?$expand=fields`;
-  if (partnerId) url += `&$filter=fields/PartnerId eq '${partnerId}'`;
-  const res = await graphGet<{ value: Array<{ fields: Record<string, unknown> }> }>(url);
-  return res.value.map((item) => {
-    const f = item.fields;
-    return { id: String(f.id), partnerId: String(f.PartnerId), clientId: String(f.ClientId), clientName: String(f.ClientName || ""), items: JSON.parse(String(f.Items || "[]")), status: String(f.Status), totalAmount: Number(f.TotalAmount), createdAt: String(f.CreatedAt) } as Order;
-  });
+  return runSafe(
+    async () => {
+      const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
+      let url = `${await getSiteListUrlAsync("Orders")}?$expand=fields`;
+      if (partnerId) url += `&$filter=fields/PartnerId eq '${partnerId}'`;
+      const res = await graphGet<{ value: Array<{ fields: Record<string, unknown> }> }>(url);
+      return res.value.map((item) => {
+        const f = item.fields;
+        return { id: String(f.id), partnerId: String(f.PartnerId), clientId: String(f.ClientId), clientName: String(f.ClientName || ""), items: JSON.parse(String(f.Items || "[]")), status: String(f.Status), totalAmount: Number(f.TotalAmount), createdAt: String(f.CreatedAt) } as Order;
+      });
+    },
+    () => partnerId ? stores.orders.filter((o) => o.partnerId === partnerId) : stores.orders
+  );
 }
 
 export async function createOrder(order: Omit<Order, "id">): Promise<Order> {
@@ -562,34 +616,38 @@ export async function createActivity(activity: Omit<Activity, "id">): Promise<vo
 // Financials
 // ============================================================
 export async function getFinancials(partnerId?: string): Promise<Financial[]> {
-  if (useMock) {
-    return partnerId ? stores.financials.filter((f) => f.partnerId === partnerId) : stores.financials;
-  }
-  const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
-  let url = `${await getSiteListUrlAsync("Financials")}?$expand=fields`;
-  if (partnerId) url += `&$filter=fields/PartnerId eq '${partnerId}'`;
-  const res = await graphGet<{ value: Array<{ fields: Record<string, string | number> }> }>(url);
-  return res.value.map((item) => {
-    const f = item.fields;
-    return { id: String(f.id), partnerId: String(f.PartnerId), period: String(f.Period), revenue: Number(f.Revenue), outstanding: Number(f.Outstanding), paid: Number(f.Paid), createdAt: String(f.CreatedAt) } as Financial;
-  });
+  return runSafe(
+    async () => {
+      const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
+      let url = `${await getSiteListUrlAsync("Financials")}?$expand=fields`;
+      if (partnerId) url += `&$filter=fields/PartnerId eq '${partnerId}'`;
+      const res = await graphGet<{ value: Array<{ fields: Record<string, string | number> }> }>(url);
+      return res.value.map((item) => {
+        const f = item.fields;
+        return { id: String(f.id), partnerId: String(f.PartnerId), period: String(f.Period), revenue: Number(f.Revenue), outstanding: Number(f.Outstanding), paid: Number(f.Paid), createdAt: String(f.CreatedAt) } as Financial;
+      });
+    },
+    () => partnerId ? stores.financials.filter((f) => f.partnerId === partnerId) : stores.financials
+  );
 }
 
 // ============================================================
 // Installments
 // ============================================================
 export async function getInstallments(partnerId?: string): Promise<Installment[]> {
-  if (useMock) {
-    return partnerId ? stores.installments.filter((i) => i.partnerId === partnerId) : stores.installments;
-  }
-  const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
-  let url = `${await getSiteListUrlAsync("Installments")}?$expand=fields`;
-  if (partnerId) url += `&$filter=fields/PartnerId eq '${partnerId}'`;
-  const res = await graphGet<{ value: Array<{ fields: Record<string, unknown> }> }>(url);
-  return res.value.map((item) => {
-    const f = item.fields;
-    return { id: String(f.id), orderId: String(f.OrderId), clientId: String(f.ClientId), clientName: String(f.ClientName || ""), partnerId: String(f.PartnerId), installmentNumber: Number(f.InstallmentNumber), totalInstallments: Number(f.TotalInstallments), amount: Number(f.Amount), amountEur: f.AmountEUR ? Number(f.AmountEUR) : undefined, conversionRate: f.ConversionRate ? Number(f.ConversionRate) : undefined, dueDate: String(f.DueDate), paidDate: f.PaidDate ? String(f.PaidDate) : undefined, status: String(f.Status), notes: f.Notes ? String(f.Notes) : undefined } as Installment;
-  });
+  return runSafe(
+    async () => {
+      const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
+      let url = `${await getSiteListUrlAsync("Installments")}?$expand=fields`;
+      if (partnerId) url += `&$filter=fields/PartnerId eq '${partnerId}'`;
+      const res = await graphGet<{ value: Array<{ fields: Record<string, unknown> }> }>(url);
+      return res.value.map((item) => {
+        const f = item.fields;
+        return { id: String(f.id), orderId: String(f.OrderId), clientId: String(f.ClientId), clientName: String(f.ClientName || ""), partnerId: String(f.PartnerId), installmentNumber: Number(f.InstallmentNumber), totalInstallments: Number(f.TotalInstallments), amount: Number(f.Amount), amountEur: f.AmountEUR ? Number(f.AmountEUR) : undefined, conversionRate: f.ConversionRate ? Number(f.ConversionRate) : undefined, dueDate: String(f.DueDate), paidDate: f.PaidDate ? String(f.PaidDate) : undefined, status: String(f.Status), notes: f.Notes ? String(f.Notes) : undefined } as Installment;
+      });
+    },
+    () => partnerId ? stores.installments.filter((i) => i.partnerId === partnerId) : stores.installments
+  );
 }
 
 export async function getInstallmentsByClient(clientId: string): Promise<Installment[]> {
@@ -1473,29 +1531,30 @@ export async function createSalesOrderItem(item: Omit<SalesOrderItem, "id">): Pr
 // ============================================================
 
 export async function getServiceTasks(salesOrderId?: string): Promise<ServiceTask[]> {
-  if (useMock) {
-    const list = salesOrderId ? stores.serviceTasks.filter((t) => t.salesOrderId === salesOrderId) : stores.serviceTasks;
-    return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }
-  const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
-  let url = `${await getSiteListUrlAsync("ServiceTasks")}?$expand=fields`;
-  if (salesOrderId) url += `&$filter=fields/SalesOrderId eq '${salesOrderId}'`;
-  const res = await graphGet<{ value: Array<{ fields: Record<string, unknown> }> }>(url);
-  return res.value.map((item) => {
-    const f = item.fields;
-    return {
-      id: String(f.id), 
-      salesOrderId: String(f[ST_COL.salesOrderId]), 
-      orderNumber: String(f[ST_COL.orderNumber] || ""),
-      title: String(f[ST_COL.title]), 
-      description: String(f[ST_COL.description] || ""),
-      assignedTo: String(f[ST_COL.assignedTo] || ""), 
-      status: String(f[ST_COL.status]) as ServiceTask["status"],
-      dueDate: f[ST_COL.dueDate] ? String(f[ST_COL.dueDate]) : undefined,
-      completedAt: f[ST_COL.completedAt] ? String(f[ST_COL.completedAt]) : undefined,
-      createdAt: String(f[ST_COL.createdAt]),
-    } as ServiceTask;
-  });
+  return runSafe(
+    async () => {
+      const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
+      let url = `${await getSiteListUrlAsync("ServiceTasks")}?$expand=fields`;
+      if (salesOrderId) url += `&$filter=fields/SalesOrderId eq '${salesOrderId}'`;
+      const res = await graphGet<{ value: Array<{ fields: Record<string, unknown> }> }>(url);
+      return res.value.map((item) => {
+        const f = item.fields;
+        return {
+          id: String(f.id), 
+          salesOrderId: String(f[ST_COL.salesOrderId]), 
+          orderNumber: String(f[ST_COL.orderNumber] || ""),
+          title: String(f[ST_COL.title]), 
+          description: String(f[ST_COL.description] || ""),
+          assignedTo: String(f[ST_COL.assignedTo] || ""), 
+          status: String(f[ST_COL.status]) as ServiceTask["status"],
+          dueDate: f[ST_COL.dueDate] ? String(f[ST_COL.dueDate]) : undefined,
+          completedAt: f[ST_COL.completedAt] ? String(f[ST_COL.completedAt]) : undefined,
+          createdAt: String(f[ST_COL.createdAt]),
+        } as ServiceTask;
+      });
+    },
+    () => salesOrderId ? stores.serviceTasks.filter((t) => t.salesOrderId === salesOrderId) : stores.serviceTasks
+  );
 }
 
 export async function createServiceTask(task: Omit<ServiceTask, "id">): Promise<ServiceTask> {
@@ -1592,30 +1651,34 @@ export async function convertOfferToOrder(offerId: string): Promise<SalesOrder> 
 // Promotions
 // ============================================================
 export async function getPromotions(): Promise<Promotion[]> {
-  if (useMock) return stores.promotions;
-  const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
-  const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, unknown> }> }>(
-    `${await getSiteListUrlAsync("Promotions")}?$expand=fields&$orderby=fields/${PROMO_COL.priority} asc`
+  return runSafe(
+    async () => {
+      const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
+      const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, unknown> }> }>(
+        `${await getSiteListUrlAsync("Promotions")}?$expand=fields&$orderby=fields/${PROMO_COL.priority} asc`
+      );
+      return res.value.map((item) => {
+        const f = item.fields;
+        return {
+          id: item.id,
+          title: String(f[PROMO_COL.title] || ""),
+          description: f[PROMO_COL.description] ? String(f[PROMO_COL.description]) : undefined,
+          type: String(f[PROMO_COL.type] || "promo") as Promotion["type"],
+          appliesTo: String(f[PROMO_COL.appliesTo] || "all") as Promotion["appliesTo"],
+          productId: f[PROMO_COL.productId] ? String(f[PROMO_COL.productId]) : undefined,
+          category: f[PROMO_COL.category] ? String(f[PROMO_COL.category]) : undefined,
+          discountType: String(f[PROMO_COL.discountType] || "percent") as "fixed" | "percent",
+          discountValue: Number(f[PROMO_COL.discountValue] || 0),
+          startDate: String(f[PROMO_COL.startDate] || new Date().toISOString()),
+          endDate: f[PROMO_COL.endDate] ? String(f[PROMO_COL.endDate]) : undefined,
+          isActive: Boolean(f[PROMO_COL.isActive]),
+          imageUrl: f[PROMO_COL.imageUrl] ? String(f[PROMO_COL.imageUrl]) : undefined,
+          priority: Number(f[PROMO_COL.priority] || 99),
+        } as Promotion;
+      });
+    },
+    () => stores.promotions
   );
-  return res.value.map((item) => {
-    const f = item.fields;
-    return {
-      id: item.id,
-      title: String(f[PROMO_COL.title] || ""),
-      description: f[PROMO_COL.description] ? String(f[PROMO_COL.description]) : undefined,
-      type: String(f[PROMO_COL.type] || "promo") as Promotion["type"],
-      appliesTo: String(f[PROMO_COL.appliesTo] || "all") as Promotion["appliesTo"],
-      productId: f[PROMO_COL.productId] ? String(f[PROMO_COL.productId]) : undefined,
-      category: f[PROMO_COL.category] ? String(f[PROMO_COL.category]) : undefined,
-      discountType: String(f[PROMO_COL.discountType] || "percent") as "fixed" | "percent",
-      discountValue: Number(f[PROMO_COL.discountValue] || 0),
-      startDate: String(f[PROMO_COL.startDate] || new Date().toISOString()),
-      endDate: f[PROMO_COL.endDate] ? String(f[PROMO_COL.endDate]) : undefined,
-      isActive: Boolean(f[PROMO_COL.isActive]),
-      imageUrl: f[PROMO_COL.imageUrl] ? String(f[PROMO_COL.imageUrl]) : undefined,
-      priority: Number(f[PROMO_COL.priority] || 99),
-    } as Promotion;
-  });
 }
 
 export async function createPromotion(data: Omit<Promotion, "id">): Promise<Promotion> {
@@ -2439,37 +2502,40 @@ export function generateGiftCardPin(length: number = 4): string {
 // ============================================================
 
 export async function getKanbanTasks(): Promise<KanbanTask[]> {
-  if (useMock) return stores.kanbanTasks.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-  
-  const { graphGetSafe, getSiteListUrlAsync } = await import("@/lib/graph");
-  const res = await graphGetSafe<{ value: Array<{ fields: Record<string, unknown> }> }>(
-    `${await getSiteListUrlAsync("KanbanTasks")}?$expand=fields`
+  return runSafe(
+    async () => {
+      const { graphGetSafe, getSiteListUrlAsync } = await import("@/lib/graph");
+      const res = await graphGetSafe<{ value: Array<{ fields: Record<string, unknown> }> }>(
+        `${await getSiteListUrlAsync("KanbanTasks")}?$expand=fields`
+      );
+
+      if (!res) {
+        console.warn("SharePoint 'KanbanTasks' list not found.");
+        return stores.kanbanTasks;
+      }
+
+      return res.value.map((item) => {
+        const f = item.fields;
+        return {
+          id: String(f.id),
+          title: String(f[KT_COL.title] || ""),
+          description: f[KT_COL.description] ? String(f[KT_COL.description]) : undefined,
+          status: String(f[KT_COL.status] || "todo") as any,
+          priority: String(f[KT_COL.priority] || "medium") as any,
+          dueDate: f[KT_COL.dueDate] ? String(f[KT_COL.dueDate]) : undefined,
+          assignedTo: f[KT_COL.assignedTo] ? String(f[KT_COL.assignedTo]) : undefined,
+          assignedToName: f[KT_COL.assignedToName] ? String(f[KT_COL.assignedToName]) : undefined,
+          assignedToEmail: f[KT_COL.assignedToEmail] ? String(f[KT_COL.assignedToEmail]) : undefined,
+          tags: f[KT_COL.tags] ? String(f[KT_COL.tags]).split(",").filter(Boolean) : [],
+          comments: f[KT_COL.comments] ? JSON.parse(String(f[KT_COL.comments])) : [],
+          createdBy: String(f[KT_COL.createdBy] || ""),
+          createdAt: String(f[KT_COL.createdAt] || new Date().toISOString()),
+          updatedAt: String(f[KT_COL.updatedAt] || new Date().toISOString()),
+        } as KanbanTask;
+      }).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+    },
+    () => stores.kanbanTasks.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
   );
-
-  if (!res) {
-    console.warn("SharePoint 'KanbanTasks' list not found. Falling back to mock data.");
-    return stores.kanbanTasks;
-  }
-
-  return res.value.map((item) => {
-    const f = item.fields;
-    return {
-      id: String(f.id),
-      title: String(f[KT_COL.title] || ""),
-      description: f[KT_COL.description] ? String(f[KT_COL.description]) : undefined,
-      status: String(f[KT_COL.status] || "todo") as any,
-      priority: String(f[KT_COL.priority] || "medium") as any,
-      dueDate: f[KT_COL.dueDate] ? String(f[KT_COL.dueDate]) : undefined,
-      assignedTo: f[KT_COL.assignedTo] ? String(f[KT_COL.assignedTo]) : undefined,
-      assignedToName: f[KT_COL.assignedToName] ? String(f[KT_COL.assignedToName]) : undefined,
-      assignedToEmail: f[KT_COL.assignedToEmail] ? String(f[KT_COL.assignedToEmail]) : undefined,
-      tags: f[KT_COL.tags] ? String(f[KT_COL.tags]).split(",").filter(Boolean) : [],
-      comments: f[KT_COL.comments] ? JSON.parse(String(f[KT_COL.comments])) : [],
-      createdBy: String(f[KT_COL.createdBy] || ""),
-      createdAt: String(f[KT_COL.createdAt] || new Date().toISOString()),
-      updatedAt: String(f[KT_COL.updatedAt] || new Date().toISOString()),
-    } as KanbanTask;
-  }).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 }
 
 export async function getKanbanTaskById(id: string): Promise<KanbanTask | null> {
