@@ -318,7 +318,13 @@ export default function Sidebar({ roles, open, onClose }: SidebarProps) {
             <div className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_6px_2px_rgba(52,211,153,0.5)]" />
             {!isMini && <p className="text-[10px] text-sidebar-foreground/40">System operational</p>}
           </div>
-          {!isMini && <p className="text-[10px] text-sidebar-foreground/25 text-center mt-2">Powered by SCCG © 2026</p>}
+          {!isMini && (
+            <div className="text-[9px] text-sidebar-foreground/25 text-center mt-3 space-y-0.5">
+              <p className="font-bold text-sidebar-foreground/40 uppercase tracking-tight leading-none">SCCG Career Lab UG</p>
+              <p>Julius-Ludowieg-Straße 46, 21073 Hamburg</p>
+              <p>© 2026 SCCG</p>
+            </div>
+          )}
         </div>
       </aside>
     </>

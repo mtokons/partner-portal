@@ -130,7 +130,11 @@ export default function LoginPage() {
         </div>
 
         {/* Bottom */}
-        <p className="text-xs text-white/20">© 2026 SCCG. All rights reserved.</p>
+        <div className="text-[10px] text-white/25 space-y-1">
+          <p className="font-bold text-white/40 uppercase tracking-widest">SCCG Career Lab UG (Haftungsbeschränkt)</p>
+          <p>Julius-Ludowieg-Straße 46, 21073 Hamburg</p>
+          <p>© 2026 SCCG. All rights reserved.</p>
+        </div>
       </div>
 
       {/* ── Right panel — login form ── */}
