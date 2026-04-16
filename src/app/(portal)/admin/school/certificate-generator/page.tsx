@@ -8,7 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { QRCodeSVG } from "qrcode.react";
+import { QRCodeSVG, QRCodeCanvas } from "qrcode.react";
 import jsPDF from "jspdf";
 import { cn } from "@/lib/utils";
 
@@ -47,7 +47,18 @@ export default function CertificateGeneratorPage() {
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [qrCodeData, setQrCodeData] = useState("");
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const qrWrapperRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  const loadImage = (src: string): Promise<HTMLImageElement> => {
+    return new Promise((resolve, reject) => {
+      const img = new window.Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = src;
+    });
+  };
 
   // Generate ID if empty
   const ensureCertId = useCallback(() => {
@@ -196,26 +207,11 @@ export default function CertificateGeneratorPage() {
     ctx.fillText(statusMsg, 200, 950);
 
     // Footer Elements
-    // SCCG Logo Representation
-    drawLogo(ctx, 200, 1050);
+    // SCCG Logo
+    await drawLogo(ctx, 200, 1050);
 
     // Signature
-    drawSignature(ctx, 700, 1020);
-
-    // QR & Verification
-    if (qrCodeData) {
-      // Since rendering QR on canvas is tricky with standard libraries in React, 
-      // we'll assume the user sees the QR in the UI and the PDF will handle it.
-      // But for the Canvas preview, we can draw a placeholder.
-      ctx.fillStyle = "#f9f9f9";
-      ctx.fillRect(1150, 1020, 220, 220);
-      ctx.strokeStyle = "#ddd";
-      ctx.strokeRect(1150, 1020, 220, 220);
-      ctx.font = "20px sans-serif";
-      ctx.fillStyle = "#aaa";
-      ctx.textAlign = "center";
-      ctx.fillText("Verification QR", 1260, 1135);
-    }
+    await drawSignature(ctx, 700, 1020);
 
     // Reference Info
     ctx.strokeStyle = "#ebdef0";
@@ -233,55 +229,61 @@ export default function CertificateGeneratorPage() {
     ctx.textAlign = "center";
     ctx.font = "20px sans-serif";
     ctx.fillText(`Verifizierung unter: https://sccg-careerlabs.de/verify/${data.certId}`, W/2, 1420);
+
+    // QR Code — big, centered at bottom inside boundary
+    const qrCanvas = qrWrapperRef.current?.querySelector("canvas");
+    if (qrCanvas) {
+      const qrSize = 400;
+      const qrX = W / 2 - qrSize / 2;
+      const qrY = 1520;
+      ctx.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize);
+
+      ctx.font = "bold 26px sans-serif";
+      ctx.fillStyle = "#8e44ad";
+      ctx.textAlign = "center";
+      ctx.fillText("Scan to Verify", W / 2, qrY - 20);
+
+      ctx.font = "22px sans-serif";
+      ctx.fillStyle = "#95a5a6";
+      ctx.fillText(`ID: ${data.certId}`, W / 2, qrY + qrSize + 40);
+    }
   };
 
-  const drawLogo = (ctx: CanvasRenderingContext2D, x: number, y: number) => {
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.scale(1.2, 1.2);
-    
-    // Simple colored shapes for logo
-    ctx.fillStyle = "#f1c40f"; ctx.beginPath(); ctx.arc(40, 15, 12, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = "#27ae60"; ctx.beginPath(); ctx.arc(110, 10, 10, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = "#e74c3c"; ctx.beginPath(); ctx.arc(20, 80, 12, 0, Math.PI*2); ctx.fill();
-    
-    ctx.strokeStyle = "#2c3e50";
-    ctx.lineWidth = 6;
-    ctx.beginPath(); ctx.moveTo(40, 30); ctx.lineTo(110, 20); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(40, 30); ctx.lineTo(20, 68); ctx.stroke();
-    
-    ctx.font = "bold 64px sans-serif";
-    ctx.fillStyle = "#e74c3c";
-    ctx.textAlign = "left";
-    ctx.fillText("SCCG", 140, 80);
-    
-    ctx.font = "18px sans-serif";
-    ctx.fillStyle = "#95a5a6";
-    ctx.fillText("Connecting Talents Empowering Career", 0, 140);
-    
-    ctx.restore();
+  const drawLogo = async (ctx: CanvasRenderingContext2D, x: number, y: number) => {
+    try {
+      const logoImg = await loadImage("/images/sccg-logo.png");
+      const logoSize = 220;
+      const aspectRatio = logoImg.naturalHeight / logoImg.naturalWidth;
+      ctx.drawImage(logoImg, x, y, logoSize, logoSize * aspectRatio);
+    } catch (err) {
+      console.error("Logo load failed", err);
+      ctx.save();
+      ctx.font = "bold 64px sans-serif";
+      ctx.fillStyle = "#e74c3c";
+      ctx.textAlign = "left";
+      ctx.fillText("SCCG", x, y + 80);
+      ctx.font = "18px sans-serif";
+      ctx.fillStyle = "#95a5a6";
+      ctx.fillText("Connecting Talents Empowering Career", x, y + 120);
+      ctx.restore();
+    }
   };
 
-  const drawSignature = (ctx: CanvasRenderingContext2D, x: number, y: number) => {
+  const drawSignature = async (ctx: CanvasRenderingContext2D, x: number, y: number) => {
+    try {
+      const sigImg = await loadImage("/images/signature.png");
+      const sigWidth = 250;
+      const sigHeight = (sigImg.naturalHeight / sigImg.naturalWidth) * sigWidth;
+      ctx.drawImage(sigImg, x, y, sigWidth, sigHeight);
+    } catch (err) {
+      console.error("Signature load failed", err);
+    }
     ctx.save();
-    ctx.translate(x, y);
-    ctx.strokeStyle = "#2c3e50";
-    ctx.lineWidth = 5;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    
-    // Stylized Signature (Handwritten look)
-    ctx.beginPath();
-    ctx.moveTo(0, 80); ctx.quadraticCurveTo(20, 0, 50, 40);
-    ctx.quadraticCurveTo(80, 80, 120, 20);
-    ctx.moveTo(40, 40); ctx.lineTo(150, 40); // Strike through
-    ctx.stroke();
-
     ctx.font = "24px sans-serif";
     ctx.fillStyle = "#7f8c8d";
     ctx.textAlign = "left";
-    ctx.fillText("Kurskoordinator", 0, 140);
-    ctx.fillText("SCCG Career Lab UG", 0, 170);
+    ctx.fillText("Kurskoordinator", x, y + 140);
+    ctx.fillText("SCCG Career Lab UG", x, y + 170);
     ctx.restore();
   };
 
@@ -331,11 +333,28 @@ export default function CertificateGeneratorPage() {
     const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
 
     pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
-    pdf.save(`SCCG_CERT_${data.name.replace(/\s+/g, "_")}.pdf`);
+
+    const safeName = data.name.replace(/[^a-z0-9]/gi, "_").toLowerCase();
+    const fileName = `SCCG_CERT_${safeName}.pdf`;
+    const blob = pdf.output("blob");
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   return (
     <div className="flex flex-col lg:flex-row min-h-[calc(100vh-140px)] gap-6 p-2 lg:p-6 fade-in">
+      {/* Hidden QR Canvas for PDF rendering */}
+      {qrCodeData && (
+        <div ref={qrWrapperRef} style={{ position: "absolute", left: "-9999px", top: 0 }}>
+          <QRCodeCanvas value={qrCodeData} size={400} level="H" />
+        </div>
+      )}
       {/* Form Panel */}
       <div className="w-full lg:w-[400px] shrink-0 space-y-6">
         <Card className="border-0 shadow-2xl rounded-[32px] overflow-hidden bg-white/70 backdrop-blur-xl border border-white/20">
@@ -464,9 +483,21 @@ export default function CertificateGeneratorPage() {
                 <Button variant="outline" className="rounded-xl border-dashed h-11 px-6 hover:bg-primary/5 hover:text-primary transition-all group" onClick={downloadPDF}>
                   <Download className="h-4 w-4 mr-2 group-hover:-translate-y-0.5 transition-transform" /> Export PDF
                 </Button>
-                <Button variant="ghost" className="rounded-xl h-11 px-6 group" onClick={() => {
-                  navigator.clipboard.writeText(qrCodeData);
-                  alert("Link copied to clipboard!");
+                <Button variant="ghost" className="rounded-xl h-11 px-6 group" onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(qrCodeData);
+                    alert("Link copied to clipboard!");
+                  } catch {
+                    const textarea = document.createElement("textarea");
+                    textarea.value = qrCodeData;
+                    textarea.style.position = "fixed";
+                    textarea.style.opacity = "0";
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    document.execCommand("copy");
+                    document.body.removeChild(textarea);
+                    alert("Link copied to clipboard!");
+                  }
                 }}>
                   <Share2 className="h-4 w-4 mr-2 group-hover:scale-110 transition-transform" /> Share Link
                 </Button>
