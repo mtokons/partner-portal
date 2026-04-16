@@ -1,17 +1,24 @@
 "use server";
 
 import {
-  getSchoolCourses, createSchoolCourse, updateSchoolCourse, getSchoolCourseById,
-  getSchoolBatches, createSchoolBatch, updateSchoolBatch, getSchoolBatchById,
-  getSchoolEnrollments, createSchoolEnrollment, updateSchoolEnrollment, getSchoolEnrollmentById,
+  getSchoolCourses, createSchoolCourse, updateSchoolCourse, getSchoolCourseById, deleteSchoolCourse,
+  getSchoolBatches, createSchoolBatch, updateSchoolBatch, getSchoolBatchById, deleteSchoolBatch,
+  getSchoolEnrollments, createSchoolEnrollment, updateSchoolEnrollment, getSchoolEnrollmentById, deleteSchoolEnrollment,
   getSchoolContent, createSchoolContent, updateSchoolContent, deleteSchoolContent,
   getSchoolAttendance, recordAttendanceBatch,
   getSchoolExamResults, createSchoolExamResult, updateSchoolExamResult, publishExamResults,
   getSchoolCertificates, createSchoolCertificate, revokeSchoolCertificate, getSchoolCertificateById,
   generateInstallmentSchedule,
   getSchoolStudents,
+  getSchoolTeachers, getSchoolTeacherById, createSchoolTeacher, updateSchoolTeacher, deleteSchoolTeacher,
 } from "@/lib/firestore-services";
 import { requirePermission } from "@/lib/permissions";
+import type { 
+  SchoolCourse, SchoolBatch, SchoolEnrollment, SchoolCertificate, 
+  SchoolTeacher, CertificateType, SchoolAttendance,
+  CourseLanguage, CourseLevel, CourseStatus, BatchStatus,
+  SchoolStudentStatus, ContentType, ExamType
+} from "@/types";
 import { writeAuditLog } from "@/lib/audit-log";
 import {
   sendEmailViaGraph,
@@ -19,11 +26,6 @@ import {
   buildCertificateEmail,
   buildResultsPublishedEmail,
 } from "@/lib/email";
-import type {
-  CourseLanguage, CourseLevel, CourseStatus, BatchStatus,
-  SchoolStudentStatus, ContentType, ExamType,
-  CertificateType, SchoolEnrollment,
-} from "@/types";
 import { revalidatePath } from "next/cache";
 import { generateSccgId } from "@/lib/sccg-id";
 import { getAdminFirestore } from "@/lib/firebase-admin";
@@ -74,6 +76,38 @@ export async function createCourse(data: {
 
   revalidatePath("/admin/school/courses");
   return course;
+}
+
+export async function updateCourse(id: string, data: Partial<SchoolCourse>) {
+  const user = await requirePermission("school.course.publish"); // Requires higher privs to edit
+  await updateSchoolCourse(id, data);
+
+  await writeAuditLog({
+    action: "school.course.updated",
+    actorId: user.id,
+    actorEmail: user.email,
+    targetId: id,
+    targetType: "school-course",
+    after: data,
+  });
+
+  revalidatePath("/admin/school/courses");
+  revalidatePath(`/admin/school/courses/${id}`);
+}
+
+export async function deleteCourse(id: string) {
+  const user = await requirePermission("school.course.publish");
+  await deleteSchoolCourse(id);
+
+  await writeAuditLog({
+    action: "school.course.deleted",
+    actorId: user.id,
+    actorEmail: user.email,
+    targetId: id,
+    targetType: "school-course",
+  });
+
+  revalidatePath("/admin/school/courses");
 }
 
 export async function publishCourse(id: string) {
@@ -136,6 +170,38 @@ export async function createBatch(data: {
 
   revalidatePath("/admin/school/batches");
   return batch;
+}
+
+export async function updateBatch(id: string, data: Partial<SchoolBatch>) {
+  const user = await requirePermission("school.batch.manage");
+  await updateSchoolBatch(id, data);
+
+  await writeAuditLog({
+    action: "school.batch.updated",
+    actorId: user.id,
+    actorEmail: user.email,
+    targetId: id,
+    targetType: "school-batch",
+    after: data,
+  });
+
+  revalidatePath("/admin/school/batches");
+  revalidatePath(`/admin/school/batches/${id}`);
+}
+
+export async function deleteBatch(id: string) {
+  const user = await requirePermission("school.batch.manage");
+  await deleteSchoolBatch(id);
+
+  await writeAuditLog({
+    action: "school.batch.deleted",
+    actorId: user.id,
+    actorEmail: user.email,
+    targetId: id,
+    targetType: "school-batch",
+  });
+
+  revalidatePath("/admin/school/batches");
 }
 
 export async function updateBatchStatus(id: string, status: BatchStatus) {
@@ -298,6 +364,39 @@ export async function updateEnrollmentStatus(id: string, status: SchoolStudentSt
     targetType: "school-enrollment",
     after: { status },
   });
+
+  revalidatePath("/admin/school/enrollments");
+}
+
+export async function updateEnrollment(id: string, data: Partial<SchoolEnrollment>) {
+  const user = await requirePermission("school.enrollment.manage");
+  await updateSchoolEnrollment(id, data);
+
+  await writeAuditLog({
+    action: "school.enrollment.updated",
+    actorId: user.id,
+    actorEmail: user.email,
+    targetId: id,
+    targetType: "school-enrollment",
+    after: data,
+  });
+
+  revalidatePath("/admin/school/enrollments");
+}
+
+export async function deleteEnrollment(id: string) {
+  const user = await requirePermission("school.enrollment.manage");
+  await deleteSchoolEnrollment(id);
+
+  await writeAuditLog({
+    action: "school.enrollment.deleted",
+    actorId: user.id,
+    actorEmail: user.email,
+    targetId: id,
+    targetType: "school-enrollment",
+  });
+
+  revalidatePath("/admin/school/enrollments");
 }
 
 export async function fetchStudentsAction(search?: string) {
@@ -648,4 +747,110 @@ export async function revokeCertificateAction(id: string, reason: string) {
     targetType: "school-certificate",
     after: { reason },
   });
+
+  revalidatePath("/admin/school/certificates");
+}
+
+// ── Teachers ──
+
+export async function fetchTeachers(search?: string) {
+  await requirePermission("school.course.create");
+  return getSchoolTeachers({ search });
+}
+
+export async function fetchTeacherById(id: string) {
+  await requirePermission("school.course.create");
+  return getSchoolTeacherById(id);
+}
+
+export async function createTeacher(data: {
+  name: string;
+  email: string;
+  phone?: string;
+  specialization?: string;
+  language?: string;
+  bio?: string;
+}) {
+  const adminUser = await requirePermission("school.course.publish");
+  
+  // Link or create system user
+  const db = getAdminFirestore();
+  let userId = "";
+  const existingUser = await db.collection("users").where("email", "==", data.email).limit(1).get();
+  
+  if (!existingUser.empty) {
+    userId = existingUser.docs[0].id;
+    // Update role to teacher if not already
+    const roles = existingUser.docs[0].data().roles || [];
+    if (!roles.includes("teacher")) {
+      await db.collection("users").doc(userId).update({
+        roles: [...roles, "teacher"],
+        role: "teacher", // Primary role
+      });
+    }
+  } else {
+    const sccgId = await generateSccgId("USR");
+    const newUser = {
+      name: data.name,
+      email: data.email,
+      phone: data.phone || "",
+      role: "teacher",
+      roles: ["teacher"],
+      sccgId,
+      status: "active",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    const ref = await db.collection("users").add(newUser);
+    userId = ref.id;
+  }
+
+  const teacher = await createSchoolTeacher({
+    ...data,
+    userId,
+    status: "active",
+  });
+
+  await writeAuditLog({
+    action: "school.teacher.created",
+    actorId: adminUser.id,
+    actorEmail: adminUser.email,
+    targetId: teacher.id,
+    targetType: "school-teacher",
+    after: { name: teacher.name, email: teacher.email },
+  });
+
+  revalidatePath("/admin/school/teachers");
+  return teacher;
+}
+
+export async function updateTeacher(id: string, data: Partial<SchoolTeacher>) {
+  const user = await requirePermission("school.course.publish");
+  await updateSchoolTeacher(id, data);
+
+  await writeAuditLog({
+    action: "school.teacher.updated",
+    actorId: user.id,
+    actorEmail: user.email,
+    targetId: id,
+    targetType: "school-teacher",
+    after: data,
+  });
+
+  revalidatePath("/admin/school/teachers");
+}
+
+export async function deleteTeacher(id: string) {
+  const user = await requirePermission("school.course.publish");
+  await deleteSchoolTeacher(id);
+
+  await writeAuditLog({
+    action: "school.teacher.deleted",
+    actorId: user.id,
+    actorEmail: user.email,
+    targetId: id,
+    targetType: "school-teacher",
+  });
+
+  revalidatePath("/admin/school/teachers");
 }

@@ -1298,6 +1298,21 @@ export interface SchoolContent {
   updatedAt: string;
 }
 
+export interface SchoolTeacher {
+  id: string;
+  sccgId: string;
+  userId: string; // Links to the global users table
+  name: string;
+  email: string;
+  phone?: string;
+  specialization?: string;
+  language?: string;
+  bio?: string;
+  status: "active" | "inactive";
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface SchoolAttendance {
   id: string;
   batchId: string;

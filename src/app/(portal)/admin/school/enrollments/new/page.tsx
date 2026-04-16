@@ -42,8 +42,30 @@ function EnrollmentForm() {
   const [totalFee, setTotalFee] = useState<string>("");
   const [discountAmount, setDiscountAmount] = useState<string>("0");
   const [discountReason, setDiscountReason] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Debounced Search
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      if (searchQuery.length >= 3) {
+        setSearchingStudents(true);
+        try {
+          const results = await fetchStudentsAction(searchQuery);
+          setStudents(results);
+        } catch (err) {
+          console.error(err);
+        } finally {
+          setSearchingStudents(false);
+        }
+      } else {
+        setStudents([]);
+      }
+    }, 400); // 400ms debounce
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // Initial load
   useEffect(() => {
@@ -74,25 +96,9 @@ function EnrollmentForm() {
   // Handle batch selection - auto fill fee
   useEffect(() => {
     if (selectedBatch) {
-      setTotalFee(String(selectedBatch.courseFee || ""));
+      setTotalFee(String(selectedBatch.courseFee || "5000"));
     }
   }, [selectedBatch]);
-
-  async function searchStudents(query: string) {
-    if (query.length < 2) {
-      setStudents([]);
-      return;
-    }
-    setSearchingStudents(true);
-    try {
-      const results = await fetchStudentsAction(query);
-      setStudents(results);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setSearchingStudents(false);
-    }
-  }
 
   const netFee = Math.max(0, (parseFloat(totalFee) || 0) - (parseFloat(discountAmount) || 0));
 
@@ -106,8 +112,8 @@ function EnrollmentForm() {
       setError("Please fill in new student name and email");
       return;
     }
-    if (!selectedBatch || !totalFee) {
-      setError("Please select a batch and enter a fee");
+    if (!selectedBatch) {
+      setError("Please select a batch");
       return;
     }
 
@@ -124,8 +130,8 @@ function EnrollmentForm() {
         batchCode: selectedBatch.batchCode,
         courseId: selectedBatch.courseId,
         courseName: selectedBatch.courseName,
-        totalFee: parseFloat(totalFee),
-        discountAmount: parseFloat(discountAmount) || undefined,
+        totalFee: parseFloat(totalFee) || 0,
+        discountAmount: parseFloat(discountAmount) || 0,
         discountReason: discountReason || undefined,
       });
       router.push("/admin/school/enrollments");
@@ -190,7 +196,8 @@ function EnrollmentForm() {
                           <Input 
                             placeholder="Find by name, email or SCCG ID..." 
                             className="pl-12 h-14 rounded-2xl border-gray-200 bg-gray-50/30 focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all outline-none"
-                            onChange={(e) => searchStudents(e.target.value)}
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
                           />
                         </div>
                         

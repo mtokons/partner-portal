@@ -26,6 +26,7 @@ export type SccgEntityPrefix =
   | "CRS"  // Course
   | "BCH"  // Batch
   | "ENR"  // Enrollment
+  | "TCH"  // Teacher
   | "CERT"; // Certificate
 
 function getTodayString(): string {

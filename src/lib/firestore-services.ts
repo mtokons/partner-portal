@@ -14,7 +14,7 @@ import type {
   SchoolAttendance, SchoolExamResult, SchoolCertificate,
   Payment, PaymentMethodConfig, EnhancedInvoice, EnhancedInstallment,
   InstallmentRule, SccgCard, SccgCardTransaction,
-  AuditLogEntry, RoleChangeRequest, SchoolGradingScale,
+  AuditLogEntry, RoleChangeRequest, SchoolGradingScale, SchoolTeacher
 } from "@/types";
 
 function db() {
@@ -165,6 +165,10 @@ export async function updateSchoolCourse(id: string, data: Partial<SchoolCourse>
   await db().collection("schoolCourses").doc(id).update({ ...data, updatedAt: now() });
 }
 
+export async function deleteSchoolCourse(id: string): Promise<void> {
+  await db().collection("schoolCourses").doc(id).delete();
+}
+
 // ── Batches ──
 
 export async function getSchoolBatches(filters?: {
@@ -194,6 +198,10 @@ export async function createSchoolBatch(data: Omit<SchoolBatch, "id" | "sccgId" 
 
 export async function updateSchoolBatch(id: string, data: Partial<SchoolBatch>): Promise<void> {
   await db().collection("schoolBatches").doc(id).update({ ...data, updatedAt: now() });
+}
+
+export async function deleteSchoolBatch(id: string): Promise<void> {
+  await db().collection("schoolBatches").doc(id).delete();
 }
 
 // ── Enrollments ──
@@ -242,6 +250,17 @@ export async function createSchoolEnrollment(
 
 export async function updateSchoolEnrollment(id: string, data: Partial<SchoolEnrollment>): Promise<void> {
   await db().collection("schoolEnrollments").doc(id).update({ ...data, updatedAt: now() });
+}
+
+export async function deleteSchoolEnrollment(id: string): Promise<void> {
+  const enrollment = await getSchoolEnrollmentById(id);
+  if (enrollment) {
+    // Decrement batch count
+    await db().collection("schoolBatches").doc(enrollment.batchId).update({
+      enrolledStudents: admin.firestore.FieldValue.increment(-1),
+    });
+  }
+  await db().collection("schoolEnrollments").doc(id).delete();
 }
 
 export async function getSchoolStudents(filters?: { search?: string }): Promise<any[]> {
@@ -400,6 +419,44 @@ export async function revokeSchoolCertificate(id: string, reason: string, revoke
     revocationReason: reason,
     revokedBy,
   });
+}
+
+// ── Teachers ──
+
+export async function getSchoolTeachers(filters?: { search?: string }): Promise<SchoolTeacher[]> {
+  let q: FirebaseFirestore.Query = db().collection("schoolTeachers").orderBy("name");
+  const snap = await q.get();
+  let results = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as SchoolTeacher);
+  if (filters?.search) {
+    const s = filters.search.toLowerCase();
+    results = results.filter(
+      (t) =>
+        t.name.toLowerCase().includes(s) ||
+        t.email.toLowerCase().includes(s) ||
+        (t.specialization || "").toLowerCase().includes(s)
+    );
+  }
+  return results;
+}
+
+export async function getSchoolTeacherById(id: string): Promise<SchoolTeacher | null> {
+  const snap = await db().collection("schoolTeachers").doc(id).get();
+  return snap.exists ? ({ id: snap.id, ...snap.data() } as SchoolTeacher) : null;
+}
+
+export async function createSchoolTeacher(data: Omit<SchoolTeacher, "id" | "sccgId" | "createdAt" | "updatedAt">): Promise<SchoolTeacher> {
+  const sccgId = await generateSccgId("TCH");
+  const doc = { ...data, sccgId, createdAt: now(), updatedAt: now() };
+  const ref = await db().collection("schoolTeachers").add(doc);
+  return { id: ref.id, ...doc } as unknown as SchoolTeacher;
+}
+
+export async function updateSchoolTeacher(id: string, data: Partial<SchoolTeacher>): Promise<void> {
+  await db().collection("schoolTeachers").doc(id).update({ ...data, updatedAt: now() });
+}
+
+export async function deleteSchoolTeacher(id: string): Promise<void> {
+  await db().collection("schoolTeachers").doc(id).delete();
 }
 
 // ── Grading Scale ──
