@@ -43,11 +43,9 @@ export default function ForgotPasswordPage() {
       <div className="w-full max-w-md mx-auto p-6 relative z-10">
         <div className="rounded-3xl bg-white/[0.055] border border-white/10 backdrop-blur-xl p-8 shadow-2xl">
           {/* Logo */}
-          <div className="flex items-center gap-2.5 mb-8">
-            <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
-              <Zap className="h-4 w-4 text-white" />
-            </div>
-            <p className="text-white font-bold text-sm">SCCG Partner Portal</p>
+          <div className="flex items-center gap-3 mb-8">
+            <img src="/assets/sccg-logo.png" alt="SCCG Logo" className="h-10 w-auto object-contain" />
+            <p className="text-white font-bold text-sm border-l border-white/10 pl-3 lowercase">SCCG Partner Portal</p>
           </div>
 
           {sent ? (

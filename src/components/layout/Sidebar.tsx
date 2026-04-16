@@ -180,16 +180,16 @@ export default function Sidebar({ roles, open, onClose }: SidebarProps) {
         {/* Brand & Mini Toggle */}
         <div className={cn("p-6 pb-4 shrink-0 transition-all", isMini && "p-4")}>
           <div className="flex items-center justify-between">
-            {!isMini && (
+            {isMini ? (
+              <img src="/assets/sccg-logo.png" alt="Logo" className="h-8 w-auto mx-auto object-contain animate-in fade-in zoom-in-90 duration-300" />
+            ) : (
               <div className="flex items-center gap-3 animate-in fade-in slide-in-from-left-2 duration-300">
-                <div className="relative h-10 w-10 rounded-2xl gradient-cosmic flex items-center justify-center shadow-lg">
-                  <Zap className="h-5 w-5 text-white drop-shadow" />
-                </div>
-                <div>
-                  <h1 className="text-[15px] font-bold text-white tracking-tight leading-none font-[family-name:var(--font-outfit)]">
+                <img src="/assets/sccg-logo.png" alt="SCCG Logo" className="h-9 w-auto object-contain" />
+                <div className="border-l border-white/10 pl-3">
+                  <h1 className="text-[14px] font-bold text-white tracking-tight leading-none font-[family-name:var(--font-outfit)]">
                     Partner Portal
                   </h1>
-                  <p className="text-[10px] text-sidebar-foreground/50 uppercase tracking-[0.12em] mt-0.5">
+                  <p className="text-[10px] text-sidebar-foreground/50 uppercase tracking-[0.12em] mt-1">
                     {roleLabel} Console
                   </p>
                 </div>
