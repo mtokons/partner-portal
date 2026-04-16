@@ -2,7 +2,7 @@
 // B2B Partner Portal — Data Models (map to SharePoint lists)
 // ============================================================
 
-export type UserRole = "partner" | "admin" | "customer" | "expert";
+export type UserRole = "partner" | "admin" | "customer" | "expert" | "student";
 export type PartnerType = "individual" | "institutional";
 export type PartnerStatus = "pending" | "active" | "suspended";
 export type PartnerOnboardingStatus = "application" | "review" | "approved" | "rejected";
@@ -621,7 +621,8 @@ export type UserRoleType =
   | "finance"
   | "hr"
   | "teacher"
-  | "school-manager";
+  | "school-manager"
+  | "student";
 
 export type UserRoleStatus = "active" | "pending" | "suspended" | "revoked";
 

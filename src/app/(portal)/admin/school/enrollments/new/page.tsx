@@ -431,7 +431,7 @@ function EnrollmentForm() {
                      )}
                    </Button>
                    <p className="text-[10px] text-center text-gray-400 mt-6 px-4 italic font-medium leading-relaxed">
-                     By confirming, a profile and ID will be generated for new students, and installments will be set if >= ৳ 10,000.
+                     By confirming, a profile and ID will be generated for new students, and installments will be set if {">= "} ৳ 10,000.
                    </p>
                 </div>
               </CardContent>
