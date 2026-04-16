@@ -16,10 +16,12 @@ export default async function TeachersPage() {
   let error: string | null = null;
   
   try {
-    teachers = await fetchTeachers() as SchoolTeacher[];
+    const rawTeachers = await fetchTeachers() as SchoolTeacher[];
+    // Explicit serialization guard to prevent Server Component 500 errors
+    teachers = JSON.parse(JSON.stringify(rawTeachers));
   } catch (err) {
-    console.error("Failed to fetch teachers:", err);
-    error = err instanceof Error ? err.message : "An unexpected error occurred while loading teachers.";
+    console.error("DIAGNOSTIC: Failed to fetch teachers:", err);
+    error = err instanceof Error ? `[Diagnostic Error] ${err.message}` : "An unexpected error occurred while loading teachers.";
   }
 
   return (
