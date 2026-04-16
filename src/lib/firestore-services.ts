@@ -154,7 +154,7 @@ export async function getSchoolCourses(status?: string): Promise<SchoolCourse[]>
   let q: FirebaseFirestore.Query = db().collection("schoolCourses").orderBy("courseName");
   if (status) q = q.where("status", "==", status);
   const snap = await q.get();
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as SchoolCourse);
+  return snap.docs.map((d) => toPlainObject<SchoolCourse>({ id: d.id, ...d.data() }));
 }
 
 export async function getSchoolCourseById(id: string): Promise<SchoolCourse | null> {
@@ -189,7 +189,7 @@ export async function getSchoolBatches(filters?: {
   if (filters?.status) q = q.where("status", "==", filters.status);
   if (filters?.teacherId) q = q.where("teacherId", "==", filters.teacherId);
   const snap = await q.get();
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as SchoolBatch);
+  return snap.docs.map((d) => toPlainObject<SchoolBatch>({ id: d.id, ...d.data() }));
 }
 
 export async function getSchoolBatchById(id: string): Promise<SchoolBatch | null> {
@@ -226,7 +226,7 @@ export async function getSchoolEnrollments(filters?: {
   if (filters?.studentUserId) q = q.where("studentUserId", "==", filters.studentUserId);
   if (filters?.status) q = q.where("status", "==", filters.status);
   const snap = await q.get();
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as SchoolEnrollment);
+  return snap.docs.map((d) => toPlainObject<SchoolEnrollment>({ id: d.id, ...d.data() }));
 }
 
 export async function getSchoolEnrollmentById(id: string): Promise<SchoolEnrollment | null> {
@@ -285,7 +285,7 @@ interface SchoolStudentRecord {
 export async function getSchoolStudents(filters?: { search?: string }): Promise<SchoolStudentRecord[]> {
   const q = db().collection("users").where("role", "in", ["student", "user"]); // Students and general users who can be enrolled
   const snap = await q.get();
-  let students: SchoolStudentRecord[] = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as SchoolStudentRecord);
+  let students: SchoolStudentRecord[] = snap.docs.map((d) => toPlainObject<SchoolStudentRecord>({ id: d.id, ...d.data() }));
 
   if (filters?.search) {
     const s = filters.search.toLowerCase();
