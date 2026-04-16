@@ -349,7 +349,7 @@ export async function enrollStudent(data: {
   });
 
   revalidatePath("/admin/school/enrollments");
-  return enrollment;
+  return JSON.parse(JSON.stringify(enrollment));
 }
 
 export async function updateEnrollmentStatus(id: string, status: SchoolStudentStatus) {

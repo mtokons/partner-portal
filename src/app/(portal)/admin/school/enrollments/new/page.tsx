@@ -445,11 +445,10 @@ function EnrollmentForm() {
                       </div>
                    </div>
 
-                   <Button 
+                    <Button 
                     type="submit" 
                     className="w-full rounded-[24px] h-16 font-black text-lg shadow-2xl shadow-primary/30 transition-all hover:scale-[1.02] active:scale-95 group"
-                    disabled={loading || (studentType === "existing" && !selectedStudent) || (!newStudentName && !selectedStudent) || !selectedBatch || !totalFee}
-                    onClick={handleSubmit}
+                    disabled={loading || !selectedBatch || !totalFee || (studentType === "existing" && !selectedStudent) || (studentType === "new" && (!newStudentName || !newStudentEmail))}
                    >
                      {loading ? (
                        <Loader2 className="h-6 w-6 animate-spin" />
