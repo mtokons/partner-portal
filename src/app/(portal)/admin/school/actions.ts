@@ -25,6 +25,8 @@ import type {
   CertificateType, SchoolEnrollment,
 } from "@/types";
 import { revalidatePath } from "next/cache";
+import { generateSccgId } from "@/lib/sccg-id";
+import { getAdminFirestore } from "@/lib/firebase-admin";
 
 // ── Courses ──
 

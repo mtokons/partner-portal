@@ -10,8 +10,17 @@ import { Button } from "@/components/ui/button";
 import { Search, User, BookOpen, Calculator, Loader2, Check, UserPlus, Info } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Suspense } from "react";
 
 export default function NewEnrollmentPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-[400px]"><Loader2 className="h-8 w-8 animate-spin text-primary opacity-50" /></div>}>
+      <EnrollmentForm />
+    </Suspense>
+  );
+}
+
+function EnrollmentForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
