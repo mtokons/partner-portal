@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { 
   Award, Download, Share2, User, Mail, Calendar, 
-  Layers, CheckCircle2, ShieldCheck, Loader2, ArrowRight
+  Layers, CheckCircle2, ShieldCheck, Loader2, ArrowRight, FileText
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
