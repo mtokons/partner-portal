@@ -28,7 +28,7 @@ export default async function AdminPartnersPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-gray-900">Manage Partners</h1>
-        <form action={refreshPartnersAction}>
+        <form action={async () => { "use server"; await refreshPartnersAction(); }}>
           <button
             type="submit"
             className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:text-gray-900 shadow-sm transition-all"
