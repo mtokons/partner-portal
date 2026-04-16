@@ -16,12 +16,13 @@ export default async function TeachersPage() {
   let error: string | null = null;
   
   try {
-    const rawTeachers = await fetchTeachers() as SchoolTeacher[];
-    // Explicit serialization guard to prevent Server Component 500 errors
-    teachers = JSON.parse(JSON.stringify(rawTeachers));
+    const rawTeachers = await fetchTeachers();
+    // Maximum defensive serialization + null check
+    teachers = rawTeachers ? JSON.parse(JSON.stringify(rawTeachers)) : [];
   } catch (err) {
     console.error("DIAGNOSTIC: Failed to fetch teachers:", err);
     error = err instanceof Error ? `[Diagnostic Error] ${err.message}` : "An unexpected error occurred while loading teachers.";
+    teachers = [];
   }
 
   return (
@@ -105,7 +106,7 @@ export default async function TeachersPage() {
                         <span className="text-[10px] font-mono font-bold text-gray-400">{t.phone || "No phone"}</span>
                       </div>
                       <Badge className="text-[9px] bg-green-500/10 text-green-700 hover:bg-green-500/20 px-2 py-0 border-0 rounded-md uppercase font-black tracking-widest">
-                        {t.status}
+                        {t.status || "Active"}
                       </Badge>
                     </div>
                   </div>

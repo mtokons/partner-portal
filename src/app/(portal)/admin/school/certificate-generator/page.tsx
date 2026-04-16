@@ -300,16 +300,19 @@ export default function CertificateGeneratorPage() {
     return `${d}.${m}.${y}`;
   };
 
-  const handlePreview = async () => {
+  useEffect(() => {
+    if (isPreviewing && canvasRef.current) {
+      drawCertificate();
+    }
+  }, [isPreviewing, data.name, data.type, data.level, data.issueDate, data.endDate, data.certId, qrCodeData]);
+
+  const handlePreview = () => {
     if (!data.name) return;
     setIsLoading(true);
     setQrCodeData(`https://sccg-careerlabs.de/verify/${data.certId}`);
     setIsPreviewing(true);
-    // Timeout to allow QR and state to update
-    setTimeout(() => {
-      drawCertificate();
-      setIsLoading(false);
-    }, 100);
+    // Draw will happen in useEffect
+    setIsLoading(false);
   };
 
   const downloadPDF = () => {

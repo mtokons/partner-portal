@@ -46,7 +46,7 @@ export async function getEmployees(filters?: {
   if (filters?.department) q = q.where("department", "==", filters.department);
   if (filters?.status) q = q.where("status", "==", filters.status);
   const snap = await q.get();
-  let results = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Employee);
+  let results = snap.docs.map((d) => toPlainObject<Employee>({ id: d.id, ...d.data() }));
   if (filters?.search) {
     const s = filters.search.toLowerCase();
     results = results.filter(
@@ -58,7 +58,7 @@ export async function getEmployees(filters?: {
 
 export async function getEmployeeById(id: string): Promise<Employee | null> {
   const snap = await db().collection("employees").doc(id).get();
-  return snap.exists ? ({ id: snap.id, ...snap.data() } as Employee) : null;
+  return snap.exists ? toPlainObject<Employee>({ id: snap.id, ...snap.data() }) : null;
 }
 
 export async function createEmployee(data: Omit<Employee, "id" | "sccgId" | "createdAt" | "updatedAt">): Promise<Employee> {
@@ -81,7 +81,7 @@ export async function updateEmployee(id: string, data: Partial<Employee>): Promi
 
 export async function getEmployeeDocuments(employeeId: string): Promise<EmployeeDocument[]> {
   const snap = await db().collection("employeeDocuments").where("employeeId", "==", employeeId).get();
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as EmployeeDocument);
+  return snap.docs.map((d) => toPlainObject<EmployeeDocument>({ id: d.id, ...d.data() }));
 }
 
 export async function createEmployeeDocument(data: Omit<EmployeeDocument, "id">): Promise<EmployeeDocument> {
@@ -97,7 +97,7 @@ export async function deleteEmployeeDocument(id: string): Promise<void> {
 
 export async function getOnboardingTasks(employeeId: string): Promise<OnboardingTask[]> {
   const snap = await db().collection("onboardingTasks").where("employeeId", "==", employeeId).get();
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as OnboardingTask);
+  return snap.docs.map((d) => toPlainObject<OnboardingTask>({ id: d.id, ...d.data() }));
 }
 
 export async function createOnboardingTask(data: Omit<OnboardingTask, "id">): Promise<OnboardingTask> {
@@ -159,7 +159,7 @@ export async function getSchoolCourses(status?: string): Promise<SchoolCourse[]>
 
 export async function getSchoolCourseById(id: string): Promise<SchoolCourse | null> {
   const snap = await db().collection("schoolCourses").doc(id).get();
-  return snap.exists ? ({ id: snap.id, ...snap.data() } as SchoolCourse) : null;
+  return snap.exists ? toPlainObject<SchoolCourse>({ id: snap.id, ...snap.data() }) : null;
 }
 
 export async function createSchoolCourse(data: Omit<SchoolCourse, "id" | "sccgId" | "createdAt" | "updatedAt">): Promise<SchoolCourse> {
@@ -231,7 +231,7 @@ export async function getSchoolEnrollments(filters?: {
 
 export async function getSchoolEnrollmentById(id: string): Promise<SchoolEnrollment | null> {
   const snap = await db().collection("schoolEnrollments").doc(id).get();
-  return snap.exists ? ({ id: snap.id, ...snap.data() } as SchoolEnrollment) : null;
+  return snap.exists ? toPlainObject<SchoolEnrollment>({ id: snap.id, ...snap.data() }) : null;
 }
 
 export async function createSchoolEnrollment(
@@ -306,7 +306,7 @@ export async function getSchoolContent(filters?: { courseId?: string; batchId?: 
   if (filters?.courseId) q = q.where("courseId", "==", filters.courseId);
   if (filters?.batchId) q = q.where("batchId", "==", filters.batchId);
   const snap = await q.get();
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as SchoolContent);
+  return snap.docs.map((d) => toPlainObject<SchoolContent>({ id: d.id, ...d.data() }));
 }
 
 export async function createSchoolContent(data: Omit<SchoolContent, "id" | "createdAt" | "updatedAt">): Promise<SchoolContent> {
@@ -329,7 +329,7 @@ export async function getSchoolAttendance(batchId: string, sessionNumber?: numbe
   let q: FirebaseFirestore.Query = db().collection("schoolAttendance").where("batchId", "==", batchId);
   if (sessionNumber !== undefined) q = q.where("sessionNumber", "==", sessionNumber);
   const snap = await q.get();
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as SchoolAttendance);
+  return snap.docs.map((d) => toPlainObject<SchoolAttendance>({ id: d.id, ...d.data() }));
 }
 
 export async function recordAttendanceBatch(records: Omit<SchoolAttendance, "id">[]): Promise<void> {
@@ -353,7 +353,7 @@ export async function getSchoolExamResults(filters?: {
   if (filters?.studentUserId) q = q.where("studentUserId", "==", filters.studentUserId);
   if (filters?.status) q = q.where("status", "==", filters.status);
   const snap = await q.get();
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as SchoolExamResult);
+  return snap.docs.map((d) => toPlainObject<SchoolExamResult>({ id: d.id, ...d.data() }));
 }
 
 export async function createSchoolExamResult(data: Omit<SchoolExamResult, "id" | "createdAt" | "updatedAt">): Promise<SchoolExamResult> {
@@ -397,12 +397,12 @@ export async function getSchoolCertificates(filters?: {
   if (filters?.status) q = q.where("status", "==", filters.status);
   if (filters?.verificationCode) q = q.where("verificationCode", "==", filters.verificationCode);
   const snap = await q.get();
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as SchoolCertificate);
+  return snap.docs.map((d) => toPlainObject<SchoolCertificate>({ id: d.id, ...d.data() }));
 }
 
 export async function getSchoolCertificateById(id: string): Promise<SchoolCertificate | null> {
   const snap = await db().collection("schoolCertificates").doc(id).get();
-  return snap.exists ? ({ id: snap.id, ...snap.data() } as SchoolCertificate) : null;
+  return snap.exists ? toPlainObject<SchoolCertificate>({ id: snap.id, ...snap.data() }) : null;
 }
 
 export async function createSchoolCertificate(
@@ -460,7 +460,7 @@ export async function getSchoolTeachers(filters?: { search?: string }): Promise<
 
 export async function getSchoolTeacherById(id: string): Promise<SchoolTeacher | null> {
   const snap = await db().collection("schoolTeachers").doc(id).get();
-  return snap.exists ? ({ id: snap.id, ...snap.data() } as SchoolTeacher) : null;
+  return snap.exists ? toPlainObject<SchoolTeacher>({ id: snap.id, ...snap.data() }) : null;
 }
 
 export async function createSchoolTeacher(data: Omit<SchoolTeacher, "id" | "sccgId" | "createdAt" | "updatedAt">): Promise<SchoolTeacher> {
@@ -484,7 +484,7 @@ export async function getGradingScale(courseId?: string): Promise<SchoolGradingS
   let q: FirebaseFirestore.Query = db().collection("schoolGradingScales").orderBy("minScore", "desc");
   if (courseId) q = q.where("courseId", "==", courseId);
   const snap = await q.get();
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as SchoolGradingScale);
+  return snap.docs.map((d) => toPlainObject<SchoolGradingScale>({ id: d.id, ...d.data() }));
 }
 
 // ============================================================

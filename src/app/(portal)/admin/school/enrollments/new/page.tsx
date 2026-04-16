@@ -459,6 +459,11 @@ function EnrollmentForm() {
                        </>
                      )}
                    </Button>
+                   
+                   {/* Validation Helper */}
+                   {!selectedBatch && <p className="text-[10px] text-center text-rose-500 font-bold mt-3 animate-pulse">Select a batch to continue</p>}
+                   {selectedBatch && studentType === "existing" && !selectedStudent && <p className="text-[10px] text-center text-rose-500 font-bold mt-3 animate-pulse">Search and select a student</p>}
+                   {selectedBatch && studentType === "new" && (!newStudentName || !newStudentEmail) && <p className="text-[10px] text-center text-rose-500 font-bold mt-3 animate-pulse">Enter name and email for new student</p>}
                    <p className="text-[10px] text-center text-gray-400 mt-6 px-4 italic font-medium leading-relaxed">
                      By confirming, a profile and ID will be generated for new students, and installments will be set if {">= "} ৳ 10,000.
                    </p>
