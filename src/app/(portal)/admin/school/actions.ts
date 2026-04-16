@@ -754,12 +754,12 @@ export async function revokeCertificateAction(id: string, reason: string) {
 // ── Teachers ──
 
 export async function fetchTeachers(search?: string) {
-  await requirePermission("school.course.create");
+  await requirePermission("school.teacher.manage");
   return getSchoolTeachers({ search });
 }
 
 export async function fetchTeacherById(id: string) {
-  await requirePermission("school.course.create");
+  await requirePermission("school.teacher.manage");
   return getSchoolTeacherById(id);
 }
 
@@ -771,7 +771,7 @@ export async function createTeacher(data: {
   language?: string;
   bio?: string;
 }) {
-  const adminUser = await requirePermission("school.course.publish");
+  const adminUser = await requirePermission("school.teacher.manage");
   
   // Link or create system user
   const db = getAdminFirestore();
