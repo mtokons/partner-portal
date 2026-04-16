@@ -354,7 +354,7 @@ export default function CertificateGeneratorPage() {
                   type="text"
                   placeholder="e.g. Sadia Musarrat"
                   value={data.name}
-                  onChange={(e) => setData({ ...prev => ({ ...data, name: e.target.value }) })}
+                  onChange={(e) => setData(prev => ({ ...prev, name: e.target.value }))}
                   className="w-full h-12 px-4 rounded-xl border border-gray-200 bg-white/50 focus:bg-white focus:ring-4 focus:ring-primary/10 transition-all outline-none"
                 />
               </div>
@@ -514,7 +514,7 @@ export default function CertificateGeneratorPage() {
               <p className="text-sm text-slate-400 font-medium">Enter student details on the left to generate an official document</p>
             </div>
             <div className="flex gap-4">
-              {[File, Layers, ShieldCheck].map((Icon, i) => (
+              {[FileText, Layers, ShieldCheck].map((Icon, i) => (
                 <div key={i} className="h-10 w-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-300">
                   <Icon className="h-5 w-5" />
                 </div>
