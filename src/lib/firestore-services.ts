@@ -25,6 +25,14 @@ function now() {
   return new Date().toISOString();
 }
 
+/**
+ * Ensures a Firestore document data object is a plain JSON-serializable object.
+ * Converts Timestamps to ISO strings.
+ */
+function toPlainObject<T>(obj: any): T {
+  return JSON.parse(JSON.stringify(obj));
+}
+
 // ============================================================
 // HR — Employees
 // ============================================================
@@ -437,7 +445,7 @@ export async function revokeSchoolCertificate(id: string, reason: string, revoke
 export async function getSchoolTeachers(filters?: { search?: string }): Promise<SchoolTeacher[]> {
   let q: FirebaseFirestore.Query = db().collection("schoolTeachers").orderBy("name");
   const snap = await q.get();
-  let results = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as SchoolTeacher);
+  let results = snap.docs.map((d) => toPlainObject<SchoolTeacher>({ id: d.id, ...d.data() }));
   if (filters?.search) {
     const s = filters.search.toLowerCase();
     results = results.filter(
