@@ -9,6 +9,8 @@ import { ArrowLeft, Award, Shield, ExternalLink } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import type { SchoolCertificate } from "@/types";
 import CertificatePrintView from "@/components/ui/CertificatePrintView";
+import { generateCertificatePDF } from "@/lib/pdf-generator";
+import { Download, Printer } from "lucide-react";
 
 export default function CertificateDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const [certId, setCertId] = useState<string | null>(null);
@@ -53,12 +55,22 @@ export default function CertificateDetailPage({ params }: { params: Promise<{ id
           <h1 className="text-2xl font-bold">Certificate Details</h1>
           <p className="text-sm text-muted-foreground font-mono">{cert.certificateNumber}</p>
         </div>
-        <button 
-          onClick={() => window.print()}
-          className="px-4 py-2 bg-primary text-white text-sm font-bold rounded-lg hover:bg-primary/90 hidden sm:block"
-        >
-          Print Certificate
-        </button>
+        <div className="flex gap-2 hidden sm:flex">
+          <button 
+            onClick={() => generateCertificatePDF(cert)}
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-white text-sm font-bold rounded-lg hover:bg-primary/90 transition-all active:scale-95"
+          >
+            <Download className="h-4 w-4" />
+            Download PDF
+          </button>
+          <button 
+            onClick={() => window.print()}
+            className="flex items-center gap-2 px-4 py-2 bg-muted text-foreground text-sm font-medium rounded-lg hover:bg-muted/80 transition-all"
+          >
+            <Printer className="h-4 w-4" />
+            Print
+          </button>
+        </div>
         <Badge variant={cert.status === "issued" ? "default" : "destructive"} className="capitalize">{cert.status}</Badge>
       </div>
 

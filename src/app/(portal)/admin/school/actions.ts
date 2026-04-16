@@ -9,6 +9,7 @@ import {
   getSchoolExamResults, createSchoolExamResult, updateSchoolExamResult, publishExamResults,
   getSchoolCertificates, createSchoolCertificate, revokeSchoolCertificate, getSchoolCertificateById,
   generateInstallmentSchedule,
+  getSchoolStudents,
 } from "@/lib/firestore-services";
 import { requirePermission } from "@/lib/permissions";
 import { writeAuditLog } from "@/lib/audit-log";
@@ -151,6 +152,22 @@ export async function updateBatchStatus(id: string, status: BatchStatus) {
   revalidatePath("/admin/school/batches");
 }
 
+export async function fetchAvailableBatches() {
+  await requirePermission("school.batch.manage");
+  const batches = await getSchoolBatches({ status: "planned" });
+  
+  // Attach course info (like fees) to batches for easier UI
+  const courses = await getSchoolCourses();
+  return batches.map(b => {
+    const course = courses.find(c => c.id === b.courseId);
+    return {
+      ...b,
+      baseFee: course?.baseFee || 0,
+      courseName: course?.courseName || b.courseName,
+    };
+  });
+}
+
 // ── Enrollments ──
 
 export async function fetchEnrollments(filters?: { batchId?: string; courseId?: string; studentUserId?: string; status?: string }) {
@@ -164,10 +181,11 @@ export async function fetchEnrollmentById(id: string) {
 }
 
 export async function enrollStudent(data: {
-  studentUserId: string;
+  studentUserId?: string;
   studentName: string;
   studentEmail: string;
   studentPhone?: string;
+  isNewStudent?: boolean;
   batchId: string;
   batchCode: string;
   courseId: string;
@@ -176,11 +194,39 @@ export async function enrollStudent(data: {
   discountAmount?: number;
   discountReason?: string;
 }) {
-  const user = await requirePermission("school.enrollment.create");
+  const adminUser = await requirePermission("school.enrollment.create");
+  let finalStudentUserId = data.studentUserId;
 
-  // Check for duplicate enrollment
+  // 1. Handle New Student Registration
+  if (data.isNewStudent || !finalStudentUserId) {
+    const db = getAdminFirestore();
+    const sccgId = await generateSccgId("USR");
+    
+    // Check if user already exists by email
+    const existingUser = await db.collection("users").where("email", "==", data.studentEmail).limit(1).get();
+    if (!existingUser.empty) {
+      finalStudentUserId = existingUser.docs[0].id;
+    } else {
+      const newUserDoc = {
+        name: data.studentName,
+        email: data.studentEmail,
+        phone: data.studentPhone || "",
+        role: "student",
+        sccgId,
+        status: "active",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      const ref = await db.collection("users").add(newUserDoc);
+      finalStudentUserId = ref.id;
+    }
+  }
+
+  if (!finalStudentUserId) throw new Error("Could not determine Student User ID");
+
+  // 2. Check for duplicate enrollment
   const existing = await getSchoolEnrollments({
-    studentUserId: data.studentUserId,
+    studentUserId: finalStudentUserId,
     batchId: data.batchId,
   });
   const active = existing.filter((e) => !["dropped", "expelled"].includes(e.status));
@@ -191,8 +237,9 @@ export async function enrollStudent(data: {
   const discountAmount = data.discountAmount || 0;
   const netFee = data.totalFee - discountAmount;
 
+  // 3. Create Enrollment
   const enrollment = await createSchoolEnrollment({
-    studentUserId: data.studentUserId,
+    studentUserId: finalStudentUserId,
     studentName: data.studentName,
     studentEmail: data.studentEmail,
     studentPhone: data.studentPhone,
@@ -207,52 +254,30 @@ export async function enrollStudent(data: {
     paymentStatus: "unpaid",
     enrolledAt: new Date().toISOString(),
     status: "enrolled",
-    createdBy: user.id,
+    createdBy: adminUser.id,
   });
 
-  // Generate installments if fee > 10,000
+  // 4. Generate installments if fee > 10,000
   if (netFee >= 10000) {
     await generateInstallmentSchedule({
       totalAmount: netFee,
       relatedEntityType: "school-enrollment",
       relatedEntityId: enrollment.id,
       schoolEnrollmentId: enrollment.id,
-      clientId: data.studentUserId,
+      clientId: finalStudentUserId,
       clientName: data.studentName,
       orderDate: new Date(),
     });
   }
 
-  // Send enrollment email
-  try {
-    const batch = await getSchoolBatchById(data.batchId);
-    const emailData = buildEnrollmentConfirmationEmail({
-      studentName: data.studentName,
-      courseName: data.courseName,
-      batchCode: data.batchCode,
-      schedule: batch?.schedule || "",
-      teacherName: batch?.teacherName || "",
-      startDate: batch?.startDate || "",
-      totalFee: netFee,
-    });
-    await sendEmailViaGraph({
-      to: data.studentEmail,
-      toName: data.studentName,
-      subject: emailData.subject,
-      htmlBody: emailData.htmlBody,
-      senderUserId: process.env.O365_SCHOOL_SENDER || undefined,
-    });
-  } catch (err) {
-    console.error("Failed to send enrollment email:", err);
-  }
-
+  // 5. Audit Log
   await writeAuditLog({
     action: "school.enrollment.created",
-    actorId: user.id,
-    actorEmail: user.email,
+    actorId: adminUser.id,
+    actorEmail: adminUser.email,
     targetId: enrollment.id,
     targetType: "school-enrollment",
-    after: { studentName: data.studentName, batchCode: data.batchCode, netFee },
+    after: { studentName: data.studentName, batchCode: data.batchCode, netFee, isNewStudent: data.isNewStudent },
   });
 
   revalidatePath("/admin/school/enrollments");
@@ -271,6 +296,11 @@ export async function updateEnrollmentStatus(id: string, status: SchoolStudentSt
     targetType: "school-enrollment",
     after: { status },
   });
+}
+
+export async function fetchStudentsAction(search?: string) {
+  await requirePermission("school.enrollment.create");
+  return getSchoolStudents({ search });
 }
 
 // ── Content ──
