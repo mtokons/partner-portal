@@ -9,12 +9,14 @@ import { TeacherForm } from "@/components/school/TeacherForm";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+import { SchoolTeacher } from "@/types";
+
 export default async function TeachersPage() {
-  let teachers = [];
-  let error = null;
+  let teachers: SchoolTeacher[] = [];
+  let error: string | null = null;
   
   try {
-    teachers = await fetchTeachers();
+    teachers = await fetchTeachers() as SchoolTeacher[];
   } catch (err) {
     console.error("Failed to fetch teachers:", err);
     error = err instanceof Error ? err.message : "An unexpected error occurred while loading teachers.";
