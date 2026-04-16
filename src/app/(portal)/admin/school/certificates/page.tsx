@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { Award } from "lucide-react";
+import { CertificateDownloadButton } from "@/components/CertificateDownloadButton";
 
 export default async function CertificatesPage() {
   const certs = await fetchCertificates();
@@ -55,11 +56,12 @@ export default async function CertificatesPage() {
                 <th className="text-left py-3 px-4 font-medium text-muted-foreground">Grade</th>
                 <th className="text-left py-3 px-4 font-medium text-muted-foreground">Issued</th>
                 <th className="text-left py-3 px-4 font-medium text-muted-foreground">Status</th>
+                <th className="text-right py-3 px-4 font-medium text-muted-foreground whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody>
               {certs.length === 0 ? (
-                <tr><td colSpan={7} className="text-center py-8 text-muted-foreground">
+                <tr><td colSpan={8} className="text-center py-8 text-muted-foreground">
                   <Award className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
                   No certificates issued yet
                 </td></tr>
@@ -76,6 +78,9 @@ export default async function CertificatesPage() {
                     <td className="py-3 px-4 text-xs">{c.issuedDate}</td>
                     <td className="py-3 px-4">
                       <Badge variant={c.status === "issued" ? "default" : "destructive"} className="capitalize text-xs">{c.status}</Badge>
+                    </td>
+                    <td className="py-3 px-4 text-right">
+                      <CertificateDownloadButton certificate={c} />
                     </td>
                   </tr>
                 ))
