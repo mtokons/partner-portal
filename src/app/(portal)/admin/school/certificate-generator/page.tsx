@@ -139,7 +139,6 @@ export default function CertificateGeneratorPage() {
     }
     ctx.restore();
 
-    // Header Logos & Title
     // 1. Top Centered Logo
     const topLogoWidth = 260;
     await drawLogo(ctx, W / 2 - topLogoWidth / 2, 120, topLogoWidth);
@@ -148,20 +147,15 @@ export default function CertificateGeneratorPage() {
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     
-    // Title (shifted down slightly for logo)
+    // Title (shifted up since we removed the header line)
     ctx.font = "bold 68px Georgia, serif";
     ctx.fillStyle = "#8e44ad";
-    ctx.fillText(title, W / 2, 420);
-
-    // Institutional Line (Legal name)
-    ctx.font = "bold 32px Georgia, serif";
-    ctx.fillStyle = "#7f8c8d";
-    ctx.fillText("SCCG CAREER LAB UG (HAFTUNGSBESCHRÄNKT), HAMBURG", W / 2, 475);
+    ctx.fillText(title, W / 2, 380);
 
     // Divider
     ctx.strokeStyle = "#ebdef0";
     ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.moveTo(250, 520); ctx.lineTo(W - 250, 520); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(250, 480); ctx.lineTo(W - 250, 480); ctx.stroke();
 
     // Body Text
     ctx.font = "32px Georgia, serif";
@@ -169,23 +163,23 @@ export default function CertificateGeneratorPage() {
     const bodyPrefix = data.type === "participation" 
       ? "nimmt hiermit aktiv an folgendem Sprachkurs teil:" 
       : "hat erfolgreich den folgenden Sprachkurs abgeschlossen:";
-    ctx.fillText(bodyPrefix, W / 2, 620);
+    ctx.fillText(bodyPrefix, W / 2, 580);
 
     // Name
     ctx.font = "bold 88px Georgia, serif";
     ctx.fillStyle = "#2c3e50";
-    ctx.fillText(data.name || "[STUDENT NAME]", W / 2, 750);
+    ctx.fillText(data.name || "[STUDENT NAME]", W / 2, 720);
     
     // Name Underline
     ctx.strokeStyle = "#8e44ad";
     ctx.lineWidth = 4;
     const nameW = ctx.measureText(data.name || "[STUDENT NAME]").width;
-    ctx.beginPath(); ctx.moveTo(W/2 - nameW/2, 805); ctx.lineTo(W/2 + nameW/2, 805); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(W/2 - nameW/2, 775); ctx.lineTo(W/2 + nameW/2, 775); ctx.stroke();
 
     // Course Highlights
     ctx.fillStyle = "#fdf9ff";
     ctx.strokeStyle = "#d7bde2";
-    const boxY = 920, boxH = 120;
+    const boxY = 880, boxH = 120;
     roundRect(ctx, 200, boxY, W - 400, boxH, 20);
     ctx.fill(); ctx.stroke();
 
@@ -207,23 +201,23 @@ export default function CertificateGeneratorPage() {
     ctx.font = "italic 28px Georgia, serif";
     ctx.fillStyle = "#95a5a6";
     ctx.textAlign = "left";
-    ctx.fillText(statusMsg, 200, 1120);
+    ctx.fillText(statusMsg, 200, 1080);
 
     // Reference Info Bar
     ctx.strokeStyle = "#ebdef0";
     ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(200, 1200); ctx.lineTo(W - 200, 1200); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(200, 1160); ctx.lineTo(W - 200, 1160); ctx.stroke();
 
     ctx.font = "26px sans-serif";
     ctx.fillStyle = "#bdc3c7";
     ctx.textAlign = "left";
-    ctx.fillText(`Ausstellungsdatum: ${formatDate(data.issueDate)}`, 200, 1260);
+    ctx.fillText(`Ausstellungsdatum: ${formatDate(data.issueDate)}`, 200, 1220);
     
     ctx.textAlign = "right";
-    ctx.fillText(`Zertifikat-ID: ${data.certId}`, W - 200, 1260);
+    ctx.fillText(`Zertifikat-ID: ${data.certId}`, W - 200, 1220);
 
     // Official Footer Section
-    const footerStartY = 1750;
+    const footerStartY = 1650;
     
     // Signature Above Footer
     await drawSignature(ctx, W / 2 - 125, footerStartY - 250);
@@ -258,24 +252,24 @@ export default function CertificateGeneratorPage() {
     ctx.textAlign = "center";
     ctx.font = "bold 20px sans-serif";
     ctx.fillStyle = "#bdc3c7";
-    ctx.fillText("REGISTRATION NO: HRB 194679 , TAX ID: 4775601448", W/2, contactY + 120);
+    ctx.fillText("REGISTRATION NO: HRB 194679 , TAX ID: 4775601448", W/2, contactY + 100);
 
-    // QR Code — centered at bottom
+    // QR Code — centered at bottom, smaller
     const qrCanvas = qrWrapperRef.current?.querySelector("canvas");
     if (qrCanvas) {
-      const qrSize = 350;
+      const qrSize = 220;
       const qrX = W / 2 - qrSize / 2;
-      const qrY = contactY + 180;
+      const qrY = contactY + 140;
       ctx.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize);
 
-      ctx.font = "bold 22px sans-serif";
+      ctx.font = "bold 20px sans-serif";
       ctx.fillStyle = "#8e44ad";
       ctx.textAlign = "center";
-      ctx.fillText("Scan to Verify", W / 2, qrY - 20);
+      ctx.fillText("Scan to Verify", W / 2, qrY - 15);
       
-      ctx.font = "18px sans-serif";
+      ctx.font = "14px sans-serif";
       ctx.fillStyle = "#bdc3c7";
-      ctx.fillText(`https://sccg-careerlabs.de/verify/${data.certId}`, W/2, qrY + qrSize + 30);
+      ctx.fillText(`https://sccg-careerlabs.de/verify/${data.certId}`, W/2, qrY + qrSize + 25);
     }
   };
 
