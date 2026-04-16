@@ -29,6 +29,7 @@ export default async function AdminPayoutsPage() {
   const paidCount = payouts.filter((p) => p.status === "paid").length;
 
   return (
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
