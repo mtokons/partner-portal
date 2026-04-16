@@ -44,7 +44,7 @@ export default async function ClientsPage() {
         </div>
         {user.role === "partner" && (
           <div className="flex items-center gap-3">
-            <form action={refreshClientsAction}>
+            <form action={async () => { "use server"; await refreshClientsAction(); }}>
               <button 
                 type="submit"
                 className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-border/50 text-muted-foreground rounded-2xl font-semibold text-sm hover:text-foreground transition-all"
@@ -57,7 +57,7 @@ export default async function ClientsPage() {
           </div>
         )}
         {user.role === "admin" && (
-          <form action={refreshClientsAction}>
+          <form action={async () => { "use server"; await refreshClientsAction(); }}>
             <button 
               type="submit"
               className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-border/50 text-muted-foreground rounded-2xl font-semibold text-sm hover:text-foreground transition-all"
