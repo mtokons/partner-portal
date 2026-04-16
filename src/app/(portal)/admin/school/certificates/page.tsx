@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { Award, FileText, CheckCircle, TrendingUp, Search } from "lucide-react";
-import { CertificateDownloadButton } from "@/components/CertificateDownloadButton";
+import { CertificateActions } from "@/components/school/CertificateActions";
 import { ManualCertManager } from "@/components/school/ManualCertManager";
 
 export default async function CertificatesPage() {
@@ -91,7 +91,7 @@ export default async function CertificatesPage() {
                     <td className="py-4 px-6 font-black text-gray-900">{c.finalGrade || "—"}</td>
                     <td className="py-4 px-6 font-bold text-gray-400 text-[11px]">{c.issuedDate}</td>
                     <td className="py-4 px-6 text-right">
-                      <CertificateDownloadButton certificate={c} />
+                      <CertificateActions certificate={c} />
                     </td>
                   </tr>
                 ))

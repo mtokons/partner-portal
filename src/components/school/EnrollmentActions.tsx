@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { IssueCertificateButton } from "@/components/IssueCertificateButton";
-import type { SchoolEnrollment } from "@/types";
+import type { SchoolEnrollment, SchoolStudentStatus } from "@/types";
 
 interface EnrollmentActionsProps {
   enrollment: SchoolEnrollment;
@@ -28,7 +28,7 @@ export function EnrollmentActions({ enrollment }: EnrollmentActionsProps) {
     try {
       await updateEnrollment(enrollment.id, {
         netFee: parseFloat(form.get("netFee") as string),
-        status: form.get("status") as any,
+        status: form.get("status") as SchoolStudentStatus,
       });
       setIsEditOpen(false);
     } catch (err) {

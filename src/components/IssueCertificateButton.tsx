@@ -15,7 +15,7 @@ import { Award, Loader2, Check } from "lucide-react";
 import { useState } from "react";
 import { issueCertificate } from "@/app/(portal)/admin/school/actions";
 import { generateCertificatePDF } from "@/lib/pdf-generator";
-import type { SchoolEnrollment, CertificateType } from "@/types";
+import type { SchoolEnrollment, SchoolCertificate, CertificateType } from "@/types";
 import { cn } from "@/lib/utils";
 
 interface IssueCertificateButtonProps {
@@ -25,7 +25,7 @@ interface IssueCertificateButtonProps {
 export function IssueCertificateButton({ enrollment }: IssueCertificateButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [issuedCert, setIssuedCert] = useState<any>(null);
+  const [issuedCert, setIssuedCert] = useState<SchoolCertificate | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function handleIssue(type: CertificateType) {

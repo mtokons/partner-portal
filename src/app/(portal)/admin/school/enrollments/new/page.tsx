@@ -12,6 +12,28 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Suspense } from "react";
 
+interface StudentResult {
+  id: string;
+  name?: string;
+  fullName?: string;
+  email: string;
+  phone?: string;
+  role?: string;
+  sccgId?: string;
+}
+
+interface BatchWithFee {
+  id: string;
+  batchCode: string;
+  batchName: string;
+  courseId: string;
+  courseName: string;
+  courseFee: number;
+  teacherName: string;
+  startDate: string;
+  status: string;
+}
+
 export default function NewEnrollmentPage() {
   return (
     <Suspense fallback={<div className="flex items-center justify-center min-h-[400px]"><Loader2 className="h-8 w-8 animate-spin text-primary opacity-50" /></div>}>
@@ -25,14 +47,14 @@ function EnrollmentForm() {
   const searchParams = useSearchParams();
   
   // State for search/selection
-  const [students, setStudents] = useState<any[]>([]);
-  const [batches, setBatches] = useState<any[]>([]);
+  const [students, setStudents] = useState<StudentResult[]>([]);
+  const [batches, setBatches] = useState<BatchWithFee[]>([]);
   const [searchingStudents, setSearchingStudents] = useState(false);
   const [loadingBatches, setLoadingBatches] = useState(false);
   
   const [studentType, setStudentType] = useState<"existing" | "new">("existing");
-  const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
-  const [selectedBatch, setSelectedBatch] = useState<any | null>(null);
+  const [selectedStudent, setSelectedStudent] = useState<StudentResult | null>(null);
+  const [selectedBatch, setSelectedBatch] = useState<BatchWithFee | null>(null);
   
   // Form state
   const [newStudentName, setNewStudentName] = useState("");
@@ -120,12 +142,13 @@ function EnrollmentForm() {
     setLoading(true);
     setError(null);
     try {
+      const isExisting = studentType === "existing" && selectedStudent;
       await enrollStudent({
         isNewStudent: studentType === "new",
-        studentUserId: studentType === "existing" ? selectedStudent.id : undefined,
-        studentName: studentType === "existing" ? (selectedStudent.name || selectedStudent.fullName) : newStudentName,
-        studentEmail: studentType === "existing" ? selectedStudent.email : newStudentEmail,
-        studentPhone: studentType === "existing" ? selectedStudent.phone : newStudentPhone,
+        studentUserId: isExisting ? selectedStudent.id : undefined,
+        studentName: isExisting ? (selectedStudent.name || selectedStudent.fullName || "") : newStudentName,
+        studentEmail: isExisting ? selectedStudent.email : newStudentEmail,
+        studentPhone: isExisting ? selectedStudent.phone : newStudentPhone,
         batchId: selectedBatch.id,
         batchCode: selectedBatch.batchCode,
         courseId: selectedBatch.courseId,
@@ -175,7 +198,7 @@ function EnrollmentForm() {
                   Student Information
                 </CardTitle>
               </CardHeader>
-              <Tabs value={studentType} onValueChange={(v) => setStudentType(v as any)} className="w-full">
+              <Tabs value={studentType} onValueChange={(v) => setStudentType(v as "existing" | "new")} className="w-full">
                 <div className="px-8 pt-6">
                   <TabsList className="grid w-full grid-cols-2 rounded-2xl p-1 bg-gray-100/50 h-12">
                     <TabsTrigger value="existing" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm font-bold text-xs uppercase tracking-wider">
