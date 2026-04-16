@@ -43,7 +43,7 @@ export default async function AdminProductsPage() {
             <Plus className="h-4 w-4" />
             Add Product
           </Link>
-          <form action={refreshProductsAction}>
+          <form action={async () => { "use server"; await refreshProductsAction(); }}>
             <button
               type="submit"
               className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-border/50 text-muted-foreground rounded-2xl font-semibold text-sm hover:text-foreground transition-all"
