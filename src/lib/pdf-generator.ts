@@ -4,6 +4,48 @@ import { jsPDF } from "jspdf";
 import type { SchoolCertificate } from "@/types";
 
 /**
+ * Load an image from a URL and return it as a base64 data URL.
+ */
+async function loadImageAsDataUrl(src: string): Promise<string> {
+  const response = await fetch(src);
+  const blob = await response.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+/**
+ * Generate a QR code as a PNG data URL using qrcode.react's SVG output
+ * rendered to a canvas.
+ */
+async function generateQRDataUrl(text: string, size: number): Promise<string> {
+  const { renderToStaticMarkup } = await import("react-dom/server");
+  const { createElement } = await import("react");
+  const { QRCodeSVG } = await import("qrcode.react");
+
+  const svgString = renderToStaticMarkup(
+    createElement(QRCodeSVG, { value: text, size, level: "H" })
+  );
+
+  return new Promise((resolve) => {
+    const img = new window.Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext("2d");
+      ctx?.drawImage(img, 0, 0);
+      resolve(canvas.toDataURL("image/png"));
+    };
+    img.onerror = () => resolve("");
+    img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgString)}`;
+  });
+}
+
+/**
  * Generates a high-fidelity PDF certificate (Teilnahmebescheinigung)
  * matching the user's provided layout.
  */
@@ -21,7 +63,6 @@ export async function generateCertificatePDF(cert: SchoolCertificate) {
   const colorPurple = [134, 49, 134]; // Fuchsia 900 approx #863186
   const colorSlate = [71, 85, 105];   // Slate 600
   const colorBlack = [0, 0, 0];
-  const colorRose = [225, 29, 72];    // Rose 600
 
   // ── Background Wave Patterns (Enhanced Geometry) ──
   doc.setDrawColor(colorPurple[0], colorPurple[1], colorPurple[2]);
@@ -29,7 +70,6 @@ export async function generateCertificatePDF(cert: SchoolCertificate) {
   for (let i = 0; i < 20; i++) {
     const opacity = 0.08 - (i * 0.003);
     doc.setGState(new (doc as any).GState({ opacity }));
-    // Large swooshing ellipses to simulate the background pattern
     doc.ellipse(width + 40, 20, 150 + (i * 35), 200 + (i * 25), "S");
     doc.ellipse(-40, height - 20, 150 + (i * 35), 200 + (i * 25), "S");
   }
@@ -77,22 +117,18 @@ export async function generateCertificatePDF(cert: SchoolCertificate) {
   doc.setTextColor(colorBlack[0], colorBlack[1], colorBlack[2]);
   doc.setFontSize(11);
   doc.setFont("helvetica", "italic");
-  doc.text("Status: Der Kurs ist derzeit fortlaufend.", 35, 230, { align: "left" });
+  doc.text("Status: Der Kurs ist derzeit fortlaufend.", 35, 220, { align: "left" });
 
   // ── Footer ──
   
-  // Left: SCCG Branding
-  // Recreating the logo look with high-fidelity text
-  doc.setTextColor(colorRose[0], colorRose[1], colorRose[2]);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(32);
-  doc.text("SCCG", 35, 265);
-  
-  doc.setTextColor(colorSlate[0], colorSlate[1], colorSlate[2]);
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
-  doc.text("Connecting Talents Empowering Career", 35, 272);
-  
+  // Left: SCCG Logo (actual image)
+  try {
+    const logoDataUrl = await loadImageAsDataUrl("/images/sccg-logo.png");
+    doc.addImage(logoDataUrl, "PNG", 25, 225, 30, 30);
+  } catch (err) {
+    console.error("Logo load failed", err);
+  }
+
   doc.setFontSize(10);
   doc.setTextColor(colorSlate[0], colorSlate[1], colorSlate[2]);
   const issueDateFormatted = new Date(cert.issuedDate).toLocaleDateString("de-DE", {
@@ -100,57 +136,64 @@ export async function generateCertificatePDF(cert: SchoolCertificate) {
     month: "2-digit",
     year: "numeric"
   });
-  doc.text(`Issue Date: ${issueDateFormatted}`, 35, 285);
+  doc.text(`Issue Date: ${issueDateFormatted}`, 25, 260);
 
   // Center: Signature & Coordinator
   try {
-    // Adding the signature image we deployed
-    const sigImg = "/images/signature.png";
-    doc.addImage(sigImg, "PNG", width / 2 - 25, 245, 50, 20);
+    const sigDataUrl = await loadImageAsDataUrl("/images/signature.png");
+    doc.addImage(sigDataUrl, "PNG", width / 2 - 25, 230, 50, 20);
   } catch (err) {
     console.error("Signature load failed", err);
   }
 
   doc.setDrawColor(colorBlack[0], colorBlack[1], colorBlack[2]);
   doc.setLineWidth(0.3);
-  doc.line(width / 2 - 25, 268, width / 2 + 25, 268);
+  doc.line(width / 2 - 25, 253, width / 2 + 25, 253);
   
   doc.setTextColor(colorBlack[0], colorBlack[1], colorBlack[2]);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
-  doc.text("Kurskoordinator", width / 2, 274, { align: "center" });
+  doc.text("Kurskoordinator", width / 2, 258, { align: "center" });
   
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
-  doc.text("SCCG Career Lab UG (haftungsbeschränkt)", width / 2, 280, { align: "center" });
+  doc.text("SCCG Career Lab UG (haftungsbeschränkt)", width / 2, 263, { align: "center" });
 
-  // Right: QR Code & Verification Info
+  // Right: Issue date & Certificate ID
+  doc.setTextColor(colorSlate[0], colorSlate[1], colorSlate[2]);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text(`ID: ${cert.certificateNumber}`, width - 25, 260, { align: "right" });
+
+  // ── QR Code — big, centered at bottom inside boundary ──
+  const verificationUrl = `https://portal.mysccg.de/verify/${cert.verificationCode || cert.certificateNumber}`;
   try {
-    // Generate QR code using a simple canvas approach if possible
-    // For now, we'll use a high-fidelity placeholder that matches the reference
-    doc.setDrawColor(colorPurple[0], colorPurple[1], colorPurple[2]);
-    doc.setLineWidth(0.5);
-    doc.rect(width - 65, 245, 30, 30, "S");
-    
-    // We'll draw the QR pattern (simplified for this turn)
-    doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(1.5);
-    doc.rect(width - 62, 248, 6, 6, "S"); // QR Corner 1
-    doc.rect(width - 41, 248, 6, 6, "S"); // QR Corner 2
-    doc.rect(width - 62, 266, 6, 6, "S"); // QR Corner 3
+    const qrDataUrl = await generateQRDataUrl(verificationUrl, 400);
+    if (qrDataUrl) {
+      const qrSize = 40; // mm
+      const qrX = width / 2 - qrSize / 2;
+      const qrY = height - 12 - qrSize - 8; // inside bottom border with padding
+      doc.addImage(qrDataUrl, "PNG", qrX, qrY, qrSize, qrSize);
+
+      doc.setTextColor(colorPurple[0], colorPurple[1], colorPurple[2]);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.text("Scan to Verify", width / 2, qrY - 2, { align: "center" });
+    }
   } catch (err) {
     console.error("QR generation failed", err);
   }
 
-  doc.setTextColor(colorSlate[0], colorSlate[1], colorSlate[2]);
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  doc.text("Verify Certificate", width - 35, 274, { align: "right" });
-  
-  doc.setFontSize(9);
-  doc.text(`ID: ${cert.certificateNumber}`, width - 35, 285, { align: "right" });
-
   // ── Output ──
   const safeName = cert.studentName.replace(/[^a-z0-9]/gi, "_").toLowerCase();
-  doc.save(`SCCG_Certificate_${safeName}.pdf`);
+  const fileName = `SCCG_Certificate_${safeName}.pdf`;
+  const blob = doc.output("blob");
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
