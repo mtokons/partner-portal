@@ -124,6 +124,11 @@ export default function ForgotPasswordPage() {
               </p>
             </>
           )}
+
+          <div className="mt-8 pt-6 border-t border-white/5 text-[10px] text-white/20 text-center space-y-1">
+            <p className="font-semibold text-white/30 truncate uppercase tracking-widest leading-none">SCCG CAREER LAB UG (HAFTUNGSBESCHRÄNKT)</p>
+            <p>Julius-Ludowieg-Straße 46, 21073 Hamburg</p>
+          </div>
         </div>
       </div>
     </div>
