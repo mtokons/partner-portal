@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -26,9 +26,11 @@ export function IssueCertificateButton({ enrollment }: IssueCertificateButtonPro
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [issuedCert, setIssuedCert] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleIssue(type: CertificateType) {
     setLoading(true);
+    setError(null);
     try {
       // The action expects a lot of data, we spread what we have and fill defaults
       const result = await issueCertificate({
@@ -48,9 +50,8 @@ export function IssueCertificateButton({ enrollment }: IssueCertificateButtonPro
       });
 
       setIssuedCert(result);
-      toast.success("Certificate issued successfully!");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to issue certificate");
+      setError(err instanceof Error ? err.message : "Failed to issue certificate");
     } finally {
       setLoading(false);
     }
@@ -63,11 +64,11 @@ export function IssueCertificateButton({ enrollment }: IssueCertificateButtonPro
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="h-8 gap-2 rounded-xl text-[10px] font-bold uppercase tracking-wider">
+      <DialogTrigger>
+        <span className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-8 gap-2 rounded-xl text-[10px] font-bold uppercase tracking-wider cursor-pointer")}>
           <Award className="h-3 w-3" />
           Issue Cert
-        </Button>
+        </span>
       </DialogTrigger>
       <DialogContent className="rounded-[32px] sm:max-w-[425px]">
         <DialogHeader>
@@ -76,6 +77,12 @@ export function IssueCertificateButton({ enrollment }: IssueCertificateButtonPro
             Generate an official SCCG document for <strong>{enrollment.studentName}</strong>.
           </DialogDescription>
         </DialogHeader>
+
+        {error && (
+          <div className="p-3 mb-4 rounded-xl bg-destructive/10 text-destructive text-xs font-medium border border-destructive/20 animate-in fade-in slide-in-from-top-1">
+            {error}
+          </div>
+        )}
 
         {issuedCert ? (
           <div className="py-12 flex flex-col items-center justify-center gap-6 animate-in zoom-in-95">
