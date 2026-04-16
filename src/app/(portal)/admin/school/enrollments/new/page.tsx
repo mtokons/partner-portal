@@ -59,7 +59,7 @@ function EnrollmentForm() {
           const found = b.find(x => x.id === urlBatchId);
           if (found) {
             setSelectedBatch(found);
-            setTotalFee(String(found.baseFee || ""));
+            setTotalFee(String(found.courseFee || ""));
           }
         }
       } catch (err) {
@@ -74,7 +74,7 @@ function EnrollmentForm() {
   // Handle batch selection - auto fill fee
   useEffect(() => {
     if (selectedBatch) {
-      setTotalFee(String(selectedBatch.baseFee || ""));
+      setTotalFee(String(selectedBatch.courseFee || ""));
     }
   }, [selectedBatch]);
 
@@ -335,7 +335,7 @@ function EnrollmentForm() {
                           </p>
                           <div className={`mt-4 pt-4 border-t flex justify-between items-center ${selectedBatch?.id === b.id ? "border-white/20" : "border-gray-50"}`}>
                              <p className="text-[10px] font-black uppercase tracking-widest opacity-60">Starts: {new Date(b.startDate).toLocaleDateString()}</p>
-                             <p className="font-black text-sm">৳ {b.baseFee?.toLocaleString()}</p>
+                             <p className="font-black text-sm">৳ {b.courseFee?.toLocaleString()}</p>
                           </div>
                         </div>
                       ))}

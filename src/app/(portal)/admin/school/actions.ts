@@ -164,7 +164,7 @@ export async function fetchAvailableBatches() {
     const course = courses.find(c => c.id === b.courseId);
     return {
       ...b,
-      baseFee: course?.baseFee || 0,
+      courseFee: course?.courseFee || 0,
       courseName: course?.courseName || b.courseName,
     };
   });
