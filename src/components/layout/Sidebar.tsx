@@ -81,6 +81,7 @@ const allLinks: LinkItem[] = [
   { href: "/admin/school/enrollments", label: "Enrollments", icon: ClipboardList, group: "school", roles: ["admin", "school-manager"] },
   { href: "/admin/school/teachers", label: "Teachers", icon: UserCheck, group: "school", roles: ["admin", "school-manager"] },
   { href: "/admin/school/certificates", label: "Certificates", icon: Award, group: "school", roles: ["admin", "school-manager"] },
+  { href: "/admin/school/certificate-generator", label: "Certificate Tool", icon: Layers, group: "school", roles: ["admin", "school-manager"] },
   { href: "/admin/school/reports", label: "School Reports", icon: BarChart3, group: "school", roles: ["admin", "school-manager"] },
   
   // Administration
