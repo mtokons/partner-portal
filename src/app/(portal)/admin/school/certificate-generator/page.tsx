@@ -139,26 +139,29 @@ export default function CertificateGeneratorPage() {
     }
     ctx.restore();
 
-    // Content
-    // Header
+    // Header Logos & Title
+    // 1. Top Centered Logo
+    const topLogoWidth = 260;
+    await drawLogo(ctx, W / 2 - topLogoWidth / 2, 120, topLogoWidth);
+
     const title = data.type === "participation" ? "TEILNAHMEBESCHEINIGUNG" : "ABSCHLUSSZERTIFIKAT";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     
-    // Title
+    // Title (shifted down slightly for logo)
     ctx.font = "bold 68px Georgia, serif";
     ctx.fillStyle = "#8e44ad";
-    ctx.fillText(title, W / 2, 250);
+    ctx.fillText(title, W / 2, 420);
 
     // Institutional Line
     ctx.font = "italic 28px Georgia, serif";
     ctx.fillStyle = "#7f8c8d";
-    ctx.fillText("SCCG Career Lab UG — Connecting Talents, Empowering Career", W / 2, 305);
+    ctx.fillText("SCCG Career Lab UG — Connecting Talents, Empowering Career", W / 2, 475);
 
     // Divider
     ctx.strokeStyle = "#ebdef0";
     ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.moveTo(250, 350); ctx.lineTo(W - 250, 350); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(250, 520); ctx.lineTo(W - 250, 520); ctx.stroke();
 
     // Body Text
     ctx.font = "32px Georgia, serif";
@@ -166,23 +169,23 @@ export default function CertificateGeneratorPage() {
     const bodyPrefix = data.type === "participation" 
       ? "nimmt hiermit aktiv an folgendem Sprachkurs teil:" 
       : "hat erfolgreich den folgenden Sprachkurs abgeschlossen:";
-    ctx.fillText(bodyPrefix, W / 2, 450);
+    ctx.fillText(bodyPrefix, W / 2, 620);
 
     // Name
     ctx.font = "bold 88px Georgia, serif";
     ctx.fillStyle = "#2c3e50";
-    ctx.fillText(data.name || "[STUDENT NAME]", W / 2, 580);
+    ctx.fillText(data.name || "[STUDENT NAME]", W / 2, 750);
     
     // Name Underline
     ctx.strokeStyle = "#8e44ad";
     ctx.lineWidth = 4;
     const nameW = ctx.measureText(data.name || "[STUDENT NAME]").width;
-    ctx.beginPath(); ctx.moveTo(W/2 - nameW/2, 635); ctx.lineTo(W/2 + nameW/2, 635); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(W/2 - nameW/2, 805); ctx.lineTo(W/2 + nameW/2, 805); ctx.stroke();
 
     // Course Highlights
     ctx.fillStyle = "#fdf9ff";
     ctx.strokeStyle = "#d7bde2";
-    const boxY = 750, boxH = 120;
+    const boxY = 920, boxH = 120;
     roundRect(ctx, 200, boxY, W - 400, boxH, 20);
     ctx.fill(); ctx.stroke();
 
@@ -204,11 +207,11 @@ export default function CertificateGeneratorPage() {
     ctx.font = "italic 28px Georgia, serif";
     ctx.fillStyle = "#95a5a6";
     ctx.textAlign = "left";
-    ctx.fillText(statusMsg, 200, 950);
+    ctx.fillText(statusMsg, 200, 1120);
 
     // Footer Elements
-    // SCCG Logo
-    await drawLogo(ctx, 200, 1050);
+    // SCCG Logo (Bottom)
+    await drawLogo(ctx, 200, 1220);
 
     // Signature
     await drawSignature(ctx, 700, 1020);
@@ -249,10 +252,10 @@ export default function CertificateGeneratorPage() {
     }
   };
 
-  const drawLogo = async (ctx: CanvasRenderingContext2D, x: number, y: number) => {
+  const drawLogo = async (ctx: CanvasRenderingContext2D, x: number, y: number, width?: number) => {
     try {
       const logoImg = await loadImage("/assets/sccg-logo.png");
-      const logoSize = 220;
+      const logoSize = width || 220;
       const aspectRatio = logoImg.naturalHeight / logoImg.naturalWidth;
       ctx.drawImage(logoImg, x, y, logoSize, logoSize * aspectRatio);
     } catch (err) {
