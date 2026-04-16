@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
-import type { SchoolCourse } from "@/types";
+import type { SchoolCourse, CourseLanguage, CourseLevel } from "@/types";
 
 interface CourseFormProps {
   initialData?: SchoolCourse;
@@ -33,8 +33,8 @@ export function CourseForm({ initialData, onSuccess }: CourseFormProps) {
     const data = {
       courseName: form.get("courseName") as string,
       courseCode: form.get("courseCode") as string,
-      language: form.get("language") as any,
-      level: form.get("level") as any,
+      language: form.get("language") as CourseLanguage,
+      level: form.get("level") as CourseLevel,
       description: form.get("description") as string,
       totalSessions: parseInt(form.get("totalSessions") as string),
       sessionDurationMinutes: parseInt(form.get("sessionDuration") as string),
