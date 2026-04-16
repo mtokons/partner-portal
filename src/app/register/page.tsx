@@ -156,12 +156,10 @@ export default function RegisterPage() {
       {/* Left branding (hidden on mobile) */}
       <div className="hidden lg:flex lg:w-5/12 xl:w-1/2 flex-col justify-between p-14 relative z-10">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
-            <Zap className="h-5 w-5 text-white" />
-          </div>
-          <div>
+          <img src="/assets/sccg-logo.png" alt="SCCG Logo" className="h-12 w-auto object-contain" />
+          <div className="border-l border-white/10 pl-3">
             <p className="text-white font-bold text-[15px] leading-none">Partner Portal</p>
-            <p className="text-white/40 text-[10px] uppercase tracking-widest mt-0.5">by SCCG</p>
+            <p className="text-white/40 text-[10px] uppercase tracking-widest mt-1">by SCCG</p>
           </div>
         </div>
 
@@ -206,11 +204,9 @@ export default function RegisterPage() {
           <div className="rounded-3xl bg-white/[0.055] border border-white/10 backdrop-blur-xl p-6 sm:p-8 shadow-2xl">
 
             {/* Mobile logo */}
-            <div className="flex lg:hidden items-center gap-2.5 mb-6">
-              <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
-                <Zap className="h-4 w-4 text-white" />
-              </div>
-              <p className="text-white font-bold text-sm">SCCG Partner Portal</p>
+            <div className="flex lg:hidden items-center gap-3 mb-6">
+              <img src="/assets/sccg-logo.png" alt="SCCG Logo" className="h-9 w-auto object-contain" />
+              <p className="text-white font-bold text-sm border-l border-white/10 pl-3">SCCG Partner Portal</p>
             </div>
 
             <h2 className="text-2xl font-black text-white tracking-tight">

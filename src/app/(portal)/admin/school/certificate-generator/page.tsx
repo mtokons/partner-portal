@@ -251,7 +251,7 @@ export default function CertificateGeneratorPage() {
 
   const drawLogo = async (ctx: CanvasRenderingContext2D, x: number, y: number) => {
     try {
-      const logoImg = await loadImage("/images/sccg-logo.png");
+      const logoImg = await loadImage("/assets/sccg-logo.png");
       const logoSize = 220;
       const aspectRatio = logoImg.naturalHeight / logoImg.naturalWidth;
       ctx.drawImage(logoImg, x, y, logoSize, logoSize * aspectRatio);
