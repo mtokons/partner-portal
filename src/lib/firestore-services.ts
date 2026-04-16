@@ -244,6 +244,23 @@ export async function updateSchoolEnrollment(id: string, data: Partial<SchoolEnr
   await db().collection("schoolEnrollments").doc(id).update({ ...data, updatedAt: now() });
 }
 
+export async function getSchoolStudents(filters?: { search?: string }): Promise<any[]> {
+  const q = db().collection("users").where("role", "in", ["student", "user"]); // Students and general users who can be enrolled
+  const snap = await q.get();
+  let students = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+  if (filters?.search) {
+    const s = filters.search.toLowerCase();
+    students = students.filter(
+      (st: any) =>
+        (st.name || "").toLowerCase().includes(s) ||
+        (st.email || "").toLowerCase().includes(s) ||
+        (st.sccgId || "").toLowerCase().includes(s)
+    );
+  }
+  return students;
+}
+
 // ── Content ──
 
 export async function getSchoolContent(filters?: { courseId?: string; batchId?: string }): Promise<SchoolContent[]> {
