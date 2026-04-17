@@ -268,7 +268,7 @@ export default function CertificateGeneratorPage() {
       
       ctx.font = "14px sans-serif";
       ctx.fillStyle = "#bdc3c7";
-      ctx.fillText(`https://partner-portal.sccg-careerlabs.de/verify/${data.certId}`, W/2, qrY + qrSize + 25);
+      ctx.fillText(`https://portal.mysccg.de/verify/${data.certId}`, W/2, qrY + qrSize + 25);
     }
   };
 
@@ -334,7 +334,7 @@ export default function CertificateGeneratorPage() {
   const handlePreview = () => {
     if (!data.name) return;
     setIsLoading(true);
-    setQrCodeData(`https://partner-portal.sccg-careerlabs.de/verify/${data.certId}`);
+    setQrCodeData(`https://portal.mysccg.de/verify/${data.certId}`);
     setIsPreviewing(true);
     // Draw will happen in useEffect
     setIsLoading(false);
