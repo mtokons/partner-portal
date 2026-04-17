@@ -141,21 +141,21 @@ export default function CertificateGeneratorPage() {
 
     // 1. Top Centered Logo
     const topLogoWidth = 400;
-    await drawLogo(ctx, W / 2 - topLogoWidth / 2, 110, topLogoWidth);
+    await drawLogo(ctx, W / 2 - topLogoWidth / 2, 120, topLogoWidth);
 
     const title = data.type === "participation" ? "TEILNAHMEBESCHEINIGUNG" : "ABSCHLUSSZERTIFIKAT";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     
-    // Title (shifted up since we removed the header line)
+    // Title (Shifted down for better spacing)
     ctx.font = "bold 68px Georgia, serif";
     ctx.fillStyle = "#8e44ad";
-    ctx.fillText(title, W / 2, 380);
+    ctx.fillText(title, W / 2, 580);
 
     // Divider
     ctx.strokeStyle = "#ebdef0";
     ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.moveTo(250, 480); ctx.lineTo(W - 250, 480); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(250, 680); ctx.lineTo(W - 250, 680); ctx.stroke();
 
     // Body Text
     ctx.font = "32px Georgia, serif";
@@ -163,23 +163,23 @@ export default function CertificateGeneratorPage() {
     const bodyPrefix = data.type === "participation" 
       ? "nimmt hiermit aktiv an folgendem Sprachkurs teil:" 
       : "hat erfolgreich den folgenden Sprachkurs abgeschlossen:";
-    ctx.fillText(bodyPrefix, W / 2, 580);
+    ctx.fillText(bodyPrefix, W / 2, 780);
 
     // Name
     ctx.font = "bold 88px Georgia, serif";
     ctx.fillStyle = "#2c3e50";
-    ctx.fillText(data.name || "[STUDENT NAME]", W / 2, 720);
+    ctx.fillText(data.name || "[STUDENT NAME]", W / 2, 920);
     
     // Name Underline
     ctx.strokeStyle = "#8e44ad";
     ctx.lineWidth = 4;
     const nameW = ctx.measureText(data.name || "[STUDENT NAME]").width;
-    ctx.beginPath(); ctx.moveTo(W/2 - nameW/2, 775); ctx.lineTo(W/2 + nameW/2, 775); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(W/2 - nameW/2, 975); ctx.lineTo(W/2 + nameW/2, 975); ctx.stroke();
 
     // Course Highlights
     ctx.fillStyle = "#fdf9ff";
     ctx.strokeStyle = "#d7bde2";
-    const boxY = 880, boxH = 120;
+    const boxY = 1080, boxH = 140;
     roundRect(ctx, 200, boxY, W - 400, boxH, 20);
     ctx.fill(); ctx.stroke();
 
@@ -201,27 +201,30 @@ export default function CertificateGeneratorPage() {
     ctx.font = "italic 28px Georgia, serif";
     ctx.fillStyle = "#95a5a6";
     ctx.textAlign = "left";
-    ctx.fillText(statusMsg, 200, 1080);
+    ctx.fillText(statusMsg, 200, 1300);
 
     // Reference Info Bar
     ctx.strokeStyle = "#ebdef0";
     ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(200, 1160); ctx.lineTo(W - 200, 1160); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(200, 1380); ctx.lineTo(W - 200, 1380); ctx.stroke();
 
     ctx.font = "26px sans-serif";
     ctx.fillStyle = "#bdc3c7";
     ctx.textAlign = "left";
-    ctx.fillText(`Ausstellungsdatum: ${formatDate(data.issueDate)}`, 200, 1220);
+    ctx.fillText(`Ausstellungsdatum: ${formatDate(data.issueDate)}`, 200, 1440);
     
     ctx.textAlign = "right";
-    ctx.fillText(`Zertifikat-ID: ${data.certId}`, W - 200, 1220);
+    ctx.fillText(`Zertifikat-ID: ${data.certId}`, W - 200, 1440);
 
     // Official Footer Section
-    const footerStartY = 1650;
+    const footerStartY = 1750;
     
-    // Signature block removed as requested
-
+    // System Generated Disclaimer
     ctx.textAlign = "center";
+    ctx.font = "italic 22px sans-serif";
+    ctx.fillStyle = "#95a5a6";
+    ctx.fillText("Dies ist ein systemgeneriertes Zertifikat und ist ohne Unterschrift gültig.", W/2, footerStartY - 100);
+
     ctx.font = "bold 42px sans-serif";
     ctx.fillStyle = "#2c3e50";
     ctx.fillText("SCCG CAREER LAB UG", W/2, footerStartY);
