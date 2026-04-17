@@ -140,8 +140,8 @@ export default function CertificateGeneratorPage() {
     ctx.restore();
 
     // 1. Top Centered Logo
-    const topLogoWidth = 260;
-    await drawLogo(ctx, W / 2 - topLogoWidth / 2, 120, topLogoWidth);
+    const topLogoWidth = 400;
+    await drawLogo(ctx, W / 2 - topLogoWidth / 2, 110, topLogoWidth);
 
     const title = data.type === "participation" ? "TEILNAHMEBESCHEINIGUNG" : "ABSCHLUSSZERTIFIKAT";
     ctx.textAlign = "center";
@@ -219,8 +219,7 @@ export default function CertificateGeneratorPage() {
     // Official Footer Section
     const footerStartY = 1650;
     
-    // Signature Above Footer
-    await drawSignature(ctx, W / 2 - 125, footerStartY - 250);
+    // Signature block removed as requested
 
     ctx.textAlign = "center";
     ctx.font = "bold 42px sans-serif";
@@ -269,7 +268,7 @@ export default function CertificateGeneratorPage() {
       
       ctx.font = "14px sans-serif";
       ctx.fillStyle = "#bdc3c7";
-      ctx.fillText(`https://sccg-careerlabs.de/verify/${data.certId}`, W/2, qrY + qrSize + 25);
+      ctx.fillText(`https://partner-portal.sccg-careerlabs.de/verify/${data.certId}`, W/2, qrY + qrSize + 25);
     }
   };
 
@@ -335,7 +334,7 @@ export default function CertificateGeneratorPage() {
   const handlePreview = () => {
     if (!data.name) return;
     setIsLoading(true);
-    setQrCodeData(`https://sccg-careerlabs.de/verify/${data.certId}`);
+    setQrCodeData(`https://partner-portal.sccg-careerlabs.de/verify/${data.certId}`);
     setIsPreviewing(true);
     // Draw will happen in useEffect
     setIsLoading(false);
