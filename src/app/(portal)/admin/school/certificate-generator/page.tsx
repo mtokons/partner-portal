@@ -260,22 +260,23 @@ export default function CertificateGeneratorPage() {
     ctx.fillStyle = "#bdc3c7";
     ctx.fillText("REGISTRATION NO: HRB 194679 , TAX ID: 4775601448", W/2, contactY + 100);
 
-    // QR Code — centered at bottom, smaller
+    // QR Code — centered at bottom, inside border (border ends at H - 120 = 2126)
     const qrCanvas = qrWrapperRef.current?.querySelector("canvas");
     if (qrCanvas) {
-      const qrSize = 220;
+      const qrSize = 240;
+      const bottomBorder = H - 120; // inner border bottom edge
+      const qrY = bottomBorder - qrSize - 60; // 60px padding from bottom border
       const qrX = W / 2 - qrSize / 2;
-      const qrY = contactY + 140;
       ctx.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize);
 
-      ctx.font = "bold 20px sans-serif";
+      ctx.font = "bold 22px sans-serif";
       ctx.fillStyle = "#8e44ad";
       ctx.textAlign = "center";
       ctx.fillText("Scan to Verify", W / 2, qrY - 15);
       
-      ctx.font = "14px sans-serif";
+      ctx.font = "16px sans-serif";
       ctx.fillStyle = "#bdc3c7";
-      ctx.fillText(`https://portal.mysccg.de/verify/${data.certId}`, W/2, qrY + qrSize + 25);
+      ctx.fillText(`https://portal.mysccg.de/verify/${data.certId}`, W/2, qrY + qrSize + 30);
     }
   };
 
@@ -388,26 +389,39 @@ export default function CertificateGeneratorPage() {
         endDate: data.endDate || undefined
       });
 
-      // 2. Update state with official details
-      setData(prev => ({ 
-        ...prev, 
-        certId: cert.certificateNumber 
-      }));
-      setQrCodeData(`https://portal.mysccg.de/verify/${cert.verificationCode}`);
+      // 2. Update local data directly for drawing (don't rely on React state)
+      const updatedCertId = cert.certificateNumber;
+      const updatedQrUrl = `https://portal.mysccg.de/verify/${cert.verificationCode}`;
+      
+      // Update React state for UI
+      setData(prev => ({ ...prev, certId: updatedCertId }));
+      setQrCodeData(updatedQrUrl);
       setLastRegisteredId(cert.id);
 
-      // 3. Wait for state to reflect in UI/QR before drawing
-      // We use a small timeout to ensure the QR code component re-renders
-      setTimeout(async () => {
-        await drawCertificate();
-        await downloadPDF();
-        setIsRegistering(false);
-        toast.success("Certificate issued and registered successfully!");
-      }, 500);
+      // 3. Wait for QR canvas to render with new data, then draw & download
+      await new Promise<void>((resolve) => {
+        // Allow React to re-render the hidden QR canvas
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            resolve();
+          });
+        });
+      });
 
-    } catch (err: any) {
+      // Override data for this draw cycle directly
+      const origCertId = data.certId;
+      data.certId = updatedCertId;
+      await drawCertificate();
+      data.certId = origCertId; // restore (React state will update)
+
+      downloadPDF();
+      setIsRegistering(false);
+      toast.success("Certificate issued and registered successfully!");
+
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to register certificate";
       console.error(err);
-      toast.error(err.message || "Failed to register certificate");
+      toast.error(message);
       setIsRegistering(false);
     }
   };
@@ -558,19 +572,24 @@ export default function CertificateGeneratorPage() {
                   {isRegistering ? "Registering..." : "Issue & Export PDF"}
                 </Button>
                 <Button variant="ghost" className="rounded-xl h-11 px-6 group" onClick={async () => {
+                  const linkUrl = qrCodeData || `https://portal.mysccg.de/verify/${data.certId}`;
+                  if (!linkUrl) {
+                    alert("No verification link available yet.");
+                    return;
+                  }
                   try {
-                    await navigator.clipboard.writeText(qrCodeData);
-                    alert("Link copied to clipboard!");
+                    await navigator.clipboard.writeText(linkUrl);
+                    toast.success("Verification link copied!");
                   } catch {
                     const textarea = document.createElement("textarea");
-                    textarea.value = qrCodeData;
+                    textarea.value = linkUrl;
                     textarea.style.position = "fixed";
                     textarea.style.opacity = "0";
                     document.body.appendChild(textarea);
                     textarea.select();
                     document.execCommand("copy");
                     document.body.removeChild(textarea);
-                    alert("Link copied to clipboard!");
+                    toast.success("Verification link copied!");
                   }
                 }}>
                   <Share2 className="h-4 w-4 mr-2 group-hover:scale-110 transition-transform" /> Share Link
