@@ -1,4 +1,5 @@
 import { getSchoolCertificates } from "@/lib/firestore-services";
+import { findSharePointCertificate } from "@/lib/sharepoint";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Award, ShieldCheck, ShieldX, ShieldAlert } from "lucide-react";
@@ -8,10 +9,27 @@ export default async function VerifyCertificatePage({ params }: { params: Promis
 
   let cert = null;
   try {
-    const results = await getSchoolCertificates({ verificationCode: code });
+    // Try by verification code first
+    let results = await getSchoolCertificates({ verificationCode: code });
+    if (results.length === 0) {
+      // Try by certificate number (e.g. SCCG26A1xxx)
+      const allCerts = await getSchoolCertificates();
+      const match = allCerts.find(c => c.certificateNumber === code);
+      if (match) results = [match];
+    }
     cert = results[0] || null;
+
+    // Fallback: check SharePoint if Firestore didn't find it
+    if (!cert) {
+      cert = await findSharePointCertificate(code);
+    }
   } catch {
-    // DB error — treat as not found
+    // DB error — try SharePoint as fallback
+    try {
+      cert = await findSharePointCertificate(code);
+    } catch {
+      // Both failed — treat as not found
+    }
   }
 
   return (
