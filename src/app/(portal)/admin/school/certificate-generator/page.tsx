@@ -11,6 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { QRCodeSVG, QRCodeCanvas } from "qrcode.react";
 import jsPDF from "jspdf";
 import { cn } from "@/lib/utils";
+import { registerManualCertificate } from "../actions";
+import { toast } from "sonner";
 
 const LEVEL_NAMES: Record<string, string> = {
   A1: "Anfänger",
@@ -49,6 +51,8 @@ export default function CertificateGeneratorPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const qrWrapperRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [lastRegisteredId, setLastRegisteredId] = useState<string | null>(null);
 
   const loadImage = (src: string): Promise<HTMLImageElement> => {
     return new Promise((resolve, reject) => {
@@ -362,15 +366,50 @@ export default function CertificateGeneratorPage() {
 
     const safeName = data.name.replace(/[^a-z0-9]/gi, "_").toLowerCase();
     const fileName = `SCCG_CERT_${safeName}.pdf`;
-    const blob = pdf.output("blob");
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    pdf.save(fileName);
+  };
+
+  const handleIssueAndDownload = async () => {
+    if (!data.name || !data.email) {
+      toast.error("Please provide student name and email");
+      return;
+    }
+
+    try {
+      setIsRegistering(true);
+      
+      // 1. Register with backend
+      const cert = await registerManualCertificate({
+        studentName: data.name,
+        studentEmail: data.email,
+        certificateType: data.type,
+        courseLevel: data.level,
+        issueDate: data.issueDate,
+        endDate: data.endDate || undefined
+      });
+
+      // 2. Update state with official details
+      setData(prev => ({ 
+        ...prev, 
+        certId: cert.certificateNumber 
+      }));
+      setQrCodeData(`https://portal.mysccg.de/verify/${cert.verificationCode}`);
+      setLastRegisteredId(cert.id);
+
+      // 3. Wait for state to reflect in UI/QR before drawing
+      // We use a small timeout to ensure the QR code component re-renders
+      setTimeout(async () => {
+        await drawCertificate();
+        await downloadPDF();
+        setIsRegistering(false);
+        toast.success("Certificate issued and registered successfully!");
+      }, 500);
+
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Failed to register certificate");
+      setIsRegistering(false);
+    }
   };
 
   return (
@@ -506,8 +545,17 @@ export default function CertificateGeneratorPage() {
           <div className="w-full max-w-[650px] space-y-6 animate-in zoom-in-95 duration-500">
             <div className="flex items-center justify-between gap-4">
               <div className="flex gap-2">
-                <Button variant="outline" className="rounded-xl border-dashed h-11 px-6 hover:bg-primary/5 hover:text-primary transition-all group" onClick={downloadPDF}>
-                  <Download className="h-4 w-4 mr-2 group-hover:-translate-y-0.5 transition-transform" /> Export PDF
+                <Button 
+                  disabled={isRegistering}
+                  className="rounded-xl h-11 px-6 shadow-lg shadow-primary/20 transition-all hover:scale-105 active:scale-95 group" 
+                  onClick={handleIssueAndDownload}
+                >
+                  {isRegistering ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4 mr-2 group-hover:-translate-y-0.5 transition-transform" />
+                  )}
+                  {isRegistering ? "Registering..." : "Issue & Export PDF"}
                 </Button>
                 <Button variant="ghost" className="rounded-xl h-11 px-6 group" onClick={async () => {
                   try {
