@@ -854,3 +854,49 @@ export async function deleteTeacher(id: string) {
 
   revalidatePath("/admin/school/teachers");
 }
+
+export async function registerManualCertificate(data: {
+  studentName: string;
+  studentEmail: string;
+  certificateType: CertificateType;
+  courseLevel: string;
+  issueDate: string;
+  endDate?: string;
+}) {
+  const user = await requirePermission("school.certificate.issue");
+
+  // For manual certificates, we might not have a full enrollment record, 
+  // so we create a standalone certificate that points to the student's email.
+  const cert = await createSchoolCertificate({
+    certificateType: data.certificateType,
+    studentUserId: "manual-" + data.studentEmail, // Placeholder for manual entries
+    studentName: data.studentName,
+    studentSccgId: "MANUAL",
+    enrollmentId: "manual",
+    courseId: "manual",
+    courseName: "SCCG Language Course",
+    courseLevel: data.courseLevel as import("@/types").CourseLevel,
+    batchId: "manual",
+    batchCode: "MANUAL",
+    attendancePercentage: 100, // Default for manual
+    issuedDate: data.issueDate,
+    issuedBy: user.id,
+    issuedByName: user.name,
+    status: "issued",
+  });
+
+  await writeAuditLog({
+    action: "certificate.manual.registered",
+    actorId: user.id,
+    actorEmail: user.email,
+    targetId: cert.id,
+    targetType: "school-certificate",
+    after: {
+      certificateNumber: cert.certificateNumber,
+      studentName: data.studentName,
+      verificationCode: cert.verificationCode,
+    },
+  });
+
+  return JSON.parse(JSON.stringify(cert)) as SchoolCertificate;
+}
