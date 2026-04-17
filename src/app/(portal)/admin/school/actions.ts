@@ -29,6 +29,7 @@ import {
 import { revalidatePath } from "next/cache";
 import { generateSccgId } from "@/lib/sccg-id";
 import { getAdminFirestore } from "@/lib/firebase-admin";
+import { mirrorCertificateToSharePoint, updateCertificateInSharePoint, deleteCertificateFromSharePoint } from "@/lib/sharepoint";
 
 // ── Courses ──
 
@@ -696,9 +697,15 @@ export async function issueCertificate(data: {
   const certField = data.certificateType === "participation" ? "participationCertId" : "completionCertId";
   await updateSchoolEnrollment(data.enrollmentId, { [certField]: cert.id });
 
-  // Send certificate email
+  // Fetch enrollment for email/mirror
+  let studentEmail = "";
   try {
     const enrollment = await getSchoolEnrollmentById(data.enrollmentId);
+    studentEmail = enrollment?.studentEmail || "";
+  } catch {}
+
+  // Send certificate email
+  try {
     const emailData = buildCertificateEmail({
       studentName: data.studentName,
       certificateType: data.certificateType === "participation" ? "Participation Certificate" : "Course Completion Certificate",
@@ -707,7 +714,7 @@ export async function issueCertificate(data: {
       verificationUrl: cert.verificationUrl,
     });
     await sendEmailViaGraph({
-      to: enrollment?.studentEmail || "",
+      to: studentEmail,
       toName: data.studentName,
       subject: emailData.subject,
       htmlBody: emailData.htmlBody,
@@ -716,6 +723,9 @@ export async function issueCertificate(data: {
   } catch (err) {
     console.error("Failed to send certificate email:", err);
   }
+
+  // Mirror to SharePoint
+  await mirrorCertificateToSharePoint(cert, studentEmail);
 
   await writeAuditLog({
     action: "certificate.issued",
@@ -738,6 +748,14 @@ export async function issueCertificate(data: {
 export async function revokeCertificateAction(id: string, reason: string) {
   const user = await requirePermission("school.certificate.revoke");
   await revokeSchoolCertificate(id, reason, user.id);
+
+  // Mirror revocation to SharePoint
+  await updateCertificateInSharePoint(id, {
+    status: "revoked",
+    revokedAt: new Date().toISOString(),
+    revocationReason: reason,
+    revokedBy: user.id,
+  });
 
   await writeAuditLog({
     action: "certificate.revoked",
@@ -885,6 +903,9 @@ export async function registerManualCertificate(data: {
     status: "issued",
   });
 
+  // Mirror to SharePoint
+  await mirrorCertificateToSharePoint(cert, data.studentEmail);
+
   await writeAuditLog({
     action: "certificate.manual.registered",
     actorId: user.id,
@@ -899,4 +920,54 @@ export async function registerManualCertificate(data: {
   });
 
   return JSON.parse(JSON.stringify(cert)) as SchoolCertificate;
+}
+
+export async function deleteCertificateAction(id: string) {
+  const user = await requirePermission("school.certificate.issue");
+
+  // Get the certificate first to check it exists
+  const cert = await getSchoolCertificateById(id);
+  if (!cert) throw new Error("Certificate not found");
+
+  // Delete from Firestore
+  const { getAdminFirestore: getDb } = await import("@/lib/firebase-admin");
+  await getDb().collection("schoolCertificates").doc(id).delete();
+
+  // Delete from SharePoint
+  await deleteCertificateFromSharePoint(id);
+
+  await writeAuditLog({
+    action: "certificate.deleted",
+    actorId: user.id,
+    actorEmail: user.email,
+    targetId: id,
+    targetType: "school-certificate",
+    after: { certificateNumber: cert.certificateNumber, studentName: cert.studentName },
+  });
+
+  revalidatePath("/admin/school/certificates");
+}
+
+export async function updateCertificateAction(id: string, data: { studentName?: string; courseName?: string; courseLevel?: string; status?: string }) {
+  const user = await requirePermission("school.certificate.issue");
+
+  const updates: Record<string, unknown> = {};
+  if (data.studentName) updates.studentName = data.studentName;
+  if (data.courseName) updates.courseName = data.courseName;
+  if (data.courseLevel) updates.courseLevel = data.courseLevel;
+  if (data.status) updates.status = data.status;
+
+  const { getAdminFirestore: getDb } = await import("@/lib/firebase-admin");
+  await getDb().collection("schoolCertificates").doc(id).update(updates);
+
+  await writeAuditLog({
+    action: "certificate.updated",
+    actorId: user.id,
+    actorEmail: user.email,
+    targetId: id,
+    targetType: "school-certificate",
+    after: data,
+  });
+
+  revalidatePath("/admin/school/certificates");
 }

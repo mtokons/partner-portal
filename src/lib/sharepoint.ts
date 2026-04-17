@@ -10,6 +10,7 @@ import type {
   CoinWallet, CoinTransaction, GiftCard, GiftCardTransaction, UserRoleEntry,
   SccgCard, SccgCardTransaction,
   KanbanTask,
+  SchoolCertificate,
 } from "@/types";
 import {
   mockPartners, mockProducts, mockOrders, mockClients,
@@ -2643,4 +2644,187 @@ export async function deleteKanbanTask(id: string): Promise<void> {
   }
   const { graphDelete, getSiteListUrlAsync } = await import("@/lib/graph");
   await graphDelete(`${await getSiteListUrlAsync("KanbanTasks")}('${id}')`);
+}
+
+// ============================================================
+// School Certificates (SharePoint Mirror)
+// ============================================================
+
+const CERT_COL = {
+  certificateNumber: "CertificateNumber",
+  certificateType: "CertificateType",
+  studentName: "StudentName",
+  studentEmail: "StudentEmail",
+  studentUserId: "StudentUserId",
+  studentSccgId: "StudentSccgId",
+  courseName: "CourseName",
+  courseLevel: "CourseLevel",
+  batchCode: "BatchCode",
+  attendancePercentage: "AttendancePercentage",
+  finalGrade: "FinalGrade",
+  examScore: "ExamScore",
+  issuedDate: "IssuedDate",
+  issuedBy: "IssuedBy",
+  issuedByName: "IssuedByName",
+  verificationCode: "VerificationCode",
+  verificationUrl: "VerificationUrl",
+  status: "Status",
+  revokedAt: "RevokedAt",
+  revocationReason: "RevocationReason",
+  revokedBy: "RevokedBy",
+  firestoreId: "FirestoreId",
+  createdAt: "CreatedAt",
+};
+
+function mapSpCertToLocal(f: Record<string, string>): SchoolCertificate {
+  return {
+    id: f.id || f.FirestoreId || "",
+    sccgId: "",
+    certificateNumber: f[CERT_COL.certificateNumber] || "",
+    certificateType: (f[CERT_COL.certificateType] as SchoolCertificate["certificateType"]) || "participation",
+    studentUserId: f[CERT_COL.studentUserId] || "",
+    studentName: f[CERT_COL.studentName] || "",
+    studentSccgId: f[CERT_COL.studentSccgId] || "",
+    enrollmentId: "",
+    courseId: "",
+    courseName: f[CERT_COL.courseName] || "",
+    courseLevel: (f[CERT_COL.courseLevel] as SchoolCertificate["courseLevel"]) || "A1",
+    batchId: "",
+    batchCode: f[CERT_COL.batchCode] || "",
+    attendancePercentage: Number(f[CERT_COL.attendancePercentage]) || 0,
+    finalGrade: f[CERT_COL.finalGrade] || undefined,
+    examScore: f[CERT_COL.examScore] ? Number(f[CERT_COL.examScore]) : undefined,
+    issuedDate: f[CERT_COL.issuedDate] || "",
+    issuedBy: f[CERT_COL.issuedBy] || "",
+    issuedByName: f[CERT_COL.issuedByName] || "",
+    verificationCode: f[CERT_COL.verificationCode] || "",
+    verificationUrl: f[CERT_COL.verificationUrl] || "",
+    qrCodeData: f[CERT_COL.verificationUrl] || "",
+    status: (f[CERT_COL.status] as SchoolCertificate["status"]) || "issued",
+    revokedAt: f[CERT_COL.revokedAt] || undefined,
+    revocationReason: f[CERT_COL.revocationReason] || undefined,
+    revokedBy: f[CERT_COL.revokedBy] || undefined,
+    createdAt: f[CERT_COL.createdAt] || "",
+  };
+}
+
+/**
+ * Mirror a certificate to SharePoint when created in Firestore.
+ */
+export async function mirrorCertificateToSharePoint(cert: SchoolCertificate, studentEmail?: string): Promise<void> {
+  if (useMock) return;
+  try {
+    const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
+    await graphPost(await getSiteListUrlAsync("SchoolCertificates"), {
+      fields: {
+        Title: cert.certificateNumber,
+        [CERT_COL.certificateNumber]: cert.certificateNumber,
+        [CERT_COL.certificateType]: cert.certificateType,
+        [CERT_COL.studentName]: cert.studentName,
+        [CERT_COL.studentEmail]: studentEmail || "",
+        [CERT_COL.studentUserId]: cert.studentUserId,
+        [CERT_COL.studentSccgId]: cert.studentSccgId,
+        [CERT_COL.courseName]: cert.courseName,
+        [CERT_COL.courseLevel]: cert.courseLevel,
+        [CERT_COL.batchCode]: cert.batchCode,
+        [CERT_COL.attendancePercentage]: cert.attendancePercentage,
+        [CERT_COL.finalGrade]: cert.finalGrade || "",
+        [CERT_COL.examScore]: cert.examScore || 0,
+        [CERT_COL.issuedDate]: cert.issuedDate,
+        [CERT_COL.issuedBy]: cert.issuedBy,
+        [CERT_COL.issuedByName]: cert.issuedByName,
+        [CERT_COL.verificationCode]: cert.verificationCode,
+        [CERT_COL.verificationUrl]: cert.verificationUrl,
+        [CERT_COL.status]: cert.status,
+        [CERT_COL.firestoreId]: cert.id,
+        [CERT_COL.createdAt]: cert.createdAt,
+      },
+    });
+  } catch (err) {
+    console.error("SharePoint certificate mirror failed (non-fatal):", err);
+  }
+}
+
+/**
+ * Update certificate status in SharePoint (e.g. revoke).
+ */
+export async function updateCertificateInSharePoint(firestoreId: string, data: Record<string, string>): Promise<void> {
+  if (useMock) return;
+  try {
+    const { graphGet, graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
+    const listUrl = await getSiteListUrlAsync("SchoolCertificates");
+    // Find the item by FirestoreId
+    const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, string> }> }>(
+      `${listUrl}?$expand=fields&$filter=fields/FirestoreId eq '${firestoreId}'`
+    );
+    if (res.value.length > 0) {
+      const spId = res.value[0].id;
+      const fields: Record<string, string> = {};
+      if (data.status) fields[CERT_COL.status] = data.status;
+      if (data.revokedAt) fields[CERT_COL.revokedAt] = data.revokedAt;
+      if (data.revocationReason) fields[CERT_COL.revocationReason] = data.revocationReason;
+      if (data.revokedBy) fields[CERT_COL.revokedBy] = data.revokedBy;
+      await graphPatch(`${listUrl}('${spId}')/fields`, fields);
+    }
+  } catch (err) {
+    console.error("SharePoint certificate update failed (non-fatal):", err);
+  }
+}
+
+/**
+ * Fetch all certificates from SharePoint.
+ */
+export async function getSharePointCertificates(): Promise<SchoolCertificate[]> {
+  return runSafe(
+    async () => {
+      const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
+      const url = `${await getSiteListUrlAsync("SchoolCertificates")}?$expand=fields&$orderby=fields/CreatedAt desc&$top=500`;
+      const res = await graphGet<{ value: Array<{ fields: Record<string, string> }> }>(url);
+      return res.value.map((item) => mapSpCertToLocal(item.fields));
+    },
+    () => []
+  );
+}
+
+/**
+ * Search for a certificate by verification code or certificate number in SharePoint.
+ */
+export async function findSharePointCertificate(codeOrNumber: string): Promise<SchoolCertificate | null> {
+  return runSafe(
+    async () => {
+      const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
+      const listUrl = await getSiteListUrlAsync("SchoolCertificates");
+      // Try verification code first
+      let res = await graphGet<{ value: Array<{ fields: Record<string, string> }> }>(
+        `${listUrl}?$expand=fields&$filter=fields/VerificationCode eq '${codeOrNumber}'`
+      );
+      if (res.value.length === 0) {
+        // Try certificate number
+        res = await graphGet<{ value: Array<{ fields: Record<string, string> }> }>(
+          `${listUrl}?$expand=fields&$filter=fields/CertificateNumber eq '${codeOrNumber}'`
+        );
+      }
+      return res.value.length > 0 ? mapSpCertToLocal(res.value[0].fields) : null;
+    },
+    () => null
+  );
+}
+
+/**
+ * Delete a certificate from SharePoint by its Firestore ID.
+ */
+export async function deleteCertificateFromSharePoint(firestoreId: string): Promise<void> {
+  if (useMock) return;
+  try {
+    const { graphGet, graphDelete, getSiteListUrlAsync } = await import("@/lib/graph");
+    const listUrl = await getSiteListUrlAsync("SchoolCertificates");
+    const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, string> }> }>(
+      `${listUrl}?$expand=fields&$filter=fields/FirestoreId eq '${firestoreId}'`
+    );
+    if (res.value.length > 0) {
+      await graphDelete(`${listUrl}('${res.value[0].id}')`);
+    }
+  } catch (err) {
+    console.error("SharePoint certificate delete failed (non-fatal):", err);
+  }
 }
