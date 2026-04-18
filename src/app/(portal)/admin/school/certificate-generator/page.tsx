@@ -263,9 +263,9 @@ export default function CertificateGeneratorPage() {
     // QR Code — centered at bottom, inside border (border ends at H - 120 = 2126)
     const qrCanvas = qrWrapperRef.current?.querySelector("canvas");
     if (qrCanvas) {
-      const qrSize = 240;
+      const qrSize = 190;
       const bottomBorder = H - 120; // inner border bottom edge
-      const qrY = bottomBorder - qrSize - 60; // 60px padding from bottom border
+      const qrY = bottomBorder - qrSize - 70;
       const qrX = W / 2 - qrSize / 2;
       ctx.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize);
 
@@ -276,7 +276,7 @@ export default function CertificateGeneratorPage() {
       
       ctx.font = "16px sans-serif";
       ctx.fillStyle = "#bdc3c7";
-      ctx.fillText(`https://portal.mysccg.de/verify/${data.certId}`, W/2, qrY + qrSize + 30);
+      ctx.fillText(`https://portal.mysccg.de/verify/${data.certId}`, W/2, qrY + qrSize + 26);
     }
   };
 

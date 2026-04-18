@@ -170,9 +170,9 @@ export async function generateCertificatePDF(cert: SchoolCertificate) {
   try {
     const qrDataUrl = await generateQRDataUrl(verificationUrl, 400);
     if (qrDataUrl) {
-      const qrSize = 40; // mm
+      const qrSize = 32; // mm (reduced to avoid footer overlap)
       const qrX = width / 2 - qrSize / 2;
-      const qrY = height - 12 - qrSize - 8; // inside bottom border with padding
+      const qrY = height - 12 - qrSize - 6; // inside bottom border with padding
       doc.addImage(qrDataUrl, "PNG", qrX, qrY, qrSize, qrSize);
 
       doc.setTextColor(colorPurple[0], colorPurple[1], colorPurple[2]);

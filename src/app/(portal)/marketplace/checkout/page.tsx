@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import type { CartItem, SessionUser, CoinWallet } from "@/types";
@@ -32,7 +32,7 @@ export default function CheckoutPage() {
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [reference, setReference] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<"fiat" | "coin">("fiat");
+  const [paymentMethod, setPaymentMethod] = useState<"bangladesh-online" | "manual-transfer" | "coin">("bangladesh-online");
   const [wallet, setWallet] = useState<CoinWallet | null>(null);
 
   useEffect(() => {
@@ -61,15 +61,18 @@ export default function CheckoutPage() {
       setError("Please fill in all required fields.");
       return;
     }
+    if (paymentMethod !== "coin" && !reference.trim()) {
+      setError("Please provide the payment reference from your transfer.");
+      return;
+    }
 
     setLoading(true);
     setError(null);
     setPaymentStep("processing");
 
-    // Simulate payment delay
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    await new Promise((resolve) => setTimeout(resolve, 1200));
     setPaymentStep("verifying");
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await new Promise((resolve) => setTimeout(resolve, 800));
 
     try {
       const items = cart.map(i => ({
@@ -85,14 +88,16 @@ export default function CheckoutPage() {
         customerEmail,
         reference,
         paymentMethod,
-        notes: "Checkout from SCCG Marketplace"
+        notes: "Checkout from SCCG Marketplace",
       });
 
       if (result.success) {
         setPaymentStep("success");
         localStorage.removeItem("marketplace_cart");
         setTimeout(() => {
-          router.push(`/marketplace/success?orderId=${result.orderId}&orderNumber=${result.orderNumber}`);
+          router.push(
+            `/marketplace/success?orderId=${result.orderId}&orderNumber=${result.orderNumber}&verification=${result.requiresVerification ? "pending" : "confirmed"}&method=${result.paymentMethod}`
+          );
         }, 1000);
       }
     } catch (err) {
@@ -184,10 +189,10 @@ export default function CheckoutPage() {
               <div className="space-y-2 pt-2">
                 <label className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
                   <TagIcon className="h-3 w-3" />
-                  Reference / Referral Code (Optional)
+                  Payment Reference {paymentMethod === "coin" ? "(Optional)" : "(Required)"}
                 </label>
                 <Input 
-                  placeholder="Enter reference for tracking..." 
+                  placeholder="Enter transaction/reference number..." 
                   value={reference}
                   onChange={(e) => setReference(e.target.value)}
                   className="rounded-xl border-primary/20 bg-primary/5 focus:bg-background transition-colors font-bold uppercase"
@@ -204,12 +209,12 @@ export default function CheckoutPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-6 space-y-4">
-              {/* Fiat Option */}
+              {/* Bangladesh Online Option */}
               <button 
-                onClick={() => setPaymentMethod("fiat")}
+                onClick={() => setPaymentMethod("bangladesh-online")}
                 className={cn(
                   "w-full p-6 border-2 rounded-[1.5rem] flex items-center justify-between transition-all",
-                  paymentMethod === "fiat" 
+                  paymentMethod === "bangladesh-online" 
                     ? "border-primary bg-primary/5" 
                     : "border-border bg-transparent hover:border-primary/20"
                 )}
@@ -217,16 +222,41 @@ export default function CheckoutPage() {
                 <div className="flex items-center gap-4 text-left">
                   <div className={cn(
                     "h-12 w-12 rounded-xl flex items-center justify-center font-black",
-                    paymentMethod === "fiat" ? "bg-primary text-white" : "bg-muted text-muted-foreground"
+                    paymentMethod === "bangladesh-online" ? "bg-primary text-white" : "bg-muted text-muted-foreground"
                   )}>
                     $
                   </div>
                   <div>
-                    <p className="font-bold">Digital Direct Payment</p>
-                    <p className="text-xs text-muted-foreground">bKash, Nagad, Rocket, DBBL or Bank Transfer</p>
+                    <p className="font-bold">Bangladesh Online Payment</p>
+                    <p className="text-xs text-muted-foreground">bKash, Nagad, Rocket, DBBL gateway transfer</p>
                   </div>
                 </div>
-                {paymentMethod === "fiat" && <Badge className="bg-primary text-white font-black uppercase text-[10px]">SELECTED</Badge>}
+                {paymentMethod === "bangladesh-online" && <Badge className="bg-primary text-white font-black uppercase text-[10px]">SELECTED</Badge>}
+              </button>
+
+              {/* Manual Transfer Option */}
+              <button
+                onClick={() => setPaymentMethod("manual-transfer")}
+                className={cn(
+                  "w-full p-6 border-2 rounded-[1.5rem] flex items-center justify-between transition-all",
+                  paymentMethod === "manual-transfer"
+                    ? "border-primary bg-primary/5"
+                    : "border-border bg-transparent hover:border-primary/20"
+                )}
+              >
+                <div className="flex items-center gap-4 text-left">
+                  <div className={cn(
+                    "h-12 w-12 rounded-xl flex items-center justify-center font-black",
+                    paymentMethod === "manual-transfer" ? "bg-primary text-white" : "bg-muted text-muted-foreground"
+                  )}>
+                    🏦
+                  </div>
+                  <div>
+                    <p className="font-bold">Manual Bank Transfer</p>
+                    <p className="text-xs text-muted-foreground">Send transfer manually and submit payment reference</p>
+                  </div>
+                </div>
+                {paymentMethod === "manual-transfer" && <Badge className="bg-primary text-white font-black uppercase text-[10px]">SELECTED</Badge>}
               </button>
 
               {/* Coin Option */}
@@ -263,12 +293,13 @@ export default function CheckoutPage() {
                 {paymentMethod === "coin" && <Badge className="bg-primary text-white font-black uppercase text-[10px]">SELECTED</Badge>}
               </button>
 
-              {/* City Bank Instructions for Fiat */}
-              {paymentMethod === "fiat" && (
+              {(paymentMethod === "bangladesh-online" || paymentMethod === "manual-transfer") && (
                 <div className="p-5 bg-muted/40 rounded-2xl border border-border/50 text-sm space-y-3 animate-in fade-in zoom-in duration-300">
                   <p className="font-bold text-foreground">Payment Instructions</p>
                   <p className="text-muted-foreground">
-                    Please send the total amount to our City Bank account using any digital payment gateway (bKash, Nagad, Rocket, DBBL) or via direct bank transfer.
+                    {paymentMethod === "bangladesh-online"
+                      ? "Pay via Bangladesh online channels (bKash, Nagad, Rocket, DBBL) and submit the transaction reference."
+                      : "Complete a manual transfer to the account below and submit the payment reference for verification."}
                   </p>
                   <div className="bg-background p-4 rounded-xl border border-border/30 space-y-2 font-mono text-xs">
                     <div className="flex justify-between">
@@ -289,7 +320,7 @@ export default function CheckoutPage() {
                     </div>
                   </div>
                   <p className="text-[10px] text-muted-foreground bg-amber-500/10 text-amber-600 p-2 rounded-lg border border-amber-500/20">
-                    * Reference your Order Email or Name when making the transfer for faster processing.
+                    * Admin verifies your submitted payment reference before service activation.
                   </p>
                 </div>
               )}
@@ -299,19 +330,25 @@ export default function CheckoutPage() {
                   {paymentStep === "processing" && (
                     <div className="flex flex-col items-center gap-4">
                       <Loader2 className="h-10 w-10 text-primary animate-spin" />
-                      <p className="font-black text-lg animate-pulse">Contacting Bank Gateway...</p>
+                      <p className="font-black text-lg animate-pulse">
+                        {paymentMethod === "coin" ? "Processing SCCG Coin payment..." : "Submitting payment details..."}
+                      </p>
                     </div>
                   )}
                   {paymentStep === "verifying" && (
                     <div className="flex flex-col items-center gap-4">
                       <ShieldCheck className="h-10 w-10 text-primary animate-bounce" />
-                      <p className="font-black text-lg">Verifying Secure Token...</p>
+                      <p className="font-black text-lg">
+                        {paymentMethod === "coin" ? "Confirming wallet deduction..." : "Waiting for admin verification..."}
+                      </p>
                     </div>
                   )}
                   {paymentStep === "success" && (
                     <div className="flex flex-col items-center gap-4 text-emerald-600">
                       <CheckCircle2 className="h-12 w-12 text-emerald-500 scale-125 transition-transform" />
-                      <p className="font-black text-xl">Payment Successful!</p>
+                      <p className="font-black text-xl">
+                        {paymentMethod === "coin" ? "Payment Successful!" : "Payment Submitted for Verification"}
+                      </p>
                     </div>
                   )}
                 </div>
