@@ -1,10 +1,10 @@
 "use server";
 
 import { auth } from "@/auth";
-import type { SessionUser, SalesOrder, SalesOrderItem, Invoice, Transaction, ServicePackage, CustomerPackage } from "@/types";
+import type { SessionUser } from "@/types";
 import { 
   createSalesOrder, createSalesOrderItem, createInvoice, createTransaction, 
-  generateOrderNumber, generateInvoiceNumber, getProducts,
+  generateOrderNumber, getProducts,
   createCustomerPackage, createGiftCard, generateGiftCardNumber, generateGiftCardPin,
   getCoinWallet, updateCoinWallet, createCoinTransaction
 } from "@/lib/sharepoint";
@@ -24,7 +24,6 @@ export async function createDirectOrderAction(data: {
   const user = session.user as SessionUser;
 
   const orderNumber = await generateOrderNumber();
-  const invoiceNumber = await generateInvoiceNumber();
   const subtotal = data.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
   const totalAmount = subtotal; // Simpler for marketplace direct buy
   const now = new Date().toISOString();
@@ -33,7 +32,7 @@ export async function createDirectOrderAction(data: {
   const trimmedReference = data.reference?.trim();
 
   if (!isCoinPayment && !trimmedReference) {
-    throw new Error("Payment reference is required for online or manual transfer payments.");
+    throw new Error("Please provide your payment transaction reference.");
   }
 
   // 0. Handle Payment Method logic (Coins)
@@ -73,7 +72,7 @@ export async function createDirectOrderAction(data: {
     clientName: data.customerName,
     clientEmail: data.customerEmail,
     status: "pending",
-      totalAmount,
+    totalAmount,
     notes: [
       data.notes || "Checkout from SCCG Marketplace",
       `Marketplace payment method: ${paymentMethod}`,
