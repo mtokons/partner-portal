@@ -126,7 +126,7 @@ export default function CheckoutPage() {
         <div className="space-y-2">
           <h2 className="text-2xl font-black">Your cart is empty</h2>
           <p className="text-muted-foreground max-w-sm mx-auto">
-            It looks like you haven't added any premium service packages to your marketplace cart yet.
+            It looks like you have not added any premium service packages to your marketplace cart yet.
           </p>
         </div>
         <Link 
