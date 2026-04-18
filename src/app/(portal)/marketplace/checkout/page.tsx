@@ -62,7 +62,7 @@ export default function CheckoutPage() {
       return;
     }
     if (paymentMethod !== "coin" && !reference.trim()) {
-      setError("Please provide the payment reference from your transfer.");
+      setError("Please provide your payment transaction reference.");
       return;
     }
 
