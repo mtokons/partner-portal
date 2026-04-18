@@ -38,10 +38,12 @@ function isPendingMarketplacePaymentVerification(notes?: string): boolean {
 function markMarketplacePaymentVerified(notes: string | undefined, adminName: string): string {
   const baseNotes = notes || "";
   if (baseNotes.includes("Payment verification: verified")) return baseNotes;
-  return baseNotes.replace(
+  const updated = baseNotes.replace(
     "Payment verification: pending-admin-verification",
     `Payment verification: verified\nVerified by: ${adminName}\nVerified at: ${new Date().toISOString()}`
   );
+  if (updated !== baseNotes) return updated;
+  return `${baseNotes}${baseNotes ? "\n" : ""}Payment verification: verified\nVerified by: ${adminName}\nVerified at: ${new Date().toISOString()}`;
 }
 
 async function confirmMarketplacePaymentAndActivateServices(order: NonNullable<Awaited<ReturnType<typeof getSalesOrderById>>>) {
