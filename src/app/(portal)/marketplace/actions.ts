@@ -17,7 +17,7 @@ export async function createDirectOrderAction(data: {
   customerPhone?: string;
   reference?: string;
   notes?: string;
-  paymentMethod?: "fiat" | "coin";
+  paymentMethod?: "bangladesh-online" | "manual-transfer" | "coin";
 }) {
   const session = await auth();
   if (!session?.user) throw new Error("Unauthorized");
@@ -28,9 +28,16 @@ export async function createDirectOrderAction(data: {
   const subtotal = data.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
   const totalAmount = subtotal; // Simpler for marketplace direct buy
   const now = new Date().toISOString();
+  const paymentMethod = data.paymentMethod || "manual-transfer";
+  const isCoinPayment = paymentMethod === "coin";
+  const trimmedReference = data.reference?.trim();
+
+  if (!isCoinPayment && !trimmedReference) {
+    throw new Error("Payment reference is required for online or manual transfer payments.");
+  }
 
   // 0. Handle Payment Method logic (Coins)
-  if (data.paymentMethod === "coin") {
+  if (isCoinPayment) {
     const wallet = await getCoinWallet(user.id);
     if (!wallet) throw new Error("No SCCG Coin wallet found for this user.");
     if (wallet.balance < totalAmount) {
@@ -66,8 +73,14 @@ export async function createDirectOrderAction(data: {
     clientName: data.customerName,
     clientEmail: data.customerEmail,
     status: "pending",
-    totalAmount,
-    notes: data.notes || `Direct purchase with reference: ${data.reference || "none"}`,
+      totalAmount,
+    notes: [
+      data.notes || "Checkout from SCCG Marketplace",
+      `Marketplace payment method: ${paymentMethod}`,
+      `Payment reference: ${trimmedReference || "N/A"}`,
+      `Payment verification: ${isCoinPayment ? "verified" : "pending-admin-verification"}`,
+      `Payment submitted at: ${now}`,
+    ].join("\n"),
     createdBy: user.id,
     createdAt: now,
     updatedAt: now,
@@ -85,86 +98,93 @@ export async function createDirectOrderAction(data: {
     });
   }
 
-  // 3. Create a PAID Invoice immediately
-  const invoice = await createInvoice({
-    partnerId: user.partnerId || user.id,
-    clientId: user.id,
-    clientName: data.customerName,
-    orderId: order.id,
-    amount: totalAmount,
-    status: "paid", // Automatically marked as paid as requested
-    dueDate: now,
-    createdAt: now,
-  });
+  if (isCoinPayment) {
+    // 3. Create a PAID Invoice immediately
+    await createInvoice({
+      partnerId: user.partnerId || user.id,
+      clientId: user.id,
+      clientName: data.customerName,
+      orderId: order.id,
+      amount: totalAmount,
+      status: "paid",
+      dueDate: now,
+      createdAt: now,
+    });
 
-  // 4. Create the Transaction record (Payment)
-  await createTransaction({
-    clientId: user.id,
-    partnerId: user.partnerId || user.id,
-    type: "payment",
-    amount: totalAmount,
-    reference: data.reference || `Direct-Order-${orderNumber}`,
-    orderId: order.id,
-    description: `Marketplace Direct Payment for Order ${orderNumber}`,
-    date: now,
-  });
+    // 4. Create the Transaction record (Payment)
+    await createTransaction({
+      clientId: user.id,
+      partnerId: user.partnerId || user.id,
+      type: "payment",
+      amount: totalAmount,
+      reference: trimmedReference || `Direct-Order-${orderNumber}`,
+      orderId: order.id,
+      description: `Marketplace Coin Payment for Order ${orderNumber}`,
+      date: now,
+    });
 
-  // 5. Logic for Service Packages (If applicable)
-  // Here we check if any items are service packages and create CustomerPackage entries
-  const products = await getProducts();
-  for (const item of data.items) {
-    const product = products.find(p => p.id === item.productId);
-    if (product && (product.category === "service" || product.unit === "Package")) {
-      await createCustomerPackage({
-        customerId: user.id,
-        customerName: data.customerName,
-        partnerId: user.partnerId || user.id,
-        servicePackageId: product.id,
-        packageName: product.name,
-        orderId: order.id,
-        totalSessions: product.sessionsCount || 1,
-        completedSessions: 0,
-        totalAmount: item.quantity * item.unitPrice,
-        amountPaid: item.quantity * item.unitPrice,
-        startDate: now,
-        endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year validity default
-        status: "active",
-        createdAt: now,
-      });
-    }
+    // 5. Logic for Service Packages (If applicable)
+    const products = await getProducts();
+    for (const item of data.items) {
+      const product = products.find(p => p.id === item.productId);
+      if (product && (product.category === "service" || product.unit === "Package")) {
+        await createCustomerPackage({
+          customerId: user.id,
+          customerName: data.customerName,
+          partnerId: user.partnerId || user.id,
+          servicePackageId: product.id,
+          packageName: product.name,
+          orderId: order.id,
+          totalSessions: product.sessionsCount || 1,
+          completedSessions: 0,
+          totalAmount: item.quantity * item.unitPrice,
+          amountPaid: item.quantity * item.unitPrice,
+          startDate: now,
+          endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+          status: "active",
+          createdAt: now,
+        });
+      }
 
-    // 6. Logic for Gift Cards (Auto-issuance)
-    if (product && product.category === "Gift Card") {
-       for (let q = 0; q < item.quantity; q++) {
+      // 6. Logic for Gift Cards (Auto-issuance)
+      if (product && product.category === "Gift Card") {
+        for (let q = 0; q < item.quantity; q++) {
           await createGiftCard({
-             sccgId: `GC-${orderNumber}-${q+1}`,
-             cardNumber: generateGiftCardNumber(),
-             pinHash: generateGiftCardPin(4), // Storing plain text for this demo/MVP
-             pinAttempts: 0,
-             issuedToUserId: user.id,
-             issuedToName: data.customerName,
-             issuedToEmail: data.customerEmail,
-             issuedByUserId: user.id,
-             issuedBy: user.name,
-             initialBalance: item.unitPrice,
-             currentBalance: item.unitPrice,
-             balance: item.unitPrice,
-             currency: "BDT",
-             tier: "standard",
-             status: "active",
-             designTemplate: "standard",
-             notes: `Purchased via Order ${orderNumber}`,
-             activatedAt: now,
-             expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-             issuedAt: now,
-             createdAt: now,
+            sccgId: `GC-${orderNumber}-${q + 1}`,
+            cardNumber: generateGiftCardNumber(),
+            pinHash: generateGiftCardPin(4),
+            pinAttempts: 0,
+            issuedToUserId: user.id,
+            issuedToName: data.customerName,
+            issuedToEmail: data.customerEmail,
+            issuedByUserId: user.id,
+            issuedBy: user.name,
+            initialBalance: item.unitPrice,
+            currentBalance: item.unitPrice,
+            balance: item.unitPrice,
+            currency: "BDT",
+            tier: "standard",
+            status: "active",
+            designTemplate: "standard",
+            notes: `Purchased via Order ${orderNumber}`,
+            activatedAt: now,
+            expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+            issuedAt: now,
+            createdAt: now,
           });
-       }
+        }
+      }
     }
   }
 
   revalidatePath("/orders");
   revalidatePath("/financials/invoices");
   
-  return { success: true, orderId: order.id, orderNumber };
+  return {
+    success: true,
+    orderId: order.id,
+    orderNumber,
+    requiresVerification: !isCoinPayment,
+    paymentMethod,
+  };
 }

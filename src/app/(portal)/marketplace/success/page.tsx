@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { 
   CheckCircle2, Package, FileText, ArrowRight, 
   ShoppingBag, Mail, Share2, Download 
@@ -14,6 +14,8 @@ function SuccessContent() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get("orderId");
   const orderNumber = searchParams.get("orderNumber");
+  const verification = searchParams.get("verification");
+  const isPendingVerification = verification === "pending";
 
   if (!orderId) return null;
 
@@ -29,8 +31,15 @@ function SuccessContent() {
         </div>
         
         <div className="space-y-2">
-          <h1 className="text-5xl font-black tracking-tight text-foreground">Payment Confirmed!</h1>
-          <p className="text-xl text-muted-foreground font-medium">Order <span className="text-primary font-black">#{orderNumber}</span> has been successfully processed.</p>
+          <h1 className="text-5xl font-black tracking-tight text-foreground">
+            {isPendingVerification ? "Payment Submitted!" : "Payment Confirmed!"}
+          </h1>
+          <p className="text-xl text-muted-foreground font-medium">
+            Order <span className="text-primary font-black">#{orderNumber}</span>{" "}
+            {isPendingVerification
+              ? "is awaiting admin payment verification."
+              : "has been successfully processed."}
+          </p>
         </div>
       </div>
 
@@ -38,8 +47,14 @@ function SuccessContent() {
       <Card className="rounded-[3rem] border-primary/10 shadow-3xl shadow-primary/10 overflow-hidden">
         <CardHeader className="bg-primary pt-10 pb-20 text-center text-white relative">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-white/10 to-transparent" />
-          <CardTitle className="text-2xl font-black">Enrollment Activated</CardTitle>
-          <p className="text-primary-foreground/80 font-semibold px-12">Your service packages are now active and linked to your account.</p>
+          <CardTitle className="text-2xl font-black">
+            {isPendingVerification ? "Awaiting Verification" : "Enrollment Activated"}
+          </CardTitle>
+          <p className="text-primary-foreground/80 font-semibold px-12">
+            {isPendingVerification
+              ? "Your payment reference has been submitted. Services activate after admin verification."
+              : "Your service packages are now active and linked to your account."}
+          </p>
         </CardHeader>
         
         <CardContent className="-mt-12 space-y-6 px-8 relative">
@@ -54,13 +69,17 @@ function SuccessContent() {
               </div>
             </Link>
             
-            <Link href="/financials/invoices" className="group">
+            <Link href={isPendingVerification ? `/sales/orders/${orderId}` : "/financials/invoices"} className="group">
               <div className="p-6 bg-card border rounded-[2rem] hover:border-primary transition-all hover:shadow-xl hover:-translate-y-1">
                 <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary group-hover:text-white transition-colors">
                   <FileText className="h-6 w-6" />
                 </div>
-                <h3 className="font-black text-lg">Download Invoice</h3>
-                <p className="text-sm text-muted-foreground">A paid invoice has been generated.</p>
+                <h3 className="font-black text-lg">{isPendingVerification ? "Track Verification" : "Download Invoice"}</h3>
+                <p className="text-sm text-muted-foreground">
+                  {isPendingVerification
+                    ? "Admin will verify your payment and confirm service."
+                    : "A paid invoice has been generated."}
+                </p>
               </div>
             </Link>
           </div>

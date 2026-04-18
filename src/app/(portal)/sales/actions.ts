@@ -10,6 +10,7 @@ import {
   getServiceTasks, createServiceTask, updateServiceTask,
   generateOfferNumber, convertOfferToOrder,
   getClients, getProducts,
+  createInvoice, createTransaction, createCustomerPackage, createGiftCard, generateGiftCardNumber, generateGiftCardPin, getTransactionsByClient,
   createEmailTracking,
 } from "@/lib/sharepoint";
 import { sendClientEmail } from "@/lib/powerautomate";
@@ -27,6 +28,103 @@ function canAccessRecord(user: SessionUser, record: { partnerId: string; created
   if (user.role === "admin") return true;
   if (user.role === "partner") return record.createdBy === user.id;
   return user.partnerId === record.partnerId;
+}
+
+function isPendingMarketplacePaymentVerification(notes?: string): boolean {
+  if (!notes) return false;
+  return notes.includes("Payment verification: pending-admin-verification");
+}
+
+function markMarketplacePaymentVerified(notes: string | undefined, adminName: string): string {
+  const baseNotes = notes || "";
+  if (baseNotes.includes("Payment verification: verified")) return baseNotes;
+  return baseNotes.replace(
+    "Payment verification: pending-admin-verification",
+    `Payment verification: verified\nVerified by: ${adminName}\nVerified at: ${new Date().toISOString()}`
+  );
+}
+
+async function confirmMarketplacePaymentAndActivateServices(order: NonNullable<Awaited<ReturnType<typeof getSalesOrderById>>>) {
+  const existingTx = await getTransactionsByClient(order.clientId);
+  if (existingTx.some((tx) => tx.orderId === order.id && tx.type === "payment")) return;
+
+  const now = new Date().toISOString();
+  const referenceMatch = order.notes?.match(/Payment reference:\s*(.+)/i);
+  const paymentReference = referenceMatch?.[1]?.trim() || `Direct-Order-${order.orderNumber}`;
+  const items = await getSalesOrderItems(order.id);
+
+  await createInvoice({
+    partnerId: order.partnerId,
+    clientId: order.clientId,
+    clientName: order.clientName,
+    orderId: order.id,
+    amount: order.totalAmount,
+    status: "paid",
+    dueDate: now,
+    createdAt: now,
+  });
+
+  await createTransaction({
+    clientId: order.clientId,
+    partnerId: order.partnerId,
+    type: "payment",
+    amount: order.totalAmount,
+    reference: paymentReference,
+    orderId: order.id,
+    description: `Marketplace manual payment verified for order ${order.orderNumber}`,
+    date: now,
+  });
+
+  const products = await getProducts();
+  for (const item of items) {
+    const product = products.find((p) => p.id === item.productId);
+    if (product && (product.category === "service" || product.unit === "Package")) {
+      await createCustomerPackage({
+        customerId: order.clientId,
+        customerName: order.clientName || "",
+        partnerId: order.partnerId,
+        servicePackageId: product.id,
+        packageName: product.name,
+        orderId: order.id,
+        totalSessions: product.sessionsCount || 1,
+        completedSessions: 0,
+        totalAmount: item.totalPrice,
+        amountPaid: item.totalPrice,
+        startDate: now,
+        endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+        status: "active",
+        createdAt: now,
+      });
+    }
+
+    if (product && product.category === "Gift Card") {
+      for (let q = 0; q < item.quantity; q++) {
+        await createGiftCard({
+          sccgId: `GC-${order.orderNumber}-${q + 1}`,
+          cardNumber: generateGiftCardNumber(),
+          pinHash: generateGiftCardPin(4),
+          pinAttempts: 0,
+          issuedToUserId: order.clientId,
+          issuedToName: order.clientName || "",
+          issuedToEmail: order.clientEmail || "",
+          issuedByUserId: order.createdBy,
+          issuedBy: order.partnerName || "SCCG",
+          initialBalance: item.unitPrice,
+          currentBalance: item.unitPrice,
+          balance: item.unitPrice,
+          currency: "BDT",
+          tier: "standard",
+          status: "active",
+          designTemplate: "standard",
+          notes: `Purchased via Order ${order.orderNumber}`,
+          activatedAt: now,
+          expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+          issuedAt: now,
+          createdAt: now,
+        });
+      }
+    }
+  }
 }
 
 // ── Sales Offer actions ──
@@ -243,7 +341,18 @@ export async function updateOrderStatusAction(orderId: string, status: "pending"
   if (!order) return { success: false, message: "Order not found" };
   if (!canAccessRecord(user, order)) return { success: false, message: "Forbidden" };
 
-  const updates: Partial<typeof order> = { status };
+  const needsMarketplaceVerification = isPendingMarketplacePaymentVerification(order.notes);
+  if (needsMarketplaceVerification && (status === "in-progress" || status === "completed")) {
+    if (user.role !== "admin") {
+      return { success: false, message: "Only admin can verify this marketplace payment." };
+    }
+    await confirmMarketplacePaymentAndActivateServices(order);
+  }
+
+  const updates: Partial<typeof order> = {
+    status,
+    notes: needsMarketplaceVerification ? markMarketplacePaymentVerified(order.notes, user.name) : order.notes,
+  };
   if (status === "completed") updates.completedAt = new Date().toISOString();
 
   await updateSalesOrder(orderId, updates);

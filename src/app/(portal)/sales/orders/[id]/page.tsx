@@ -36,6 +36,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
   if (user.role !== "admin" && order.createdBy !== user.id) redirect("/sales/orders");
 
   const cfg = statusConfig[order.status] || statusConfig.pending;
+  const requiresPaymentVerification = order.notes?.includes("Payment verification: pending-admin-verification") || false;
 
   return (
     <div className="space-y-6 page-enter">
@@ -56,7 +57,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
             </p>
           </div>
         </div>
-        <OrderActions order={order} />
+        <OrderActions order={order} isAdmin={user.role === "admin"} requiresPaymentVerification={requiresPaymentVerification} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -112,6 +113,11 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
               <CardHeader><CardTitle className="text-sm">Notes</CardTitle></CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground whitespace-pre-wrap">{order.notes}</p>
+                {requiresPaymentVerification && (
+                  <p className="mt-3 text-xs font-semibold text-amber-600">
+                    Waiting for admin payment verification before services are fully confirmed.
+                  </p>
+                )}
               </CardContent>
             </Card>
           )}
