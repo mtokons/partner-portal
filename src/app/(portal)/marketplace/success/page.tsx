@@ -91,7 +91,7 @@ function SuccessContent() {
               </div>
               <div>
                 <p className="font-bold text-sm">Check your inbox</p>
-                <p className="text-xs text-muted-foreground">We've sent a confirmation email to you.</p>
+                <p className="text-xs text-muted-foreground">We have sent a confirmation email to you.</p>
               </div>
             </div>
             <div className="flex gap-2">
@@ -124,7 +124,7 @@ function SuccessContent() {
       </Card>
 
       <div className="text-center">
-        <p className="text-xs text-muted-foreground font-black uppercase tracking-tighter mb-4">You're in good hands</p>
+        <p className="text-xs text-muted-foreground font-black uppercase tracking-tighter mb-4">You are in good hands</p>
         <div className="flex items-center justify-center gap-8 opacity-40 grayscale contrast-125">
            <span className="font-black text-xl italic tracking-tighter">SCCG GLOBAL</span>
            <span className="font-black text-xl italic tracking-tighter">SECURE+</span>
