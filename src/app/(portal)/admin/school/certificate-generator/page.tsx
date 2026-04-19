@@ -260,23 +260,21 @@ export default function CertificateGeneratorPage() {
     ctx.fillStyle = "#bdc3c7";
     ctx.fillText("REGISTRATION NO: HRB 194679 , TAX ID: 4775601448", W/2, contactY + 100);
 
-    // QR Code — centered at bottom, inside border (border ends at H - 120 = 2126)
-    const qrCanvas = qrWrapperRef.current?.querySelector("canvas");
-    if (qrCanvas) {
-      const qrSize = 190;
-      const bottomBorder = H - 120; // inner border bottom edge
-      const qrY = bottomBorder - qrSize - 70;
-      const qrX = W / 2 - qrSize / 2;
+      const qrSize = 240;
+      const innerBorder = 80; // inner border starts at 80px
+      const padding = 24; // px padding from inner border
+      const qrX = innerBorder + padding;
+      const qrY = innerBorder + padding;
       ctx.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize);
 
       ctx.font = "bold 22px sans-serif";
       ctx.fillStyle = "#8e44ad";
-      ctx.textAlign = "center";
-      ctx.fillText("Scan to Verify", W / 2, qrY - 15);
-      
+      ctx.textAlign = "left";
+      ctx.fillText("Scan to Verify", qrX, qrY + qrSize + 28);
+
       ctx.font = "16px sans-serif";
       ctx.fillStyle = "#bdc3c7";
-      ctx.fillText(`https://portal.mysccg.de/verify/${data.certId}`, W/2, qrY + qrSize + 26);
+      ctx.fillText(`https://portal.mysccg.de/verify/${data.certId}`, qrX, qrY + qrSize + 52);
     }
   };
 

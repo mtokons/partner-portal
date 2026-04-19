@@ -165,20 +165,21 @@ export async function generateCertificatePDF(cert: SchoolCertificate) {
   doc.setFont("helvetica", "normal");
   doc.text(`ID: ${cert.certificateNumber}`, width - 25, 260, { align: "right" });
 
-  // ── QR Code — big, centered at bottom inside boundary ──
+  // ── QR Code — positioned top-left inside inner margin ──
   const verificationUrl = `https://portal.mysccg.de/verify/${cert.verificationCode || cert.certificateNumber}`;
   try {
     const qrDataUrl = await generateQRDataUrl(verificationUrl, 400);
     if (qrDataUrl) {
-      const qrSize = 32; // mm (reduced to avoid footer overlap)
-      const qrX = width / 2 - qrSize / 2;
-      const qrY = height - 12 - qrSize - 6; // inside bottom border with padding
+      const qrSize = 32; // mm
+      const innerPadding = 6; // mm from inner border
+      const qrX = 12 + innerPadding; // inner border starts at 12mm
+      const qrY = 12 + innerPadding;
       doc.addImage(qrDataUrl, "PNG", qrX, qrY, qrSize, qrSize);
 
       doc.setTextColor(colorPurple[0], colorPurple[1], colorPurple[2]);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(8);
-      doc.text("Scan to Verify", width / 2, qrY - 2, { align: "center" });
+      doc.text("Scan to Verify", qrX + qrSize / 2, qrY + qrSize + 4, { align: "center" });
     }
   } catch (err) {
     console.error("QR generation failed", err);
