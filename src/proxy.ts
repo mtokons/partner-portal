@@ -8,7 +8,10 @@ export default auth((req: NextAuthRequest) => {
   const role = (req.auth?.user as { role?: string } | undefined)?.role;
 
   const publicPaths = ["/login", "/customer-login", "/expert-login", "/register", "/forgot-password"];
-  const isPublic = publicPaths.some((p) => pathname === p) || pathname.startsWith("/api/auth");
+  const isPublic = 
+    publicPaths.includes(pathname) || 
+    pathname.startsWith("/api/auth") || 
+    pathname.startsWith("/verify");
 
   if (isPublic) {
     if (isLoggedIn) {
