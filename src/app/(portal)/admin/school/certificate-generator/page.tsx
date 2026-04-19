@@ -17,7 +17,7 @@ import { toast } from "sonner";
 const LEVEL_NAMES: Record<string, string> = {
   A1: "Anfänger",
   A2: "Grundstufe / Grundlagen",
-  B1: "Mittelstufe",
+  B1: "Berufssprachkurse Deutsch",
   B2: "Oberstufe",
   C1: "Fortgeschrittener",
   C2: "Mastery / Kompetenz"
@@ -189,10 +189,10 @@ export default function CertificateGeneratorPage() {
 
     ctx.font = "bold 42px Georgia, serif";
     ctx.fillStyle = "#2c3e50";
-    ctx.fillText(`Deutsch als Fremdsprache: Niveau ${data.level}`, W / 2, boxY + boxH/2 - 5);
+    ctx.fillText(`Deutschkurs ${data.level}`, W / 2, boxY + boxH/2 - 5);
     ctx.font = "24px Georgia, serif";
     ctx.fillStyle = "#7f8c8d";
-    ctx.fillText(`(${LEVEL_NAMES[data.level]})`, W / 2, boxY + boxH/2 + 35);
+    ctx.fillText(`${LEVEL_NAMES[data.level]}`, W / 2, boxY + boxH/2 + 35);
 
     // Status Detail
     let statusMsg = "";

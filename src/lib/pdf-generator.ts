@@ -108,9 +108,23 @@ export async function generateCertificatePDF(cert: SchoolCertificate) {
   doc.setFont("helvetica", "bold");
   doc.text(cert.courseName, width / 2, 180, { align: "center", maxWidth: 160 });
   
+  const LEVEL_NAMES: Record<string, string> = {
+    A1: "Anfänger",
+    A2: "Grundstufe / Grundlagen",
+    B1: "Berufssprachkurse Deutsch",
+    B2: "Oberstufe",
+    C1: "Fortgeschrittener",
+    C2: "Mastery / Kompetenz"
+  };
+
   if (cert.courseLevel) {
-    doc.setFontSize(14);
-    doc.text(`Niveau ${cert.courseLevel}`, width / 2, 195, { align: "center" });
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Deutschkurs ${cert.courseLevel}`, width / 2, 195, { align: "center" });
+    
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "normal");
+    doc.text(`${LEVEL_NAMES[cert.courseLevel as keyof typeof LEVEL_NAMES] || ""}`, width / 2, 202, { align: "center" });
   }
 
   // ── Status Line ──
