@@ -1377,6 +1377,7 @@ export interface SchoolCertificate {
   finalGrade?: string;
   examScore?: number;
   issuedDate: string;
+  endDate?: string;
   validUntil?: string;
   issuedBy: string;
   issuedByName: string;
