@@ -898,7 +898,6 @@ export async function registerManualCertificate(data: {
     batchCode: "MANUAL",
     attendancePercentage: 100, // Default for manual
     issuedDate: data.issueDate,
-    endDate: data.endDate,
     issuedBy: user.id,
     issuedByName: user.name,
     status: "issued",

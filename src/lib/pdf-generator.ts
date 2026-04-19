@@ -60,137 +60,141 @@ export async function generateCertificatePDF(cert: SchoolCertificate) {
   const height = doc.internal.pageSize.getHeight(); // 297mm
 
   // ── Colors ──
-  const colorPurple = [155, 89, 182]; // #9b59b6
+  const colorPurple = [134, 49, 134]; // Fuchsia 900 approx #863186
   const colorSlate = [71, 85, 105];   // Slate 600
-  const colorBlack = [17, 17, 17];
-  const colorRed = [224, 48, 48];     // #e03030
+  const colorBlack = [0, 0, 0];
 
-  // ── Watermark lines (Diagonal) ──
+  // ── Background Wave Patterns (Enhanced Geometry) ──
   doc.setDrawColor(colorPurple[0], colorPurple[1], colorPurple[2]);
-  doc.setGState(new (doc as any).GState({ opacity: 0.05 }));
   doc.setLineWidth(0.1);
-  for (let i = -height; i < width + height; i += 8) {
-    doc.line(i, 0, i + height, height);
+  for (let i = 0; i < 20; i++) {
+    const opacity = 0.08 - (i * 0.003);
+    doc.setGState(new (doc as any).GState({ opacity }));
+    doc.ellipse(width + 40, 20, 150 + (i * 35), 200 + (i * 25), "S");
+    doc.ellipse(-40, height - 20, 150 + (i * 35), 200 + (i * 25), "S");
   }
   doc.setGState(new (doc as any).GState({ opacity: 1.0 }));
 
   // ── Double Borders ──
   doc.setDrawColor(colorPurple[0], colorPurple[1], colorPurple[2]);
-  doc.setLineWidth(0.8);
-  doc.rect(10, 10, width - 20, height - 20, "S");
-  
-  doc.setDrawColor(212, 168, 232); // #d4a8e8
-  doc.setLineWidth(0.3);
+  doc.setLineWidth(1.2);
   doc.rect(12, 12, width - 24, height - 24, "S");
+  
+  doc.setLineWidth(0.4);
+  doc.rect(10, 10, width - 20, height - 20, "S");
 
-  // ── Header Title ──
+  // ── Header Text ──
   doc.setTextColor(colorPurple[0], colorPurple[1], colorPurple[2]);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(30);
-  const title = cert.certificateType === "completion" ? "ABSCHLUSSZERTIFIKAT" : "TEILNAHMEBESCHEINIGUNG";
-  doc.text(title, width / 2, 45, { align: "center" });
-
-  doc.setTextColor(187, 187, 187);
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  doc.text("SCCG Career Lab UG — Connecting Talents, Empowering Career", width / 2, 52, { align: "center" });
-
-  // ── Divider ──
-  doc.setDrawColor(232, 213, 245);
-  doc.setLineWidth(0.4);
-  doc.line(30, 60, width - 30, 60);
+  doc.setFontSize(34);
+  const title = "TEILNAHMEBESCHEINIGUNG";
+  doc.text(title, width / 2, 65, { align: "center", charSpace: 1 });
 
   // ── Student Name ──
   doc.setTextColor(colorPurple[0], colorPurple[1], colorPurple[2]);
-  doc.setFontSize(38);
+  doc.setFontSize(40);
   doc.setFont("helvetica", "bold");
-  doc.text(cert.studentName, width / 2, 90, { align: "center" });
+  doc.text(cert.studentName, width / 2, 125, { align: "center" });
 
-  const nameWidth = doc.getTextWidth(cert.studentName);
-  doc.setDrawColor(colorPurple[0], colorPurple[1], colorPurple[2]);
-  doc.setLineWidth(0.5);
-  doc.line(width / 2 - nameWidth / 2, 92, width / 2 + nameWidth / 2, 92);
-
-  // ── Body Text ──
-  doc.setTextColor(68, 68, 68);
+  // ── Main Content ──
+  doc.setTextColor(colorBlack[0], colorBlack[1], colorBlack[2]);
   doc.setFontSize(14);
-  doc.setFont("helvetica", "normal");
-  const certTypePhrase = cert.certificateType === "completion"
-    ? "hat erfolgreich den folgenden Sprachkurs abgeschlossen:"
-    : "nimmt hiermit aktiv an folgendem Sprachkurs teil:";
-  doc.text(certTypePhrase, width / 2, 110, { align: "center" });
-
-  // ── Course Highlight ──
-  doc.setFillColor(248, 240, 255);
-  doc.setDrawColor(212, 168, 232);
-  doc.roundedRect(30, 120, width - 60, 20, 3, 3, "FD");
-
-  doc.setTextColor(51, 51, 51);
-  doc.setFontSize(16);
   doc.setFont("helvetica", "bold");
-  const levelSub = cert.courseLevel ? ` (${cert.courseLevel})` : "";
-  doc.text(`Deutsch als Fremdsprache: Niveau ${cert.courseLevel}${levelSub}`, width / 2, 132, { align: "center" });
+  doc.text("nimmt hiermit aktiv an folgendem Sprachkurs teil:", width / 2, 155, { align: "center" });
 
-  // ── Status ──
-  doc.setTextColor(136, 136, 136);
-  doc.setFontSize(10);
+  // ── Course Name (Highlighted) ──
+  doc.setTextColor(colorBlack[0], colorBlack[1], colorBlack[2]);
+  doc.setFontSize(22);
+  doc.setFont("helvetica", "bold");
+  doc.text(cert.courseName, width / 2, 180, { align: "center", maxWidth: 160 });
+  
+  if (cert.courseLevel) {
+    doc.setFontSize(14);
+    doc.text(`Niveau ${cert.courseLevel}`, width / 2, 195, { align: "center" });
+  }
+
+  // ── Status Line ──
+  doc.setTextColor(colorBlack[0], colorBlack[1], colorBlack[2]);
+  doc.setFontSize(11);
   doc.setFont("helvetica", "italic");
-  let statusText = cert.certificateType === "participation" 
-    ? "Status: Der Kurs ist derzeit fortlaufend."
-    : `Status: Erfolgreich abgeschlossen${cert.endDate ? " am " + cert.endDate : ""}.`;
-  doc.text(statusText, 30, 160);
+  doc.text("Status: Der Kurs ist derzeit fortlaufend.", 35, 220, { align: "left" });
 
-  // ── QR Code (Top Right) ──
+  // ── Footer ──
+  
+  // Left: SCCG Logo (actual image)
+  try {
+    const logoDataUrl = await loadImageAsDataUrl("/images/sccg-logo.png");
+    doc.addImage(logoDataUrl, "PNG", 25, 225, 30, 30);
+  } catch (err) {
+    console.error("Logo load failed", err);
+  }
+
+  doc.setFontSize(10);
+  doc.setTextColor(colorSlate[0], colorSlate[1], colorSlate[2]);
+  const issueDateFormatted = new Date(cert.issuedDate).toLocaleDateString("de-DE", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric"
+  });
+  doc.text(`Issue Date: ${issueDateFormatted}`, 25, 260);
+
+  // Center: Signature & Coordinator
+  try {
+    const sigDataUrl = await loadImageAsDataUrl("/images/signature.png");
+    doc.addImage(sigDataUrl, "PNG", width / 2 - 25, 230, 50, 20);
+  } catch (err) {
+    console.error("Signature load failed", err);
+  }
+
+  doc.setDrawColor(colorBlack[0], colorBlack[1], colorBlack[2]);
+  doc.setLineWidth(0.3);
+  doc.line(width / 2 - 25, 253, width / 2 + 25, 253);
+  
+  doc.setTextColor(colorBlack[0], colorBlack[1], colorBlack[2]);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.text("Kurskoordinator", width / 2, 258, { align: "center" });
+  
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.text("SCCG Career Lab UG (haftungsbeschränkt)", width / 2, 263, { align: "center" });
+
+  // Right: Issue date & Certificate ID
+  doc.setTextColor(colorSlate[0], colorSlate[1], colorSlate[2]);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text(`ID: ${cert.certificateNumber}`, width - 25, 260, { align: "right" });
+
+  // ── QR Code — positioned top-left inside inner margin ──
   const verificationUrl = `https://portal.mysccg.de/verify/${cert.verificationCode || cert.certificateNumber}`;
   try {
-    const qrDataUrl = await generateQRDataUrl(verificationUrl, 300);
+    const qrDataUrl = await generateQRDataUrl(verificationUrl, 400);
     if (qrDataUrl) {
-      const qrSize = 34; // mm
-      const qrX = width - qrSize - 20;
-      const qrY = 25;
+      const qrSize = 32; // mm
+      const innerPadding = 6; // mm from inner border
+      const qrX = width - 12 - qrSize - innerPadding; // top-right corner
+      const qrY = 12 + innerPadding;
       doc.addImage(qrDataUrl, "PNG", qrX, qrY, qrSize, qrSize);
 
       doc.setTextColor(colorPurple[0], colorPurple[1], colorPurple[2]);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(8);
       doc.text("Scan to Verify", qrX + qrSize / 2, qrY + qrSize + 4, { align: "center" });
-      
-      doc.setTextColor(200, 200, 200);
-      doc.setFontSize(6);
-      doc.text(verificationUrl.replace("https://", ""), qrX + qrSize / 2, qrY + qrSize + 8, { align: "center" });
     }
   } catch (err) {
     console.error("QR generation failed", err);
   }
 
-  // ── Branding & Footer ──
-  // Drawn Logo (Simplified)
-  doc.setTextColor(colorRed[0], colorRed[1], colorRed[2]);
-  doc.setFontSize(18);
-  doc.setFont("helvetica", "bold");
-  doc.text("SCCG", 30, 210);
-  doc.setFontSize(8);
-  doc.setTextColor(150, 150, 150);
-  doc.text("Connecting Talents Empowering Career", 30, 216);
-
-  // Coordinator
-  doc.setTextColor(102, 102, 102);
-  doc.setFontSize(10);
-  doc.text("Kurskoordinator", width - 70, 240);
-  doc.text("SCCG Career Lab UG", width - 70, 245);
-  doc.text("(haftungsbeschränkt)", width - 70, 250);
-
-  // Bottom Line
-  doc.setDrawColor(colorPurple[0], colorPurple[1], colorPurple[2]);
-  doc.setLineWidth(0.2);
-  doc.line(30, 270, width - 30, 270);
-
-  doc.setFontSize(9);
-  doc.setTextColor(150, 150, 150);
-  doc.text(`Issue Date: ${cert.issuedDate}`, 30, 280);
-  doc.text(`Certificate: ${cert.certificateNumber}`, width - 30, 280, { align: "right" });
-
   // ── Output ──
-  const fileName = `SCCG_Certificate_${cert.studentName.replace(/\s+/g, "_")}.pdf`;
-  doc.save(fileName);
+  const safeName = cert.studentName.replace(/[^a-z0-9]/gi, "_").toLowerCase();
+  const fileName = `SCCG_Certificate_${safeName}.pdf`;
+  const blob = doc.output("blob");
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
