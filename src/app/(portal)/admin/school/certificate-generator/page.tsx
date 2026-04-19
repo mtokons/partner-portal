@@ -260,21 +260,27 @@ export default function CertificateGeneratorPage() {
     ctx.fillStyle = "#bdc3c7";
     ctx.fillText("REGISTRATION NO: HRB 194679 , TAX ID: 4775601448", W/2, contactY + 100);
 
-      const qrSize = 240;
-      const innerBorder = 80; // inner border starts at 80px
-      const padding = 24; // px padding from inner border
-      const qrX = innerBorder + padding;
-      const qrY = innerBorder + padding;
+    // QR Code — top right corner, inside border
+    const qrCanvas = qrWrapperRef.current?.querySelector("canvas");
+    if (qrCanvas) {
+      const qrSize = 180;
+      const rightBorder = W - 120; // inner border right edge
+      const topBorder = 100; // inner border top edge
+      const qrX = rightBorder - qrSize - 40; // 40px padding from right border
+      const qrY = topBorder + 40; // 40px padding from top border
       ctx.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize);
 
-      ctx.font = "bold 22px sans-serif";
+      ctx.font = "bold 18px sans-serif";
       ctx.fillStyle = "#8e44ad";
-      ctx.textAlign = "left";
-      ctx.fillText("Scan to Verify", qrX, qrY + qrSize + 28);
+      ctx.textAlign = "center";
+      ctx.fillText("Scan to Verify", qrX + qrSize / 2, qrY + qrSize + 25);
 
-      ctx.font = "16px sans-serif";
+      ctx.font = "12px sans-serif";
       ctx.fillStyle = "#bdc3c7";
-      ctx.fillText(`https://portal.mysccg.de/verify/${data.certId}`, qrX, qrY + qrSize + 52);
+      ctx.textAlign = "center";
+      // Wrap the URL in multiple lines for better fit
+      const verifyUrl = `portal.mysccg.de/verify/${data.certId}`;
+      ctx.fillText(verifyUrl, qrX + qrSize / 2, qrY + qrSize + 45);
     }
   };
 

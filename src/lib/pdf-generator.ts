@@ -172,7 +172,7 @@ export async function generateCertificatePDF(cert: SchoolCertificate) {
     if (qrDataUrl) {
       const qrSize = 32; // mm
       const innerPadding = 6; // mm from inner border
-      const qrX = 12 + innerPadding; // inner border starts at 12mm
+      const qrX = width - 12 - qrSize - innerPadding; // top-right corner
       const qrY = 12 + innerPadding;
       doc.addImage(qrDataUrl, "PNG", qrX, qrY, qrSize, qrSize);
 
