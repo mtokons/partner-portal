@@ -123,3 +123,12 @@ export async function getSiteListUrlAsync(listName: string): Promise<string> {
   const siteId = await resolveSiteId();
   return `/sites/${siteId}/lists/${listName}/items`;
 }
+
+/**
+ * Escape a user-controlled string for use inside an OData $filter literal.
+ * OData single-quote literals escape ' as ''. Also strips control chars to
+ * prevent header smuggling / log injection.
+ */
+export function escapeOData(value: string): string {
+  return String(value).replace(/[\x00-\x1f\x7f]/g, "").replace(/'/g, "''");
+}

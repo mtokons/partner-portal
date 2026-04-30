@@ -10,6 +10,7 @@ import {
   getSharePointConnectionInfo
 } from "@/lib/sharepoint";
 import { KanbanTask } from "@/types";
+import { assertAdmin } from "@/lib/admin-guard";
 
 const COLORS = [
   "#3b82f6", // Blue
@@ -32,6 +33,7 @@ function getInitials(name: string) {
 
 export async function fetchTaskBoardDataAction() {
   try {
+    await assertAdmin();
     // 1. Fetch Users from Firebase
     const db = getAdminFirestore();
     const snapshot = await db.collection("users").get();
@@ -67,6 +69,7 @@ export async function fetchTaskBoardDataAction() {
 
 export async function saveTaskAction(taskData: any) {
   try {
+    await assertAdmin();
     let saved;
     if (taskData.id && !taskData.id.startsWith("new-")) {
       saved = await updateKanbanTask(taskData.id, taskData);
@@ -85,6 +88,7 @@ export async function saveTaskAction(taskData: any) {
 
 export async function deleteTaskAction(taskId: string) {
   try {
+    await assertAdmin();
     await deleteKanbanTask(taskId);
     revalidatePath("/admin/tasks");
     return { success: true };
@@ -96,6 +100,7 @@ export async function deleteTaskAction(taskId: string) {
 
 export async function moveTaskAction(taskId: string, newStatus: string) {
   try {
+    await assertAdmin();
     await updateKanbanTask(taskId, { status: newStatus as any });
     revalidatePath("/admin/tasks");
     return { success: true };
@@ -107,6 +112,7 @@ export async function moveTaskAction(taskId: string, newStatus: string) {
 
 export async function refreshTaskBoardAction() {
   try {
+    await assertAdmin();
     revalidatePath("/admin/tasks");
     const connection = await getSharePointConnectionInfo();
     return { success: true, connection };

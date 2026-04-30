@@ -10,9 +10,10 @@ export default async function CustomerSchoolPage() {
   const session = await auth();
   const user = session?.user as SessionUser;
 
+  void user;
   const [enrollments, certificates] = await Promise.all([
     fetchMyEnrollments(),
-    fetchMyCertificates(user.id),
+    fetchMyCertificates(),
   ]);
 
   const activeEnrollments = enrollments.filter((e) => e.status === "enrolled");

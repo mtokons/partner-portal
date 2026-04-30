@@ -532,6 +532,13 @@ export async function enterExamResult(data: {
 }) {
   const user = await requirePermission("school.results.enter");
 
+  if (!Number.isFinite(data.maxScore) || data.maxScore <= 0) {
+    throw new Error("maxScore must be a positive number");
+  }
+  if (!Number.isFinite(data.obtainedScore) || data.obtainedScore < 0 || data.obtainedScore > data.maxScore) {
+    throw new Error("obtainedScore must be between 0 and maxScore");
+  }
+
   const percentage = Math.round((data.obtainedScore / data.maxScore) * 100);
   const isPassed = percentage >= 40;
 
@@ -673,6 +680,40 @@ export async function issueCertificate(data: {
 }) {
   const user = await requirePermission("school.certificate.issue");
 
+  // Server-side eligibility recompute. Never trust client-supplied attendance/score.
+  if (!data.studentSccgId || data.studentSccgId.trim().length < 3) {
+    throw new Error("Invalid studentSccgId");
+  }
+  if (!data.courseLevel || data.courseLevel.trim().length === 0) {
+    throw new Error("Missing courseLevel");
+  }
+  const allAttendance = await getSchoolAttendance(data.batchId);
+  const totalSessions = [...new Set(allAttendance.map((a) => a.sessionNumber))].length;
+  const studentAttendance = allAttendance.filter((a) => a.studentUserId === data.studentUserId);
+  const presentCount = studentAttendance.filter((a) => a.status === "present" || a.status === "late").length;
+  const attendancePercent = totalSessions > 0 ? Math.round((presentCount / totalSessions) * 100) : 0;
+  if (attendancePercent < 75) {
+    throw new Error(`Not eligible: attendance ${attendancePercent}% is below 75% threshold`);
+  }
+  const publishedResults = await getSchoolExamResults({
+    batchId: data.batchId,
+    studentUserId: data.studentUserId,
+    status: "published",
+  });
+  const finalResult = publishedResults.find((r) => r.examType === "final");
+  if (data.certificateType === "completion") {
+    if (!finalResult) {
+      throw new Error("Not eligible: no published final exam result");
+    }
+    if (!finalResult.isPassed) {
+      throw new Error("Not eligible: student did not pass the final exam");
+    }
+  }
+  // Override caller-supplied numbers with authoritative recomputed values.
+  const authoritativeAttendance = attendancePercent;
+  const authoritativeGrade = finalResult?.grade ?? data.finalGrade;
+  const authoritativeExamScore = finalResult?.percentage ?? data.examScore;
+
   const cert = await createSchoolCertificate({
     certificateType: data.certificateType,
     studentUserId: data.studentUserId,
@@ -684,9 +725,9 @@ export async function issueCertificate(data: {
     courseLevel: data.courseLevel as import("@/types").CourseLevel,
     batchId: data.batchId,
     batchCode: data.batchCode,
-    attendancePercentage: data.attendancePercentage,
-    finalGrade: data.finalGrade,
-    examScore: data.examScore,
+    attendancePercentage: authoritativeAttendance,
+    finalGrade: authoritativeGrade,
+    examScore: authoritativeExamScore,
     issuedDate: new Date().toISOString().split("T")[0],
     issuedBy: user.id,
     issuedByName: user.name,
@@ -726,6 +767,23 @@ export async function issueCertificate(data: {
 
   // Mirror to SharePoint
   await mirrorCertificateToSharePoint(cert, studentEmail);
+
+  // Notify the student in real time.
+  try {
+    const { createNotification } = await import("@/lib/sharepoint");
+    await createNotification({
+      userId: data.studentUserId,
+      userType: "customer",
+      type: "general",
+      title: "Certificate issued",
+      message: `Your certificate ${cert.certificateNumber} for ${data.courseName} is ready.`,
+      read: false,
+      relatedId: cert.id,
+      createdAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error("certificate notification failed:", err);
+  }
 
   await writeAuditLog({
     action: "certificate.issued",

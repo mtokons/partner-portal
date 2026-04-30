@@ -16,6 +16,7 @@ const navLinks = [
   { href: "/customer/payments", label: "Payments", icon: CreditCard },
   { href: "/customer/invoices", label: "Invoices", icon: FileText },
   { href: "/customer/notifications", label: "Notifications", icon: Bell },
+  { href: "/customer/career", label: "Career Suggestions", icon: Sparkles },
   { href: "/marketplace", label: "Marketplace", icon: Package },
   { href: "/wallets", label: "SCCG Wallet", icon: CreditCard },
   { href: "/profile", label: "My Profile", icon: FileText },

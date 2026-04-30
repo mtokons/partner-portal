@@ -121,22 +121,22 @@ export default async function ExpertDashboardPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-gray-500">Active Packages</CardTitle></CardHeader>
+        <Link href="/expert/teaching" className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-lg">
+        <Card className="hover:shadow-md transition-shadow"><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-gray-500">Active Packages</CardTitle></CardHeader>
           <CardContent><p className="text-2xl font-bold text-indigo-700">{myPackages.length}</p></CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-gray-500">Sessions Completed</CardTitle></CardHeader>
+        </Card></Link>
+        <Link href="/expert/sessions?status=completed" className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-lg">
+        <Card className="hover:shadow-md transition-shadow"><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-gray-500">Sessions Completed</CardTitle></CardHeader>
           <CardContent><p className="text-2xl font-bold text-green-700">{completed}</p></CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-gray-500">Upcoming Sessions</CardTitle></CardHeader>
+        </Card></Link>
+        <Link href="/expert/sessions?status=scheduled" className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-lg">
+        <Card className="hover:shadow-md transition-shadow"><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-gray-500">Upcoming Sessions</CardTitle></CardHeader>
           <CardContent><p className="text-2xl font-bold text-blue-700">{scheduled}</p></CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-gray-500">Total Earned</CardTitle></CardHeader>
+        </Card></Link>
+        <Link href="/expert/payments" className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-lg">
+        <Card className="hover:shadow-md transition-shadow"><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-gray-500">Total Earned</CardTitle></CardHeader>
           <CardContent><p className="text-2xl font-bold text-gray-900">{fmt(totalEarned, rate)}</p></CardContent>
-        </Card>
+        </Card></Link>
       </div>
 
       {/* Earnings Summary */}

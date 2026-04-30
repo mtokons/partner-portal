@@ -28,39 +28,33 @@ import {
 const isProduction = process.env.VERCEL_ENV === "production" || process.env.NODE_ENV === "production";
 const mockExplicitlyRequested = process.env.USE_MOCK_DATA === "true";
 
-// Default behavior: prefer live in production, prefer mock locally 
-// unless USE_MOCK_DATA is explicitly set.
-const useMock = mockExplicitlyRequested || (!isProduction && process.env.USE_MOCK_DATA !== "false");
+// Default behavior: ALWAYS prefer live SharePoint. Mock data is only used when
+// the operator opts in with USE_MOCK_DATA=true. This prevents stale demo data
+// leaking into dashboards, quotation, marketplace, etc.
+const useMock = mockExplicitlyRequested;
+void isProduction;
 
 /**
  * Executes a SharePoint fetch operation with a safe fallback to mock data.
  * Prevents Server Component crashes if MS Graph API is unconfigured or failing.
  */
 async function runSafe<T>(liveFn: () => Promise<T>, fallbackFn: () => T | Promise<T>): Promise<T> {
-  // If we are explicitly in mock mode, return mock data immediately
+  // Mock mode: return mock immediately.
   if (useMock) return await fallbackFn();
 
   try {
     return await liveFn();
   } catch (err: any) {
-    // Log the error for debugging (server-side only)
-    console.error("SharePoint connection failed:", err.message || err);
+    console.error("SharePoint connection failed:", err?.message || err);
 
-    // Fallback conditions:
-    // 1. Config is missing (auth variables not set)
-    // 2. Network/Auth error AND mock data is allowed/requested
-    const isConfigMissing = err.message === "MICROSOFT_GRAPH_CONFIG_MISSING";
-    
-    if (isConfigMissing || mockExplicitlyRequested || !isProduction) {
-      console.warn("Falling back to local mock data to prevent server crash.");
+    // Only fall back to mock if Graph credentials are missing (no live data possible).
+    // For all other errors, return an empty result so dashboards don't display stale demo data.
+    const isConfigMissing = err?.message === "MICROSOFT_GRAPH_CONFIG_MISSING";
+    if (isConfigMissing) {
+      console.warn("Graph config missing \u2014 falling back to mock data.");
       return await fallbackFn();
     }
-
-    // In production, if it's a real error and we haven't opted into mocks, 
-    // we still throw to ensure data integrity, though ideally, we'd have a 
-    // global error boundary or safe empty state.
-    // However, return empty array/null instead of crashing if it's a getter.
-    return [] as unknown as T; 
+    return [] as unknown as T;
   }
 }
 
@@ -345,7 +339,9 @@ declare global {
 const stores: MockStores = globalThis.mockDataStores || (globalThis.mockDataStores = getInitialStores());
 
 function genId(prefix: string): string {
-  return `${prefix}${Date.now().toString(36)}`;
+  // Date.now() (ms) + 6 random chars: collision-resistant for high-frequency creates
+  const rand = Math.random().toString(36).slice(2, 8).padStart(6, "0");
+  return `${prefix}${Date.now().toString(36)}${rand}`;
 }
 
 // ============================================================
@@ -704,6 +700,38 @@ export async function createInstallmentPlan(orderId: string, clientId: string, c
       stores.installments.push(inst);
     }
   }
+
+  // Persist to live SharePoint when not in mock mode
+  if (!useMock) {
+    try {
+      const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
+      const url = await getSiteListUrlAsync("Installments");
+      for (const inst of installments) {
+        try {
+          await graphPost(url, {
+            fields: {
+              OrderId: inst.orderId,
+              ClientId: inst.clientId,
+              ClientName: inst.clientName,
+              PartnerId: inst.partnerId,
+              InstallmentNumber: inst.installmentNumber,
+              TotalInstallments: inst.totalInstallments,
+              Amount: inst.amount,
+              AmountEUR: inst.amountEur ?? null,
+              ConversionRate: inst.conversionRate ?? null,
+              DueDate: inst.dueDate,
+              Status: inst.status,
+            },
+          });
+        } catch (e) {
+          console.error(`Failed to persist installment #${inst.installmentNumber} for order ${orderId}:`, (e as Error).message);
+        }
+      }
+    } catch (e) {
+      console.error("Installment persistence failed (Graph unreachable):", (e as Error).message);
+    }
+  }
+
   return installments;
 }
 
@@ -1113,22 +1141,128 @@ export async function markExpertPaymentPaid(id: string): Promise<void> {
 // ============================================================
 // Notifications
 // ============================================================
+function mapNotif(itemId: string, f: Record<string, unknown>): AppNotification {
+  return {
+    id: String(f.Id || itemId),
+    userId: String(f.UserId || ""),
+    userType: (String(f.UserType || "customer")) as AppNotification["userType"],
+    type: String(f.Type || "info") as AppNotification["type"],
+    title: String(f.Title || ""),
+    message: String(f.Message || ""),
+    read: Boolean(f.Read),
+    relatedId: f.RelatedId ? String(f.RelatedId) : undefined,
+    createdAt: String(f.CreatedAt || new Date().toISOString()),
+  };
+}
+
 export async function getNotifications(userId: string): Promise<AppNotification[]> {
   if (useMock) return stores.notifications.filter((n) => n.userId === userId).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  return [];
+  try {
+    const { graphGet, getSiteListUrlAsync, escapeOData } = await import("@/lib/graph");
+    const url = `${await getSiteListUrlAsync("AppNotifications")}?$expand=fields&$filter=fields/UserId eq '${escapeOData(userId)}'&$orderby=fields/CreatedAt desc&$top=200`;
+    const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, unknown> }> }>(url);
+    return res.value.map((it) => mapNotif(it.id, it.fields));
+  } catch (err) {
+    console.error("getNotifications failed:", err);
+    return [];
+  }
+}
+
+export async function getNotificationById(id: string): Promise<AppNotification | null> {
+  if (useMock) return stores.notifications.find((n) => n.id === id) || null;
+  try {
+    const { graphGet, getSiteListUrlAsync, escapeOData } = await import("@/lib/graph");
+    const listUrl = await getSiteListUrlAsync("AppNotifications");
+    const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, unknown> }> }>(
+      `${listUrl}?$expand=fields&$filter=fields/Id eq '${escapeOData(id)}'&$top=1`
+    );
+    const it = res.value[0];
+    return it ? mapNotif(it.id, it.fields) : null;
+  } catch (err) {
+    console.error("getNotificationById failed:", err);
+    return null;
+  }
+}
+
+async function findNotifSpItemId(notifId: string): Promise<{ listUrl: string; spItemId: string | null }> {
+  const { graphGet, getSiteListUrlAsync, escapeOData } = await import("@/lib/graph");
+  const listUrl = await getSiteListUrlAsync("AppNotifications");
+  const res = await graphGet<{ value: Array<{ id: string }> }>(
+    `${listUrl}?$expand=fields&$filter=fields/Id eq '${escapeOData(notifId)}'&$top=1`
+  );
+  return { listUrl, spItemId: res.value[0]?.id ?? null };
 }
 
 export async function markNotificationRead(id: string): Promise<void> {
-  if (useMock) { const n = stores.notifications.find((x) => x.id === id); if (n) n.read = true; }
+  if (useMock) {
+    const n = stores.notifications.find((x) => x.id === id);
+    if (n) n.read = true;
+    return;
+  }
+  try {
+    const { graphPatch } = await import("@/lib/graph");
+    const { listUrl, spItemId } = await findNotifSpItemId(id);
+    if (!spItemId) return;
+    await graphPatch(`${listUrl}/items/${spItemId}/fields`, { Read: true });
+  } catch (err) {
+    console.error("markNotificationRead failed:", err);
+  }
 }
 
 export async function markAllNotificationsRead(userId: string): Promise<void> {
-  if (useMock) { stores.notifications.filter((n) => n.userId === userId).forEach((n) => { n.read = true; }); }
+  if (useMock) {
+    stores.notifications.filter((n) => n.userId === userId).forEach((n) => { n.read = true; });
+    return;
+  }
+  try {
+    const { graphGet, graphPatch, getSiteListUrlAsync, escapeOData } = await import("@/lib/graph");
+    const listUrl = await getSiteListUrlAsync("AppNotifications");
+    const res = await graphGet<{ value: Array<{ id: string }> }>(
+      `${listUrl}?$expand=fields&$filter=fields/UserId eq '${escapeOData(userId)}' and fields/Read eq false&$top=200`
+    );
+    for (const it of res.value) {
+      try {
+        await graphPatch(`${listUrl}/items/${it.id}/fields`, { Read: true });
+      } catch (err) {
+        console.error("markAllNotificationsRead patch failed:", err);
+      }
+    }
+  } catch (err) {
+    console.error("markAllNotificationsRead failed:", err);
+  }
 }
 
 export async function createNotification(notification: Omit<AppNotification, "id">): Promise<AppNotification> {
   const newNotif = { ...notification, id: genId("notif") } as AppNotification;
-  if (useMock) { stores.notifications.unshift(newNotif); }
+  if (useMock) {
+    stores.notifications.unshift(newNotif);
+  } else {
+    try {
+      const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
+      await graphPost<{ id: string }>(await getSiteListUrlAsync("AppNotifications"), {
+        fields: {
+          Id: newNotif.id,
+          UserId: newNotif.userId,
+          UserType: newNotif.userType,
+          Type: newNotif.type,
+          Title: newNotif.title,
+          Message: newNotif.message,
+          Read: newNotif.read,
+          RelatedId: newNotif.relatedId,
+          CreatedAt: newNotif.createdAt,
+        },
+      });
+    } catch (err) {
+      console.error("createNotification live write failed:", err);
+    }
+  }
+  // Publish to in-process SSE bus.
+  try {
+    const { publish } = await import("@/lib/notifications-bus");
+    publish(newNotif);
+  } catch {
+    // ignore
+  }
   return newNotif;
 }
 
@@ -1614,7 +1748,9 @@ export async function updateServiceTask(id: string, data: Partial<ServiceTask>):
  * Convert an accepted Sales Offer into a Sales Order.
  * - Creates a new SalesOrder with a unique order number.
  * - Copies all SalesOfferItems to SalesOrderItems.
+ * - Copies promo/commission/coin/giftcard fields from offer.
  * - Updates the SalesOffer with the new salesOrderId.
+ * - On any failure after order creation, attempts compensating delete.
  */
 export async function convertOfferToOrder(offerId: string): Promise<SalesOrder> {
   const offer = await getSalesOfferById(offerId);
@@ -1640,23 +1776,76 @@ export async function convertOfferToOrder(offerId: string): Promise<SalesOrder> 
     createdBy: offer.createdBy,
     createdAt: now,
     updatedAt: now,
+    // Copy commission/promo/coin fields so commission engine can settle later
+    promoCodeId: offer.promoCodeId,
+    promoCodeValue: offer.promoCodeValue,
+    promoDiscountAmount: offer.promoDiscountAmount,
+    attributedPartnerId: offer.attributedPartnerId,
+    attributedPartnerType: offer.attributedPartnerType,
+    commissionRuleId: offer.commissionRuleId,
+    commissionPercent: offer.commissionPercent,
+    commissionAmount: offer.commissionAmount,
+    commissionStatus: offer.commissionAmount ? "pending" : undefined,
+    sccgCoinUsed: offer.sccgCoinUsed,
+    giftCardId: offer.giftCardId,
+    giftCardAmountUsed: offer.giftCardAmountUsed,
   });
 
-  // Copy items
-  const offerItems = await getSalesOfferItems(offerId);
-  for (const item of offerItems) {
-    await createSalesOrderItem({
-      salesOrderId: newOrder.id,
-      productId: item.productId,
-      productName: item.productName,
-      quantity: item.quantity,
-      unitPrice: item.unitPrice,
-      totalPrice: item.totalPrice,
-    });
+  // Copy items — best-effort; if any fail, attempt rollback of the order.
+  try {
+    const offerItems = await getSalesOfferItems(offerId);
+    for (const item of offerItems) {
+      await createSalesOrderItem({
+        salesOrderId: newOrder.id,
+        productId: item.productId,
+        productName: item.productName,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        totalPrice: item.totalPrice,
+      });
+    }
+  } catch (e) {
+    // Compensating delete to keep state consistent
+    try {
+      if (!useMock) {
+        const { graphDelete, getSiteListUrlAsync } = await import("@/lib/graph");
+        await graphDelete(`${await getSiteListUrlAsync("SalesOrders")}('${newOrder.id}')`);
+      } else {
+        const idx = stores.salesOrders.findIndex((o) => o.id === newOrder.id);
+        if (idx !== -1) stores.salesOrders.splice(idx, 1);
+      }
+    } catch (rollbackErr) {
+      console.error("Order rollback failed:", (rollbackErr as Error).message);
+    }
+    throw new Error(`Failed to copy offer items: ${(e as Error).message}`);
   }
 
   // Update offer with order reference
   await updateSalesOffer(offerId, { salesOrderId: newOrder.id });
+
+  // Run commission engine: build pending Referral + Payout records.
+  // Failures here are logged but do not block order creation.
+  try {
+    const { buildPayoutRecords, buildReferralRecord } = await import("@/lib/payouts");
+    const referralRec = buildReferralRecord(offer);
+    if (referralRec) {
+      try {
+        await createReferral({ ...referralRec, salesOrderId: newOrder.id });
+      } catch (err) {
+        console.error("createReferral failed (non-fatal):", err);
+      }
+    }
+    const payouts = buildPayoutRecords(newOrder, offer, false);
+    for (const p of payouts) {
+      try {
+        await createPayout(p);
+      } catch (err) {
+        console.error("createPayout failed (non-fatal):", err);
+      }
+    }
+  } catch (err) {
+    console.error("Commission engine failed (non-fatal):", err);
+  }
 
   return newOrder;
 }
@@ -1895,25 +2084,90 @@ export async function createEmailTracking(data: Omit<EmailTracking, "id">): Prom
     stores.emailTracking.push(entry);
     return entry;
   }
-  // In production, create in SharePoint list "EmailTracking"
+  try {
+    const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
+    const res = await graphPost<{ id: string }>(await getSiteListUrlAsync("EmailTracking"), {
+      fields: {
+        SalesOfferId: entry.salesOfferId,
+        OfferNumber: entry.offerNumber,
+        RecipientEmail: entry.recipientEmail,
+        RecipientName: entry.recipientName,
+        SenderName: entry.senderName,
+        Subject: entry.subject,
+        Status: entry.status,
+        SentAt: entry.sentAt,
+        OpenedAt: entry.openedAt,
+        AcceptToken: entry.acceptToken,
+        CreatedAt: entry.createdAt,
+      },
+    });
+    if (res?.id) entry.id = String(res.id);
+  } catch (e) {
+    console.error("createEmailTracking failed:", (e as Error).message);
+  }
   return entry;
 }
 
 export async function getEmailTrackingByOffer(salesOfferId: string): Promise<EmailTracking[]> {
   if (useMock) return stores.emailTracking.filter((e) => e.salesOfferId === salesOfferId);
-  return [];
+  try {
+    const { graphGetSafe, getSiteListUrlAsync, escapeOData } = await import("@/lib/graph");
+    const url = `${await getSiteListUrlAsync("EmailTracking")}?$expand=fields&$filter=fields/SalesOfferId eq '${escapeOData(salesOfferId)}'`;
+    const res = await graphGetSafe<{ value: Array<{ id: string; fields: Record<string, unknown> }> }>(url);
+    if (!res?.value) return [];
+    return res.value.map((it) => mapEmailTracking(it.id, it.fields));
+  } catch {
+    return [];
+  }
 }
 
 export async function getEmailTrackingByToken(acceptToken: string): Promise<EmailTracking | null> {
   if (useMock) return stores.emailTracking.find((e) => e.acceptToken === acceptToken) || null;
-  return null;
+  try {
+    const { graphGetSafe, getSiteListUrlAsync, escapeOData } = await import("@/lib/graph");
+    const url = `${await getSiteListUrlAsync("EmailTracking")}?$expand=fields&$filter=fields/AcceptToken eq '${escapeOData(acceptToken)}'&$top=1`;
+    const res = await graphGetSafe<{ value: Array<{ id: string; fields: Record<string, unknown> }> }>(url);
+    if (!res?.value?.length) return null;
+    return mapEmailTracking(res.value[0].id, res.value[0].fields);
+  } catch {
+    return null;
+  }
 }
 
 export async function updateEmailTracking(id: string, data: Partial<EmailTracking>): Promise<void> {
   if (useMock) {
     const entry = stores.emailTracking.find((e) => e.id === id);
     if (entry) Object.assign(entry, data);
+    return;
   }
+  try {
+    const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
+    const fields: Record<string, unknown> = {};
+    if (data.status) fields.Status = data.status;
+    if (data.openedAt) fields.OpenedAt = data.openedAt;
+    if (data.sentAt) fields.SentAt = data.sentAt;
+    if (Object.keys(fields).length === 0) return;
+    await graphPatch(`${await getSiteListUrlAsync("EmailTracking")}('${id}')/fields`, fields);
+  } catch (e) {
+    console.error("updateEmailTracking failed:", (e as Error).message);
+  }
+}
+
+function mapEmailTracking(id: string, f: Record<string, unknown>): EmailTracking {
+  return {
+    id: String(id),
+    salesOfferId: f.SalesOfferId ? String(f.SalesOfferId) : undefined,
+    offerNumber: f.OfferNumber ? String(f.OfferNumber) : undefined,
+    recipientEmail: String(f.RecipientEmail || ""),
+    recipientName: f.RecipientName ? String(f.RecipientName) : undefined,
+    senderName: f.SenderName ? String(f.SenderName) : undefined,
+    subject: String(f.Subject || ""),
+    status: String(f.Status || "queued") as EmailTracking["status"],
+    sentAt: String(f.SentAt || ""),
+    openedAt: f.OpenedAt ? String(f.OpenedAt) : undefined,
+    acceptToken: f.AcceptToken ? String(f.AcceptToken) : undefined,
+    createdAt: String(f.CreatedAt || f.SentAt || new Date().toISOString()),
+  };
 }
 
 // ============================================================
@@ -1926,12 +2180,48 @@ export async function createOfferAcceptanceLog(data: Omit<OfferAcceptanceLog, "i
     stores.offerAcceptanceLogs.push(entry);
     return entry;
   }
+  try {
+    const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
+    const res = await graphPost<{ id: string }>(await getSiteListUrlAsync("OfferAcceptanceLog"), {
+      fields: {
+        SalesOfferId: entry.salesOfferId,
+        OfferNumber: entry.offerNumber,
+        AcceptToken: entry.acceptToken,
+        ClientEmail: entry.clientEmail,
+        Action: entry.action,
+        IpAddress: entry.ipAddress,
+        UserAgent: entry.userAgent,
+        Timestamp: entry.timestamp,
+      },
+    });
+    if (res?.id) entry.id = String(res.id);
+  } catch (e) {
+    console.error("createOfferAcceptanceLog failed:", (e as Error).message);
+  }
   return entry;
 }
 
 export async function getOfferAcceptanceLogs(salesOfferId: string): Promise<OfferAcceptanceLog[]> {
   if (useMock) return stores.offerAcceptanceLogs.filter((l) => l.salesOfferId === salesOfferId);
-  return [];
+  try {
+    const { graphGetSafe, getSiteListUrlAsync, escapeOData } = await import("@/lib/graph");
+    const url = `${await getSiteListUrlAsync("OfferAcceptanceLog")}?$expand=fields&$filter=fields/SalesOfferId eq '${escapeOData(salesOfferId)}'`;
+    const res = await graphGetSafe<{ value: Array<{ id: string; fields: Record<string, unknown> }> }>(url);
+    if (!res?.value) return [];
+    return res.value.map((it) => ({
+      id: String(it.id),
+      salesOfferId: String(it.fields.SalesOfferId || ""),
+      offerNumber: String(it.fields.OfferNumber || ""),
+      acceptToken: String(it.fields.AcceptToken || ""),
+      clientEmail: String(it.fields.ClientEmail || ""),
+      action: String(it.fields.Action || "viewed") as OfferAcceptanceLog["action"],
+      ipAddress: it.fields.IpAddress ? String(it.fields.IpAddress) : undefined,
+      userAgent: it.fields.UserAgent ? String(it.fields.UserAgent) : undefined,
+      timestamp: String(it.fields.Timestamp || new Date().toISOString()),
+    }));
+  } catch {
+    return [];
+  }
 }
 
 // ============================================================
@@ -2057,15 +2347,16 @@ export async function getCommissionBalance(recipientId: string): Promise<number>
 
 export async function getCoinWallet(userId: string): Promise<CoinWallet | null> {
   if (useMock) return stores.coinWallets.find((w) => w.userId === userId) || null;
-  
-  const { graphGetSafe, getSiteListUrlAsync } = await import("@/lib/graph");
-  const url = `${await getSiteListUrlAsync("CoinWallets")}?$filter=fields/UserId eq '${userId}'&$expand=fields`;
-  const res = await graphGetSafe<{ value: Array<{ fields: Record<string, any> }> }>(url);
-  
+
+  const { graphGetSafe, getSiteListUrlAsync, escapeOData } = await import("@/lib/graph");
+  const url = `${await getSiteListUrlAsync("CoinWallets")}?$filter=fields/UserId eq '${escapeOData(userId)}'&$expand=fields&$top=1`;
+  const res = await graphGetSafe<{ value: Array<{ id: string; fields: Record<string, any> }> }>(url);
+
   if (!res || !res.value || res.value.length === 0) return null;
-  const f = res.value[0].fields;
+  const item = res.value[0];
+  const f = item.fields;
   return {
-    id: f.id,
+    id: String(f.Id || item.id),
     userId: f.UserId,
     userName: String(f.UserName || ""),
     balance: Number(f.Balance || 0),
@@ -2079,12 +2370,54 @@ export async function getCoinWallet(userId: string): Promise<CoinWallet | null> 
 
 export async function getAllCoinWallets(): Promise<CoinWallet[]> {
   if (useMock) return stores.coinWallets;
-  return [];
+  try {
+    const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
+    const url = `${await getSiteListUrlAsync("CoinWallets")}?$expand=fields&$top=500`;
+    const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, any> }> }>(url);
+    return res.value.map((item) => {
+      const f = item.fields;
+      return {
+        id: String(f.Id || item.id),
+        userId: f.UserId,
+        userName: String(f.UserName || ""),
+        balance: Number(f.Balance || 0),
+        totalEarned: Number(f.TotalEarned || 0),
+        totalSpent: Number(f.TotalSpent || 0),
+        status: (f.Status as CoinWallet["status"]) || "active",
+        createdAt: String(f.CreatedAt || new Date().toISOString()),
+        updatedAt: String(f.UpdatedAt || f.LastUpdated || new Date().toISOString()),
+      } as CoinWallet;
+    });
+  } catch (err) {
+    console.error("getAllCoinWallets failed:", err);
+    return [];
+  }
 }
 
 export async function createCoinWallet(data: Omit<CoinWallet, "id">): Promise<CoinWallet> {
   const item = { ...data, id: genId("w") } as CoinWallet;
-  if (useMock) stores.coinWallets.push(item);
+  if (useMock) {
+    stores.coinWallets.push(item);
+    return item;
+  }
+  try {
+    const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
+    await graphPost<any>(await getSiteListUrlAsync("CoinWallets"), {
+      fields: {
+        Id: item.id,
+        UserId: item.userId,
+        UserName: item.userName,
+        Balance: item.balance,
+        TotalEarned: item.totalEarned,
+        TotalSpent: item.totalSpent,
+        Status: item.status,
+        CreatedAt: item.createdAt,
+        UpdatedAt: item.updatedAt,
+      },
+    });
+  } catch (err) {
+    console.error("createCoinWallet live write failed:", err);
+  }
   return item;
 }
 
@@ -2092,6 +2425,25 @@ export async function updateCoinWallet(userId: string, data: Partial<CoinWallet>
   if (useMock) {
     const w = stores.coinWallets.find((x) => x.userId === userId);
     if (w) Object.assign(w, data, { updatedAt: new Date().toISOString() });
+    return;
+  }
+  try {
+    const { graphGet, graphPatch, getSiteListUrlAsync, escapeOData } = await import("@/lib/graph");
+    const listUrl = await getSiteListUrlAsync("CoinWallets");
+    const lookup = await graphGet<{ value: Array<{ id: string }> }>(
+      `${listUrl}?$expand=fields&$filter=fields/UserId eq '${escapeOData(userId)}'&$top=1`
+    );
+    const spItemId = lookup.value[0]?.id;
+    if (!spItemId) return;
+    const fields: Record<string, unknown> = { UpdatedAt: new Date().toISOString() };
+    if (data.balance !== undefined) fields.Balance = data.balance;
+    if (data.totalEarned !== undefined) fields.TotalEarned = data.totalEarned;
+    if (data.totalSpent !== undefined) fields.TotalSpent = data.totalSpent;
+    if (data.status !== undefined) fields.Status = data.status;
+    if (data.userName !== undefined) fields.UserName = data.userName;
+    await graphPatch(`${listUrl}/items/${spItemId}/fields`, fields);
+  } catch (err) {
+    console.error("updateCoinWallet live write failed:", err);
   }
 }
 
@@ -2127,6 +2479,29 @@ export async function createCoinTransaction(data: Omit<CoinTransaction, "id">): 
       CreatedBy: data.createdBy,
     }
   });
+  // Best-effort wallet balance update (live).
+  try {
+    const wallet = await getCoinWallet(data.userId);
+    if (wallet) {
+      const newBalance = wallet.balance + data.amount;
+      const totalEarned = data.amount > 0 ? wallet.totalEarned + data.amount : wallet.totalEarned;
+      const totalSpent = data.amount < 0 ? wallet.totalSpent + Math.abs(data.amount) : wallet.totalSpent;
+      await updateCoinWallet(data.userId, { balance: newBalance, totalEarned, totalSpent });
+    } else {
+      await createCoinWallet({
+        userId: data.userId,
+        userName: "",
+        balance: data.amount,
+        totalEarned: data.amount > 0 ? data.amount : 0,
+        totalSpent: data.amount < 0 ? Math.abs(data.amount) : 0,
+        status: "active",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+    }
+  } catch (err) {
+    console.error("createCoinTransaction wallet balance update failed:", err);
+  }
   return { ...data, id: res.id } as CoinTransaction;
 }
 
@@ -2220,6 +2595,29 @@ export async function updateGiftCard(id: string, data: Partial<SccgCard>): Promi
   if (useMock) {
     const g = (stores.giftCards as SccgCard[]).find((x) => x.id === id);
     if (g) Object.assign(g, data);
+    return;
+  }
+  try {
+    const { graphGet, graphPatch, getSiteListUrlAsync, escapeOData } = await import("@/lib/graph");
+    const listUrl = await getSiteListUrlAsync("GiftCards");
+    // Look up the SP item by stored Id field (genId).
+    const lookup = await graphGet<{ value: Array<{ id: string }> }>(
+      `${listUrl}?$expand=fields&$filter=fields/Id eq '${escapeOData(id)}'&$top=1`
+    );
+    const spItemId = lookup.value[0]?.id;
+    if (!spItemId) return;
+    const fields: Record<string, unknown> = {};
+    if (data.status !== undefined) fields.Status = data.status;
+    if (data.currentBalance !== undefined) fields.CurrentBalance = data.currentBalance;
+    if (data.balance !== undefined) fields.Balance = data.balance;
+    if (data.pinHash !== undefined) fields.PinHash = data.pinHash;
+    if (data.pinAttempts !== undefined) fields.PinAttempts = data.pinAttempts;
+    if (data.lastUsedAt !== undefined) fields.LastUsedAt = data.lastUsedAt;
+    if (data.notes !== undefined) fields.Notes = data.notes;
+    if (Object.keys(fields).length === 0) return;
+    await graphPatch(`${listUrl}/items/${spItemId}/fields`, fields);
+  } catch (err) {
+    console.error("updateGiftCard live write failed:", err);
   }
 }
 
@@ -2788,20 +3186,20 @@ export async function getSharePointCertificates(): Promise<SchoolCertificate[]> 
 
 /**
  * Search for a certificate by verification code or certificate number in SharePoint.
+ * Inputs are escaped for OData. Caller-supplied values must already be format-validated.
  */
 export async function findSharePointCertificate(codeOrNumber: string): Promise<SchoolCertificate | null> {
   return runSafe(
     async () => {
-      const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
+      const { graphGet, getSiteListUrlAsync, escapeOData } = await import("@/lib/graph");
       const listUrl = await getSiteListUrlAsync("SchoolCertificates");
-      // Try verification code first
+      const safe = escapeOData(codeOrNumber);
       let res = await graphGet<{ value: Array<{ fields: Record<string, string> }> }>(
-        `${listUrl}?$expand=fields&$filter=fields/VerificationCode eq '${codeOrNumber}'`
+        `${listUrl}?$expand=fields&$filter=fields/VerificationCode eq '${safe}'&$top=1`
       );
       if (res.value.length === 0) {
-        // Try certificate number
         res = await graphGet<{ value: Array<{ fields: Record<string, string> }> }>(
-          `${listUrl}?$expand=fields&$filter=fields/CertificateNumber eq '${codeOrNumber}'`
+          `${listUrl}?$expand=fields&$filter=fields/CertificateNumber eq '${safe}'&$top=1`
         );
       }
       return res.value.length > 0 ? mapSpCertToLocal(res.value[0].fields) : null;
@@ -2816,15 +3214,113 @@ export async function findSharePointCertificate(codeOrNumber: string): Promise<S
 export async function deleteCertificateFromSharePoint(firestoreId: string): Promise<void> {
   if (useMock) return;
   try {
-    const { graphGet, graphDelete, getSiteListUrlAsync } = await import("@/lib/graph");
+    const { graphGet, graphDelete, getSiteListUrlAsync, escapeOData } = await import("@/lib/graph");
     const listUrl = await getSiteListUrlAsync("SchoolCertificates");
     const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, string> }> }>(
-      `${listUrl}?$expand=fields&$filter=fields/FirestoreId eq '${firestoreId}'`
+      `${listUrl}?$expand=fields&$filter=fields/FirestoreId eq '${escapeOData(firestoreId)}'`
     );
     if (res.value.length > 0) {
       await graphDelete(`${listUrl}('${res.value[0].id}')`);
     }
   } catch (err) {
     console.error("SharePoint certificate delete failed (non-fatal):", err);
+  }
+}
+
+// ============================================================
+// Career Profiles (AI engine persistence)
+// ============================================================
+export interface CareerProfileRecord {
+  id: string;
+  userId: string;
+  userName: string;
+  email: string;
+  currentRole: string;
+  yearsExperience: number;
+  education: string[];
+  skills: string[];
+  goals: string[];
+  industry: string;
+  profile: string;
+  suggestions: string; // serialized JSON
+  lastModelVersion: string;
+  generatedAt: string;
+  updatedAt: string;
+}
+
+function serializeArr(a: string[] | undefined): string {
+  return JSON.stringify(a ?? []);
+}
+function parseArr(s: unknown): string[] {
+  if (!s) return [];
+  try { const v = JSON.parse(String(s)); return Array.isArray(v) ? v.map(String) : []; } catch { return []; }
+}
+
+export async function getCareerProfile(userId: string): Promise<CareerProfileRecord | null> {
+  if (useMock) return null;
+  try {
+    const { graphGet, getSiteListUrlAsync, escapeOData } = await import("@/lib/graph");
+    const listUrl = await getSiteListUrlAsync("CareerProfiles");
+    const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, unknown> }> }>(
+      `${listUrl}?$expand=fields&$filter=fields/UserId eq '${escapeOData(userId)}'&$top=1`
+    );
+    const item = res.value[0];
+    if (!item) return null;
+    const f = item.fields;
+    return {
+      id: String(item.id),
+      userId: String(f.UserId || ""),
+      userName: String(f.UserName || ""),
+      email: String(f.Email || ""),
+      currentRole: String(f.CurrentRole || ""),
+      yearsExperience: Number(f.YearsExperience || 0),
+      education: parseArr(f.Education),
+      skills: parseArr(f.Skills),
+      goals: parseArr(f.Goals),
+      industry: String(f.Industry || ""),
+      profile: String(f.Profile || ""),
+      suggestions: String(f.Suggestions || "[]"),
+      lastModelVersion: String(f.LastModelVersion || ""),
+      generatedAt: String(f.GeneratedAt || new Date().toISOString()),
+      updatedAt: String(f.UpdatedAt || new Date().toISOString()),
+    };
+  } catch (err) {
+    console.error("getCareerProfile failed:", err);
+    return null;
+  }
+}
+
+export async function upsertCareerProfile(rec: Omit<CareerProfileRecord, "id">): Promise<void> {
+  if (useMock) return;
+  try {
+    const { graphGet, graphPost, graphPatch, getSiteListUrlAsync, escapeOData } = await import("@/lib/graph");
+    const listUrl = await getSiteListUrlAsync("CareerProfiles");
+    const lookup = await graphGet<{ value: Array<{ id: string }> }>(
+      `${listUrl}?$expand=fields&$filter=fields/UserId eq '${escapeOData(rec.userId)}'&$top=1`
+    );
+    const fields: Record<string, unknown> = {
+      UserId: rec.userId,
+      UserName: rec.userName,
+      Email: rec.email,
+      CurrentRole: rec.currentRole,
+      YearsExperience: rec.yearsExperience,
+      Education: serializeArr(rec.education),
+      Skills: serializeArr(rec.skills),
+      Goals: serializeArr(rec.goals),
+      Industry: rec.industry,
+      Profile: rec.profile,
+      Suggestions: rec.suggestions,
+      LastModelVersion: rec.lastModelVersion,
+      GeneratedAt: rec.generatedAt,
+      UpdatedAt: rec.updatedAt,
+    };
+    const existing = lookup.value[0]?.id;
+    if (existing) {
+      await graphPatch(`${listUrl}/items/${existing}/fields`, fields);
+    } else {
+      await graphPost(listUrl, { fields });
+    }
+  } catch (err) {
+    console.error("upsertCareerProfile failed:", err);
   }
 }

@@ -5,15 +5,12 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 // Call the server API endpoint rather than importing server-only libs here
 
-export default function MarkAllReadButton({ userId }: { userId: string }) {
+export default function MarkAllReadButton(_props: { userId?: string }) {
+  void _props;
   const router = useRouter();
 
   async function handleClick() {
-    await fetch("/api/notifications/mark-all", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId }),
-    });
+    await fetch("/api/notifications/mark-all", { method: "POST" });
     router.refresh();
   }
 

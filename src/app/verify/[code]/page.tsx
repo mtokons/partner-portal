@@ -1,55 +1,96 @@
+import { headers } from "next/headers";
 import { getSchoolCertificates } from "@/lib/firestore-services";
 import { findSharePointCertificate } from "@/lib/sharepoint";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Award, ShieldCheck, ShieldX, ShieldAlert } from "lucide-react";
 
+// Public certificate verification — minimal PII surface, rate-limited.
+
+const CODE_FORMAT = /^[A-Za-z0-9-]{6,64}$/;
+
+// In-memory rate limit (best-effort; resets on cold start). Per-IP bucket.
+type Bucket = { count: number; resetAt: number };
+const buckets: Map<string, Bucket> =
+  (globalThis as unknown as { __verifyBuckets?: Map<string, Bucket> }).__verifyBuckets ?? new Map();
+(globalThis as unknown as { __verifyBuckets?: Map<string, Bucket> }).__verifyBuckets = buckets;
+const WINDOW_MS = 60_000;
+const MAX_PER_WINDOW = 10;
+
+function clientIp(h: Headers): string {
+  const xff = h.get("x-forwarded-for");
+  if (xff) return xff.split(",")[0].trim();
+  return h.get("x-real-ip") || "unknown";
+}
+
+function checkRate(ip: string): boolean {
+  const now = Date.now();
+  const b = buckets.get(ip);
+  if (!b || b.resetAt < now) {
+    buckets.set(ip, { count: 1, resetAt: now + WINDOW_MS });
+    return true;
+  }
+  b.count += 1;
+  return b.count <= MAX_PER_WINDOW;
+}
+
 export default async function VerifyCertificatePage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
+  const h = await headers();
+  const ip = clientIp(h);
+
+  const formatOk = CODE_FORMAT.test(code);
+  const rateOk = checkRate(ip);
 
   let cert = null;
-  try {
-    // Try by verification code first
-    let results = await getSchoolCertificates({ verificationCode: code });
-    if (results.length === 0) {
-      // Try by certificate number (e.g. SCCG26A1xxx)
-      const allCerts = await getSchoolCertificates();
-      const match = allCerts.find(c => c.certificateNumber === code);
-      if (match) results = [match];
-    }
-    cert = results[0] || null;
-
-    // Fallback: check SharePoint if Firestore didn't find it
-    if (!cert) {
-      cert = await findSharePointCertificate(code);
-    }
-  } catch {
-    // DB error — try SharePoint as fallback
+  if (formatOk && rateOk) {
     try {
-      cert = await findSharePointCertificate(code);
+      const results = await getSchoolCertificates({ verificationCode: code });
+      cert = results[0] || null;
+      if (!cert) {
+        cert = await findSharePointCertificate(code);
+      }
     } catch {
-      // Both failed — treat as not found
+      try {
+        cert = await findSharePointCertificate(code);
+      } catch {
+        // both lookups failed — treat as not found
+      }
     }
   }
+
+  const NotFoundCard = (
+    <Card className="border-red-200">
+      <CardContent className="pt-8 pb-8 text-center">
+        <ShieldAlert className="h-16 w-16 mx-auto text-red-400 mb-4" />
+        <h2 className="text-xl font-bold text-red-700">Certificate Not Found</h2>
+        <p className="text-sm text-muted-foreground mt-2">
+          No certificate matches this verification code. It may be invalid or the certificate does not exist.
+        </p>
+      </CardContent>
+    </Card>
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-muted/50 to-background flex items-center justify-center p-4">
       <div className="max-w-lg w-full space-y-6">
         <div className="text-center">
           <h1 className="text-2xl font-bold">SCCG Certificate Verification</h1>
-          <p className="text-sm text-muted-foreground mt-1">Verification Code: <code className="bg-muted px-2 py-0.5 rounded">{code}</code></p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Verification Code: <code className="bg-muted px-2 py-0.5 rounded">{code}</code>
+          </p>
         </div>
 
-        {!cert ? (
-          <Card className="border-red-200">
+        {!rateOk ? (
+          <Card className="border-amber-200">
             <CardContent className="pt-8 pb-8 text-center">
-              <ShieldAlert className="h-16 w-16 mx-auto text-red-400 mb-4" />
-              <h2 className="text-xl font-bold text-red-700">Certificate Not Found</h2>
-              <p className="text-sm text-muted-foreground mt-2">
-                No certificate matches this verification code. It may be invalid or the certificate does not exist.
-              </p>
+              <ShieldAlert className="h-16 w-16 mx-auto text-amber-400 mb-4" />
+              <h2 className="text-xl font-bold text-amber-700">Too Many Requests</h2>
+              <p className="text-sm text-muted-foreground mt-2">Please wait a minute and try again.</p>
             </CardContent>
           </Card>
+        ) : !formatOk || !cert ? (
+          NotFoundCard
         ) : cert.status === "revoked" ? (
           <Card className="border-red-200 bg-red-50/50">
             <CardContent className="pt-8 pb-8 text-center">
@@ -60,10 +101,9 @@ export default async function VerifyCertificatePage({ params }: { params: Promis
               </p>
               <div className="mt-6 text-left bg-white rounded-lg p-4 border space-y-2 text-sm">
                 <InfoRow label="Certificate #" value={cert.certificateNumber} />
-                <InfoRow label="Student" value={cert.studentName} />
-                <InfoRow label="Course" value={`${cert.courseName} (${cert.courseLevel})`} />
-                <InfoRow label="Revoked" value={cert.revokedAt?.split("T")[0] || "Unknown"} />
-                {cert.revocationReason && <InfoRow label="Reason" value={cert.revocationReason} />}
+                <InfoRow label="Course" value={cert.courseName} />
+                <InfoRow label="Batch" value={cert.batchCode} />
+                <InfoRow label="Issue Date" value={cert.issuedDate} />
               </div>
             </CardContent>
           </Card>
@@ -73,7 +113,9 @@ export default async function VerifyCertificatePage({ params }: { params: Promis
               <div className="text-center">
                 <ShieldCheck className="h-16 w-16 mx-auto text-green-500 mb-4" />
                 <h2 className="text-xl font-bold text-green-700">Certificate Verified</h2>
-                <p className="text-sm text-muted-foreground mt-1">This is an authentic certificate issued by SCCG.</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  This is an authentic certificate issued by SCCG.
+                </p>
               </div>
 
               <div className="mt-6 flex justify-center">
@@ -82,22 +124,15 @@ export default async function VerifyCertificatePage({ params }: { params: Promis
                 </div>
               </div>
 
-              <div className="mt-6 text-center">
-                <p className="text-xs text-muted-foreground">AWARDED TO</p>
-                <p className="text-xl font-bold">{cert.studentName}</p>
-                {cert.studentSccgId && <p className="text-xs font-mono text-muted-foreground">{cert.studentSccgId}</p>}
-              </div>
-
               <div className="mt-6 bg-white rounded-lg p-4 border space-y-2 text-sm">
                 <InfoRow label="Certificate #" value={cert.certificateNumber} />
-                <InfoRow label="Type" value={cert.certificateType === "completion" ? "Course Completion" : "Participation"} />
-                <InfoRow label="Course" value={`${cert.courseName} (${cert.courseLevel})`} />
+                <InfoRow
+                  label="Type"
+                  value={cert.certificateType === "completion" ? "Course Completion" : "Participation"}
+                />
+                <InfoRow label="Course" value={cert.courseName} />
                 <InfoRow label="Batch" value={cert.batchCode} />
                 <InfoRow label="Issue Date" value={cert.issuedDate} />
-                <InfoRow label="Attendance" value={`${cert.attendancePercentage}%`} />
-                {cert.finalGrade && <InfoRow label="Grade" value={cert.finalGrade} />}
-                {cert.examScore != null && <InfoRow label="Exam Score" value={`${cert.examScore}%`} />}
-                <InfoRow label="Issued By" value={cert.issuedByName} />
               </div>
 
               <div className="mt-4 text-center">

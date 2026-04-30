@@ -4,9 +4,11 @@ import { revalidatePath } from "next/cache";
 import { getAllUserProfiles, updateUserProfileRoles, createUserProfile, createUserRole } from "@/lib/sharepoint";
 import { getAdminFirestore } from "@/lib/firebase-admin";
 import type { UserRoleType, UserProfile } from "@/types";
+import { assertAdmin } from "@/lib/admin-guard";
 
 export async function fetchAllUsersAction() {
   try {
+    await assertAdmin();
     const db = getAdminFirestore();
     const snapshot = await db.collection("users").get();
     
@@ -45,6 +47,7 @@ export async function fetchAllUsersAction() {
 
 export async function updateUserRolesAction(userId: string, roles: UserRoleType[]) {
   try {
+    await assertAdmin();
     // Update SharePoint (our existing role engine)
     await updateUserProfileRoles(userId, roles);
     
@@ -65,6 +68,7 @@ export async function updateUserRolesAction(userId: string, roles: UserRoleType[
 
 export async function createUserAction(data: Omit<UserProfile, "id">) {
   try {
+    await assertAdmin();
     const db = getAdminFirestore();
     
     // 1. Create in Firestore

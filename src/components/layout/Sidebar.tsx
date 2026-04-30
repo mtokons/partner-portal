@@ -8,7 +8,7 @@ import {
   DollarSign, Shield, BarChart3, FileText, Receipt, Handshake,
   UserCheck, Calendar, CreditCard, Zap, Mail, ChevronRight, ChevronDown,
   FlaskConical, ClipboardList, Store, Tag, Share2, Wallet, User, X, ClipboardCheck,
-  Building2, UserPlus, GraduationCap, BookOpen, Layers, Award, ShoppingBag, Search, Megaphone
+  Building2, UserPlus, GraduationCap, BookOpen, Layers, Award, ShoppingBag, Search, Megaphone, Database
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -100,6 +100,7 @@ const allLinks: LinkItem[] = [
   { href: "/profile", label: "My Profile", icon: User, group: "account", roles: ["partner", "admin", "finance", "hr", "school-manager", "customer", "expert"] },
   
   // Dev
+  { href: "/admin/data-sources", label: "Data Sources", icon: Database, group: "dev", roles: ["admin"] },
   { href: "/sp-test", label: "SP CRUD Test", icon: FlaskConical, group: "dev", roles: ["admin"] },
 ];
 

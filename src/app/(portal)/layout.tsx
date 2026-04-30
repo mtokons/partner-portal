@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import type { SessionUser } from "@/types";
 import { getInstallments, getInvoices } from "@/lib/sharepoint";
 import PortalShell from "@/components/layout/PortalShell";
+import NotificationsLiveBridge from "@/components/providers/NotificationsLiveBridge";
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -29,6 +30,7 @@ export default async function PortalLayout({ children }: { children: React.React
       overdueCount={overdueCount}
       unpaidInvoicesCount={unpaidInvoicesCount}
     >
+      <NotificationsLiveBridge />
       {children}
     </PortalShell>
   );

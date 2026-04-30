@@ -5,13 +5,13 @@ import { approvePaymentAction } from "./actions";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-export default function ApprovePaymentButton({ paymentId, adminId }: { paymentId: string; adminId: string }) {
+export default function ApprovePaymentButton({ paymentId }: { paymentId: string; adminId?: string }) {
   const [loading, setLoading] = useState(false);
 
   async function handleApprove() {
     setLoading(true);
     try {
-      await approvePaymentAction(paymentId, adminId);
+      await approvePaymentAction(paymentId);
     } catch {
       setLoading(false);
     }

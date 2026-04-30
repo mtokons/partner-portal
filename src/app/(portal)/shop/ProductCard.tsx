@@ -2,9 +2,10 @@
 
 import type { Product, Promotion, CartItem } from "@/types";
 import { getEffectivePrice } from "@/lib/promotions";
-import { ShoppingCart, Plus, Package, Tag, Star } from "lucide-react";
+import { ShoppingCart, Plus, Tag, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import Image from "next/image";
+import { getProductImageUrl } from "@/lib/utils";
 
 interface ProductCardProps {
   product: Product;
@@ -39,18 +40,13 @@ export default function ProductCard({
     <div className="group relative bg-card border border-border/60 rounded-3xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 flex flex-col">
       {/* Image area */}
       <div className="relative h-48 bg-gradient-to-br from-muted/60 to-muted overflow-hidden">
-        {product.imageUrl ? (
-          <Image
-            src={product.imageUrl}
-            alt={product.name}
-            fill
-            className="object-cover transition-transform duration-500 group-hover:scale-105"
-          />
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <Package className="h-16 w-16 text-muted-foreground/20" />
-          </div>
-        )}
+        <Image
+          src={getProductImageUrl(product)}
+          alt={product.name}
+          fill
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+          className="object-cover transition-transform duration-500 group-hover:scale-105"
+        />
 
         {/* Badges */}
         <div className="absolute top-3 left-3 flex flex-col gap-1.5">

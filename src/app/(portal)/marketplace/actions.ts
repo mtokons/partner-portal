@@ -5,7 +5,7 @@ import type { SessionUser } from "@/types";
 import { 
   createSalesOrder, createSalesOrderItem, createInvoice, createTransaction, 
   generateOrderNumber, getProducts,
-  createCustomerPackage, createGiftCard, generateGiftCardNumber, generateGiftCardPin,
+  createCustomerPackage, createGiftCard, generateGiftCardNumber,
   getCoinWallet, updateCoinWallet, createCoinTransaction
 } from "@/lib/sharepoint";
 import { revalidatePath } from "next/cache";
@@ -148,10 +148,11 @@ export async function createDirectOrderAction(data: {
       // 6. Logic for Gift Cards (Auto-issuance)
       if (product && product.category === "Gift Card") {
         for (let q = 0; q < item.quantity; q++) {
+          const { hash: __pinHash } = (await import("@/lib/pin")).generateGiftCardPinWithHash(4);
           await createGiftCard({
             sccgId: `GC-${orderNumber}-${q + 1}`,
             cardNumber: generateGiftCardNumber(),
-            pinHash: generateGiftCardPin(4),
+            pinHash: __pinHash,
             pinAttempts: 0,
             issuedToUserId: user.id,
             issuedToName: data.customerName,

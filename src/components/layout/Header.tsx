@@ -126,16 +126,28 @@ export default function Header({ userName, company, overdueCount, unpaidInvoices
               <p className="text-xs font-semibold text-foreground px-1 mb-2">Notifications</p>
               <div className="space-y-1.5">
                 {overdueCount > 0 && (
-                  <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-red-50 border border-red-100">
+                  <Link
+                    href="/financials"
+                    onClick={() => setAlertOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-red-50 border border-red-100 hover:bg-red-100 transition-colors"
+                  >
                     <div className="h-2 w-2 rounded-full bg-red-500 shrink-0" />
-                    <p className="text-sm text-red-700 font-medium">{overdueCount} overdue installment{overdueCount > 1 ? "s" : ""}</p>
-                  </div>
+                    <p className="text-sm text-red-700 font-medium">
+                      {overdueCount} overdue installment{overdueCount > 1 ? "s" : ""}
+                    </p>
+                  </Link>
                 )}
                 {unpaidInvoicesCount > 0 && (
-                  <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-orange-50 border border-orange-100">
+                  <Link
+                    href="/financials?tab=invoices"
+                    onClick={() => setAlertOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-orange-50 border border-orange-100 hover:bg-orange-100 transition-colors"
+                  >
                     <div className="h-2 w-2 rounded-full bg-orange-500 shrink-0" />
-                    <p className="text-sm text-orange-700 font-medium">{unpaidInvoicesCount} unpaid invoice{unpaidInvoicesCount > 1 ? "s" : ""}</p>
-                  </div>
+                    <p className="text-sm text-orange-700 font-medium">
+                      {unpaidInvoicesCount} unpaid invoice{unpaidInvoicesCount > 1 ? "s" : ""}
+                    </p>
+                  </Link>
                 )}
               </div>
             </div>

@@ -1,8 +1,10 @@
 import { fetchFinanceSummary } from "./actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DollarSign, FileText, CreditCard, TrendingUp, AlertTriangle, CheckCircle, Clock, BarChart3 } from "lucide-react";
+import { requireAdmin } from "@/lib/admin-guard";
 
 export default async function ReportsPage() {
+  await requireAdmin();
   const data = await fetchFinanceSummary();
 
   return (

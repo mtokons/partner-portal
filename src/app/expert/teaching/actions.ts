@@ -14,6 +14,7 @@ import {
   recordAttendanceBatch,
   getSchoolExamResults,
   createSchoolExamResult,
+  getSchoolTeachers,
 } from "@/lib/firestore-services";
 import { writeAuditLog } from "@/lib/audit-log";
 import type { ContentType, ExamType } from "@/types";
@@ -27,9 +28,18 @@ async function getTeacher() {
   return user;
 }
 
+// Resolve the SchoolTeacher row for the signed-in user. batch.teacherId references
+// SchoolTeacher.id (NOT user.id), so we must look it up by userId first.
+async function getTeacherRecordId(userId: string): Promise<string | null> {
+  const all = await getSchoolTeachers();
+  return all.find((t) => t.userId === userId)?.id ?? null;
+}
+
 export async function fetchTeacherBatches() {
   const user = await getTeacher();
-  return getSchoolBatches({ teacherId: user.id });
+  const teacherId = await getTeacherRecordId(user.id);
+  if (!teacherId) return [];
+  return getSchoolBatches({ teacherId });
 }
 
 export async function fetchTeacherBatch(id: string) {
@@ -38,8 +48,11 @@ export async function fetchTeacherBatch(id: string) {
   if (!batch) throw new Error("Batch not found");
   // Teachers can only access their own batches (admins can access all)
   const roles = user.roles || [user.role];
-  if (!roles.includes("admin") && batch.teacherId !== user.id) {
-    throw new Error("Access denied — not your batch");
+  if (!roles.includes("admin")) {
+    const teacherId = await getTeacherRecordId(user.id);
+    if (!teacherId || batch.teacherId !== teacherId) {
+      throw new Error("Access denied — not your batch");
+    }
   }
   return batch;
 }
@@ -166,6 +179,13 @@ export async function teacherEnterResult(data: {
   remarks?: string;
 }) {
   const user = await getTeacher();
+
+  if (!Number.isFinite(data.maxScore) || data.maxScore <= 0) {
+    throw new Error("maxScore must be a positive number");
+  }
+  if (!Number.isFinite(data.obtainedScore) || data.obtainedScore < 0 || data.obtainedScore > data.maxScore) {
+    throw new Error("obtainedScore must be between 0 and maxScore");
+  }
 
   const percentage = Math.round((data.obtainedScore / data.maxScore) * 100);
   const isPassed = percentage >= 40;

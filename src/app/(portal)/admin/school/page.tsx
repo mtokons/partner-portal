@@ -3,8 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { GraduationCap, BookOpen, Layers, Users, Award } from "lucide-react";
 import Link from "next/link";
+import { requireAdmin } from "@/lib/admin-guard";
 
 export default async function SchoolDashboardPage() {
+  await requireAdmin();
   const [courses, batches, enrollments, certificates] = await Promise.all([
     fetchCourses(),
     fetchBatches(),
@@ -13,7 +15,7 @@ export default async function SchoolDashboardPage() {
   ]);
 
   const activeCourses = courses.filter((c) => c.status === "published").length;
-  const runningBatches = batches.filter((b) => b.status === "in-progress").length;
+  const runningBatches = batches.filter((b) => b.status === "in-progress" || b.status === "active").length;
   const totalStudents = enrollments.filter((e) => ["enrolled", "active", "completed"].includes(e.status)).length;
   const issuedCerts = certificates.filter((c) => c.status === "issued").length;
 

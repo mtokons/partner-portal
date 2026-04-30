@@ -3,9 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { updatePartnerStatus } from "@/lib/sharepoint";
 import type { PartnerStatus } from "@/types";
+import { assertAdmin } from "@/lib/admin-guard";
 
 export async function updatePartnerStatusAction(id: string, status: PartnerStatus) {
   try {
+    await assertAdmin();
     await updatePartnerStatus(id, status);
     revalidatePath("/admin/partners");
     return { success: true };
@@ -17,6 +19,7 @@ export async function updatePartnerStatusAction(id: string, status: PartnerStatu
 
 export async function refreshPartnersAction() {
   try {
+    await assertAdmin();
     revalidatePath("/admin/partners");
     return { success: true };
   } catch (error: any) {

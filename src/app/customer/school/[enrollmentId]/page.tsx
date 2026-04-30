@@ -37,8 +37,8 @@ export default function EnrollmentDetailPage({ params }: { params: Promise<{ enr
       const [b, c, a, r] = await Promise.all([
         fetchMyBatchInfo(enr.batchId),
         fetchMyCourseContent(enr.courseId, enr.batchId),
-        fetchMyAttendance(enr.batchId, enr.studentUserId),
-        fetchMyResults(enr.studentUserId, enr.batchId),
+        fetchMyAttendance(enr.batchId),
+        fetchMyResults(enr.batchId),
       ]);
       setBatch(b);
       setContent(c);

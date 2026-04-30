@@ -77,7 +77,8 @@ export function generateSalesOfferPdf(
   clientName: string,
   items: Array<{ name: string; quantity: number; price: number }>,
   validUntil: string,
-  rate?: number
+  rate?: number,
+  totals?: { subtotal?: number; discount?: number; discountType?: "fixed" | "percent"; totalAmount?: number },
 ): Uint8Array {
   const doc = new jsPDF();
   const w = doc.internal.pageSize.getWidth();
@@ -120,14 +121,32 @@ export function generateSalesOfferPdf(
     y += 8;
   }
 
-  y += 8;
+  // Authoritative totals from offer record (preferred over recomputed sum)
+  const subtotal = totals?.subtotal ?? total;
+  const discountAmt = totals?.discount ?? 0;
+  const discountType = totals?.discountType ?? "fixed";
+  const computedDiscountValue = discountType === "percent"
+    ? Math.round((subtotal * (discountAmt / 100) + Number.EPSILON) * 100) / 100
+    : discountAmt;
+  const grandTotal = totals?.totalAmount ?? Math.max(0, subtotal - computedDiscountValue);
+
+  y += 6;
   doc.setDrawColor(200);
   doc.line(20, y, w - 20, y);
+  y += 8;
+  doc.setFontSize(10);
+  doc.setTextColor(80);
+  doc.text(`Subtotal: BDT ${subtotal.toFixed(2)}${rate ? ` · €${(subtotal * rate).toFixed(2)}` : ""}`, w - 100, y);
+  if (computedDiscountValue > 0) {
+    y += 6;
+    const dLabel = discountType === "percent" ? `Discount (${discountAmt}%)` : "Discount";
+    doc.text(`${dLabel}: -BDT ${computedDiscountValue.toFixed(2)}`, w - 100, y);
+  }
   y += 10;
   doc.setFontSize(14);
   doc.setTextColor(30, 64, 175);
-  const eurTotal = rate ? (total * rate).toFixed(2) : null;
-  doc.text(`Grand Total: BDT ${total.toFixed(2)}${eurTotal ? ` · €${eurTotal}` : ""}`, w - 80, y);
+  const eurTotal = rate ? (grandTotal * rate).toFixed(2) : null;
+  doc.text(`Grand Total: BDT ${grandTotal.toFixed(2)}${eurTotal ? ` · €${eurTotal}` : ""}`, w - 100, y);
 
   // Terms
   y += 20;

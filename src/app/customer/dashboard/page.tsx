@@ -1,4 +1,5 @@
 import { auth } from "@/auth";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { SessionUser } from "@/types";
 import {
@@ -56,7 +57,8 @@ export default async function CustomerDashboardPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        <Card>
+        <Link href="/customer/packages" className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 rounded-lg">
+        <Card className="hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xs font-medium text-gray-500">Active Packages</CardTitle>
             <Package className="h-4 w-4 text-teal-500" />
@@ -65,7 +67,9 @@ export default async function CustomerDashboardPage() {
             <div className="text-2xl font-bold">{packages.filter((p) => p.status === "active").length}</div>
           </CardContent>
         </Card>
-        <Card>
+        </Link>
+        <Link href="/customer/sessions?status=completed" className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 rounded-lg">
+        <Card className="hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xs font-medium text-gray-500">Sessions Done</CardTitle>
             <CheckCircle className="h-4 w-4 text-green-500" />
@@ -75,7 +79,9 @@ export default async function CustomerDashboardPage() {
             <p className="text-xs text-gray-400">of {totalSessions}</p>
           </CardContent>
         </Card>
-        <Card>
+        </Link>
+        <Link href="/customer/sessions?status=scheduled" className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 rounded-lg">
+        <Card className="hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xs font-medium text-gray-500">Upcoming</CardTitle>
             <Calendar className="h-4 w-4 text-blue-500" />
@@ -84,7 +90,9 @@ export default async function CustomerDashboardPage() {
             <div className="text-2xl font-bold text-blue-600">{upcomingSessions}</div>
           </CardContent>
         </Card>
-        <Card>
+        </Link>
+        <Link href="/customer/payments" className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 rounded-lg">
+        <Card className="hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xs font-medium text-gray-500">Outstanding</CardTitle>
             <CreditCard className="h-4 w-4 text-orange-500" />
@@ -93,7 +101,9 @@ export default async function CustomerDashboardPage() {
             <div className="text-2xl font-bold text-orange-600">{fmtBdt(totalOwed, rate, { compact: true })}</div>
           </CardContent>
         </Card>
-        <Card>
+        </Link>
+        <Link href="/customer/notifications" className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 rounded-lg">
+        <Card className="hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xs font-medium text-gray-500">Notifications</CardTitle>
             <Bell className="h-4 w-4 text-purple-500" />
@@ -103,6 +113,7 @@ export default async function CustomerDashboardPage() {
             <p className="text-xs text-gray-400">unread</p>
           </CardContent>
         </Card>
+        </Link>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

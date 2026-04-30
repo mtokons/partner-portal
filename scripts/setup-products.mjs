@@ -64,15 +64,30 @@ async function run() {
     const siteId = await resolveSiteId();
     console.log(`Site ID resolved: ${siteId}`);
 
-    console.log("Checking for existing 'Products' list to wipe...");
+    // Idempotent: reuse existing Products list if present, only seed if empty.
+    const force = process.argv.includes("--force");
+    console.log("Checking for existing 'Products' list...");
     const existingLists = await graphRequest("GET", `/sites/${siteId}/lists`);
     const oldList = existingLists.value.find(l => l.displayName === "Products");
+    let listId;
     if (oldList) {
-      console.log(`Found existing list (ID: ${oldList.id}). Deleting to clear schema...`);
-      await graphRequest("DELETE", `/sites/${siteId}/lists/${oldList.id}`);
-      console.log("Old list deleted successfully.");
+      if (force) {
+        console.log(`--force passed: deleting existing list (ID: ${oldList.id})...`);
+        await graphRequest("DELETE", `/sites/${siteId}/lists/${oldList.id}`);
+      } else {
+        listId = oldList.id;
+        console.log(`Reusing existing list (ID: ${listId}). Skipping schema recreation.`);
+        // Skip seeding if items already exist
+        const existingItems = await graphRequest("GET", `/sites/${siteId}/lists/${listId}/items?$top=1`);
+        if (existingItems?.value?.length) {
+          console.log("Products list already has items — skipping seed. Re-run with --force to wipe and reseed.");
+          return;
+        }
+        console.log("Products list is empty — proceeding to seed.");
+      }
     }
 
+    if (!listId) {
     console.log("Creating fresh Products list with new schema...");
     const listBody = {
       displayName: "Products",
@@ -96,8 +111,9 @@ async function run() {
     };
 
     const newList = await graphRequest("POST", `/sites/${siteId}/lists`, listBody);
-    const listId = newList.id;
+    listId = newList.id;
     console.log(`Created new list 'Products' with ID: ${listId}`);
+    } // end if (!listId)
 
     console.log("Seeding 17 physical SCCG real products...");
 

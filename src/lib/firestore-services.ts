@@ -333,10 +333,14 @@ export async function getSchoolAttendance(batchId: string, sessionNumber?: numbe
 }
 
 export async function recordAttendanceBatch(records: Omit<SchoolAttendance, "id">[]): Promise<void> {
+  // Idempotent: upsert by deterministic key (batchId|sessionNumber|studentUserId).
+  // Re-submitting the same roster overwrites status rather than creating duplicates.
   const batch = db().batch();
   for (const rec of records) {
-    const ref = db().collection("schoolAttendance").doc();
-    batch.set(ref, rec);
+    const sanitize = (s: string) => String(s).replace(/[^A-Za-z0-9_-]/g, "_");
+    const key = `${sanitize(rec.batchId)}__${rec.sessionNumber}__${sanitize(rec.studentUserId)}`;
+    const ref = db().collection("schoolAttendance").doc(key);
+    batch.set(ref, rec, { merge: true });
   }
   await batch.commit();
 }

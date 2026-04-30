@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { markAllNotificationsRead } from "@/lib/sharepoint";
+import { auth } from "@/auth";
 
-export async function POST(req: Request) {
+export async function POST() {
   try {
-    const body = await req.json();
-    const { userId } = body || {};
-    if (!userId) return NextResponse.json({ success: false, error: "missing userId" }, { status: 400 });
-    await markAllNotificationsRead(userId);
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+    await markAllNotificationsRead(session.user.id);
     return NextResponse.json({ success: true });
   } catch (err) {
     return NextResponse.json({ success: false, error: (err as Error).message || String(err) }, { status: 500 });

@@ -2,10 +2,12 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import type { SessionUser } from "@/types";
 import { getNotifications } from "@/lib/sharepoint";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Bell, Calendar, CreditCard, CheckCircle, Info } from "lucide-react";
 import MarkAllReadButton from "./MarkAllReadButton";
+import NotificationItem from "@/components/NotificationItem";
+import { notificationHref } from "@/lib/notification-routes";
 
 const typeIcon: Record<string, React.ComponentType<{ className?: string }>> = {
   payment_due: CreditCard,
@@ -51,10 +53,14 @@ export default async function CustomerNotificationsPage() {
             {notifications.map((notif) => {
               const Icon = typeIcon[notif.type] || Bell;
               const color = typeColor[notif.type] || "text-gray-600";
+              const href = notificationHref(notif, "customer");
               return (
-                <div
+                <NotificationItem
                   key={notif.id}
-                  className={`flex items-start gap-4 p-4 rounded-lg border transition-colors ${!notif.read ? "bg-teal-50 border-teal-200" : "bg-white border-gray-100"}`}
+                  id={notif.id}
+                  href={href}
+                  read={notif.read}
+                  className={`flex items-start gap-4 p-4 rounded-lg border transition-colors hover:bg-gray-50 ${!notif.read ? "bg-teal-50 border-teal-200" : "bg-white border-gray-100"}`}
                 >
                   <div className={`mt-0.5 ${color}`}>
                     <Icon className="h-5 w-5" />
@@ -69,7 +75,7 @@ export default async function CustomerNotificationsPage() {
                     <p className="text-sm text-gray-600 mt-0.5">{notif.message}</p>
                     <p className="text-xs text-gray-400 mt-1">{new Date(notif.createdAt).toLocaleString("en-GB")}</p>
                   </div>
-                </div>
+                </NotificationItem>
               );
             })}
             {notifications.length === 0 && (

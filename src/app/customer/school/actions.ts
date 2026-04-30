@@ -41,18 +41,19 @@ export async function fetchMyCourseContent(courseId: string, batchId?: string) {
   return content.filter((c) => c.isPublished);
 }
 
-export async function fetchMyAttendance(batchId: string, studentUserId: string) {
-  await getStudent();
+export async function fetchMyAttendance(batchId: string) {
+  const user = await getStudent();
+  // Server-side derives studentUserId from session — never trust caller.
   const all = await getSchoolAttendance(batchId);
-  return all.filter((a) => a.studentUserId === studentUserId);
+  return all.filter((a) => a.studentUserId === user.id);
 }
 
-export async function fetchMyResults(studentUserId: string, batchId?: string) {
-  await getStudent();
-  return getSchoolExamResults({ studentUserId, batchId, status: "published" });
+export async function fetchMyResults(batchId?: string) {
+  const user = await getStudent();
+  return getSchoolExamResults({ studentUserId: user.id, batchId, status: "published" });
 }
 
-export async function fetchMyCertificates(studentUserId: string) {
-  await getStudent();
-  return getSchoolCertificates({ studentUserId });
+export async function fetchMyCertificates() {
+  const user = await getStudent();
+  return getSchoolCertificates({ studentUserId: user.id });
 }

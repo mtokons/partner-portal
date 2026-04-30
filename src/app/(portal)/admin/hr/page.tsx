@@ -3,8 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Building2, Users, UserPlus, Clock } from "lucide-react";
 import Link from "next/link";
+import { requireAdmin } from "@/lib/admin-guard";
 
 export default async function HRDashboardPage() {
+  await requireAdmin();
   const employees = await fetchEmployees();
 
   const totalEmployees = employees.length;

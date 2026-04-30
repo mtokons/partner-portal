@@ -4,6 +4,7 @@ import type { SessionUser } from "@/types";
 import { getNotifications } from "@/lib/sharepoint";
 import ExpertSidebar from "@/components/layout/ExpertSidebar";
 import Header from "@/components/layout/Header";
+import NotificationsLiveBridge from "@/components/providers/NotificationsLiveBridge";
 
 export default async function ExpertLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -18,6 +19,7 @@ export default async function ExpertLayout({ children }: { children: React.React
 
   return (
     <div className="min-h-screen bg-background">
+      <NotificationsLiveBridge />
       <ExpertSidebar unreadCount={unreadCount} />
       <Header
         userName={user.name || "Expert"}

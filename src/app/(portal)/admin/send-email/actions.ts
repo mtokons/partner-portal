@@ -3,6 +3,7 @@
 import { auth } from "@/auth";
 import type { SessionUser } from "@/types";
 import { sendClientEmail, sendInvoiceEmail, sendSessionReminder } from "@/lib/powerautomate";
+import { assertAdmin } from "@/lib/admin-guard";
 
 export async function sendEmailToClientAction(
   recipientEmail: string,
@@ -12,6 +13,11 @@ export async function sendEmailToClientAction(
 ) {
   const session = await auth();
   if (!session?.user) return { success: false, error: "Not authenticated" };
+  try {
+    await assertAdmin();
+  } catch {
+    return { success: false, error: "Admin only" };
+  }
 
   const user = session.user as SessionUser;
   const result = await sendClientEmail({
@@ -44,6 +50,7 @@ export async function sendInvoiceEmailAction(
 ) {
   const session = await auth();
   if (!session?.user) return { success: false, error: "Not authenticated" };
+  try { await assertAdmin(); } catch { return { success: false, error: "Admin only" }; }
 
   return sendInvoiceEmail(clientEmail, clientName, invoiceId, amount, dueDate, pdfUrl);
 }
@@ -57,6 +64,7 @@ export async function sendSessionReminderAction(
 ) {
   const session = await auth();
   if (!session?.user) return { success: false, error: "Not authenticated" };
+  try { await assertAdmin(); } catch { return { success: false, error: "Admin only" }; }
 
   return sendSessionReminder(clientEmail, clientName, sessionDate, expertName, sessionNumber);
 }

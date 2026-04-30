@@ -5,9 +5,11 @@ import { getAdminFirestore } from "@/lib/firebase-admin";
 
 import { createExpert, getExpertById } from "@/lib/sharepoint";
 import type { Expert } from "@/types";
+import { assertAdmin } from "@/lib/admin-guard";
 
 export async function approveUserAction(uid: string) {
   try {
+    await assertAdmin();
     const db = getAdminFirestore();
     const userRef = db.collection("users").doc(uid);
     const userSnap = await userRef.get();
@@ -54,6 +56,7 @@ export async function approveUserAction(uid: string) {
 
 export async function rejectUserAction(uid: string) {
   try {
+    await assertAdmin();
     const db = getAdminFirestore();
     const userRef = db.collection("users").doc(uid);
     

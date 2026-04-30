@@ -4,6 +4,7 @@ import type { SessionUser } from "@/types";
 import { getNotifications } from "@/lib/sharepoint";
 import CustomerSidebar from "@/components/layout/CustomerSidebar";
 import Header from "@/components/layout/Header";
+import NotificationsLiveBridge from "@/components/providers/NotificationsLiveBridge";
 
 export default async function CustomerLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -18,6 +19,7 @@ export default async function CustomerLayout({ children }: { children: React.Rea
 
   return (
     <div className="min-h-screen bg-background">
+      <NotificationsLiveBridge />
       <CustomerSidebar unreadCount={unreadCount} />
       <Header
         userName={user.name || "Customer"}

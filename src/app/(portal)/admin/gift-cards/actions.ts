@@ -3,6 +3,7 @@
 import { auth } from "@/auth";
 import type { SessionUser } from "@/types";
 import { createGiftCard, updateGiftCard, generateGiftCardNumber } from "@/lib/sharepoint";
+import { generateGiftCardPinWithHash } from "@/lib/pin";
 
 export async function issueGiftCardAction(data: {
   issuedToUserId: string;
@@ -18,10 +19,11 @@ export async function issueGiftCardAction(data: {
   const roles = user.roles || [user.role];
   if (!roles.includes("admin")) throw new Error("Admin only");
 
+  const { plain: pin, hash } = generateGiftCardPinWithHash(4);
   const card = await createGiftCard({
     sccgId: `SCCG-ID-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
     cardNumber: generateGiftCardNumber(),
-    pinHash: "placeholder",
+    pinHash: hash,
     pinAttempts: 0,
     issuedToUserId: data.issuedToUserId,
     issuedToName: data.issuedToName,
@@ -42,7 +44,7 @@ export async function issueGiftCardAction(data: {
     createdAt: new Date().toISOString(),
   });
 
-  return { success: true, card };
+  return { success: true, card, pin };
 }
 
 export async function freezeGiftCardAction(id: string) {

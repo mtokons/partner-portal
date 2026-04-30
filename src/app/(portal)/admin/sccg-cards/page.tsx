@@ -3,8 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { CreditCard, Plus, DollarSign, Users, AlertTriangle } from "lucide-react";
+import { requireAdmin } from "@/lib/admin-guard";
 
 export default async function SccgCardsPage() {
+  await requireAdmin();
   const cards = await fetchCards();
 
   const activeCards = cards.filter((c) => c.status === "active");

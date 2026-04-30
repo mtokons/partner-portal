@@ -4,9 +4,11 @@ import type { SessionUser, AppNotification } from "@/types";
 import { getNotifications } from "@/lib/sharepoint";
 import { Card, CardContent } from "@/components/ui/card";
 import {
-  Bell, Calendar, CheckCircle, CreditCard, AlertCircle, Info,
+  Bell, Calendar, CheckCircle, CreditCard, Info,
 } from "lucide-react";
 import MarkAllReadButton from "./MarkAllReadButton";
+import NotificationItem from "@/components/NotificationItem";
+import { notificationHref } from "@/lib/notification-routes";
 
 const notifIcon: Record<AppNotification["type"], React.FC<{ className?: string }>> = {
   session_scheduled: Calendar,
@@ -50,10 +52,14 @@ export default async function ExpertNotificationsPage() {
         <div className="space-y-2">
           {notifications.map((n) => {
             const Icon = notifIcon[n.type] || Info;
+            const href = notificationHref(n, "expert");
             return (
-              <div
+              <NotificationItem
                 key={n.id}
-                className={`flex items-start gap-4 p-4 rounded-xl border transition-colors ${
+                id={n.id}
+                href={href}
+                read={n.read}
+                className={`flex items-start gap-4 p-4 rounded-xl border transition-colors hover:bg-gray-50 ${
                   n.read ? "bg-white border-gray-100" : "bg-indigo-50 border-indigo-100"
                 }`}
               >
@@ -75,7 +81,7 @@ export default async function ExpertNotificationsPage() {
                     {new Date(n.createdAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
                   </p>
                 </div>
-              </div>
+              </NotificationItem>
             );
           })}
         </div>

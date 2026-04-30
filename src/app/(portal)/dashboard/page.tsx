@@ -1,4 +1,5 @@
 import { auth } from "@/auth";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { SessionUser } from "@/types";
 import {
@@ -87,6 +88,7 @@ export default async function DashboardPage() {
       trend: "+12.5%",
       trendUp: true,
       detail: "vs last period",
+      href: "/financials",
     },
     {
       label: "Sales Pipeline",
@@ -97,6 +99,7 @@ export default async function DashboardPage() {
       trend: "Ready to confirm",
       trendUp: acceptedOffers.length > 0,
       detail: "unconverted value",
+      href: "/sales",
     },
     {
       label: "Active Orders",
@@ -107,6 +110,7 @@ export default async function DashboardPage() {
       trend: `${sOrders.filter(o => o.status === "pending").length} pending`,
       trendUp: true,
       detail: "fulfillment tracking",
+      href: "/orders",
     },
     {
       label: "Outstanding",
@@ -117,6 +121,7 @@ export default async function DashboardPage() {
       trend: overdueInstallments > 0 ? `${overdueInstallments} overdue` : "On track",
       trendUp: overdueInstallments === 0,
       detail: "receivables",
+      href: "/financials",
     },
   ];
 
@@ -190,7 +195,7 @@ export default async function DashboardPage() {
       {/* ── KPI Cards ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 stagger">
         {kpis.map((kpi) => (
-          <div key={kpi.label} className={`kpi-card ${kpi.gradient} card-enter`}>
+          <Link href={kpi.href} key={kpi.label} className={`kpi-card ${kpi.gradient} card-enter block focus-visible:ring-2 focus-visible:ring-white/60 outline-none`}>
             {/* Decorative circles */}
             <div className="absolute -bottom-6 -right-6 h-28 w-28 rounded-full bg-white/5 pointer-events-none" />
             <div className="absolute -top-8 -left-4 h-20 w-20 rounded-full bg-white/5 pointer-events-none" />
@@ -219,19 +224,19 @@ export default async function DashboardPage() {
               </div>
               <p className="text-[10px] text-white/35 mt-1">{kpi.detail}</p>
             </div>
-          </div>
+          </Link>
         ))}
       </div>
 
       {/* ── Quick Stats Row ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Products", value: "—", icon: Package, color: "text-blue-500", bg: "bg-blue-50 border-blue-100" },
-          { label: "Pending Orders", value: pendingOrders, icon: Clock, color: "text-amber-500", bg: "bg-amber-50 border-amber-100" },
-          { label: "Paid Invoices", value: invoices.filter(i => i.status === "paid").length, icon: CheckCircle2, color: "text-emerald-500", bg: "bg-emerald-50 border-emerald-100" },
-          { label: "Activities", value: activities.length, icon: Activity, color: "text-violet-500", bg: "bg-violet-50 border-violet-100" },
+          { label: "Products", value: "—", icon: Package, color: "text-blue-500", bg: "bg-blue-50 border-blue-100", href: "/products" },
+          { label: "Pending Orders", value: pendingOrders, icon: Clock, color: "text-amber-500", bg: "bg-amber-50 border-amber-100", href: "/orders?status=pending" },
+          { label: "Paid Invoices", value: invoices.filter(i => i.status === "paid").length, icon: CheckCircle2, color: "text-emerald-500", bg: "bg-emerald-50 border-emerald-100", href: "/financials?tab=invoices" },
+          { label: "Activities", value: activities.length, icon: Activity, color: "text-violet-500", bg: "bg-violet-50 border-violet-100", href: "/activity" },
         ].map((stat) => (
-          <div key={stat.label} className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl border ${stat.bg} card-hover`}>
+          <Link href={stat.href} key={stat.label} className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl border ${stat.bg} card-hover`}>
             <div className={`h-9 w-9 rounded-xl bg-white flex items-center justify-center shrink-0 shadow-sm`}>
               <stat.icon className={`h-4.5 w-4.5 ${stat.color}`} />
             </div>
@@ -239,7 +244,7 @@ export default async function DashboardPage() {
               <p className="text-xl font-black text-foreground leading-none">{stat.value}</p>
               <p className="text-xs text-muted-foreground mt-0.5">{stat.label}</p>
             </div>
-          </div>
+          </Link>
         ))}
       </div>
 

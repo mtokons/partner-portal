@@ -2,8 +2,10 @@ import { fetchInvoices } from "../payments/actions";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { FileText, DollarSign, Clock, CheckCircle } from "lucide-react";
+import { requireAdmin } from "@/lib/admin-guard";
 
 export default async function InvoicesPage() {
+  await requireAdmin();
   const invoices = await fetchInvoices();
 
   const totalBilled = invoices.reduce((s, i) => s + i.amount, 0);

@@ -1,6 +1,7 @@
 "use server";
 
 import { auth } from "@/auth";
+import { assertAdmin } from "@/lib/admin-guard";
 import { resolveSiteId, graphGet, graphPost, graphPatch } from "@/lib/graph";
 import { revalidatePath } from "next/cache";
 
@@ -723,9 +724,7 @@ const PORTAL_SCHEMA: ListSchema[] = [
 ];
 
 export async function checkInfrastructureAction() {
-  const session = await auth();
-  const user = session?.user as any; 
-  if (user?.role !== "admin") throw new Error("Unauthorized");
+  await assertAdmin();
 
   const siteId = await resolveSiteId();
   const res = await graphGet<{ value: any[] }>(`/sites/${siteId}/lists`);
@@ -738,9 +737,7 @@ export async function checkInfrastructureAction() {
 }
 
 export async function initializeInfrastructureAction() {
-  const session = await auth();
-  const user = session?.user as any;
-  if (user?.role !== "admin") throw new Error("Unauthorized");
+  await assertAdmin();
 
   const siteId = await resolveSiteId();
   const results = [];
@@ -774,9 +771,7 @@ export async function initializeInfrastructureAction() {
 }
 
 export async function seedProductsAction() {
-  const session = await auth();
-  const user = session?.user as any;
-  if (user?.role !== "admin") throw new Error("Unauthorized");
+  await assertAdmin();
   
   const { mockProducts } = await import("@/lib/mock-data");
   const { createProduct } = await import("@/lib/sharepoint");

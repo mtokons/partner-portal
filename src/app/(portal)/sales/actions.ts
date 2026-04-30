@@ -10,7 +10,7 @@ import {
   getServiceTasks, createServiceTask, updateServiceTask,
   generateOfferNumber, convertOfferToOrder,
   getClients, getProducts,
-  createInvoice, createTransaction, createCustomerPackage, createGiftCard, generateGiftCardNumber, generateGiftCardPin, getTransactionsByClient,
+  createInvoice, createTransaction, createCustomerPackage, createGiftCard, generateGiftCardNumber, getTransactionsByClient,
   createEmailTracking,
 } from "@/lib/sharepoint";
 import { sendClientEmail } from "@/lib/powerautomate";
@@ -101,10 +101,11 @@ async function confirmMarketplacePaymentAndActivateServices(order: NonNullable<A
 
     if (product && product.category === "Gift Card") {
       for (let q = 0; q < item.quantity; q++) {
+        const { hash: __pinHash } = (await import("@/lib/pin")).generateGiftCardPinWithHash(4);
         await createGiftCard({
           sccgId: `GC-${order.orderNumber}-${q + 1}`,
           cardNumber: generateGiftCardNumber(),
-          pinHash: generateGiftCardPin(4),
+          pinHash: __pinHash,
           pinAttempts: 0,
           issuedToUserId: order.clientId,
           issuedToName: order.clientName || "",
