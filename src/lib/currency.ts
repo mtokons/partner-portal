@@ -16,8 +16,8 @@ export async function getBdtToEurRate(): Promise<number> {
 
   try {
     const url = `${DEFAULT_API}?base=BDT&symbols=EUR`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error("Failed to fetch exchange rates");
+    const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
+    if (!res.ok) throw new Error(`Failed to fetch exchange rates: HTTP ${res.status}`);
     const data = await res.json();
     const rate = Number(data?.rates?.EUR);
     if (!rate || Number.isNaN(rate)) throw new Error("Invalid rate received");
@@ -25,8 +25,13 @@ export async function getBdtToEurRate(): Promise<number> {
     _cache = { rate, fetchedAt: now };
     return rate;
   } catch (err) {
-    console.error("Currency API Error, using fallback:", err);
-    // Robust fallback: 1 BDT ≈ 0.0084 EUR (approximate market rate)
+    // Non-fatal: warn once instead of erroring on every render.
+    if (!_cache) {
+      // eslint-disable-next-line no-console
+      console.warn("[currency] live rate unavailable, using fallback 1 BDT ≈ 0.0084 EUR:", (err as Error)?.message || err);
+    }
+    // Cache the fallback briefly so we don't retry every request.
+    _cache = { rate: 0.0084, fetchedAt: now - CACHE_TTL_MS / 2 };
     return 0.0084;
   }
 }

@@ -2,13 +2,14 @@
 
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { Bell, LogOut, Search, ChevronDown, Settings, Menu, ChevronRight, User } from "lucide-react";
+import { Bell, LogOut, Search, ChevronDown, Settings, Menu, ChevronRight, User, Database, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { logoutAction } from "@/lib/actions";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
+import { getConnectionInfoAction } from "@/app/actions/connection";
 
 interface HeaderProps {
   userName: string;
@@ -16,9 +17,19 @@ interface HeaderProps {
   overdueCount: number;
   unpaidInvoicesCount: number;
   onMenuToggle?: () => void;
+  siteUrl?: string;
+  listUrls?: Record<string, string>;
 }
 
-export default function Header({ userName, company, overdueCount, unpaidInvoicesCount, onMenuToggle = () => {} }: HeaderProps) {
+export default function Header({ 
+  userName, 
+  company, 
+  overdueCount, 
+  unpaidInvoicesCount, 
+  onMenuToggle = () => {},
+  siteUrl,
+  listUrls = {}
+}: HeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
   const totalAlerts = overdueCount + unpaidInvoicesCount;
@@ -27,6 +38,43 @@ export default function Header({ userName, company, overdueCount, unpaidInvoices
   const [searchFocused, setSearchFocused] = useState(false);
   const [alertOpen, setAlertOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+
+  // Map routes to SharePoint list names for context-aware Live Sync
+  const routeToList: Record<string, string> = {
+    "/dashboard": "SalesOrders",
+    "/sales/orders": "SalesOrders",
+    "/sales/offers": "SalesOffers",
+    "/shop": "SalesOffers",
+    "/clients": "Clients",
+    "/admin/products": "Products",
+    "/marketplace": "Products",
+    "/orders": "Orders",
+    "/admin/orders": "SalesOrders",
+    "/financials": "Financials",
+    "/financials/expenses": "Expenses",
+    "/financials/invoices": "Invoices",
+    "/admin/tasks": "KanbanTasks",
+    "/activity": "Activities",
+    "/admin/partners": "Partners",
+    "/admin/experts": "Experts",
+    "/admin/invoices": "Invoices",
+    "/admin/payouts": "Payouts",
+    "/financials/payouts": "Payouts",
+    "/referrals": "Referrals",
+    "/admin/referrals": "Referrals",
+    "/admin/promotions": "Promotions",
+    "/admin/promo-codes": "PromoCodes",
+    "/admin/commission-rules": "CommissionRules",
+    "/admin/commissions": "CommissionLedger",
+    "/admin/wallets": "CoinWallets",
+    "/wallets": "CoinWallets",
+    "/admin/sccg-cards": "GiftCards",
+    "/admin/school/certificates": "SchoolCertificates",
+    "/admin/users": "UserProfiles",
+  };
+  const currentListName = routeToList[pathname] || "SalesOrders";
+  const liveSyncUrl = listUrls[currentListName] || siteUrl || "#";
+  const liveSyncLabel = currentListName.replace(/([A-Z])/g, ' $1').trim();
 
   // Build breadcrumb from pathname
   const segments = pathname.split("/").filter(Boolean);
@@ -98,6 +146,21 @@ export default function Header({ userName, company, overdueCount, unpaidInvoices
 
       {/* Right: alerts + user */}
       <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+        
+        {/* Live Data Badge */}
+        {siteUrl && (
+          <a 
+            href={liveSyncUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 transition-all group"
+            title={`Open ${liveSyncLabel} in SharePoint`}
+          >
+            <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[10px] font-bold text-emerald-600 tracking-tight uppercase">{liveSyncLabel}</span>
+            <ExternalLink className="h-2.5 w-2.5 text-emerald-500/50 group-hover:text-emerald-500 transition-colors" />
+          </a>
+        )}
 
         {/* Alert bell */}
         <div className="relative">

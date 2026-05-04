@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Wallet, CheckCircle2, Clock, Users, DollarSign, RefreshCw } from "lucide-react";
 import { refreshPayoutsAction } from "./actions";
+import { RowActions } from "@/components/RowActions";
+import { removePayout, holdPayout } from "@/lib/row-actions";
 
 const statusColors: Record<string, string> = {
   pending: "bg-amber-100 text-amber-700 border-amber-200",
@@ -109,7 +111,7 @@ export default async function AdminPayoutsPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/30">
-                    {["Recipient", "Type", "Order", "Gross", "Net", "Status", "Date"].map((h) => (
+                    {["Recipient", "Type", "Order", "Gross", "Net", "Status", "Date", ""].map((h) => (
                       <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                         {h}
                       </th>
@@ -142,8 +144,14 @@ export default async function AdminPayoutsPage() {
                         {payout.payoutDate
                           ? new Date(payout.payoutDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
                           : "—"}
-                      </td>
-                    </tr>
+                      </td>                      <td className="px-6 py-4 text-right">
+                        <RowActions
+                          entityLabel="payout"
+                          isOnHold={!!payout.isOnHold}
+                          onHold={async () => { "use server"; return holdPayout(payout.id, !payout.isOnHold); }}
+                          onDelete={async () => { "use server"; return removePayout(payout.id); }}
+                        />
+                      </td>                    </tr>
                   ))}
                 </tbody>
               </table>

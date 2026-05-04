@@ -9,10 +9,11 @@ import {
   getSalesOrderItems,
   getServiceTasks, createServiceTask, updateServiceTask,
   generateOfferNumber, convertOfferToOrder,
-  getClients, getProducts,
+  getClients, getProducts, getPartnerByEmail, getCommissionRules, getPromoCodeByCode,
   createInvoice, createTransaction, createCustomerPackage, createGiftCard, generateGiftCardNumber, getTransactionsByClient,
   createEmailTracking,
 } from "@/lib/sharepoint";
+import { calculateCommission } from "@/lib/engine/commission";
 import { sendClientEmail } from "@/lib/powerautomate";
 import { revalidatePath } from "next/cache";
 
@@ -145,6 +146,7 @@ export async function createSalesOfferAction(data: {
   referralId?: string;
   referralName?: string;
   referralPercent?: number;
+  promoCodeValue?: string;
 }) {
   const user = await requireUser();
   const offerNumber = await generateOfferNumber();
@@ -152,6 +154,36 @@ export async function createSalesOfferAction(data: {
   const discountAmount = data.discountType === "percent" ? subtotal * (data.discount / 100) : data.discount;
   const totalAmount = Math.max(0, subtotal - discountAmount);
   const now = new Date().toISOString();
+
+  // --- Commission Engine Integration ---
+  let commissionPercent = data.referralPercent || 0;
+  let commissionAmount = totalAmount * (commissionPercent / 100);
+  let commissionRuleId: string | undefined;
+
+  try {
+    const [rules, partner, promoCode] = await Promise.all([
+      getCommissionRules(),
+      user.email ? getPartnerByEmail(user.email) : null,
+      data.promoCodeValue ? getPromoCodeByCode(data.promoCodeValue) : null,
+    ]);
+
+    const result = calculateCommission(
+      { totalAmount },
+      data.items.map(i => ({ ...i, id: "", salesOfferId: "", totalPrice: i.quantity * i.unitPrice })),
+      partner,
+      promoCode,
+      rules
+    );
+
+    if (result) {
+      commissionPercent = result.percent;
+      commissionAmount = result.amount;
+      commissionRuleId = result.ruleId;
+    }
+  } catch (err) {
+    console.warn("Commission calculation failed, falling back to manual/zero:", err);
+  }
+  // --------------------------------------
 
   const offer = await createSalesOffer({
     offerNumber,
@@ -171,6 +203,10 @@ export async function createSalesOfferAction(data: {
     totalAmount,
     validUntil: data.validUntil,
     notes: data.notes,
+    promoCodeValue: data.promoCodeValue,
+    commissionPercent,
+    commissionAmount,
+    commissionRuleId,
     createdBy: user.id,
     createdAt: now,
     updatedAt: now,

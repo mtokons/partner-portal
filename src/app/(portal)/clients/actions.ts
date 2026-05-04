@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient, createActivity } from "@/lib/sharepoint";
+import { createClient, createActivity, updateClient, deleteClient } from "@/lib/sharepoint";
 
 interface AddClientInput {
   partnerId: string;
@@ -37,4 +37,34 @@ export async function refreshClientsAction() {
   const { revalidatePath } = await import("next/cache");
   revalidatePath("/clients");
   return { success: true };
+}
+
+export async function removeClient(id: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    await deleteClient(id);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed to delete client" };
+  }
+}
+
+export async function toggleClientHold(id: string, hold: boolean): Promise<{ ok: boolean; error?: string }> {
+  try {
+    await updateClient(id, { isOnHold: hold });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed to update hold state" };
+  }
+}
+
+export async function updateClientAction(id: string, data: Partial<AddClientInput>) {
+  try {
+    await updateClient(id, data);
+    const { revalidatePath } = await import("next/cache");
+    revalidatePath("/clients");
+    revalidatePath(`/clients/${id}`);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed to update client" };
+  }
 }

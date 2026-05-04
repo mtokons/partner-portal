@@ -5,10 +5,12 @@ import {
   getPaymentById,
   createPayment,
   updatePayment,
+  deletePayment,
   getActivePaymentMethods,
   getEnhancedInvoices,
   createEnhancedInvoice,
   updateEnhancedInvoice,
+  deleteEnhancedInvoice,
   getEnhancedInstallments,
   updateEnhancedInstallment,
   getInstallmentRules,
@@ -99,6 +101,40 @@ export async function refundPayment(id: string, reason: string) {
   });
 }
 
+export async function removePayment(id: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const user = await requirePermission("payment.refund");
+    await deletePayment(id);
+    await writeAuditLog({
+      action: "payment.deleted",
+      actorId: user.id,
+      actorEmail: user.email,
+      targetId: id,
+      targetType: "payment",
+    });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed to delete payment" };
+  }
+}
+
+export async function togglePaymentHold(id: string, hold: boolean): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const user = await requirePermission("payment.refund");
+    await updatePayment(id, { isOnHold: hold } as Partial<import("@/types").Payment>);
+    await writeAuditLog({
+      action: hold ? "payment.held" : "payment.resumed",
+      actorId: user.id,
+      actorEmail: user.email,
+      targetId: id,
+      targetType: "payment",
+    });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed to update hold state" };
+  }
+}
+
 export async function fetchPaymentMethods() {
   await requirePermission("payment.view");
   return getActivePaymentMethods();
@@ -159,6 +195,40 @@ export async function updateInvoiceStatus(id: string, status: EnhancedInvoiceSta
     targetType: "invoice",
     after: { status },
   });
+}
+
+export async function removeInvoice(id: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const user = await requirePermission("invoice.manage");
+    await deleteEnhancedInvoice(id);
+    await writeAuditLog({
+      action: "invoice.deleted",
+      actorId: user.id,
+      actorEmail: user.email,
+      targetId: id,
+      targetType: "invoice",
+    });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed to delete invoice" };
+  }
+}
+
+export async function toggleInvoiceHold(id: string, hold: boolean): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const user = await requirePermission("invoice.manage");
+    await updateEnhancedInvoice(id, { isOnHold: hold } as Partial<import("@/types").EnhancedInvoice>);
+    await writeAuditLog({
+      action: hold ? "invoice.held" : "invoice.resumed",
+      actorId: user.id,
+      actorEmail: user.email,
+      targetId: id,
+      targetType: "invoice",
+    });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed to update hold state" };
+  }
 }
 
 // ── Installments ──

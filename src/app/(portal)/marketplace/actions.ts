@@ -17,7 +17,8 @@ export async function createDirectOrderAction(data: {
   customerPhone?: string;
   reference?: string;
   notes?: string;
-  paymentMethod?: "bangladesh-online" | "manual-transfer" | "coin";
+  paymentMethod?: "bangladesh-online" | "manual-transfer" | "coin" | "paypal";
+
 }) {
   const session = await auth();
   if (!session?.user) throw new Error("Unauthorized");
@@ -45,15 +46,15 @@ export async function createDirectOrderAction(data: {
 
     // Debit the wallet
     await createCoinTransaction({
-      walletId: user.id,
+      walletId: wallet.id,
       userId: user.id,
-      transactionType: "spend-purchase",
+      type: "spend-purchase",
       amount: totalAmount,
-      runningBalance: wallet.balance - totalAmount,
+      currency: "SCCG",
       description: `Payment for Marketplace Order ${orderNumber}`,
       createdAt: now,
-      createdBy: user.id,
-    });
+      referenceId: orderNumber,
+    } as any);
 
     await updateCoinWallet(user.id, {
       balance: wallet.balance - totalAmount,
@@ -187,4 +188,10 @@ export async function createDirectOrderAction(data: {
     requiresVerification: !isCoinPayment,
     paymentMethod,
   };
+}
+
+export async function getNextOrderNumberAction() {
+  const session = await auth();
+  if (!session?.user) throw new Error("Unauthorized");
+  return await generateOrderNumber();
 }

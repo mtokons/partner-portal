@@ -66,30 +66,29 @@ export async function redeemGiftCardToCoinsAction(cardNumber: string, pin: strin
     pinAttempts: 0,
   });
 
+  const wallet = await getCoinWallet(userId);
+  if (!wallet) throw new Error("Wallet not found");
+
   try {
     await createGiftCardTransaction({
-      sccgCardId: card.id,
       giftCardId: card.id,
-      transactionType: "redeem",
       type: "redeem",
       amount: -amount,
-      runningBalance: 0,
       balanceAfter: 0,
       description: `Redeemed to SCCG Coins by user ${userId}`,
       createdAt: new Date().toISOString(),
-      createdBy: userId,
-    });
+    } as any);
 
     await createCoinTransaction({
-      walletId: userId,
+      walletId: wallet.id,
       userId,
-      transactionType: "top-up",
+      type: "top-up",
       amount: amount,
-      runningBalance: amount,
+      currency: "SCCG",
       description: `Redeemed from Gift Card ${cardNumber}`,
       createdAt: new Date().toISOString(),
-      createdBy: userId,
-    });
+      referenceId: cardNumber,
+    } as any);
   } catch (err) {
     // Compensating rollback if ledger write fails.
     await updateGiftCard(card.id, {

@@ -770,15 +770,4 @@ export async function initializeInfrastructureAction() {
   return results;
 }
 
-export async function seedProductsAction() {
-  await assertAdmin();
-  
-  const { mockProducts } = await import("@/lib/mock-data");
-  const { createProduct } = await import("@/lib/sharepoint");
-
-  for (const p of mockProducts) {
-    await createProduct(p);
-  }
-  
-  return { success: true, count: mockProducts.length };
-}
+// Removed seedProductsAction as mock-data is deprecated.

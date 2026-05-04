@@ -5,6 +5,8 @@ import { getReferrals } from "@/lib/sharepoint";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Share2, TrendingUp, Clock, CheckCircle2 } from "lucide-react";
+import { RowActions } from "@/components/RowActions";
+import { removeReferral, holdReferral } from "@/lib/row-actions";
 
 const statusColors: Record<string, string> = {
   pending: "bg-amber-100 text-amber-700 border-amber-200",
@@ -76,7 +78,7 @@ export default async function AdminReferralsPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/30">
-                    {["Referrer", "Type", "Offer", "Order", "%", "Amount", "Status"].map((h) => (
+                    {["Referrer", "Type", "Offer", "Order", "%", "Amount", "Status", ""].map((h) => (
                       <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                         {h}
                       </th>
@@ -107,6 +109,14 @@ export default async function AdminReferralsPage() {
                         <Badge className={`capitalize rounded-full text-[10px] border ${statusColors[ref.status] || ""}`}>
                           {ref.status}
                         </Badge>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <RowActions
+                          entityLabel="referral"
+                          isOnHold={!!ref.isOnHold}
+                          onHold={async () => { "use server"; return holdReferral(ref.id, !ref.isOnHold); }}
+                          onDelete={async () => { "use server"; return removeReferral(ref.id); }}
+                        />
                       </td>
                     </tr>
                   ))}

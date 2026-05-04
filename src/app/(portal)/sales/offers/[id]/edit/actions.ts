@@ -2,7 +2,8 @@
 
 import { auth } from "@/auth";
 import type { SessionUser } from "@/types";
-import { updateSalesOffer, getSalesOfferById, getSalesOfferItems, createSalesOfferItem, deleteSalesOfferItem } from "@/lib/sharepoint";
+import { updateSalesOffer, getSalesOfferById, getSalesOfferItems, createSalesOfferItem, deleteSalesOfferItem, getPartnerByEmail, getCommissionRules, getPromoCodeByCode } from "@/lib/sharepoint";
+import { calculateCommission } from "@/lib/engine/commission";
 import { revalidatePath } from "next/cache";
 
 export async function updateSalesOfferAction(offerId: string, data: {
@@ -18,6 +19,7 @@ export async function updateSalesOfferAction(offerId: string, data: {
   referralId?: string;
   referralName?: string;
   referralPercent?: number;
+  promoCodeValue?: string;
 }) {
   const session = await auth();
   if (!session?.user) throw new Error("Unauthorized");
@@ -32,6 +34,36 @@ export async function updateSalesOfferAction(offerId: string, data: {
   const discountAmount = data.discountType === "percent" ? subtotal * (data.discount / 100) : data.discount;
   const totalAmount = Math.max(0, subtotal - discountAmount);
 
+  // --- Commission Engine Integration ---
+  let commissionPercent = data.referralPercent || 0;
+  let commissionAmount = totalAmount * (commissionPercent / 100);
+  let commissionRuleId: string | undefined;
+
+  try {
+    const [rules, partner, promoCode] = await Promise.all([
+      getCommissionRules(),
+      user.email ? getPartnerByEmail(user.email) : null,
+      data.promoCodeValue ? getPromoCodeByCode(data.promoCodeValue) : null,
+    ]);
+
+    const result = calculateCommission(
+      { totalAmount },
+      data.items.map(i => ({ ...i, id: "", salesOfferId: "", totalPrice: i.quantity * i.unitPrice })),
+      partner,
+      promoCode,
+      rules
+    );
+
+    if (result) {
+      commissionPercent = result.percent;
+      commissionAmount = result.amount;
+      commissionRuleId = result.ruleId;
+    }
+  } catch (err) {
+    console.warn("Commission calculation failed, falling back to manual/zero:", err);
+  }
+  // --------------------------------------
+
   await updateSalesOffer(offerId, {
     clientId: data.clientId,
     clientName: data.clientName,
@@ -45,7 +77,11 @@ export async function updateSalesOfferAction(offerId: string, data: {
     saleType: data.saleType,
     referralId: data.referralId,
     referralName: data.referralName,
-    referralPercent: data.referralPercent,
+    referralPercent: commissionPercent,
+    commissionPercent,
+    commissionAmount,
+    commissionRuleId,
+    promoCodeValue: data.promoCodeValue,
   });
 
   // Handle items (delete old, create new)

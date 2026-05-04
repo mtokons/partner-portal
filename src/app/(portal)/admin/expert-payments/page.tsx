@@ -5,6 +5,8 @@ import { getExpertPayments } from "@/lib/sharepoint";
 import { formatEurWithRate } from "@/lib/formatCurrency";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import ApprovePaymentButton from "./ApprovePaymentButton";
+import { RowActions } from "@/components/RowActions";
+import { removeExpertPayment, holdExpertPayment } from "@/lib/row-actions";
 
 // Format expert payments as BDT primary with EUR equivalent when rate available
 let _rate: number | null = null;
@@ -76,7 +78,8 @@ export default async function AdminExpertPaymentsPage() {
                   <th className="pb-3 font-medium">Amount</th>
                   <th className="pb-3 font-medium">Status</th>
                   <th className="pb-3 font-medium">Eligible Date</th>
-                  <th className="pb-3 font-medium">Action</th>
+                  <th className="pb-3 font-medium">Approve</th>
+                  <th className="pb-3 font-medium w-10"></th>
                 </tr>
               </thead>
               <tbody>
@@ -97,6 +100,14 @@ export default async function AdminExpertPaymentsPage() {
                       {p.status === "eligible" && (
                         <ApprovePaymentButton paymentId={p.id} adminId={user.id} />
                       )}
+                    </td>
+                    <td className="py-2.5 text-right">
+                      <RowActions
+                        entityLabel="payment"
+                        isOnHold={!!p.isOnHold}
+                        onHold={async () => { "use server"; return holdExpertPayment(p.id, !p.isOnHold); }}
+                        onDelete={async () => { "use server"; return removeExpertPayment(p.id); }}
+                      />
                     </td>
                   </tr>
                 ))}

@@ -39,6 +39,7 @@ export default function NewOfferPage() {
   const [validUntil, setValidUntil] = useState(
     new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
   );
+  const [promoCodeValue, setPromoCodeValue] = useState("");
   const [notes, setNotes] = useState("");
 
   useEffect(() => {
@@ -82,6 +83,7 @@ export default function NewOfferPage() {
         discount,
         discountType,
         validUntil,
+        promoCodeValue,
         notes: notes || undefined,
       });
       if (result.success) {
@@ -247,6 +249,14 @@ export default function NewOfferPage() {
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   rows={3}
+                />
+              </div>
+              <div>
+                <Label>Promo Code (Optional)</Label>
+                <Input
+                  placeholder="e.g. SUMMER2026"
+                  value={promoCodeValue}
+                  onChange={(e) => setPromoCodeValue(e.target.value.toUpperCase())}
                 />
               </div>
             </CardContent>

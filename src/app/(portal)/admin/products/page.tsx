@@ -9,6 +9,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { refreshProductsAction } from "./actions";
 import { RefreshCw } from "lucide-react";
+import { RowActions } from "@/components/RowActions";
+import { removeProduct, holdProduct } from "@/lib/row-actions";
 
 export default async function AdminProductsPage() {
   const session = await auth();
@@ -60,8 +62,8 @@ export default async function AdminProductsPage() {
         {[
           { label: "Total Products", value: products.length, icon: Package, color: "text-blue-500", bg: "bg-blue-50 border-blue-100" },
           { label: "With Discount", value: withDiscount, icon: Tag, color: "text-rose-500", bg: "bg-rose-50 border-rose-100" },
-          { label: "Out of Stock", value: outOfStock, icon: AlertCircle, color: "text-amber-500", bg: "bg-amber-50 border-amber-100" },
-          { label: "Unavailable", value: unavailable, icon: Star, color: "text-muted-foreground", bg: "bg-muted/50 border-border" },
+          { label: "Unavailable", value: unavailable, icon: AlertCircle, color: "text-amber-500", bg: "bg-amber-50 border-amber-100" },
+          { label: "Total Stock", value: products.reduce((s, p) => s + (p.stock || 0), 0), icon: Star, color: "text-muted-foreground", bg: "bg-muted/50 border-border" },
         ].map((kpi) => (
           <div key={kpi.label} className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl border ${kpi.bg}`}>
             <div className="h-9 w-9 rounded-xl bg-white flex items-center justify-center shadow-sm">
@@ -88,7 +90,7 @@ export default async function AdminProductsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/30">
-                  {["Product", "Category", "Price (BDT)", "Discount", "Stock", "Status", "Actions"].map((h) => (
+                  {["Product", "Category", "Price (BDT)", "Discount", "Stock", "Status", "Actions", ""].map((h) => (
                     <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                       {h}
                     </th>
@@ -159,6 +161,15 @@ export default async function AdminProductsPage() {
                         >
                           Edit →
                         </Link>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <RowActions
+                          entityLabel="product"
+                          isOnHold={!!product.isOnHold}
+                          onHold={async () => { "use server"; return holdProduct(product.id, !product.isOnHold); }}
+                          onDelete={async () => { "use server"; return removeProduct(product.id); }}
+                          editHref={`/admin/products/${product.id}`}
+                        />
                       </td>
                     </tr>
                   );

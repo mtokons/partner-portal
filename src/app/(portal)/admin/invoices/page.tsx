@@ -1,8 +1,9 @@
-import { fetchInvoices } from "../payments/actions";
+import { fetchInvoices, removeInvoice, toggleInvoiceHold } from "../payments/actions";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { FileText, DollarSign, Clock, CheckCircle } from "lucide-react";
 import { requireAdmin } from "@/lib/admin-guard";
+import { RowActions } from "@/components/RowActions";
 
 export default async function InvoicesPage() {
   await requireAdmin();
@@ -58,11 +59,12 @@ export default async function InvoicesPage() {
                 <th className="text-left py-3 px-4 font-medium text-muted-foreground">Amount</th>
                 <th className="text-left py-3 px-4 font-medium text-muted-foreground">Due Date</th>
                 <th className="text-left py-3 px-4 font-medium text-muted-foreground">Status</th>
+                <th className="text-right py-3 px-4 font-medium text-muted-foreground w-12"></th>
               </tr>
             </thead>
             <tbody>
               {invoices.length === 0 ? (
-                <tr><td colSpan={6} className="text-center py-8 text-muted-foreground">No invoices created yet</td></tr>
+                <tr><td colSpan={7} className="text-center py-8 text-muted-foreground">No invoices created yet</td></tr>
               ) : (
                 invoices.map((inv) => (
                   <tr key={inv.id} className="border-b hover:bg-muted/30">
@@ -77,6 +79,20 @@ export default async function InvoicesPage() {
                         inv.status === "overdue" ? "destructive" :
                         inv.status === "sent" ? "outline" : "secondary"
                       } className="capitalize text-xs">{inv.status}</Badge>
+                    </td>
+                    <td className="py-3 px-4 text-right">
+                      <RowActions
+                        entityLabel="invoice"
+                        isOnHold={!!inv.isOnHold}
+                        onHold={async () => {
+                          "use server";
+                          return toggleInvoiceHold(inv.id, !inv.isOnHold);
+                        }}
+                        onDelete={async () => {
+                          "use server";
+                          return removeInvoice(inv.id);
+                        }}
+                      />
                     </td>
                   </tr>
                 ))

@@ -5,6 +5,7 @@ import {
   getSccgCardById,
   createSccgCard,
   updateSccgCard,
+  deleteSccgCard,
   getSccgCardTransactions,
   createSccgCardTransaction,
 } from "@/lib/firestore-services";
@@ -193,4 +194,26 @@ export async function reactivateCard(cardId: string) {
     targetId: cardId,
     targetType: "sccg-card",
   });
+}
+
+export async function removeSccgCard(cardId: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const user = await requirePermission("sccg-card.manage");
+    await deleteSccgCard(cardId);
+    await writeAuditLog({ action: "sccg-card.deleted", actorId: user.id, actorEmail: user.email, targetId: cardId, targetType: "sccg-card" });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+export async function holdSccgCard(cardId: string, freeze: boolean): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const user = await requirePermission("sccg-card.manage");
+    await updateSccgCard(cardId, { status: freeze ? "frozen" : "active" });
+    await writeAuditLog({ action: freeze ? "sccg-card.frozen" : "sccg-card.unfrozen", actorId: user.id, actorEmail: user.email, targetId: cardId, targetType: "sccg-card" });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
 }

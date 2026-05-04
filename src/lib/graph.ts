@@ -2,7 +2,29 @@ import type { Client } from "@microsoft/microsoft-graph-client";
 
 let graphClient: Client | null = null;
 
-async function getGraphClient(): Promise<Client> {
+function isGraphDebugEnabled(): boolean {
+  return process.env.SP_GRAPH_DEBUG === "true";
+}
+
+function debugLog(...args: any[]) {
+  if (!isGraphDebugEnabled()) return;
+  // eslint-disable-next-line no-console
+  console.log("[Graph]", ...args);
+}
+
+function summarizeGraphError(err: any): Record<string, unknown> {
+  const out: Record<string, unknown> = {
+    message: err?.message,
+    code: err?.code,
+    statusCode: err?.statusCode,
+    requestId: err?.requestId,
+  };
+  // microsoft-graph-client errors sometimes include a body object
+  if (err?.body) out.body = err.body;
+  return out;
+}
+
+export async function getGraphClient(): Promise<Client> {
   if (graphClient) return graphClient;
 
   // Dynamically import server-only packages to avoid bundling them into client code
@@ -44,7 +66,14 @@ async function getGraphClient(): Promise<Client> {
 
 export async function graphGet<T>(url: string): Promise<T> {
   const client = await getGraphClient();
-  return client.api(url).get();
+  // Allow filter/orderby on non-indexed columns (e.g. CreatedAt) — required for many of our lists.
+  if (isGraphDebugEnabled()) debugLog("GET", url);
+  try {
+    return await client.api(url).header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly").get();
+  } catch (err: any) {
+    if (isGraphDebugEnabled()) debugLog("GET_ERROR", url, summarizeGraphError(err));
+    throw err;
+  }
 }
 
 /**
@@ -54,28 +83,48 @@ export async function graphGet<T>(url: string): Promise<T> {
 export async function graphGetSafe<T>(url: string): Promise<T | null> {
   try {
     const client = await getGraphClient();
-    return await client.api(url).get();
+    if (isGraphDebugEnabled()) debugLog("GET_SAFE", url);
+    return await client.api(url).header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly").get();
   } catch (err: any) {
     if (err.statusCode === 404 || err.code === "itemNotFound") {
       return null;
     }
+    if (isGraphDebugEnabled()) debugLog("GET_SAFE_ERROR", url, summarizeGraphError(err));
     throw err;
   }
 }
 
 export async function graphPost<T>(url: string, body: Record<string, unknown>): Promise<T> {
   const client = await getGraphClient();
-  return client.api(url).post(body);
+  if (isGraphDebugEnabled()) debugLog("POST", url, body);
+  try {
+    return await client.api(url).post(body);
+  } catch (err: any) {
+    if (isGraphDebugEnabled()) debugLog("POST_ERROR", url, summarizeGraphError(err));
+    throw err;
+  }
 }
 
 export async function graphPatch<T>(url: string, body: Record<string, unknown>): Promise<T> {
   const client = await getGraphClient();
-  return client.api(url).patch(body);
+  if (isGraphDebugEnabled()) debugLog("PATCH", url, body);
+  try {
+    return await client.api(url).patch(body);
+  } catch (err: any) {
+    if (isGraphDebugEnabled()) debugLog("PATCH_ERROR", url, summarizeGraphError(err));
+    throw err;
+  }
 }
 
 export async function graphDelete(url: string): Promise<void> {
   const client = await getGraphClient();
-  await client.api(url).delete();
+  if (isGraphDebugEnabled()) debugLog("DELETE", url);
+  try {
+    await client.api(url).delete();
+  } catch (err: any) {
+    if (isGraphDebugEnabled()) debugLog("DELETE_ERROR", url, summarizeGraphError(err));
+    throw err;
+  }
 }
 
 export function getSiteListUrl(listName: string): string {

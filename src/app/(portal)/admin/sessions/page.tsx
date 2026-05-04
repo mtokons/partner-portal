@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import type { SessionUser, Session } from "@/types";
 import { getCustomerPackages, getSessionsByPackage } from "@/lib/sharepoint";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { RowActions } from "@/components/RowActions";
+import { removeSession, holdSession } from "@/lib/row-actions";
 
 const statusColor: Record<Session["status"], string> = {
   completed: "bg-green-100 text-green-700",
@@ -63,6 +65,7 @@ export default async function AdminSessionsPage() {
                   <th className="pb-3 font-medium">Session</th>
                   <th className="pb-3 font-medium">Status</th>
                   <th className="pb-3 font-medium">Date</th>
+                  <th className="pb-3 font-medium w-10"></th>
                 </tr>
               </thead>
               <tbody>
@@ -82,8 +85,14 @@ export default async function AdminSessionsPage() {
                         : s.completedAt
                         ? new Date(s.completedAt).toLocaleDateString("en-GB")
                         : "—"}
-                    </td>
-                  </tr>
+                    </td>                    <td className="py-2.5 text-right">
+                      <RowActions
+                        entityLabel="session"
+                        isOnHold={!!s.isOnHold}
+                        onHold={async () => { "use server"; return holdSession(s.id, !s.isOnHold); }}
+                        onDelete={async () => { "use server"; return removeSession(s.id); }}
+                      />
+                    </td>                  </tr>
                 ))}
               </tbody>
             </table>

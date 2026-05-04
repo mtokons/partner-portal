@@ -5,7 +5,8 @@ import { getPartners } from "@/lib/sharepoint";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import PartnerStatusButtons from "./PartnerStatusButtons";
+import { RowActions } from "@/components/RowActions";
+import { removePartner, holdPartner } from "@/lib/row-actions";
 import { refreshPartnersAction } from "./actions";
 import { RefreshCw } from "lucide-react";
 
@@ -72,7 +73,8 @@ export default async function AdminPartnersPage() {
                 <TableHead>Phone</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Since</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead>Status Actions</TableHead>
+                <TableHead className="w-10"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -90,6 +92,15 @@ export default async function AdminPartnersPage() {
                   </TableCell>
                   <TableCell>
                     <PartnerStatusButtons partnerId={partner.id} currentStatus={partner.status} />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <RowActions
+                      entityLabel="partner"
+                      isOnHold={!!partner.isOnHold}
+                      onHold={async () => { "use server"; return holdPartner(partner.id, !partner.isOnHold); }}
+                      onDelete={async () => { "use server"; return removePartner(partner.id); }}
+                      editHref={`/admin/partners/${partner.id}/edit`}
+                    />
                   </TableCell>
                 </TableRow>
               ))}

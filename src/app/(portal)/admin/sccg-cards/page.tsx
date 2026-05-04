@@ -4,6 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { CreditCard, Plus, DollarSign, Users, AlertTriangle } from "lucide-react";
 import { requireAdmin } from "@/lib/admin-guard";
+import { RowActions } from "@/components/RowActions";
+import { removeSccgCard, holdSccgCard } from "./actions";
 
 export default async function SccgCardsPage() {
   await requireAdmin();
@@ -67,6 +69,7 @@ export default async function SccgCardsPage() {
                 <th className="text-left py-3 px-4 font-medium text-muted-foreground">Balance</th>
                 <th className="text-left py-3 px-4 font-medium text-muted-foreground">Issued</th>
                 <th className="text-left py-3 px-4 font-medium text-muted-foreground">Status</th>
+                <th className="w-10"></th>
               </tr>
             </thead>
             <tbody>
@@ -95,8 +98,15 @@ export default async function SccgCardsPage() {
                     <td className="py-3 px-4">
                       <Badge variant={c.status === "active" ? "default" : c.status === "frozen" ? "destructive" : "secondary"}
                         className="capitalize text-xs">{c.status}</Badge>
-                    </td>
-                  </tr>
+                    </td>                      <td className="py-3 px-4 text-right">
+                        <RowActions
+                          entityLabel="card"
+                          isOnHold={c.status === "frozen"}
+                          onHold={async () => { "use server"; return holdSccgCard(c.id, c.status !== "frozen"); }}
+                          onDelete={async () => { "use server"; return removeSccgCard(c.id); }}
+                          editHref={`/admin/sccg-cards/${c.id}`}
+                        />
+                      </td>                  </tr>
                 ))
               )}
             </tbody>

@@ -5,6 +5,8 @@ import { getOrders, getPartners } from "@/lib/sharepoint";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { RowActions } from "@/components/RowActions";
+import { removeOrder, toggleOrderHold } from "./actions";
 
 const statusColor: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-800",
@@ -72,6 +74,7 @@ export default async function AdminOrdersPage() {
                 <TableHead>Total</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Date</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -93,6 +96,21 @@ export default async function AdminOrdersPage() {
                       </TableCell>
                       <TableCell className="text-xs text-gray-500">
                         {new Date(order.createdAt).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <RowActions
+                          entityLabel="order"
+                          isOnHold={!!order.isOnHold}
+                          onHold={async () => {
+                            "use server";
+                            return toggleOrderHold(order.id, !order.isOnHold);
+                          }}
+                          onDelete={async () => {
+                            "use server";
+                            return removeOrder(order.id);
+                          }}
+                          editHref={`/admin/orders/${order.id}/edit`}
+                        />
                       </TableCell>
                     </TableRow>
                   );

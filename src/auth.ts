@@ -1,7 +1,7 @@
 import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
-import { getPartnerByEmail, getCustomerByEmail, getExpertByEmail, getCoinWallet } from "@/lib/sharepoint";
+import { Repository } from "@/lib/repository";
 import { verifyIdToken } from "@/lib/firebase-admin";
 import type { SessionUser, PartnerType } from "@/types";
 import type { FirebaseUserProfile } from "@/lib/firebase-auth";
@@ -9,7 +9,7 @@ import { getFirestoreDb } from "@/lib/firebase-auth";
 import { doc, getDoc } from "firebase/firestore";
 
 /** Build a roles[] array by checking all stores for a given email */
-async function buildRolesForEmail(email: string) {
+async function buildRolesForEmail(email: string, firebaseProfile?: FirebaseUserProfile) {
   const roles: string[] = [];
   let partnerId = "";
   let company = "";
@@ -17,37 +17,58 @@ async function buildRolesForEmail(email: string) {
   let expertId: string | undefined;
   let partnerType: PartnerType | undefined;
   let coinBalance: number | undefined;
-  let primaryRole: SessionUser["role"] = "customer";
-  let name = "";
+  let primaryRole: SessionUser["role"] = firebaseProfile?.role || "customer";
+  let name = firebaseProfile?.displayName || "";
 
-  const partner = await getPartnerByEmail(email);
+  // 1. Check SharePoint Partners (Source of truth for PartnerID and Commission info)
+  const partner = await Repository.partners.getByEmail(email);
   if (partner && partner.status !== "suspended") {
-    roles.push(partner.role === "admin" ? "admin" : "partner");
-    if (partner.role === "admin") roles.push("partner");
+    // If not set by Firebase, use SharePoint role
+    if (!firebaseProfile) primaryRole = partner.role;
+    
+    roles.push(primaryRole === "admin" ? "admin" : "partner");
+    if (primaryRole === "partner") {
+      roles.push(`partner-${partner.partnerType}`);
+    }
+    if (primaryRole === "admin") {
+      roles.push("partner");
+      roles.push("partner-individual");
+      roles.push("partner-institutional");
+    }
     partnerId = partner.id;
-    company = partner.company;
-    primaryRole = partner.role;
-    name = partner.name;
+    company = partner.company || firebaseProfile?.company || "";
+    if (!name) name = partner.name;
     partnerType = partner.partnerType;
+
+    const { getCoinWallet } = await import("@/lib/sharepoint");
     const wallet = await getCoinWallet(partner.id);
     if (wallet) coinBalance = wallet.balance;
   }
 
-  const customer = await getCustomerByEmail(email);
+  // 2. Check SharePoint Customers
+  const customer = await Repository.customers.getByEmail(email);
   if (customer && customer.status !== "suspended") {
     if (!roles.includes("customer")) roles.push("customer");
     customerId = customer.id;
     if (!partnerId) partnerId = customer.partnerId;
     if (!company) company = customer.company || "";
-    if (!name) { name = customer.name; primaryRole = "customer"; }
+    if (!name) name = customer.name;
+    if (!firebaseProfile && primaryRole === "customer") primaryRole = "customer";
   }
 
-  const expert = await getExpertByEmail(email);
+  // 3. Check SharePoint Experts
+  const expert = await Repository.experts.getByEmail(email);
   if (expert && expert.status !== "inactive") {
     if (!roles.includes("expert")) roles.push("expert");
     expertId = expert.id;
-    if (!name) { name = expert.name; primaryRole = "expert"; company = expert.specialization; }
+    if (!name) name = expert.name;
+    if (!firebaseProfile && primaryRole === "expert") primaryRole = "expert";
+    if (!company) company = expert.specialization;
   }
+
+  // 4. Final Role Consolidation (Ensure Firebase role is always present)
+  if (!roles.includes(primaryRole)) roles.push(primaryRole);
+  if (primaryRole === "admin" && !roles.includes("partner")) roles.push("partner");
 
   return { roles, partnerId, company, customerId, expertId, partnerType, coinBalance, primaryRole, name };
 }
@@ -69,43 +90,35 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           const idToken = credentials.idToken as string;
           try {
             const decodedToken = await verifyIdToken(idToken);
-            if (!decodedToken) return null;
+            if (!decodedToken) {
+              console.error("[auth] ID Token verification returned null");
+              return null;
+            }
 
-            // 1. Check for Cloud/Firebase Profile Status
-            const db = getFirestoreDb();
-            const profileDoc = await getDoc(doc(db, "users", decodedToken.uid));
+            // 1. Check for Cloud/Firebase Profile Status using Admin SDK
+            const { getAdminFirestore } = await import("@/lib/firebase-admin");
+            const db = getAdminFirestore();
+            const profileDoc = await db.collection("users").doc(decodedToken.uid).get();
             const profile = profileDoc.data() as FirebaseUserProfile | undefined;
 
             if (profile) {
               if (profile.status === "pending") {
+                console.warn(`[auth] User ${decodedToken.email} is pending approval`);
                 const err = new CredentialsSignin("Your account is pending admin approval.");
-                err.cause = { err: new Error("Your account is pending admin approval.") };
                 throw err;
               }
               if (profile.status === "suspended") {
+                console.warn(`[auth] User ${decodedToken.email} is suspended`);
                 const err = new CredentialsSignin("Your account has been suspended.");
-                err.cause = { err: new Error("Your account has been suspended.") };
                 throw err;
               }
             }
 
             // 2. Map to Portal Roles (Bridging Firebase and SharePoint)
             const email = decodedToken.email || "";
-            const rolesInfo = await buildRolesForEmail(email);
+            const rolesInfo = await buildRolesForEmail(email, profile);
 
-            if (rolesInfo.roles.length === 0) {
-              const fallbackRole = profile?.role || "customer";
-              return {
-                id: decodedToken.uid,
-                name: decodedToken.name || profile?.displayName || email.split("@")[0],
-                email,
-                role: fallbackRole as SessionUser["role"],
-                roles: [fallbackRole],
-                partnerId: "",
-                company: "",
-                expertId: fallbackRole === "expert" ? decodedToken.uid : undefined,
-              } as SessionUser;
-            }
+            console.log(`[auth] Successful Firebase login for ${email}. Primary role: ${rolesInfo.primaryRole}`);
 
             return {
               id: decodedToken.uid,
@@ -121,7 +134,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               coinBalance: rolesInfo.coinBalance,
             } as SessionUser;
           } catch (error) {
-            console.error("Firebase token verification failed:", error);
+            console.error("[auth] Firebase token login failed:", error instanceof Error ? error.message : error);
+            if (error instanceof CredentialsSignin) throw error;
             return null;
           }
         }
@@ -134,9 +148,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         // If portal explicitly provided, restrict lookup to that store
         if (portal === "customer") {
-          const customer = await getCustomerByEmail(email);
+          const customer = await Repository.customers.getByEmail(email);
           if (!customer || customer.status === "suspended") return null;
-          const isValid = await compare(password, customer.passwordHash);
+          const isValid = customer.passwordHash ? await compare(password, customer.passwordHash) : false;
           if (!isValid) return null;
           const ri = await buildRolesForEmail(email);
           return {
@@ -149,7 +163,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
 
         if (portal === "expert") {
-          const expert = await getExpertByEmail(email);
+          const expert = await Repository.experts.getByEmail(email);
           if (!expert || expert.status === "inactive" || !expert.passwordHash) return null;
           const isValid = await compare(password, expert.passwordHash);
           if (!isValid) return null;
@@ -165,7 +179,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         // No portal specified: try to find user across all stores
         const rolesInfo = await buildRolesForEmail(email);
 
-        const partner = await getPartnerByEmail(email);
+        const partner = await Repository.partners.getByEmail(email);
         if (partner) {
           if (partner.status === "suspended") return null;
           const isValid = await compare(password, partner.passwordHash);
@@ -179,9 +193,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           } as SessionUser;
         }
 
-        const customer = await getCustomerByEmail(email);
+        const customer = await Repository.customers.getByEmail(email);
         if (customer && customer.status !== "suspended") {
-          const isValid = await compare(password, customer.passwordHash);
+          const isValid = customer.passwordHash ? await compare(password, customer.passwordHash) : false;
           if (!isValid) return null;
           return {
             id: customer.id, name: customer.name, email: customer.email,
@@ -192,7 +206,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           } as SessionUser;
         }
 
-        const expert = await getExpertByEmail(email);
+        const expert = await Repository.experts.getByEmail(email);
         if (expert && expert.status !== "inactive" && expert.passwordHash) {
           const isValid = await compare(password, expert.passwordHash);
           if (!isValid) return null;

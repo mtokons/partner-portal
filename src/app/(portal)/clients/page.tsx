@@ -8,7 +8,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import AddClientButton from "./AddClientButton";
 import { Users, Building2, Mail, Phone, ExternalLink, UserPlus, RefreshCw } from "lucide-react";
-import { refreshClientsAction } from "./actions";
+import { refreshClientsAction, removeClient, toggleClientHold } from "./actions";
+import { RowActions } from "@/components/RowActions";
+
 
 export default async function ClientsPage() {
   const session = await auth();
@@ -160,12 +162,19 @@ export default async function ClientsPage() {
                       </p>
                     </TableCell>
                     <TableCell className="pr-6">
-                      <Link href={`/clients/${client.id}`}>
-                        <Button variant="outline" size="sm" className="rounded-xl text-xs gap-1.5 hover:bg-primary hover:text-white hover:border-primary transition-all">
-                          <ExternalLink className="h-3.5 w-3.5" />
-                          View
-                        </Button>
-                      </Link>
+                      <RowActions
+                        entityLabel="client"
+                        isOnHold={!!client.isOnHold}
+                        onHold={async () => {
+                          "use server";
+                          return toggleClientHold(client.id, !client.isOnHold);
+                        }}
+                        onDelete={async () => {
+                          "use server";
+                          return removeClient(client.id);
+                        }}
+                        editHref={`/clients/${client.id}/edit`}
+                      />
                     </TableCell>
                   </TableRow>
                 ))}

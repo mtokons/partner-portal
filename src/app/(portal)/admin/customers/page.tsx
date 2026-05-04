@@ -4,6 +4,8 @@ import type { SessionUser } from "@/types";
 import { getCustomers, getCustomerPackages } from "@/lib/sharepoint";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { RowActions } from "@/components/RowActions";
+import { removeCustomer, holdCustomer } from "@/lib/row-actions";
 
 const statusColor: Record<string, string> = {
   active: "bg-green-100 text-green-700",
@@ -42,6 +44,7 @@ export default async function AdminCustomersPage() {
                   <th className="pb-3 font-medium">Status</th>
                   <th className="pb-3 font-medium">Packages</th>
                   <th className="pb-3 font-medium">Joined</th>
+                  <th className="pb-3 font-medium w-10"></th>
                 </tr>
               </thead>
               <tbody>
@@ -60,6 +63,15 @@ export default async function AdminCustomersPage() {
                       <td className="py-3">{custPackages.length}</td>
                       <td className="py-3 text-gray-500">
                         {new Date(c.createdAt).toLocaleDateString("en-GB")}
+                      </td>
+                      <td className="py-3 text-right">
+                        <RowActions
+                          entityLabel="customer"
+                          isOnHold={!!c.isOnHold}
+                          onHold={async () => { "use server"; return holdCustomer(c.id, !c.isOnHold); }}
+                          onDelete={async () => { "use server"; return removeCustomer(c.id); }}
+                          editHref={`/admin/customers/${c.id}/edit`}
+                        />
                       </td>
                     </tr>
                   );

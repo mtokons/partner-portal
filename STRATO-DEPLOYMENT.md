@@ -1,41 +1,140 @@
-# Strato.de Deployment Guide (Vercel)
+# Domain Deployment Guide — Oracle VPS
 
-This guide provides step-by-step instructions for pointing your `portal.mysccg.de` subdomain (hosted on **Strato.de**) to your Vercel project.
+This guide explains how to point `portal.mysccg.de` (Strato-managed domain)
+at our **self-hosted Oracle Cloud VPS** (Docker + Caddy reverse proxy).
 
-## 1. Vercel Configuration
-1.  Go to [Vercel Dashboard](https://vercel.com/sccg/partner-portal/settings/domains).
-2.  Add `portal.mysccg.de` to your list of domains.
-3.  Vercel will provide you with a **CNAME** target (e.g., `cname.vercel-dns.com` or a specific one starting with `9be0...`).
+> The portal is **no longer hosted on Vercel**. It runs on our own VPS at
+> `158.180.45.36`, fronted by Caddy with automatic Let's Encrypt SSL.
 
-## 2. Strato.de DNS Settings
-Strato handles subdomains differently than other providers. Follow these exact steps:
+---
 
-### A. Create the Subdomain
-1.  Log in to your **Strato Customer Center**.
-2.  Navigate to **Domainverwaltung**.
-3.  Click the domain `mysccg.de`.
-4.  Click **Subdomain anlegen** and type `portal`.
-5.  Save your changes.
+## 1. VPS Facts
 
-### B. Configure the CNAME
-1.  Click on your **Domainverwaltung** again and select the domain `mysccg.de`.
-2.  Under the subdomain list, click on the **portal** subdomain you just created.
-3.  Click **DNS-Einstellungen**.
-4.  Look for the **CNAME-Record** section.
-5.  Set the CNAME to the target provided by Vercel (usually `cname.vercel-dns.com.`).
-    - **IMPORTANT**: In Strato, ensure there is a trailing dot at the end: `cname.vercel-dns.com.`
-6.  Save your changes.
+| Item            | Value                       |
+| --------------- | --------------------------- |
+| Provider        | Oracle Cloud Infrastructure |
+| Public IPv4     | `158.180.45.36`             |
+| OS              | Ubuntu 24.04                |
+| SSH user        | `ubuntu`                    |
+| App path        | `~/partner-portal`          |
+| Reverse proxy   | Caddy 2 (Docker)            |
+| App container   | `portal` (Next.js standalone, port 3000) |
+| Domain          | `portal.mysccg.de`          |
 
-### C. Remove A/AAAA Records (If Present)
-1.  In the same **DNS-Einstellungen** for the `portal` subdomain, ensure that the **A-Record** and **AAAA-Record** are NOT set to anything other than the default or the Vercel IP.
-2.  If you set a CNAME, Strato usually handles this automatically.
+---
 
-## 3. Verify in Vercel
-1.  Once you've updated Strato, return to your [Vercel Domains page](https://vercel.com/sccg/partner-portal/settings/domains).
-2.  Wait for the status to change to **"Valid Configuration"** (Green checkmark).
-3.  DNS propagation can take between 5 minutes and 24 hours but is usually fast.
+## 2. Strato DNS — Switch From Vercel to Oracle VPS
+
+The current `portal` subdomain still has a **CNAME to Vercel**. Replace it
+with an **A record** to the Oracle VPS public IP.
+
+### A. Open DNS settings
+1. Log in to your **Strato Customer Center**.
+2. Navigate to **Domainverwaltung** → click `mysccg.de`.
+3. Under the subdomain list, select the **`portal`** subdomain.
+4. Click **DNS-Einstellungen**.
+
+### B. Remove the Vercel CNAME
+1. Find the existing **CNAME-Record** pointing to a `*.vercel-dns*.com`
+   target (currently `9be0d50182e1b901.vercel-dns-017.com.`).
+2. **Delete it** (or set CNAME field back to default/empty).
+
+### C. Add the A record
+1. In the **A-Record** field for `portal`, enter:
+   ```
+   158.180.45.36
+   ```
+2. Leave **AAAA-Record** empty unless you also want IPv6.
+3. Save the changes.
+
+### D. Wait for propagation
+```bash
+dig +short portal.mysccg.de A
+# Expected: 158.180.45.36
+```
+
+> **Tip:** Caddy will automatically request a Let's Encrypt certificate the
+> first time DNS resolves to the VPS and ports 80/443 are reachable.
+
+---
+
+## 3. Oracle Cloud — Networking
+
+Ensure these ingress rules exist on the VPS subnet's Security List
+(and that `ufw`/`iptables` on the VM are open):
+
+| Protocol | Port | Source     |
+| -------- | ---- | ---------- |
+| TCP      | 22   | your IP    |
+| TCP      | 80   | 0.0.0.0/0  |
+| TCP      | 443  | 0.0.0.0/0  |
+
+Without ports 80/443 open globally, Caddy cannot complete the ACME HTTP-01
+challenge and SSL will fail.
+
+---
 
 ## 4. Environment Variables
-Ensure these are set in Vercel to match your new domain:
-- `NEXTAUTH_URL`: `https://portal.mysccg.de`
-- `NEXT_PUBLIC_APP_URL`: `https://portal.mysccg.de`
+
+Server-side env vars live in `.env.production` on the VPS, mounted into the
+`portal` container by `docker-compose.yml`. Required minimum:
+
+```env
+NEXTAUTH_URL="https://portal.mysccg.de"
+NEXT_PUBLIC_APP_URL="https://portal.mysccg.de"
+NEXTAUTH_SECRET="…"
+# Plus Firebase Admin, Microsoft Graph / SharePoint, Azure AD, etc.
+```
+
+This file is synced from the local repo by `deploy_to_vps.sh` — never commit it.
+
+---
+
+## 5. Build & Deploy (local → VPS)
+
+The recommended workflow is **build locally, ship the standalone bundle**:
+
+```bash
+# 1. Build the Next.js standalone artifact
+npm ci
+npm run build
+
+# 2. Sync artifacts + Docker config + env, then restart containers on VPS
+./deploy_to_vps.sh
+```
+
+`deploy_to_vps.sh` does:
+1. `rsync` `.next/standalone/` → VPS `~/partner-portal/`
+2. `rsync` `.next/static/` and `public/` → VPS
+3. `rsync` `Dockerfile`, `docker-compose.yml`, `Caddyfile`, `.env.production`
+4. SSH in and run `sudo docker compose up -d --build`
+
+After it finishes:
+```bash
+ssh -i ./ssh-key-2026-05-02.key ubuntu@158.180.45.36 \
+  "cd ~/partner-portal && sudo docker compose ps && sudo docker compose logs --tail=80 portal"
+```
+
+---
+
+## 6. Verify
+
+```bash
+dig +short portal.mysccg.de A          # → 158.180.45.36
+curl -sI http://portal.mysccg.de  | head -3
+curl -sI https://portal.mysccg.de | head -5
+# Expect HTTP/2 200 (or 307 to /login). The `server:` header must NOT be `Vercel`.
+```
+
+If `server: Vercel` still appears, DNS has not yet cut over — wait or flush
+your local resolver.
+
+---
+
+## 7. Rollback
+
+To temporarily revert to Vercel (e.g., during an outage):
+1. In Strato DNS, remove the A record for `portal`.
+2. Re-add CNAME `9be0d50182e1b901.vercel-dns-017.com.` (with trailing dot).
+3. The Vercel project at `vercel.com/sccg/partner-portal` already has the
+   domain bound and will serve traffic again once DNS propagates.

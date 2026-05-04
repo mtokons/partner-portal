@@ -34,7 +34,7 @@ export default async function AdminWalletsPage() {
       };
     });
   } catch (error) {
-    console.error("Failed to fetch Firebase users for wallet top-up:", error);
+    console.warn("Failed to fetch Firebase users (not-configured or permission):", error instanceof Error ? error.message : error);
   }
 
   // Combine into a generic list

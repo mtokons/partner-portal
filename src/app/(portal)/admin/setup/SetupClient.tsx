@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { checkInfrastructureAction, initializeInfrastructureAction, seedProductsAction } from "./actions";
+import { checkInfrastructureAction, initializeInfrastructureAction } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -49,18 +49,6 @@ export default function SetupClient() {
     }
   }
 
-  async function handleSeed() {
-    setBusy(true);
-    setMessage(null);
-    try {
-      const res = await seedProductsAction();
-      setMessage({ type: "success", text: `Successfully seeded ${res.count} products into Marketplace!` });
-    } catch (err: any) {
-      setMessage({ type: "error", text: err.message });
-    } finally {
-      setBusy(false);
-    }
-  }
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 page-enter pb-20">
@@ -135,27 +123,6 @@ export default function SetupClient() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-[2rem] border-primary/10 shadow-xl shadow-primary/5">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-amber-500" />
-              Store Seeding
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Once your "Products" list is initialized, you can seed it with the SCCG default catalog, 
-              including the new Gift Cards.
-            </p>
-            <Button 
-              onClick={handleSeed}
-              disabled={busy || loading}
-              className="w-full rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-bold h-12"
-            >
-              Seed Standard Products
-            </Button>
-          </CardContent>
-        </Card>
 
         <Card className="rounded-[2rem] border-primary/10 shadow-xl shadow-primary/5">
           <CardHeader>

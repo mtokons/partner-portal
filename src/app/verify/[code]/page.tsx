@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
 import { getSchoolCertificates } from "@/lib/firestore-services";
-import { findSharePointCertificate } from "@/lib/sharepoint";
+import { getCertificateByCode } from "@/lib/sharepoint";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Award, ShieldCheck, ShieldX, ShieldAlert } from "lucide-react";
@@ -48,11 +48,11 @@ export default async function VerifyCertificatePage({ params }: { params: Promis
       const results = await getSchoolCertificates({ verificationCode: code });
       cert = results[0] || null;
       if (!cert) {
-        cert = await findSharePointCertificate(code);
+        cert = await getCertificateByCode(code);
       }
     } catch {
       try {
-        cert = await findSharePointCertificate(code);
+        cert = await getCertificateByCode(code);
       } catch {
         // both lookups failed — treat as not found
       }

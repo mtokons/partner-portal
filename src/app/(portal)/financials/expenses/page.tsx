@@ -8,6 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import AddExpenseButton from "./AddExpenseButton";
 import OrderStatusPieChart from "@/components/charts/OrderStatusPieChart";
+import { RowActions } from "@/components/RowActions";
+import { removeExpense, holdExpense } from "@/lib/row-actions";
 
 export default async function ExpensesPage() {
   const session = await auth();
@@ -54,6 +56,7 @@ export default async function ExpensesPage() {
                 <TableHead>Category</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead>Amount</TableHead>
+                <TableHead className="w-10"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -63,6 +66,14 @@ export default async function ExpensesPage() {
                   <TableCell><Badge variant="outline">{expense.category}</Badge></TableCell>
                   <TableCell>{expense.description}</TableCell>
                   <TableCell className="font-semibold text-red-600">{fmtBdt(expense.amount, expense.amountEur ?? rate, { compact: true })}</TableCell>
+                  <TableCell className="text-right">
+                    <RowActions
+                      entityLabel="expense"
+                      isOnHold={!!expense.isOnHold}
+                      onHold={async () => { "use server"; return holdExpense(expense.id, !expense.isOnHold); }}
+                      onDelete={async () => { "use server"; return removeExpense(expense.id); }}
+                    />
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

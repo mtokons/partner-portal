@@ -1,7 +1,13 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { fetchAllSpLists, fetchTenantUsers, fetchAppUsers, fetchDataSourceDiagnostics } from "./actions";
+import {
+  fetchAllSpLists,
+  fetchTenantUsers,
+  fetchAppUsers,
+  fetchDataSourceDiagnostics,
+  fetchFeatureMapping,
+} from "./actions";
 import DataSourcesClient from "./client";
 import { requireAdmin } from "@/lib/admin-guard";
 
@@ -9,11 +15,12 @@ export const dynamic = "force-dynamic";
 
 export default async function DataSourcesPage() {
   await requireAdmin();
-  const [diag, listsRes, tenantUsers, appUsers] = await Promise.all([
+  const [diag, listsRes, tenantUsers, appUsers, mapping] = await Promise.all([
     fetchDataSourceDiagnostics(),
     fetchAllSpLists(),
     fetchTenantUsers(100),
     fetchAppUsers(),
+    fetchFeatureMapping(),
   ]);
 
   return (
@@ -31,9 +38,7 @@ export default async function DataSourcesPage() {
         </CardHeader>
         <CardContent className="text-sm space-y-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <Badge variant={diag.useMock ? "destructive" : "default"}>
-              {diag.useMock ? "MOCK MODE" : "LIVE"}
-            </Badge>
+            <Badge variant="default">LIVE CONNECTION</Badge>
             <Badge variant={diag.hasConfig ? "default" : "destructive"}>
               {diag.hasConfig ? "Graph credentials present" : "Missing Graph credentials"}
             </Badge>
@@ -44,12 +49,17 @@ export default async function DataSourcesPage() {
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="sp-lists">
+      <Tabs defaultValue="mapping">
         <TabsList>
+          <TabsTrigger value="mapping">Feature Mapping ({mapping.spLists.length})</TabsTrigger>
           <TabsTrigger value="sp-lists">SharePoint Lists ({listsRes.lists.length})</TabsTrigger>
           <TabsTrigger value="app-users">Application Users ({appUsers.total})</TabsTrigger>
           <TabsTrigger value="tenant-users">Tenant Users ({tenantUsers.total})</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="mapping">
+          <FeatureMapping mapping={mapping} />
+        </TabsContent>
 
         <TabsContent value="sp-lists">
           <DataSourcesClient lists={listsRes.lists} listsError={listsRes.error} />
@@ -134,4 +144,130 @@ function CellValue({ value }: { value: unknown }) {
   } catch {
     return <span>—</span>;
   }
+}
+
+interface MappingProps {
+  mapping: Awaited<ReturnType<typeof fetchFeatureMapping>>;
+}
+
+function FeatureMapping({ mapping }: MappingProps) {
+  // Group SP lists by their canonical group.
+  const groups = new Map<string, typeof mapping.spLists>();
+  for (const l of mapping.spLists) {
+    const arr = groups.get(l.group) ?? [];
+    arr.push(l);
+    groups.set(l.group, arr);
+  }
+  const groupOrder = [
+    "CRM", "Commerce", "Financials", "Sales", "Promotions", "Referrals",
+    "Wallet", "Identity", "Notifications", "AI", "Sessions", "School", "Tasks",
+  ];
+  const orderedGroups = groupOrder.filter((g) => groups.has(g));
+  const totalLists = mapping.spLists.length;
+  const presentLists = mapping.spLists.filter((l) => !l.missing).length;
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Feature → Data Source Mapping</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            The canonical list of every SharePoint list and Firestore collection this app reads or writes.
+            Updated automatically whenever the registry in <code>app-lists.ts</code> changes.
+          </p>
+        </CardHeader>
+        <CardContent className="text-xs space-y-1">
+          <div className="flex gap-2 flex-wrap">
+            <Badge variant="default">{presentLists}/{totalLists} SP lists present</Badge>
+            <Badge variant="outline">{mapping.firestore.length} Firestore collections</Badge>
+            {totalLists - presentLists > 0 && (
+              <Badge variant="destructive">{totalLists - presentLists} missing</Badge>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {orderedGroups.map((group) => (
+        <Card key={group}>
+          <CardHeader>
+            <CardTitle className="text-sm">{group}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-auto border rounded-md">
+              <table className="text-xs w-full">
+                <thead className="bg-muted">
+                  <tr>
+                    <th className="text-left px-2 py-1.5 font-semibold border-b w-44">List</th>
+                    <th className="text-left px-2 py-1.5 font-semibold border-b">Description</th>
+                    <th className="text-left px-2 py-1.5 font-semibold border-b">Used by</th>
+                    <th className="text-right px-2 py-1.5 font-semibold border-b w-20">Items</th>
+                    <th className="text-left px-2 py-1.5 font-semibold border-b w-20">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {groups.get(group)!.map((l) => (
+                    <tr key={l.name} className="even:bg-muted/30">
+                      <td className="px-2 py-1 align-top border-b font-medium">{l.name}</td>
+                      <td className="px-2 py-1 align-top border-b">{l.description}</td>
+                      <td className="px-2 py-1 align-top border-b">
+                        <div className="flex gap-1 flex-wrap">
+                          {l.usedBy.map((u) => (
+                            <Badge key={u} variant="outline" className="text-[10px]">{u}</Badge>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="px-2 py-1 align-top border-b text-right tabular-nums">
+                        {l.itemCount ?? "—"}
+                      </td>
+                      <td className="px-2 py-1 align-top border-b">
+                        {l.missing ? (
+                          <Badge variant="destructive" className="text-[10px]">missing</Badge>
+                        ) : (
+                          <Badge variant="default" className="text-[10px]">ok</Badge>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm">Firestore collections</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-auto border rounded-md">
+            <table className="text-xs w-full">
+              <thead className="bg-muted">
+                <tr>
+                  <th className="text-left px-2 py-1.5 font-semibold border-b w-48">Collection</th>
+                  <th className="text-left px-2 py-1.5 font-semibold border-b">Description</th>
+                  <th className="text-left px-2 py-1.5 font-semibold border-b">Used by</th>
+                </tr>
+              </thead>
+              <tbody>
+                {mapping.firestore.map((c) => (
+                  <tr key={c.name} className="even:bg-muted/30">
+                    <td className="px-2 py-1 align-top border-b font-medium font-mono">{c.name}</td>
+                    <td className="px-2 py-1 align-top border-b">{c.description}</td>
+                    <td className="px-2 py-1 align-top border-b">
+                      <div className="flex gap-1 flex-wrap">
+                        {c.usedBy.map((u) => (
+                          <Badge key={u} variant="outline" className="text-[10px]">{u}</Badge>
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
 }

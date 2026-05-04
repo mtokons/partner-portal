@@ -15,6 +15,9 @@ interface SpListSummary {
   itemCount?: number;
   template?: string;
   hidden?: boolean;
+  appGroup?: string;
+  appUsedBy?: string[];
+  appDescription?: string;
 }
 
 export default function DataSourcesClient({
@@ -71,8 +74,13 @@ export default function DataSourcesClient({
                     {l.itemCount ?? "?"}
                   </Badge>
                 </div>
-                {l.description && (
-                  <p className="text-[11px] text-muted-foreground truncate">{l.description}</p>
+                {l.appGroup && (
+                  <Badge variant="secondary" className="text-[10px] mt-1">{l.appGroup}</Badge>
+                )}
+                {(l.appDescription || l.description) && (
+                  <p className="text-[11px] text-muted-foreground truncate">
+                    {l.appDescription || l.description}
+                  </p>
                 )}
               </button>
             ))}

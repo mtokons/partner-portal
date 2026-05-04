@@ -1,8 +1,9 @@
-import { fetchPayments } from "./actions";
+import { fetchPayments, removePayment, togglePaymentHold } from "./actions";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DollarSign, ArrowUpRight, ArrowDownRight, Clock } from "lucide-react";
 import { requireAdmin } from "@/lib/admin-guard";
+import { RowActions } from "@/components/RowActions";
 
 export default async function PaymentsPage() {
   await requireAdmin();
@@ -59,11 +60,12 @@ export default async function PaymentsPage() {
                 <th className="text-left py-3 px-4 font-medium text-muted-foreground">Method</th>
                 <th className="text-left py-3 px-4 font-medium text-muted-foreground">Context</th>
                 <th className="text-left py-3 px-4 font-medium text-muted-foreground">Status</th>
+                <th className="text-right py-3 px-4 font-medium text-muted-foreground w-12"></th>
               </tr>
             </thead>
             <tbody>
               {payments.length === 0 ? (
-                <tr><td colSpan={6} className="text-center py-8 text-muted-foreground">No payments recorded yet</td></tr>
+                <tr><td colSpan={7} className="text-center py-8 text-muted-foreground">No payments recorded yet</td></tr>
               ) : (
                 payments.map((p) => (
                   <tr key={p.id} className="border-b hover:bg-muted/30">
@@ -75,6 +77,20 @@ export default async function PaymentsPage() {
                     <td className="py-3 px-4">
                       <Badge variant={p.status === "verified" ? "default" : p.status === "refunded" ? "destructive" : "secondary"}
                         className="capitalize text-xs">{p.status}</Badge>
+                    </td>
+                    <td className="py-3 px-4 text-right">
+                      <RowActions
+                        entityLabel="payment"
+                        isOnHold={!!p.isOnHold}
+                        onHold={async () => {
+                          "use server";
+                          return togglePaymentHold(p.id, !p.isOnHold);
+                        }}
+                        onDelete={async () => {
+                          "use server";
+                          return removePayment(p.id);
+                        }}
+                      />
                     </td>
                   </tr>
                 ))

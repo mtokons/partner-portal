@@ -8,6 +8,8 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Handshake, CheckCircle2, XCircle, Clock, Send } from "lucide-react";
+import { RowActions } from "@/components/RowActions";
+import { removeSalesOffer, holdSalesOffer } from "@/lib/row-actions";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
@@ -121,6 +123,15 @@ export default async function SalesOffersPage() {
                       <Link href={`/sales/offers/${offer.id}`}>
                         <Button variant="outline" size="sm">View</Button>
                       </Link>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <RowActions
+                        entityLabel="offer"
+                        isOnHold={!!offer.isOnHold}
+                        onHold={async () => { "use server"; return holdSalesOffer(offer.id, !offer.isOnHold); }}
+                        onDelete={async () => { "use server"; return removeSalesOffer(offer.id); }}
+                        editHref={`/sales/offers/${offer.id}`}
+                      />
                     </TableCell>
                   </TableRow>
                 );

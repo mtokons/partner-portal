@@ -10,6 +10,8 @@ import {
 import { ShoppingCart, Clock, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { RowActions } from "@/components/RowActions";
+import { removeSalesOrder, holdSalesOrder } from "@/lib/row-actions";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   pending:       { label: "Pending",      variant: "secondary" },
@@ -24,9 +26,6 @@ export default async function SalesOrdersPage() {
   const user = session.user as SessionUser;
 
   let orders = await getSalesOrders(user.role === "admin" ? undefined : user.partnerId);
-  if (user.role === "partner") {
-    orders = orders.filter((o) => o.createdBy === user.id);
-  }
 
   const pending = orders.filter((o) => o.status === "pending").length;
   const inProgress = orders.filter((o) => o.status === "in-progress").length;
@@ -89,7 +88,7 @@ export default async function SalesOrdersPage() {
             <TableBody>
               {orders.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
                     No sales orders yet. Accept an offer to create one.
                   </TableCell>
                 </TableRow>
@@ -114,10 +113,19 @@ export default async function SalesOrdersPage() {
                     <TableCell className="text-sm text-muted-foreground">
                       {new Date(order.createdAt).toLocaleDateString()}
                     </TableCell>
-                    <TableCell className="pr-6">
+                    <TableCell>
                       <Link href={`/sales/orders/${order.id}`}>
                         <Button variant="outline" size="sm">View</Button>
                       </Link>
+                    </TableCell>
+                    <TableCell className="pr-6 text-right">
+                      <RowActions
+                        entityLabel="order"
+                        isOnHold={!!order.isOnHold}
+                        onHold={async () => { "use server"; return holdSalesOrder(order.id, !order.isOnHold); }}
+                        onDelete={async () => { "use server"; return removeSalesOrder(order.id); }}
+                        editHref={`/sales/orders/${order.id}/edit`}
+                      />
                     </TableCell>
                   </TableRow>
                 );

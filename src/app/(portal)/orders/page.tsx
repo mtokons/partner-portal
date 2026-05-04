@@ -9,6 +9,8 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { ShoppingCart, Package, Filter, Clock, TrendingUp, CheckCircle2, XCircle } from "lucide-react";
+import { RowActions } from "@/components/RowActions";
+import { removeOrderRecord, holdOrderRecord } from "@/lib/row-actions";
 
 const statusConfig: Record<string, { label: string; css: string }> = {
   pending:   { label: "Pending",   css: "status-pending" },
@@ -155,6 +157,14 @@ export default async function OrdersPage() {
                       <p className="text-sm text-muted-foreground">
                         {new Date(order.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
                       </p>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <RowActions
+                        entityLabel="order"
+                        isOnHold={!!order.isOnHold}
+                        onHold={async () => { "use server"; return holdOrderRecord(order.id, !order.isOnHold); }}
+                        onDelete={async () => { "use server"; return removeOrderRecord(order.id); }}
+                      />
                     </TableCell>
                   </TableRow>
                 ))}

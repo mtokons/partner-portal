@@ -11,11 +11,16 @@ import {
   Building2, UserPlus, GraduationCap, BookOpen, Layers, Award, ShoppingBag, Search, Megaphone, Database
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useEffect } from "react";
+import { getConnectionInfoAction } from "@/app/actions/connection";
+import { ExternalLink } from "lucide-react";
 
 interface SidebarProps {
   roles: string[];
   open: boolean;
   onClose: () => void;
+  siteUrl?: string;
+  listUrls?: Record<string, string>;
 }
 
 interface LinkItem {
@@ -99,9 +104,8 @@ const allLinks: LinkItem[] = [
   // Account
   { href: "/profile", label: "My Profile", icon: User, group: "account", roles: ["partner", "admin", "finance", "hr", "school-manager", "customer", "expert"] },
   
-  // Dev
-  { href: "/admin/data-sources", label: "Data Sources", icon: Database, group: "dev", roles: ["admin"] },
-  { href: "/sp-test", label: "SP CRUD Test", icon: FlaskConical, group: "dev", roles: ["admin"] },
+  { href: "/admin/send-email", label: "Send Email", icon: Mail, group: "admin", roles: ["admin"] },
+  { href: "/activity", label: "Activity Logs", icon: Activity, group: "admin", roles: ["admin"] },
 ];
 
 const groupLabels: Record<string, string> = {
@@ -114,14 +118,56 @@ const groupLabels: Record<string, string> = {
   school: "Language School",
   admin: "Administration",
   account: "Account Setting",
-  dev: "Developer Tools",
 };
 
-export default function Sidebar({ roles, open, onClose }: SidebarProps) {
+export default function Sidebar({ 
+  roles, 
+  open, 
+  onClose = () => {}, 
+  siteUrl,
+  listUrls = {}
+}: SidebarProps) {
   const pathname = usePathname();
   const [searchQuery, setSearchQuery] = useState("");
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const [isMini, setIsMini] = useState(false);
+  const userRole = roles[0] || "partner";
+
+  // Context-aware list mapping
+  const routeToList: Record<string, string> = {
+    "/dashboard": "SalesOrders",
+    "/sales/orders": "SalesOrders",
+    "/sales/offers": "SalesOffers",
+    "/shop": "SalesOffers",
+    "/clients": "Clients",
+    "/admin/products": "Products",
+    "/marketplace": "Products",
+    "/orders": "Orders",
+    "/admin/orders": "SalesOrders",
+    "/financials": "Financials",
+    "/financials/expenses": "Expenses",
+    "/financials/invoices": "Invoices",
+    "/admin/tasks": "KanbanTasks",
+    "/activity": "Activities",
+    "/admin/partners": "Partners",
+    "/admin/experts": "Experts",
+    "/admin/invoices": "Invoices",
+    "/admin/payouts": "Payouts",
+    "/financials/payouts": "Payouts",
+    "/referrals": "Referrals",
+    "/admin/referrals": "Referrals",
+    "/admin/promotions": "Promotions",
+    "/admin/promo-codes": "PromoCodes",
+    "/admin/commission-rules": "CommissionRules",
+    "/admin/commissions": "CommissionLedger",
+    "/admin/wallets": "CoinWallets",
+    "/wallets": "CoinWallets",
+    "/admin/sccg-cards": "GiftCards",
+    "/admin/school/certificates": "SchoolCertificates",
+    "/admin/users": "UserProfiles",
+  };
+  const currentListName = routeToList[pathname] || "SalesOrders";
+  const sidebarLinkUrl = listUrls[currentListName] || siteUrl || "#";
 
   // Filter based on roles and search
   const seen = new Set<string>();
@@ -315,6 +361,26 @@ export default function Sidebar({ roles, open, onClose }: SidebarProps) {
 
         {/* Footer */}
         <div className={cn("p-4 border-t border-sidebar-border/50 shrink-0 transition-all", isMini && "p-2")}>
+          {siteUrl && !isMini && (
+            <a 
+              href={sidebarLinkUrl} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 px-4 py-3 mb-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/10 text-indigo-400 text-[11px] font-bold hover:bg-indigo-500/10 hover:border-indigo-500/20 hover:text-indigo-300 transition-all group relative overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-indigo-500/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+              <div className="relative flex items-center justify-center h-6 w-6 rounded-lg bg-indigo-500/10 shrink-0">
+                <Database className="h-3.5 w-3.5" />
+                <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-emerald-500 border-2 border-[#09090b] animate-pulse" />
+              </div>
+              <div className="flex flex-col min-w-0">
+                <span className="truncate leading-tight">Live SharePoint</span>
+                <span className="text-[9px] text-indigo-400/50 font-medium">Real-time Sync</span>
+              </div>
+              <ExternalLink className="h-3 w-3 ml-auto opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
+            </a>
+          )}
+          
           <div className={cn("flex items-center gap-2.5 px-1", isMini && "justify-center")}>
             <div className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_6px_2px_rgba(52,211,153,0.5)]" />
             {!isMini && <p className="text-[10px] text-sidebar-foreground/40">System operational</p>}

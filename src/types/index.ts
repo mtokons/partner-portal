@@ -31,7 +31,9 @@ export interface Partner {
   onboardingStatus: PartnerOnboardingStatus;
   approvedBy?: string;
   approvedAt?: string;
+  isOnHold?: boolean;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface Product {
@@ -56,6 +58,7 @@ export interface Product {
   isAvailable?: boolean;         // If false, hidden in shop
   tags?: string[];               // e.g. ["new", "bestseller"]
   sortOrder?: number;            // Gallery display order
+  isOnHold?: boolean;
 }
 
 export interface Order {
@@ -72,6 +75,8 @@ export interface Order {
   conversionRate?: number;
   notes?: string;
   createdAt: string;
+  updatedAt?: string;
+  isOnHold?: boolean;
 }
 
 export interface OrderItem {
@@ -90,15 +95,21 @@ export interface Client {
   company: string;
   address?: string;
   createdAt: string;
+  updatedAt?: string;
+  isOnHold?: boolean;
 }
 
 export interface Activity {
   id: string;
   partnerId: string;
+  clientId?: string;
   type: ActivityType;
+  title?: string;
   description: string;
+  date?: string;
+  createdBy?: string;
   relatedId?: string;
-  createdAt: string;
+  createdAt?: string;
 }
 
 export interface Financial {
@@ -109,6 +120,7 @@ export interface Financial {
   outstanding: number;
   paid: number;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface Installment {
@@ -153,6 +165,7 @@ export interface Expense {
   conversionRate?: number;
   description: string;
   date: string;
+  isOnHold?: boolean;
 }
 
 export interface Invoice {
@@ -170,6 +183,8 @@ export interface Invoice {
   dueDate: string;
   pdfUrl?: string;
   createdAt: string;
+  updatedAt?: string;
+  isOnHold?: boolean;
 }
 
 // Dashboard KPI types
@@ -232,13 +247,14 @@ export interface Customer {
   id: string;
   name: string;
   email: string;
-  passwordHash: string;
+  passwordHash?: string;
   phone?: string;
   company?: string;
   /** The partner who manages this customer */
   partnerId: string;
   status: CustomerStatus;
   createdAt: string;
+  updatedAt?: string;
 }
 
 /** A product definition that includes session-based service delivery */
@@ -273,6 +289,7 @@ export interface CustomerPackage {
   expertId?: string;
   expertName?: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface Expert {
@@ -290,6 +307,7 @@ export interface Expert {
   /** EUR paid to expert per completed session */
   ratePerSession: number;
   createdAt: string;
+  updatedAt?: string;
 }
 
 /** An individual service session tied to a CustomerPackage */
@@ -310,7 +328,9 @@ export interface Session {
   notes?: string;
   expertNotes?: string;
   customerRating?: number; // 1–5
+  isOnHold?: boolean;
   createdAt: string;
+  updatedAt?: string;
 }
 
 /** Payment record for an expert after completing a session */
@@ -323,6 +343,7 @@ export interface ExpertPayment {
   customerName?: string;
   partnerId: string;
   amount: number;
+  currency: string;
   amountEur?: number;
   conversionRate?: number;
   status: ExpertPaymentStatus;
@@ -331,7 +352,9 @@ export interface ExpertPayment {
   paidAt?: string;
   approvedBy?: string;
   notes?: string;
+  isOnHold?: boolean;
   createdAt: string;
+  updatedAt?: string;
 }
 
 /** In-app notification for any user type */
@@ -345,6 +368,7 @@ export interface AppNotification {
   read: boolean;
   relatedId?: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 /** Aggregated session statistics for dashboard KPI cards */
@@ -386,7 +410,7 @@ export interface SalesOffer {
   notes?: string;
   createdBy: string;            // partnerId or admin id
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
   sentAt?: string;
   acceptedAt?: string;
   rejectedAt?: string;
@@ -404,6 +428,7 @@ export interface SalesOffer {
   sccgCoinUsed?: number;
   giftCardId?: string;
   giftCardAmountUsed?: number;
+  isOnHold?: boolean;
 }
 
 /** Sales Offer line item — stored in SharePoint list "SalesOfferItems" */
@@ -433,7 +458,7 @@ export interface SalesOrder {
   notes?: string;
   createdBy: string;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
   completedAt?: string;
   // Promo/commission integration (copied from offer)
   promoCodeId?: string;
@@ -449,6 +474,7 @@ export interface SalesOrder {
   giftCardId?: string;
   giftCardAmountUsed?: number;
   settledAt?: string;
+  isOnHold?: boolean;
 }
 
 /** Sales Order line item — stored in SharePoint list "SalesOrderItems" */
@@ -474,6 +500,7 @@ export interface ServiceTask {
   dueDate?: string;
   completedAt?: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 // ============================================================
@@ -498,7 +525,9 @@ export interface Referral {
   percentage: number;          // 0–100
   amount: number;              // calculated payout amount
   status: "pending" | "approved" | "paid";
+  isOnHold?: boolean;
   createdAt: string;
+  updatedAt?: string;
 }
 
 /** Payout record — stored in SharePoint "SCCG Payouts" */
@@ -519,7 +548,9 @@ export interface Payout {
   status: PayoutStatus;
   payoutDate?: string;
   notes?: string;
+  isOnHold?: boolean;
   createdAt: string;
+  updatedAt?: string;
 }
 
 /** Promotion / campaign — stored in SharePoint "SCCG Promotions" */
@@ -572,6 +603,7 @@ export interface EmailTracking {
   /** Unique token embedded in the accept link */
   acceptToken?: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export type AcceptanceAction = "accepted" | "rejected" | "viewed";
@@ -604,7 +636,7 @@ export interface UserProfile {
   specialization?: string;
   status: "active" | "pending" | "suspended";
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 // ============================================================
@@ -666,6 +698,7 @@ export interface PromoCode {
   shareableLink: string;
   qrCodeData?: string;
   createdAt: string;
+  updatedAt?: string;
   createdBy: string;
 }
 
@@ -700,6 +733,7 @@ export interface CommissionRule {
   effectiveFrom: string;
   effectiveUntil?: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export type CommissionLedgerType =
@@ -727,6 +761,7 @@ export interface CommissionLedgerEntry {
   description: string;
   relatedEntryId?: string;
   createdAt: string;
+  updatedAt?: string;
   createdBy: string;
 }
 
@@ -739,13 +774,15 @@ export type WalletStatus = "active" | "frozen" | "closed";
 export interface CoinWallet {
   id: string;
   userId: string;
+  userEmail: string;
   userName: string;
   balance: number;
+  currency: string;
   totalEarned: number;
   totalSpent: number;
   status: WalletStatus;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export type CoinTransactionType =
@@ -770,6 +807,7 @@ export interface CoinTransaction {
   description: string;
   expiresAt?: string;
   createdAt: string;
+  updatedAt?: string;
   createdBy: string;
 }
 
@@ -850,6 +888,7 @@ export interface SccgCardTransaction {
   currency?: "BDT" | "EUR";
   description: string;
   createdAt: string;
+  updatedAt?: string;
   performedAt?: string;   // alias for createdAt
   createdBy: string;
   performedBy?: string;   // alias for createdBy
@@ -914,8 +953,9 @@ export interface Payment {
   verifiedByName?: string;
   verifiedAt?: string;
   rejectionReason?: string;
+  isOnHold?: boolean;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export interface PaymentMethodConfig {
@@ -963,9 +1003,10 @@ export interface EnhancedInvoice {
   sentAt?: string;
   paidAt?: string;
   notes?: string;
+  isOnHold?: boolean;
   createdBy: string;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 // ============================================================
@@ -981,7 +1022,7 @@ export interface InstallmentRule {
   dueDaysFromOrder: number[];
   isActive: boolean;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export type EnhancedInstallmentStatus = "upcoming" | "due" | "paid" | "overdue" | "waived";
@@ -1009,7 +1050,7 @@ export interface EnhancedInstallment {
   paymentId?: string;
   notes?: string;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 // ============================================================
@@ -1030,6 +1071,7 @@ export interface AuditLogEntry {
   userAgent?: string;
   metadata?: Record<string, unknown>;
   createdAt: string;
+  updatedAt?: string;
 }
 
 // ============================================================
@@ -1047,6 +1089,7 @@ export interface RoleChangeRequest {
   approvedBy?: string;
   status: "pending" | "approved" | "rejected";
   createdAt: string;
+  updatedAt?: string;
   resolvedAt?: string;
   notes?: string;
 }
@@ -1124,7 +1167,7 @@ export interface Employee {
   status: EmployeeStatus;
   portalRoles: string[];
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
   createdBy: string;
   updatedBy: string;
 }
@@ -1201,7 +1244,7 @@ export interface SchoolCourse {
   status: CourseStatus;
   createdBy: string;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export type BatchStatus =
@@ -1233,7 +1276,7 @@ export interface SchoolBatch {
   notes?: string;
   createdBy: string;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export type SchoolStudentStatus =
@@ -1274,7 +1317,7 @@ export interface SchoolEnrollment {
   completionCertId?: string;
   createdBy: string;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export type ContentType = "pdf" | "video" | "link" | "document" | "audio" | "image";
@@ -1295,7 +1338,7 @@ export interface SchoolContent {
   uploadedBy: string;
   uploadedByName: string;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export interface SchoolTeacher {
@@ -1310,7 +1353,7 @@ export interface SchoolTeacher {
   bio?: string;
   status: "active" | "inactive";
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export interface SchoolAttendance {
@@ -1349,7 +1392,7 @@ export interface SchoolExamResult {
   publishedAt?: string;
   enteredBy: string;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 // ============================================================
@@ -1391,6 +1434,7 @@ export interface SchoolCertificate {
   replacedByCertId?: string;
   pdfUrl?: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 // ============================================================
@@ -1420,10 +1464,12 @@ export interface KanbanTask {
   status: TaskStatus;
   priority: TaskPriority;
   dueDate?: string;
-  assignedTo?: string;          // user id (student/partner/expert)
+  assignedTo?: string;
   assignedToName?: string;
   assignedToEmail?: string;
+  partnerId?: string;
+  tags?: string[];
   createdBy: string;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }

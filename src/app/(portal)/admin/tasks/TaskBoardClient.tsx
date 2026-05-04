@@ -26,10 +26,12 @@ const PRIORITY_THEMES = {
   Critical: { bg: "bg-rose-500/10", text: "text-rose-600", border: "border-rose-500/20", line: "#f43f5e" },
 };
 
+// Column IDs MUST match the SharePoint `Status` choice values exactly.
+// SP choices: backlog | todo | in-progress | review | done
 const COLUMNS = [
   { id: "backlog", label: "Backlog", color: "#64748b", gradient: "gradient-blue" },
   { id: "todo", label: "To Do", color: "#3b82f6", gradient: "gradient-cosmic" },
-  { id: "inprogress", label: "In Progress", color: "#f59e0b", gradient: "gradient-orange" },
+  { id: "in-progress", label: "In Progress", color: "#f59e0b", gradient: "gradient-orange" },
   { id: "review", label: "In Review", color: "#8b5cf6", gradient: "gradient-purple" },
   { id: "done", label: "Done", color: "#10b981", gradient: "gradient-green" },
 ];
@@ -606,7 +608,7 @@ function StatsBar({ tasks }: any) {
   const stats = [
     { label: "Total Tasks", val: tasks.length, color: "gradient-cosmic", icon: ClipboardList },
     { label: "Completed", val: tasks.filter((t: any) => t.col === "done").length, color: "gradient-green", icon: CheckCircle2 },
-    { label: "In Progress", val: tasks.filter((t: any) => t.col === "inprogress").length, color: "gradient-orange", icon: BarChart3 },
+    { label: "In Progress", val: tasks.filter((t: any) => t.col === "in-progress").length, color: "gradient-orange", icon: BarChart3 },
     { label: "Overdue", val: tasks.filter((t: any) => t.due && new Date(t.due) < new Date() && t.col !== "done").length, color: "gradient-red", icon: AlertTriangle },
     { label: "Productivity", val: (tasks.length ? Math.round((tasks.filter((t: any) => t.col === "done").length / tasks.length) * 100) : 0) + "%", color: "gradient-blue", icon: Layout },
   ];
@@ -644,27 +646,42 @@ export default function TaskBoard() {
   const [showEmailNotif, setShowEmailNotif] = useState<{task: any; member: any} | null>(null);
   const [connectionInfo, setConnectionInfo] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadData = async () => {
     setLoading(true);
-    const res = await fetchTaskBoardDataAction();
-    if (res.success && res.data) {
-      const mappedTasks = res.data.tasks.map((t: KanbanTask) => ({
-        id: t.id,
-        title: t.title,
-        desc: t.description || "",
-        col: t.status,
-        assignee: t.assignedTo,
-        priority: t.priority.charAt(0).toUpperCase() + t.priority.slice(1),
-        due: t.dueDate?.split("T")[0] || "",
-        tags: (t as any).tags || [],
-        comments: (t as any).comments || [],
-        created: new Date(t.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-      }));
-      setTasks(mappedTasks);
-      setMembers(res.data.members);
+    setLoadError(null);
+    try {
+      const res = await fetchTaskBoardDataAction();
+      if (!res.success) {
+        setLoadError(res.error || "Failed to load board data");
+        setLoading(false);
+        return;
+      }
+      if (res.data) {
+        const mappedTasks = res.data.tasks.map((t: KanbanTask) => {
+          const pr = (t.priority || "medium").toString();
+          return {
+            id: t.id,
+            title: t.title,
+            desc: t.description || "",
+            col: t.status,
+            assignee: t.assignedTo,
+            priority: pr.charAt(0).toUpperCase() + pr.slice(1),
+            due: t.dueDate?.split("T")[0] || "",
+            tags: (t as any).tags || [],
+            comments: (t as any).comments || [],
+            created: t.createdAt ? new Date(t.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "",
+          };
+        });
+        setTasks(mappedTasks);
+        setMembers(res.data.members);
+      }
+    } catch (e: any) {
+      setLoadError(e?.message || "Unexpected error loading board");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleRefresh = async () => {
@@ -679,6 +696,14 @@ export default function TaskBoard() {
 
   useEffect(() => {
     loadData();
+
+    // Automatic background sync every 2 minutes
+    const interval = setInterval(() => {
+      console.log("[task-board] Auto-syncing data...");
+      loadData();
+    }, 120 * 1000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const filtered = tasks.filter((t: any) => {
@@ -768,14 +793,9 @@ export default function TaskBoard() {
               </div>
             )}
             {connectionInfo && (
-              <div className={cn(
-                "flex items-center gap-2 px-3 py-1 rounded-full border text-[10px] font-bold uppercase tracking-widest",
-                connectionInfo.useMock 
-                  ? "bg-amber-500/10 border-amber-500/20 text-amber-600" 
-                  : "bg-emerald-500/10 border-emerald-500/20 text-emerald-600"
-              )}>
-                {connectionInfo.useMock ? <WifiOff className="w-3 h-3" /> : <Wifi className="w-3 h-3" />}
-                {connectionInfo.useMock ? "Mock Sync" : "Live Sync"}
+              <div className="flex items-center gap-2 px-3 py-1 rounded-full border bg-emerald-500/10 border-emerald-500/20 text-emerald-600 text-[10px] font-bold uppercase tracking-widest">
+                <Wifi className="w-3 h-3" />
+                Live SharePoint Sync
               </div>
             )}
           </div>
@@ -867,6 +887,17 @@ export default function TaskBoard() {
       </div>
 
       <StatsBar tasks={filtered} />
+
+      {loadError && (
+        <div className="rounded-2xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-700 dark:text-rose-300">
+          <strong className="font-bold">Connection error:</strong> {loadError}
+        </div>
+      )}
+      {!loadError && !loading && tasks.length === 0 && (
+        <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-300">
+          No tasks found in the SharePoint <code>KanbanTasks</code> list. Add one with the &ldquo;+ New Task&rdquo; button.
+        </div>
+      )}
 
       {view === "board" ? (
         <div className="flex gap-6 overflow-x-auto pb-10 scrollbar-hide">

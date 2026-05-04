@@ -38,7 +38,7 @@ export default async function ActivityPage() {
                 <div className="flex-1">
                   <p className="text-sm text-gray-800">{activity.description}</p>
                   <p className="text-xs text-gray-400 mt-1">
-                    {new Date(activity.createdAt).toLocaleString()}
+                    {activity.createdAt ? new Date(activity.createdAt).toLocaleString() : ""}
                   </p>
                 </div>
               </div>

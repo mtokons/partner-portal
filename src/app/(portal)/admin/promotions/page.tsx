@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tag, Plus, Calendar, Zap, Gift, Megaphone, ToggleLeft, ToggleRight } from "lucide-react";
 import Link from "next/link";
+import { RowActions } from "@/components/RowActions";
+import { removePromotion, holdPromotion } from "@/lib/row-actions";
 
 const typeIcon: Record<string, React.ElementType> = {
   discount: Tag,
@@ -94,7 +96,7 @@ export default async function AdminPromotionsPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/30">
-                    {["Promotion", "Type", "Applies To", "Discount", "Duration", "Priority", "Status"].map((h) => (
+                    {["Promotion", "Type", "Applies To", "Discount", "Duration", "Priority", "Status", ""].map((h) => (
                       <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                         {h}
                       </th>
@@ -155,6 +157,15 @@ export default async function AdminPromotionsPage() {
                               <ToggleLeft className="h-4 w-4" /> Off
                             </div>
                           )}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <RowActions
+                            entityLabel="promotion"
+                            isOnHold={!!promo.isOnHold}
+                            onHold={async () => { "use server"; return holdPromotion(promo.id, !promo.isOnHold); }}
+                            onDelete={async () => { "use server"; return removePromotion(promo.id); }}
+                            editHref={`/admin/promotions/${promo.id}/edit`}
+                          />
                         </td>
                       </tr>
                     );

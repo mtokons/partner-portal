@@ -56,17 +56,23 @@ export default function WalletsClient({ wallets, users }: { wallets: CoinWallet[
 
       {/* Summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-card border border-border rounded-2xl p-5">
-          <p className="text-xs font-semibold text-muted-foreground uppercase">Total Wallets</p>
-          <p className="text-2xl font-black mt-1">{wallets.length}</p>
+        <div className="bg-card border border-border rounded-2xl p-5 shadow-sm">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total Wallets</p>
+          <p className="text-2xl font-black mt-1">{(wallets || []).length}</p>
         </div>
-        <div className="bg-card border border-border rounded-2xl p-5">
-          <p className="text-xs font-semibold text-muted-foreground uppercase">Total Balance</p>
-          <p className="text-2xl font-black mt-1 text-emerald-600">{wallets.reduce((s, w) => s + w.balance, 0).toLocaleString()} <span className="text-sm font-medium text-muted-foreground">coins</span></p>
+        <div className="bg-card border border-border rounded-2xl p-5 shadow-sm">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total Balance</p>
+          <p className="text-2xl font-black mt-1 text-emerald-600">
+            {(wallets || []).reduce((s, w) => s + (Number(w?.balance) || 0), 0).toLocaleString()} 
+            <span className="text-sm font-medium text-muted-foreground ml-1">coins</span>
+          </p>
         </div>
-        <div className="bg-card border border-border rounded-2xl p-5">
-          <p className="text-xs font-semibold text-muted-foreground uppercase">Total Earned</p>
-          <p className="text-2xl font-black mt-1">{wallets.reduce((s, w) => s + w.totalEarned, 0).toLocaleString()} <span className="text-sm font-medium text-muted-foreground">coins</span></p>
+        <div className="bg-card border border-border rounded-2xl p-5 shadow-sm">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total Earned</p>
+          <p className="text-2xl font-black mt-1">
+            {(wallets || []).reduce((s, w) => s + (Number(w?.totalEarned) || 0), 0).toLocaleString()} 
+            <span className="text-sm font-medium text-muted-foreground ml-1">coins</span>
+          </p>
         </div>
       </div>
 
@@ -135,18 +141,18 @@ export default function WalletsClient({ wallets, users }: { wallets: CoinWallet[
               </tr>
             </thead>
             <tbody className="divide-y divide-border/50">
-              {wallets.map((w) => (
-                <tr key={w.id} className="hover:bg-muted/20">
+              {(wallets || []).map((w) => (
+                <tr key={w.id || Math.random().toString()} className="hover:bg-muted/20">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <Wallet className="h-4 w-4 text-primary" />
-                      <span className="font-semibold">{w.userName}</span>
+                      <span className="font-semibold">{w.userName || "Unknown User"}</span>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-right font-mono font-bold text-emerald-600">{w.balance.toLocaleString()}</td>
-                  <td className="px-4 py-3 text-right text-muted-foreground">{w.totalEarned.toLocaleString()}</td>
-                  <td className="px-4 py-3 text-right text-muted-foreground">{w.totalSpent.toLocaleString()}</td>
-                  <td className="px-4 py-3"><Badge variant={w.status === "active" ? "default" : "secondary"}>{w.status}</Badge></td>
+                  <td className="px-4 py-3 text-right font-mono font-bold text-emerald-600">{(Number(w.balance) || 0).toLocaleString()}</td>
+                  <td className="px-4 py-3 text-right text-muted-foreground">{(Number(w.totalEarned) || 0).toLocaleString()}</td>
+                  <td className="px-4 py-3 text-right text-muted-foreground">{(Number(w.totalSpent) || 0).toLocaleString()}</td>
+                  <td className="px-4 py-3"><Badge variant={w.status === "active" ? "default" : "secondary"}>{w.status || "active"}</Badge></td>
                   <td className="px-4 py-3 text-right">
                     <button onClick={() => setRechargeTarget(w.userId)} className="flex items-center gap-1.5 ml-auto px-3 py-1.5 bg-primary/10 text-primary rounded-lg text-xs font-semibold hover:bg-primary/20">
                       <Plus className="h-3.5 w-3.5" /> Recharge

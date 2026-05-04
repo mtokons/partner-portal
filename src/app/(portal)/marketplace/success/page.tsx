@@ -17,12 +17,33 @@ function SuccessContent() {
   const verification = searchParams.get("verification");
   const isPendingVerification = verification === "pending";
 
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `SCCG Order ${orderNumber}`,
+          text: `I just placed an order on SCCG Partner Portal! Order #${orderNumber}`,
+          url: window.location.href,
+        });
+      } catch (err) {
+        console.error("Error sharing:", err);
+      }
+    } else {
+      navigator.clipboard.writeText(window.location.href);
+      alert("Link copied to clipboard!");
+    }
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
   if (!orderId) return null;
 
   return (
-    <div className="max-w-3xl mx-auto space-y-12 page-enter py-12">
+    <div className="max-w-3xl mx-auto space-y-12 page-enter py-12 print:py-0">
       {/* Success Header */}
-      <div className="text-center space-y-6">
+      <div className="text-center space-y-6 print:hidden">
         <div className="relative inline-block">
           <div className="absolute inset-0 bg-emerald-500/20 blur-3xl rounded-full scale-150" />
           <div className="relative h-24 w-24 rounded-full bg-emerald-100 flex items-center justify-center mx-auto ring-8 ring-emerald-50 scale-110">
@@ -44,7 +65,7 @@ function SuccessContent() {
       </div>
 
       {/* Main Confirmation Card */}
-      <Card className="rounded-[3rem] border-primary/10 shadow-3xl shadow-primary/10 overflow-hidden">
+      <Card className="rounded-[3rem] border-primary/10 shadow-3xl shadow-primary/10 overflow-hidden print:shadow-none print:border-0 print:rounded-none">
         <CardHeader className="bg-primary pt-10 pb-20 text-center text-white relative">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-white/10 to-transparent" />
           <CardTitle className="text-2xl font-black">
@@ -58,6 +79,7 @@ function SuccessContent() {
         </CardHeader>
         
         <CardContent className="-mt-12 space-y-6 px-8 relative">
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Link href={`/sales/orders/${orderId}`} className="group">
               <div className="p-6 bg-card border rounded-[2rem] hover:border-primary transition-all hover:shadow-xl hover:-translate-y-1">
@@ -69,7 +91,7 @@ function SuccessContent() {
               </div>
             </Link>
             
-            <Link href={isPendingVerification ? `/sales/orders/${orderId}` : "/financials/invoices"} className="group">
+            <Link href={`/sales/orders/${orderId}`} className="group">
               <div className="p-6 bg-card border rounded-[2rem] hover:border-primary transition-all hover:shadow-xl hover:-translate-y-1">
                 <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary group-hover:text-white transition-colors">
                   <FileText className="h-6 w-6" />
@@ -84,7 +106,7 @@ function SuccessContent() {
             </Link>
           </div>
 
-          <div className="p-6 bg-muted/40 rounded-[2rem] border border-dashed flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="p-6 bg-muted/40 rounded-[2rem] border border-dashed flex flex-col md:flex-row items-center justify-between gap-6 print:hidden">
             <div className="flex items-center gap-4">
               <div className="h-10 w-10 bg-background rounded-full flex items-center justify-center shadow-sm">
                 <Mail className="h-5 w-5 text-primary" />
@@ -95,11 +117,19 @@ function SuccessContent() {
               </div>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" className="rounded-xl border-primary/20 hover:bg-primary/5 hover:text-primary">
+              <Button 
+                variant="outline" 
+                onClick={handleShare}
+                className="rounded-xl border-primary/20 hover:bg-primary/5 hover:text-primary"
+              >
                 <Share2 className="h-4 w-4 mr-2" />
                 Share
               </Button>
-              <Button variant="outline" className="rounded-xl border-primary/20 hover:bg-primary/5 hover:text-primary">
+              <Button 
+                variant="outline" 
+                onClick={handlePrint}
+                className="rounded-xl border-primary/20 hover:bg-primary/5 hover:text-primary"
+              >
                 <Download className="h-4 w-4 mr-2" />
                 Receipt
               </Button>

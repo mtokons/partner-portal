@@ -17,8 +17,11 @@ export default async function PortalLayout({ children }: { children: React.React
   if (!userRoles.some((r) => portalRoles.includes(r))) redirect("/login");
 
   const isAdmin = userRoles.includes("admin");
-  const installments = await getInstallments(isAdmin ? undefined : user.partnerId);
-  const invoices = await getInvoices(isAdmin ? undefined : user.partnerId);
+  const [installments, invoices, spInfo] = await Promise.all([
+    getInstallments(isAdmin ? undefined : user.partnerId),
+    getInvoices(isAdmin ? undefined : user.partnerId),
+    import("@/lib/sharepoint").then(m => m.getSharePointConnectionInfo()),
+  ]);
   const overdueCount = installments.filter((i) => i.status === "overdue").length;
   const unpaidInvoicesCount = invoices.filter((i) => i.status === "overdue" || i.status === "sent").length;
 
@@ -29,6 +32,8 @@ export default async function PortalLayout({ children }: { children: React.React
       company={user.company}
       overdueCount={overdueCount}
       unpaidInvoicesCount={unpaidInvoicesCount}
+      siteUrl={spInfo.siteUrl}
+      listUrls={spInfo.listUrls}
     >
       <NotificationsLiveBridge />
       {children}

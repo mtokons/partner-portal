@@ -1,0 +1,22 @@
+# Keep build context tiny: only ship what the Dockerfile actually copies.
+# Parent directories must be re-included before their children.
+
+# Exclude everything by default
+**
+
+# Re-include needed paths
+!Dockerfile
+!public
+!public/**
+!.next
+!.next/standalone
+!.next/standalone/**
+!.next/static
+!.next/static/**
+
+# Belt-and-suspenders: never ship secrets or local-only state
+.env
+.env.*
+.git
+.vercel
+node_modules

@@ -526,6 +526,10 @@ export async function updatePayment(id: string, data: Partial<Payment>): Promise
   await db().collection("payments").doc(id).update({ ...data, updatedAt: now() });
 }
 
+export async function deletePayment(id: string): Promise<void> {
+  await db().collection("payments").doc(id).delete();
+}
+
 // ── Payment Methods Config ──
 
 export async function getPaymentMethods(): Promise<PaymentMethodConfig[]> {
@@ -582,6 +586,10 @@ export async function createEnhancedInvoice(
 
 export async function updateEnhancedInvoice(id: string, data: Partial<EnhancedInvoice>): Promise<void> {
   await db().collection("enhancedInvoices").doc(id).update({ ...data, updatedAt: now() });
+}
+
+export async function deleteEnhancedInvoice(id: string): Promise<void> {
+  await db().collection("enhancedInvoices").doc(id).delete();
 }
 
 // ============================================================
@@ -717,6 +725,10 @@ export async function createSccgCard(
 
 export async function updateSccgCard(id: string, data: Partial<SccgCard>): Promise<void> {
   await db().collection("sccgCards").doc(id).update(data);
+}
+
+export async function deleteSccgCard(id: string): Promise<void> {
+  await db().collection("sccgCards").doc(id).delete();
 }
 
 export async function getSccgCardTransactions(cardId: string): Promise<SccgCardTransaction[]> {

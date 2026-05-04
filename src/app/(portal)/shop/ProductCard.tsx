@@ -24,10 +24,10 @@ export default function ProductCard({
 }: ProductCardProps) {
   const { effectivePrice, appliedPromotion, savedAmount } = getEffectivePrice(product, promotions);
   const hasDiscount = savedAmount > 0;
-  const isOutOfStock = product.isAvailable === false || (product.stock !== undefined && product.stock <= 0);
+  const isUnavailable = product.isAvailable === false;
 
   function handleAdd() {
-    if (isOutOfStock) return;
+    if (isUnavailable) return;
     onAddToCart({
       product,
       quantity: 1,
@@ -82,9 +82,9 @@ export default function ProductCard({
           </div>
         )}
 
-        {isOutOfStock && (
+        {isUnavailable && (
           <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-            <span className="text-white font-bold text-sm px-3 py-1 bg-black/60 rounded-full">Out of Stock</span>
+            <span className="text-white font-bold text-sm px-3 py-1 bg-black/60 rounded-full">Unavailable</span>
           </div>
         )}
       </div>
@@ -138,9 +138,9 @@ export default function ProductCard({
 
           <button
             onClick={handleAdd}
-            disabled={isOutOfStock}
+            disabled={isUnavailable}
             className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
-              isOutOfStock
+              isUnavailable
                 ? "bg-muted text-muted-foreground cursor-not-allowed"
                 : "bg-primary text-white hover:opacity-90 hover:shadow-lg hover:shadow-primary/25 active:scale-95"
             }`}

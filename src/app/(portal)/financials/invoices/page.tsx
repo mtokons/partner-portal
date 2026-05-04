@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import DownloadInvoiceButton from "./DownloadInvoiceButton";
+import { RowActions } from "@/components/RowActions";
+import { removeSPInvoice, holdSPInvoice } from "@/lib/row-actions";
 
 const statusColor: Record<string, string> = {
   draft: "bg-gray-100 text-gray-800",
@@ -58,7 +60,8 @@ export default async function InvoicesPage() {
                 <TableHead>Amount</TableHead>
                 <TableHead>Due Date</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead>Download</TableHead>
+                <TableHead className="w-10"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -73,6 +76,14 @@ export default async function InvoicesPage() {
                   </TableCell>
                   <TableCell>
                     <DownloadInvoiceButton invoiceId={invoice.id} />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <RowActions
+                      entityLabel="invoice"
+                      isOnHold={!!invoice.isOnHold}
+                      onHold={async () => { "use server"; return holdSPInvoice(invoice.id, !invoice.isOnHold); }}
+                      onDelete={async () => { "use server"; return removeSPInvoice(invoice.id); }}
+                    />
                   </TableCell>
                 </TableRow>
               ))}

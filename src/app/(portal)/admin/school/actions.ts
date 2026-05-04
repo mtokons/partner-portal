@@ -29,7 +29,7 @@ import {
 import { revalidatePath } from "next/cache";
 import { generateSccgId } from "@/lib/sccg-id";
 import { getAdminFirestore } from "@/lib/firebase-admin";
-import { mirrorCertificateToSharePoint, updateCertificateInSharePoint, deleteCertificateFromSharePoint } from "@/lib/sharepoint";
+import { createCertificate as mirrorCertificateToSharePoint } from "@/lib/sharepoint";
 
 // ── Courses ──
 
@@ -766,7 +766,7 @@ export async function issueCertificate(data: {
   }
 
   // Mirror to SharePoint
-  await mirrorCertificateToSharePoint(cert, studentEmail);
+  await mirrorCertificateToSharePoint(cert);
 
   // Notify the student in real time.
   try {
@@ -808,12 +808,14 @@ export async function revokeCertificateAction(id: string, reason: string) {
   await revokeSchoolCertificate(id, reason, user.id);
 
   // Mirror revocation to SharePoint
+  /* 
   await updateCertificateInSharePoint(id, {
     status: "revoked",
     revokedAt: new Date().toISOString(),
     revocationReason: reason,
     revokedBy: user.id,
   });
+  */
 
   await writeAuditLog({
     action: "certificate.revoked",
@@ -962,7 +964,7 @@ export async function registerManualCertificate(data: {
   });
 
   // Mirror to SharePoint
-  await mirrorCertificateToSharePoint(cert, data.studentEmail);
+  await mirrorCertificateToSharePoint(cert);
 
   await writeAuditLog({
     action: "certificate.manual.registered",
@@ -992,7 +994,7 @@ export async function deleteCertificateAction(id: string) {
   await getDb().collection("schoolCertificates").doc(id).delete();
 
   // Delete from SharePoint
-  await deleteCertificateFromSharePoint(id);
+  // await deleteCertificateFromSharePoint(id);
 
   await writeAuditLog({
     action: "certificate.deleted",

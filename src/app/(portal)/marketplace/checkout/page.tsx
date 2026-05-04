@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import type { CartItem, SessionUser, CoinWallet } from "@/types";
-import { createDirectOrderAction } from "../actions";
+import { createDirectOrderAction, getNextOrderNumberAction } from "../actions";
 import { fetchWalletsForCurrentUser } from "../../wallets/actions";
 import { 
   ArrowLeft, CreditCard, ShieldCheck, Truck, 
@@ -17,6 +17,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import PaymentGateway from "./PaymentGateway";
+
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -32,8 +34,13 @@ export default function CheckoutPage() {
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [reference, setReference] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<"bangladesh-online" | "manual-transfer" | "coin">("bangladesh-online");
+  const [paymentMethod, setPaymentMethod] = useState<"bangladesh-online" | "manual-transfer" | "coin" | "paypal">("bangladesh-online");
+
   const [wallet, setWallet] = useState<CoinWallet | null>(null);
+  const [showGateway, setShowGateway] = useState(false);
+  const [nextOrderNumber, setNextOrderNumber] = useState("SCCG-XXXXX");
+
+
 
   useEffect(() => {
     const storedCart = localStorage.getItem("marketplace_cart");
@@ -51,10 +58,14 @@ export default function CheckoutPage() {
       fetchWalletsForCurrentUser().then(wallets => {
         if (wallets && wallets.length > 0) setWallet(wallets[0]);
       });
+
+      // Fetch next order number for reference display
+      getNextOrderNumberAction().then(setNextOrderNumber);
     }
   }, [user]);
 
   const cartTotal = cart.reduce((s, i) => s + i.effectivePrice * i.quantity, 0);
+  const cartTotalEur = cart.reduce((s, i) => s + (i.product.retailPriceEur || 0) * i.quantity, 0);
 
   async function handleCompletePurchase() {
     if (!customerName || !customerEmail) {
@@ -259,6 +270,32 @@ export default function CheckoutPage() {
                 {paymentMethod === "manual-transfer" && <Badge className="bg-primary text-white font-black uppercase text-[10px]">SELECTED</Badge>}
               </button>
 
+              {/* PayPal Option */}
+              <button 
+                onClick={() => setPaymentMethod("paypal")}
+                className={cn(
+                  "w-full p-6 border-2 rounded-[1.5rem] flex items-center justify-between transition-all",
+                  paymentMethod === "paypal" 
+                    ? "border-[#0070BA] bg-[#0070BA]/5" 
+                    : "border-border bg-transparent hover:border-[#0070BA]/20"
+                )}
+              >
+                <div className="flex items-center gap-4 text-left">
+                  <div className={cn(
+                    "h-12 w-12 rounded-xl flex items-center justify-center font-black",
+                    paymentMethod === "paypal" ? "bg-[#0070BA] text-white" : "bg-muted text-muted-foreground"
+                  )}>
+                    P
+                  </div>
+                  <div>
+                    <p className="font-bold">PayPal (Euro Only)</p>
+                    <p className="text-xs text-muted-foreground">Pay €{cartTotalEur.toLocaleString("en-DE", { minimumFractionDigits: 2 })} via PayPal</p>
+                  </div>
+                </div>
+                {paymentMethod === "paypal" && <Badge className="bg-[#0070BA] text-white font-black uppercase text-[10px]">SELECTED</Badge>}
+              </button>
+
+
               {/* Coin Option */}
               <button 
                 onClick={() => setPaymentMethod("coin")}
@@ -293,37 +330,72 @@ export default function CheckoutPage() {
                 {paymentMethod === "coin" && <Badge className="bg-primary text-white font-black uppercase text-[10px]">SELECTED</Badge>}
               </button>
 
-              {(paymentMethod === "bangladesh-online" || paymentMethod === "manual-transfer") && (
-                <div className="p-5 bg-muted/40 rounded-2xl border border-border/50 text-sm space-y-3 animate-in fade-in zoom-in duration-300">
-                  <p className="font-bold text-foreground">Payment Instructions</p>
-                  <p className="text-muted-foreground">
-                    {paymentMethod === "bangladesh-online"
-                      ? "Pay via Bangladesh online channels (bKash, Nagad, Rocket, DBBL) and submit the transaction reference."
-                      : "Complete a manual transfer to the account below and submit the payment reference for verification."}
-                  </p>
-                  <div className="bg-background p-4 rounded-xl border border-border/30 space-y-2 font-mono text-xs">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Bank Name:</span>
-                      <span className="font-bold">The City Bank Limited</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Account Name:</span>
-                      <span className="font-bold">SCCG PARTNER PORTAL</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Account Number:</span>
-                      <span className="font-bold text-primary">1234567890123</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Branch:</span>
-                      <span className="font-bold">Dhaka Main Branch</span>
+              {(paymentMethod === "bangladesh-online" || paymentMethod === "manual-transfer" || paymentMethod === "paypal") && (
+                <div className="p-5 bg-muted/40 rounded-2xl border border-border/50 text-sm space-y-4 animate-in fade-in zoom-in duration-300">
+                  <div className="flex items-center justify-between">
+                    <p className="font-bold text-foreground">Payment Details</p>
+                    <div className="flex gap-2">
+                      <Badge variant="outline" className="text-[9px] bg-background">CITY BANK</Badge>
+                      <Badge variant="outline" className="text-[9px] bg-background">PAYPAL</Badge>
+                      <Badge variant="outline" className="text-[9px] bg-background">BKASH</Badge>
                     </div>
                   </div>
-                  <p className="text-[10px] text-muted-foreground bg-amber-500/10 text-amber-600 p-2 rounded-lg border border-amber-500/20">
-                    * Admin verifies your submitted payment reference before service activation.
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Bank Option */}
+                    <div className={cn(
+                      "bg-background p-4 rounded-xl border border-border/30 space-y-2 text-xs",
+                      paymentMethod === "paypal" && "opacity-40 grayscale"
+                    )}>
+                      <p className="font-black text-primary text-[10px] uppercase mb-2">Option 1: Bank Transfer</p>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Bank:</span>
+                        <span className="font-bold text-right text-[11px]">The City Bank</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Name:</span>
+                        <span className="font-bold text-right text-[11px]">Md Hasnain</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">A/C:</span>
+                        <span className="font-bold text-right text-[11px] text-primary">2303620513001</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Branch:</span>
+                        <span className="font-bold text-right text-[11px]">Hajigonj</span>
+                      </div>
+                    </div>
+
+                    {/* Digital/Mobile Option */}
+                    <div className="bg-background p-4 rounded-xl border border-border/30 space-y-3 text-xs">
+                      <div className={cn(paymentMethod !== "paypal" && paymentMethod !== "manual-transfer" && "opacity-40 grayscale")}>
+                        <p className="font-black text-primary text-[10px] uppercase mb-1">Option 2: PayPal (Euro)</p>
+                        <p className="font-bold text-[11px]">mhasnainn@hotmail.com</p>
+                        <p className="text-[9px] text-muted-foreground mt-1 font-bold">Total: €{cartTotalEur.toLocaleString("en-DE", { minimumFractionDigits: 2 })}</p>
+                      </div>
+                      <div className={cn("pt-2 border-t border-border/40", paymentMethod === "paypal" && "opacity-40 grayscale")}>
+                        <p className="font-black text-pink-600 text-[10px] uppercase mb-1">Option 3: bKash (Personal)</p>
+                        <p className="font-bold text-[11px]">01835898287</p>
+                      </div>
+                    </div>
+                  </div>
+
+
+                  <div className="bg-primary/10 border border-primary/20 p-4 rounded-xl text-center">
+                    <p className="text-[10px] font-black uppercase text-primary mb-1">Mandatory Reference Note</p>
+                    <p className="text-lg font-black text-primary tracking-widest">{nextOrderNumber}</p>
+                    <p className="text-[9px] text-muted-foreground mt-1 italic font-medium">
+                      * Please write this exact note in your transfer reference/message field
+                    </p>
+                  </div>
+
+                  
+                  <p className="text-[10px] text-muted-foreground bg-amber-500/10 text-amber-600 p-3 rounded-lg border border-amber-500/20 text-center font-medium">
+                    Admin verifies your submitted payment reference before service activation.
                   </p>
                 </div>
               )}
+
 
               {paymentStep !== "idle" && (
                 <div className="p-8 text-center bg-muted/30 rounded-[1.5rem] animate-in fade-in zoom-in duration-500">
@@ -367,16 +439,35 @@ export default function CheckoutPage() {
                 256-bit SSL Encrypted Transaction
               </div>
               <Button 
-                onClick={handleCompletePurchase}
+                onClick={() => {
+                  if (paymentMethod === "bangladesh-online") setShowGateway(true);
+                  else handleCompletePurchase();
+                }}
                 disabled={loading || paymentStep !== "idle"}
                 className="w-full sm:w-auto px-12 py-6 rounded-2xl bg-primary text-white font-black hover:opacity-90 shadow-2xl shadow-primary/30 text-lg group"
               >
-                {loading ? "Processing..." : "Authorize Payment"}
+                {loading ? "Processing..." : (paymentMethod === "bangladesh-online" ? "Open Payment Gateway" : "Authorize Payment")}
                 <ChevronRight className="h-5 w-5 ml-2 group-hover:translate-x-1 transition-transform" />
               </Button>
             </CardFooter>
           </Card>
         </div>
+
+        {/* Payment Gateway Modal */}
+        {showGateway && (
+          <PaymentGateway 
+            amount={cartTotal}
+            currency="BDT"
+            onClose={() => setShowGateway(false)}
+            onSuccess={(ref) => {
+              setReference(ref);
+              setShowGateway(false);
+              // Small delay to show the reference being filled
+              setTimeout(() => handleCompletePurchase(), 500);
+            }}
+          />
+        )}
+
 
         {/* Right: Summary */}
         <div className="space-y-6">

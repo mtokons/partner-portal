@@ -18,8 +18,10 @@ export async function rechargeWalletAction(userId: string, userName: string, amo
   if (!wallet) {
     wallet = await createCoinWallet({
       userId,
+      userEmail: "", // Required but not available here
       userName,
       balance: 0,
+      currency: "SCCG",
       totalEarned: 0,
       totalSpent: 0,
       status: "active",
@@ -28,16 +30,21 @@ export async function rechargeWalletAction(userId: string, userName: string, amo
     });
   }
 
-  await createCoinTransaction({
-    walletId: wallet.id,
-    userId,
-    transactionType: "top-up",
-    amount,
-    runningBalance: wallet.balance + amount,
-    description: description || `Admin top-up by ${user.name}`,
-    createdAt: new Date().toISOString(),
-    createdBy: user.id,
-  });
+  try {
+    await createCoinTransaction({
+      walletId: wallet.id,
+      userId,
+      type: "top-up",
+      amount,
+      currency: "SCCG",
+      description: description || `Admin top-up by ${user.name}`,
+      createdAt: new Date().toISOString(),
+      referenceId: `admin-${Date.now()}`,
+    } as any);
 
-  return { success: true };
+    return { success: true };
+  } catch (error) {
+    console.error("Wallet recharge failed:", error);
+    throw new Error(error instanceof Error ? error.message : "Failed to recharge wallet in SharePoint");
+  }
 }

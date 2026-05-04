@@ -2,6 +2,7 @@
 
 import { auth } from "@/auth";
 import type { SessionUser } from "@/types";
+import { APP_SP_LISTS, APP_SP_LIST_NAMES, APP_FIRESTORE_COLLECTIONS } from "./app-lists";
 
 interface SpListSummary {
   id: string;
@@ -12,6 +13,10 @@ interface SpListSummary {
   createdAt?: string;
   template?: string;
   hidden?: boolean;
+  /** Resolved app metadata when this list is one of ours */
+  appGroup?: string;
+  appUsedBy?: string[];
+  appDescription?: string;
 }
 
 interface SpListItemsPage {
@@ -65,9 +70,21 @@ export async function fetchAllSpLists(): Promise<{ lists: SpListSummary[]; error
       const next = res["@odata.nextLink"];
       url = next ? next.replace("https://graph.microsoft.com/v1.0", "") : null;
     }
+    // Filter down to only the lists this app actually uses, and decorate
+    // them with the canonical app metadata (group / usedBy / description).
+    const filtered = result.filter((l) => APP_SP_LIST_NAMES.has(l.displayName));
+    const byName = new Map(APP_SP_LISTS.map((e) => [e.name, e]));
+    for (const l of filtered) {
+      const meta = byName.get(l.displayName);
+      if (meta) {
+        l.appGroup = meta.group;
+        l.appUsedBy = meta.usedBy;
+        l.appDescription = meta.description;
+      }
+    }
     // Fetch item counts in parallel (best effort).
     await Promise.all(
-      result.map(async (l) => {
+      filtered.map(async (l) => {
         try {
           const c = await graphGet<{ "@odata.count": number }>(
             `/sites/${siteId}/lists/${l.id}/items?$count=true&$top=1&$select=id`
@@ -78,8 +95,8 @@ export async function fetchAllSpLists(): Promise<{ lists: SpListSummary[]; error
         }
       })
     );
-    result.sort((a, b) => a.displayName.localeCompare(b.displayName));
-    return { lists: result };
+    filtered.sort((a, b) => a.displayName.localeCompare(b.displayName));
+    return { lists: filtered };
   } catch (err) {
     return { lists: [], error: (err as Error).message };
   }
@@ -215,5 +232,58 @@ export async function fetchDataSourceDiagnostics() {
     siteUrl: process.env.SHAREPOINT_SITE_URL || null,
     nextAuthUrl: process.env.NEXTAUTH_URL || null,
     appUrl: process.env.NEXT_PUBLIC_APP_URL || null,
+  };
+}
+
+/**
+ * Feature → data source mapping for the admin Data Sources page.
+ * Always reflects the current canonical registry plus live presence
+ * info from SharePoint (item counts and a "missing" flag).
+ */
+export async function fetchFeatureMapping() {
+  await requireAdmin();
+  const presence = new Map<string, { itemCount?: number; missing: boolean }>();
+  try {
+    const { graphGet, resolveSiteId } = await import("@/lib/graph");
+    const siteId = await resolveSiteId();
+    let url: string | null = `/sites/${siteId}/lists?$top=200&$select=id,displayName`;
+    const live = new Map<string, string>();
+    while (url) {
+      const res: { value: Array<{ id: string; displayName: string }>; "@odata.nextLink"?: string } =
+        await graphGet(url);
+      for (const l of res.value) live.set(l.displayName, l.id);
+      const next = res["@odata.nextLink"];
+      url = next ? next.replace("https://graph.microsoft.com/v1.0", "") : null;
+    }
+    await Promise.all(
+      APP_SP_LISTS.map(async (entry) => {
+        const id = live.get(entry.name);
+        if (!id) {
+          presence.set(entry.name, { missing: true });
+          return;
+        }
+        try {
+          const c = await graphGet<{ "@odata.count": number }>(
+            `/sites/${siteId}/lists/${id}/items?$count=true&$top=1&$select=id`
+          );
+          presence.set(entry.name, { itemCount: Number(c["@odata.count"] || 0), missing: false });
+        } catch {
+          presence.set(entry.name, { missing: false });
+        }
+      })
+    );
+  } catch {
+    // Leave presence empty; mapping is still rendered without live counts.
+  }
+
+  const spLists = APP_SP_LISTS.map((entry) => ({
+    ...entry,
+    itemCount: presence.get(entry.name)?.itemCount,
+    missing: presence.get(entry.name)?.missing ?? false,
+  }));
+
+  return {
+    spLists,
+    firestore: APP_FIRESTORE_COLLECTIONS,
   };
 }

@@ -2,13 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getAdminFirestore } from "@/lib/firebase-admin";
-import { 
-  getKanbanTasks, 
-  createKanbanTask, 
-  updateKanbanTask, 
-  deleteKanbanTask,
-  getSharePointConnectionInfo
-} from "@/lib/sharepoint";
+import { Repository } from "@/lib/repository";
 import { KanbanTask } from "@/types";
 import { assertAdmin } from "@/lib/admin-guard";
 
@@ -34,32 +28,41 @@ function getInitials(name: string) {
 export async function fetchTaskBoardDataAction() {
   try {
     await assertAdmin();
-    // 1. Fetch Users from Firebase
-    const db = getAdminFirestore();
-    const snapshot = await db.collection("users").get();
-    
-    const members = snapshot.docs.map((doc, i) => {
-      const d = doc.data();
-      return {
-        id: doc.id,
-        name: d.displayName || "Unknown User",
-        role: d.role || "member",
-        color: COLORS[i % COLORS.length],
-        initials: getInitials(d.displayName || "U"),
-        email: d.email,
-        avatar: d.avatarUrl, // if available
-      };
+
+    // Fetch tasks (Repository) and members (Firestore) independently
+    const tasksPromise = Repository.tasks.getAll().catch((e: any) => {
+      console.error("[task-board] getKanbanTasks failed:", e?.message || e);
+      return [] as KanbanTask[];
     });
 
-    // 2. Fetch Tasks from SharePoint
-    const tasks = await getKanbanTasks();
+    const membersPromise = (async () => {
+      try {
+        const db = getAdminFirestore();
+        const snapshot = await db.collection("users").get();
+        return snapshot.docs.map((doc, i) => {
+          const d = doc.data();
+          return {
+            id: doc.id,
+            name: d.displayName || d.name || "Unknown User",
+            role: d.role || "member",
+            color: COLORS[i % COLORS.length],
+            initials: getInitials(d.displayName || d.name || "U"),
+            email: d.email,
+            avatar: d.avatarUrl,
+          };
+        });
+      } catch (e: any) {
+        console.error("[task-board] members fetch failed:", e?.message || e);
+        return [] as Array<Record<string, unknown>>;
+      }
+    })();
 
-    return { 
-      success: true, 
-      data: { 
-        tasks, 
-        members 
-      } 
+    const [tasks, members] = await Promise.all([tasksPromise, membersPromise]);
+
+    return {
+      success: true,
+      data: { tasks, members },
+      meta: { taskCount: tasks.length, memberCount: members.length },
     };
   } catch (error: any) {
     console.error("Fetch task board data error:", error);
@@ -72,10 +75,10 @@ export async function saveTaskAction(taskData: any) {
     await assertAdmin();
     let saved;
     if (taskData.id && !taskData.id.startsWith("new-")) {
-      saved = await updateKanbanTask(taskData.id, taskData);
+      saved = await Repository.tasks.update(taskData.id, taskData);
     } else {
       const { id, ...rest } = taskData;
-      saved = await createKanbanTask(rest);
+      saved = await Repository.tasks.create(rest);
     }
     
     revalidatePath("/admin/tasks");
@@ -89,7 +92,7 @@ export async function saveTaskAction(taskData: any) {
 export async function deleteTaskAction(taskId: string) {
   try {
     await assertAdmin();
-    await deleteKanbanTask(taskId);
+    await Repository.tasks.delete(taskId);
     revalidatePath("/admin/tasks");
     return { success: true };
   } catch (error: any) {
@@ -101,7 +104,7 @@ export async function deleteTaskAction(taskId: string) {
 export async function moveTaskAction(taskId: string, newStatus: string) {
   try {
     await assertAdmin();
-    await updateKanbanTask(taskId, { status: newStatus as any });
+    await Repository.tasks.update(taskId, { status: newStatus as any });
     revalidatePath("/admin/tasks");
     return { success: true };
   } catch (error: any) {
@@ -114,6 +117,7 @@ export async function refreshTaskBoardAction() {
   try {
     await assertAdmin();
     revalidatePath("/admin/tasks");
+    const { getSharePointConnectionInfo } = await import("@/lib/sharepoint");
     const connection = await getSharePointConnectionInfo();
     return { success: true, connection };
   } catch (error: any) {

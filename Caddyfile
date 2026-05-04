@@ -1,0 +1,11 @@
+portal.mysccg.de {
+    reverse_proxy portal:3000
+
+    # Optional: Gzip compression for faster loading
+    encode gzip
+
+    # Log requests to help with debugging
+    log {
+        output file /var/log/caddy/access.log
+    }
+}

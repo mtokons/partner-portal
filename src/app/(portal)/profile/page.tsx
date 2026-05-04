@@ -20,7 +20,7 @@ export default async function ProfilePage() {
   // Activity chart data — group by month
   const activityByMonth: Record<string, number> = {};
   activities.forEach((a) => {
-    const m = a.createdAt.slice(0, 7);
+    const m = (a.createdAt || a.date || new Date().toISOString()).slice(0, 7);
     activityByMonth[m] = (activityByMonth[m] || 0) + 1;
   });
   const chartData = Object.entries(activityByMonth)
@@ -50,7 +50,7 @@ export default async function ProfilePage() {
         id: a.id,
         type: a.type,
         description: a.description,
-        createdAt: a.createdAt,
+        createdAt: a.createdAt || a.date || new Date().toISOString(),
       }))}
       chartData={chartData}
       stats={stats}
