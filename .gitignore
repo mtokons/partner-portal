@@ -40,3 +40,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .env*.local
+
+# Sensitive files
+ssh-key-*
+all_vercel_envs.txt
+.env.production
