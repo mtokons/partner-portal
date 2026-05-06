@@ -275,6 +275,8 @@ const ACT_COL = { // SCCG Activities
   type: "Type",
   title: "Title",
   description: "Description",
+  date: "CreatedAt",
+  createdBy: "CreatedBy",
   createdAt: "CreatedAt",
 };
 
@@ -1029,7 +1031,7 @@ export async function createCustomer(data: Omit<Customer, "id" | "createdAt">): 
 
 export async function getCustomerByEmail(email: string): Promise<Customer | null> {
   return runSafe(async () => {
-    const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
+    const { graphGet, getSiteListUrlAsync, escapeOData } = await import("@/lib/graph");
     const listName = await getClientsListName();
     const isLegacy = listName === "SCCG Client";
     const emailCol = isLegacy ? LEGACY_SCCG_CLIENT_COL.email : CL_COL.email;

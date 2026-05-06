@@ -28,7 +28,7 @@ export default async function SalesDashboard() {
   ]);
 
   const activeOffers = offers.filter(o => o.status === "sent" || o.status === "draft");
-  const pendingOrders = orders.filter(o => o.status === "pending" || o.status === "confirmed");
+  const pendingOrders = orders.filter(o => o.status === "pending" || o.status === "in-progress");
 
   const totalSalesAmount = orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
 

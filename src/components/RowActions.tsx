@@ -12,6 +12,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -72,16 +74,17 @@ export function RowActions({
   return (
     <>
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-8" disabled={pending}>
-            {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
-            <span className="sr-only">Actions</span>
-          </Button>
+        <DropdownMenuTrigger 
+          className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "h-8 w-8")} 
+          disabled={pending}
+        >
+          {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
+          <span className="sr-only">Actions</span>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           {editHref && (
-            <DropdownMenuItem asChild>
-              <Link href={editHref}>
+            <DropdownMenuItem>
+              <Link href={editHref} className="flex items-center w-full">
                 <Pencil className="h-4 w-4 mr-2" /> Edit
               </Link>
             </DropdownMenuItem>

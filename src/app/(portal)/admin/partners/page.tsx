@@ -9,6 +9,7 @@ import { RowActions } from "@/components/RowActions";
 import { removePartner, holdPartner } from "@/lib/row-actions";
 import { refreshPartnersAction } from "./actions";
 import { RefreshCw } from "lucide-react";
+import PartnerStatusButtons from "./PartnerStatusButtons";
 
 const statusColor: Record<string, string> = {
   active: "bg-green-100 text-green-800",

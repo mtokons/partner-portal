@@ -253,6 +253,7 @@ export interface Customer {
   /** The partner who manages this customer */
   partnerId: string;
   status: CustomerStatus;
+  isOnHold?: boolean;
   createdAt: string;
   updatedAt?: string;
 }
@@ -572,6 +573,7 @@ export interface Promotion {
   isActive: boolean;
   imageUrl?: string;           // image for the slider
   priority: number;            // display order in slider
+  isOnHold?: boolean;
 }
 
 /** Cart item — client-side only, no SharePoint list */

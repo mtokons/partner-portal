@@ -48,7 +48,7 @@ export default async function DashboardPage() {
   
   // 1. Revenue: From aggregated financials OR completed sales orders
   const financialRevenue = financials.reduce((s, f) => s + (f.revenue || 0), 0);
-  const orderRevenue = sOrders.filter(o => o.status === "completed" || o.status === "delivered").reduce((s, o) => s + (o.totalAmount || 0), 0);
+  const orderRevenue = sOrders.filter(o => o.status === "completed").reduce((s, o) => s + (o.totalAmount || 0), 0);
   const totalRevenue = financialRevenue > 0 ? financialRevenue : orderRevenue;
 
   // Currency Conversion (BDT -> EUR)
@@ -68,11 +68,11 @@ export default async function DashboardPage() {
   const pipelineValue = [...acceptedOffers, ...sentOffers].reduce((s, o) => s + (o.totalAmount || 0), 0);
 
   // 3. Outstanding: Unpaid invoices + Overdue installments
-  const unpaidInvoiceAmt = invoices.filter(i => i.status === "sent" || i.status === "overdue").reduce((s, i) => s + (i.totalAmount || 0), 0);
+  const unpaidInvoiceAmt = invoices.filter(i => i.status === "sent" || i.status === "overdue").reduce((s, i) => s + (i.amount || 0), 0);
   const overdueInstallmentAmt = installments.filter(i => i.status === "overdue").reduce((s, i) => s + (i.amount || 0), 0);
   const totalOutstanding = (financials.reduce((s, f) => s + (f.outstanding || 0), 0)) || (unpaidInvoiceAmt + overdueInstallmentAmt);
 
-  const pendingOrdersCount = sOrders.filter((o) => o.status === "pending" || o.status === "processing").length;
+  const pendingOrdersCount = sOrders.filter((o) => o.status === "pending" || o.status === "in-progress").length;
   const overdueInstallments = installments.filter((i) => i.status === "overdue").length;
   const unpaidInvoices = invoices.filter((i) => i.status === "overdue" || i.status === "sent").length;
 
