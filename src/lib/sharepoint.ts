@@ -441,30 +441,28 @@ const SESS_COL = { // Sessions
 // Partners
 // ============================================================
 
-// ============================================================
-// Partners
-// ============================================================
 export async function getPartnerByEmail(email: string): Promise<Partner | null> {
-  // Graph API implementation (use when SharePoint is configured)
-  const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
-  const url = `${await getSiteListUrlAsync("Partners")}?$filter=fields/${PART_COL.email} eq '${email}'&$expand=fields`;
-  const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, any> }> }>(url);
-  if (!res.value.length) return null;
-  const item = res.value[0];
-  const f = item.fields;
-  return { 
-    id: String(item.id), 
-    name: String(f[PART_COL.name] || ""), 
-    email: String(f[PART_COL.email] || ""), 
-    passwordHash: String(f[PART_COL.passwordHash] || ""), 
-    role: String(f[PART_COL.role] || "partner") as Partner["role"], 
-    status: String(f[PART_COL.status] || "active") as Partner["status"], 
-    company: String(f[PART_COL.company] || ""), 
-    partnerType: (f[PART_COL.partnerType] as any) || "individual",
-    commissionTier: (f[PART_COL.commissionTier] as any) || "standard",
-    onboardingStatus: (f[PART_COL.onboardingStatus] as any) || "approved",
-    createdAt: String(f[PART_COL.createdAt] || new Date().toISOString()) 
-  } as Partner;
+  return runSafe(async () => {
+    const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
+    const url = `${await getSiteListUrlAsync("Partners")}?$filter=fields/${PART_COL.email} eq '${email}'&$expand=fields`;
+    const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, any> }> }>(url);
+    if (!res.value.length) return null;
+    const item = res.value[0];
+    const f = item.fields;
+    return { 
+      id: String(item.id), 
+      name: String(f[PART_COL.name] || ""), 
+      email: String(f[PART_COL.email] || ""), 
+      passwordHash: String(f[PART_COL.passwordHash] || ""), 
+      role: String(f[PART_COL.role] || "partner") as Partner["role"], 
+      status: String(f[PART_COL.status] || "active") as Partner["status"], 
+      company: String(f[PART_COL.company] || ""), 
+      partnerType: (f[PART_COL.partnerType] as any) || "individual",
+      commissionTier: (f[PART_COL.commissionTier] as any) || "standard",
+      onboardingStatus: (f[PART_COL.onboardingStatus] as any) || "approved",
+      createdAt: String(f[PART_COL.createdAt] || new Date().toISOString()) 
+    } as Partner;
+  }, () => null);
 }
 
 export async function getPartners(): Promise<Partner[]> {
@@ -496,27 +494,31 @@ export async function getPartners(): Promise<Partner[]> {
 }
 
 export async function createPartner(data: Omit<Partner, "id" | "createdAt">): Promise<Partner> {
-  const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
-  const body = {
-    [PART_COL.name]: data.name,
-    [PART_COL.email]: data.email,
-    [PART_COL.passwordHash]: data.passwordHash,
-    [PART_COL.role]: data.role,
-    [PART_COL.status]: data.status,
-    [PART_COL.company]: data.company,
-    [PART_COL.phone]: data.phone,
-    [PART_COL.partnerType]: data.partnerType,
-    [PART_COL.commissionTier]: data.commissionTier,
-    [PART_COL.onboardingStatus]: data.onboardingStatus,
-    [PART_COL.createdAt]: new Date().toISOString(),
-  };
-  const res = await graphPost<{ id: string }>(await getSiteListUrlAsync("Partners"), { fields: body });
-  return { ...data, id: String(res.id), createdAt: body[PART_COL.createdAt] as string };
+  return runSafe(async () => {
+    const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
+    const body = {
+      [PART_COL.name]: data.name,
+      [PART_COL.email]: data.email,
+      [PART_COL.passwordHash]: data.passwordHash,
+      [PART_COL.role]: data.role,
+      [PART_COL.status]: data.status,
+      [PART_COL.company]: data.company,
+      [PART_COL.phone]: data.phone,
+      [PART_COL.partnerType]: data.partnerType,
+      [PART_COL.commissionTier]: data.commissionTier,
+      [PART_COL.onboardingStatus]: data.onboardingStatus,
+      [PART_COL.createdAt]: new Date().toISOString(),
+    };
+    const res = await graphPost<{ id: string }>(await getSiteListUrlAsync("Partners"), { fields: body });
+    return { ...data, id: String(res.id), createdAt: body[PART_COL.createdAt] as string };
+  });
 }
 
 export async function updatePartnerStatus(id: string, status: Partner["status"]): Promise<void> {
-  const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
-  await graphPatch(`${await getSiteListUrlAsync("Partners")}/${id}/fields`, { [PART_COL.status]: status });
+  return runSafe(async () => {
+    const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
+    await graphPatch(`${await getSiteListUrlAsync("Partners")}/${id}/fields`, { [PART_COL.status]: status });
+  });
 }
 
 // ============================================================
@@ -666,49 +668,54 @@ export async function getClients(partnerId?: string): Promise<Client[]> {
 
 
 export async function getClientById(id: string): Promise<Client | null> {
-  const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
-  const listName = await getClientsListName();
-  const url = `${await getSiteListUrlAsync(encodeListName(listName))}/${id}?$expand=fields`;
-  const res = await graphGet<{ id: string; fields: Record<string, any> }>(url);
-  const f = res.fields;
-  if (listName === "SCCG Client") {
-    return {
-      id: String(res.id),
-      partnerId: "",
-      name: String(f[LEGACY_SCCG_CLIENT_COL.name] || ""),
-      email: String(f[LEGACY_SCCG_CLIENT_COL.email] || ""),
-      phone: String(f[LEGACY_SCCG_CLIENT_COL.phone] || ""),
-      company: "",
-      address: String(f[LEGACY_SCCG_CLIENT_COL.address] || ""),
-      createdAt: String(f.Created || ""),
-    } as Client;
-  }
-  return { id: String(res.id), partnerId: String(f.PartnerId || ""), name: String(f.Name || ""), email: String(f.Email || ""), phone: String(f.Phone || ""), company: String(f.Company || ""), address: String(f.Address || ""), isOnHold: !!f.IsOnHold, createdAt: String(f.CreatedAt || "") } as Client;
+  return runSafe(async () => {
+    const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
+    const listName = await getClientsListName();
+    const url = `${await getSiteListUrlAsync(encodeListName(listName))}/${id}?$expand=fields`;
+    const res = await graphGet<{ id: string; fields: Record<string, any> }>(url);
+    const f = res.fields;
+    if (listName === "SCCG Client") {
+      return {
+        id: String(res.id),
+        partnerId: "",
+        name: String(f[LEGACY_SCCG_CLIENT_COL.name] || ""),
+        email: String(f[LEGACY_SCCG_CLIENT_COL.email] || ""),
+        phone: String(f[LEGACY_SCCG_CLIENT_COL.phone] || ""),
+        company: "",
+        address: String(f[LEGACY_SCCG_CLIENT_COL.address] || ""),
+        createdAt: String(f.Created || ""),
+      } as Client;
+    }
+    return { id: String(res.id), partnerId: String(f.PartnerId || ""), name: String(f.Name || ""), email: String(f.Email || ""), phone: String(f.Phone || ""), company: String(f.Company || ""), address: String(f.Address || ""), isOnHold: !!f.IsOnHold, createdAt: String(f.CreatedAt || "") } as Client;
+  }, () => null);
 }
 
+
 export async function createClient(client: Omit<Client, "id">): Promise<Client> {
-  const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
-  const listName = await getClientsListName();
-  const isLegacy = listName === "SCCG Client";
-  const res = await graphPost<{ id: string }>(await getSiteListUrlAsync(encodeListName(listName)), {
-    fields: isLegacy
-      ? {
-          [LEGACY_SCCG_CLIENT_COL.name]: client.name,
-          [LEGACY_SCCG_CLIENT_COL.email]: client.email,
-          [LEGACY_SCCG_CLIENT_COL.phone]: client.phone,
-          [LEGACY_SCCG_CLIENT_COL.address]: client.address,
-        }
-      : {
-          PartnerId: client.partnerId,
-          Name: client.name,
-          Email: client.email,
-          Phone: client.phone,
-          Company: client.company,
-          Address: client.address,
-          CreatedAt: client.createdAt,
-        },
+  return runSafe(async () => {
+    const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
+    const listName = await getClientsListName();
+    const isLegacy = listName === "SCCG Client";
+    const res = await graphPost<{ id: string }>(await getSiteListUrlAsync(encodeListName(listName)), {
+      fields: isLegacy
+        ? {
+            [LEGACY_SCCG_CLIENT_COL.name]: client.name,
+            [LEGACY_SCCG_CLIENT_COL.email]: client.email,
+            [LEGACY_SCCG_CLIENT_COL.phone]: client.phone,
+            [LEGACY_SCCG_CLIENT_COL.address]: client.address,
+          }
+        : {
+            PartnerId: client.partnerId,
+            Name: client.name,
+            Email: client.email,
+            Phone: client.phone,
+            Company: client.company,
+            Address: client.address,
+            CreatedAt: client.createdAt,
+          },
+    });
+    return { ...client, partnerId: isLegacy ? "" : client.partnerId, id: String(res.id) } as Client;
   });
-  return { ...client, partnerId: isLegacy ? "" : client.partnerId, id: String(res.id) } as Client;
 }
 
 export async function updateClient(id: string, data: Partial<Client>): Promise<void> {
