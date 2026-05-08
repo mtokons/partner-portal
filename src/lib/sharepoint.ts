@@ -30,15 +30,15 @@ async function runSafe<T>(liveFn: () => Promise<T>, fallback?: () => T): Promise
 
     // Missing list / 404 → warn-once style log; not actionable, just empty.
     if (code === 404 || code === "itemNotFound" || /does not exist/i.test(msg)) {
-      // eslint-disable-next-line no-console
+       
       console.warn(`[SharePoint] list missing (returning empty): ${msg.split("\n")[0]}`);
     } else if (/field name is not recognized|cannot be referenced in filter or orderby/i.test(msg)) {
       // List exists but our code references a column that's missing on this tenant.
       // Non-fatal: feature degrades to empty until the list schema is updated.
-      // eslint-disable-next-line no-console
+       
       console.warn(`[SharePoint] schema mismatch (returning empty): ${msg.split("\n")[0]}`);
     } else {
-      // eslint-disable-next-line no-console
+       
       console.error(`[SharePoint] failed: ${msg}\n  caller:\n${stack}`);
     }
     if (fallback) return fallback();
@@ -1525,7 +1525,7 @@ export async function createActivity(data: Omit<Activity, "id">): Promise<Activi
   const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
   const res = await graphPost<{ id: string }>(await getSiteListUrlAsync("Activities"), {
     fields: {
-      [ACT_COL.clientId]: data.clientId,
+      [ACT_COL.clientId]: data.clientId || data.relatedId,
       [ACT_COL.partnerId]: data.partnerId,
       [ACT_COL.type]: data.type,
       [ACT_COL.title]: data.title,
@@ -1536,6 +1536,7 @@ export async function createActivity(data: Omit<Activity, "id">): Promise<Activi
   });
   return { ...data, id: String(res.id) };
 }
+
 
 async function findNotifSpItemId(notifId: string): Promise<{ listUrl: string; spItemId: string | null }> {
   const { graphGet, getSiteListUrlAsync, escapeOData } = await import("@/lib/graph");
