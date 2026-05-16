@@ -48,6 +48,14 @@ export default function ProductCard({
           className="object-cover transition-transform duration-500 group-hover:scale-105"
         />
 
+        {/* Branded SKU Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
+        <div className="absolute bottom-3 right-3 bg-white/10 backdrop-blur-md border border-white/20 px-3 py-1 rounded-xl shadow-2xl">
+          <p className="text-[10px] font-black text-white uppercase tracking-widest drop-shadow-md">
+            SKU {product.sku}
+          </p>
+        </div>
+
         {/* Badges */}
         <div className="absolute top-3 left-3 flex flex-col gap-1.5">
           {hasDiscount && (
@@ -93,7 +101,6 @@ export default function ProductCard({
       <div className="flex flex-col flex-1 p-5">
         <div className="flex items-start justify-between gap-2 mb-1">
           <div className="flex flex-col">
-            <span className="text-[10px] text-muted-foreground font-mono font-bold tracking-widest uppercase mb-1">SKU {product.sku}</span>
             <h3 className="font-bold text-foreground leading-tight line-clamp-2">{product.name}</h3>
           </div>
           <Badge variant="outline" className="shrink-0 text-[10px] rounded-full">

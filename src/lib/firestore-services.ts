@@ -447,7 +447,7 @@ export async function revokeSchoolCertificate(id: string, reason: string, revoke
 // ── Teachers ──
 
 export async function getSchoolTeachers(filters?: { search?: string }): Promise<SchoolTeacher[]> {
-  let q: FirebaseFirestore.Query = db().collection("schoolTeachers").orderBy("name");
+  const q: FirebaseFirestore.Query = db().collection("schoolTeachers").orderBy("name");
   const snap = await q.get();
   let results = snap.docs.map((d) => toPlainObject<SchoolTeacher>({ id: d.id, ...d.data() }));
   if (filters?.search) {

@@ -20,7 +20,7 @@ export async function GET(request: Request) {
     console.error("invoice-pdf: getInvoices failed", (e as Error).message);
     return NextResponse.json({ error: "Lookup failed" }, { status: 502 });
   }
-  const invoice = invoices.find((inv) => inv.id === id);
+  const invoice = invoices.find((inv) => inv.id === id || inv.orderId === id);
   if (!invoice) return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
 
   if (!canAccess(user, { partnerId: invoice.partnerId, customerId: invoice.clientId })) {

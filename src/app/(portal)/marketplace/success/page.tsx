@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 function SuccessContent() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get("orderId");
+  const invoiceId = searchParams.get("invoiceId");
   const orderNumber = searchParams.get("orderNumber");
   const verification = searchParams.get("verification");
   const isPendingVerification = verification === "pending";
@@ -91,7 +92,11 @@ function SuccessContent() {
               </div>
             </Link>
             
-            <Link href={`/sales/orders/${orderId}`} className="group">
+            <Link 
+              href={isPendingVerification ? `/sales/orders/${orderId}` : `/api/invoice-pdf?id=${invoiceId || orderId}`} 
+              className="group"
+              target={isPendingVerification ? "_self" : "_blank"}
+            >
               <div className="p-6 bg-card border rounded-[2rem] hover:border-primary transition-all hover:shadow-xl hover:-translate-y-1">
                 <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary group-hover:text-white transition-colors">
                   <FileText className="h-6 w-6" />

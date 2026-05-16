@@ -336,11 +336,9 @@ const UR_COL = { // User Roles list
 const CW_COL = { // Coin Wallets
   userId: "UserId",
   userName: "UserName",
-  userEmail: "UserEmail",
   balance: "Balance",
   totalEarned: "TotalEarned",
   totalSpent: "TotalSpent",
-  currency: "Currency",
   status: "Status",
   createdAt: "CreatedAt",
   updatedAt: "UpdatedAt",
@@ -349,13 +347,13 @@ const CW_COL = { // Coin Wallets
 const CT_COL = { // Coin Transactions
   walletId: "WalletId",
   userId: "UserId",
-  type: "Type",
+  type: "TransactionType",
   amount: "Amount",
-  balanceBefore: "BalanceBefore",
-  balanceAfter: "BalanceAfter",
+  balanceBefore: "BalanceBefore", // Optional/May be missing
+  balanceAfter: "RunningBalance",
   description: "Description",
-  reference: "Reference",
-  date: "Date",
+  reference: "ReferenceId",
+  date: "CreatedAt",
   createdBy: "CreatedBy",
 };
 
@@ -402,14 +400,14 @@ const SP_COL = { // Service Packages
 
 const CP_COL = { // Customer Packages
   customerId: "CustomerId",
-  clientName: "ClientName",
+  customerName: "CustomerName",
   partnerId: "PartnerId",
-  packageId: "PackageId",
+  packageId: "ServicePackageId",
   packageName: "PackageName",
   expertId: "ExpertId",
   expertName: "ExpertName",
   status: "Status",
-  sessionsRemaining: "SessionsRemaining",
+  completedSessions: "CompletedSessions",
   totalSessions: "TotalSessions",
   totalAmount: "TotalAmount",
   amountPaid: "AmountPaid",
@@ -1250,27 +1248,29 @@ export async function getCustomerPackageById(id: string): Promise<CustomerPackag
 }
 
 export async function createCustomerPackage(pkg: Omit<CustomerPackage, "id">): Promise<CustomerPackage> {
-  const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
-  const res = await graphPost<{ id: string }>(await getSiteListUrlAsync("CustomerPackages"), {
-    fields: {
-      [CP_COL.customerId]: pkg.customerId,
-      [CP_COL.clientName]: pkg.customerName || "",
-      [CP_COL.partnerId]: pkg.partnerId,
-      [CP_COL.packageId]: pkg.servicePackageId,
-      [CP_COL.packageName]: pkg.packageName,
-      [CP_COL.expertId]: pkg.expertId || null,
-      [CP_COL.expertName]: pkg.expertName || null,
-      [CP_COL.status]: pkg.status,
-      [CP_COL.sessionsRemaining]: pkg.totalSessions - pkg.completedSessions,
-      [CP_COL.totalSessions]: pkg.totalSessions,
-      [CP_COL.totalAmount]: pkg.totalAmount,
-      [CP_COL.amountPaid]: pkg.amountPaid,
-      [CP_COL.startDate]: pkg.startDate || null,
-      [CP_COL.endDate]: pkg.endDate || null,
-      [CP_COL.createdAt]: pkg.createdAt,
-    }
-  });
-  return { ...pkg, id: String(res.id) } as CustomerPackage;
+  return runSafe(async () => {
+    const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
+    const res = await graphPost<{ id: string }>(await getSiteListUrlAsync("CustomerPackages"), {
+      fields: {
+        [CP_COL.customerId]: pkg.customerId,
+        [CP_COL.customerName]: pkg.customerName || "",
+        [CP_COL.partnerId]: pkg.partnerId,
+        [CP_COL.packageId]: pkg.servicePackageId,
+        [CP_COL.packageName]: pkg.packageName,
+        [CP_COL.expertId]: pkg.expertId || null,
+        [CP_COL.expertName]: pkg.expertName || null,
+        [CP_COL.status]: pkg.status,
+        [CP_COL.completedSessions]: pkg.completedSessions,
+        [CP_COL.totalSessions]: pkg.totalSessions,
+        [CP_COL.totalAmount]: pkg.totalAmount,
+        [CP_COL.amountPaid]: pkg.amountPaid,
+        [CP_COL.startDate]: pkg.startDate || null,
+        [CP_COL.endDate]: pkg.endDate || null,
+        [CP_COL.createdAt]: pkg.createdAt,
+      }
+    });
+    return { ...pkg, id: String(res.id) } as CustomerPackage;
+  }, () => ({ ...pkg, id: "failed" } as any));
 }
 
 /** Assign expert to a customer package and all its unassigned sessions. */
@@ -2511,11 +2511,9 @@ export async function getAllCoinWallets(): Promise<CoinWallet[]> {
         id: String(item.id),
         userId: String(f[CW_COL.userId] || ""),
         userName: String(f[CW_COL.userName] || ""),
-        userEmail: String(f[CW_COL.userEmail] || ""),
         balance: Number(f[CW_COL.balance] || 0),
         totalEarned: Number(f[CW_COL.totalEarned] || 0),
         totalSpent: Number(f[CW_COL.totalSpent] || 0),
-        currency: String(f[CW_COL.currency] || "SCCG"),
         status: String(f[CW_COL.status] || "active"),
         createdAt: String(f[CW_COL.createdAt] || ""),
         updatedAt: String(f[CW_COL.updatedAt] || ""),
@@ -2551,22 +2549,22 @@ export async function getCoinWallet(userId: string): Promise<CoinWallet | null> 
 }
 
 export async function createCoinWallet(data: Omit<CoinWallet, "id">): Promise<CoinWallet> {
-  const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
-  const res = await graphPost<{ id: string }>(await getSiteListUrlAsync("CoinWallets"), {
-    fields: {
-      [CW_COL.userId]: data.userId,
-      [CW_COL.userName]: data.userName ?? "",
-      [CW_COL.userEmail]: data.userEmail,
-      [CW_COL.balance]: data.balance,
-      [CW_COL.totalEarned]: data.totalEarned ?? 0,
-      [CW_COL.totalSpent]: data.totalSpent ?? 0,
-      [CW_COL.currency]: data.currency,
-      [CW_COL.status]: data.status,
-      [CW_COL.createdAt]: data.createdAt ?? new Date().toISOString(),
-      [CW_COL.updatedAt]: data.updatedAt ?? new Date().toISOString(),
-    }
-  });
-  return { ...data, id: String(res.id) };
+  return runSafe(async () => {
+    const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
+    const res = await graphPost<{ id: string }>(await getSiteListUrlAsync("CoinWallets"), {
+      fields: {
+        [CW_COL.userId]: data.userId,
+        [CW_COL.userName]: data.userName ?? "",
+        [CW_COL.balance]: data.balance,
+        [CW_COL.totalEarned]: data.totalEarned ?? 0,
+        [CW_COL.totalSpent]: data.totalSpent ?? 0,
+        [CW_COL.status]: data.status,
+        [CW_COL.createdAt]: data.createdAt ?? new Date().toISOString(),
+        [CW_COL.updatedAt]: data.updatedAt ?? new Date().toISOString(),
+      }
+    });
+    return { ...data, id: String(res.id) };
+  }, () => ({ ...data, id: "failed" } as any));
 }
 
 export async function updateCoinWallet(userId: string, data: Partial<CoinWallet>): Promise<void> {
@@ -2614,6 +2612,7 @@ export async function getWalletTransactions(userId: string): Promise<CoinTransac
   }
   
   export async function createCoinTransaction(tx: Omit<CoinTransaction, "id">): Promise<CoinTransaction> {
+  return runSafe(async () => {
     const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
     const res = await graphPost<{ id: string }>(await getSiteListUrlAsync("CoinTransactions"), {
       fields: {
@@ -2629,6 +2628,7 @@ export async function getWalletTransactions(userId: string): Promise<CoinTransac
       }
     });
     return { ...tx, id: String(res.id) } as CoinTransaction;
+  }, () => ({ ...tx, id: "failed" } as any));
 }
 
 // ============================================================

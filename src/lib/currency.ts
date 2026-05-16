@@ -27,7 +27,7 @@ export async function getBdtToEurRate(): Promise<number> {
   } catch (err) {
     // Non-fatal: warn once instead of erroring on every render.
     if (!_cache) {
-      // eslint-disable-next-line no-console
+       
       console.warn("[currency] live rate unavailable, using fallback 1 BDT ≈ 0.0084 EUR:", (err as Error)?.message || err);
     }
     // Cache the fallback briefly so we don't retry every request.

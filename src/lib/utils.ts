@@ -11,7 +11,6 @@ export function cn(...inputs: ClassValue[]) {
  * same product always shows the same image.
  */
 export function getProductImageUrl(product: { id?: string; name?: string; imageUrl?: string | null }): string {
-  if (product.imageUrl && product.imageUrl.trim().length > 0) return product.imageUrl;
-  const seed = encodeURIComponent((product.id || product.name || "sccg-product").toString().slice(0, 64));
-  return `https://picsum.photos/seed/${seed}/640/400`;
+  // Always use the branded placeholder for a unified marketplace look
+  return "/images/product-placeholder.png";
 }

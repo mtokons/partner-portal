@@ -100,7 +100,7 @@ export async function createDirectOrderAction(data: {
 
   if (isCoinPayment) {
     // 3. Create a PAID Invoice immediately
-    await createInvoice({
+    const invoice = await createInvoice({
       partnerId: user.partnerId || user.id,
       clientId: user.id,
       clientName: data.customerName,
@@ -110,6 +110,8 @@ export async function createDirectOrderAction(data: {
       dueDate: now,
       createdAt: now,
     });
+
+    const invoiceId = invoice.id;
 
     // 4. Create the Transaction record (Payment)
     await createTransaction({
@@ -187,6 +189,7 @@ export async function createDirectOrderAction(data: {
     orderNumber,
     requiresVerification: !isCoinPayment,
     paymentMethod,
+    invoiceId: isCoinPayment ? order.id : undefined, // Handled by API fallback to orderId
   };
 }
 

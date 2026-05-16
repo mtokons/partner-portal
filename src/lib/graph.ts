@@ -8,7 +8,7 @@ function isGraphDebugEnabled(): boolean {
 
 function debugLog(...args: any[]) {
   if (!isGraphDebugEnabled()) return;
-  // eslint-disable-next-line no-console
+   
   console.log("[Graph]", ...args);
 }
 

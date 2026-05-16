@@ -1,4 +1,4 @@
-portal.mysccg.de {
+portal.mysccg.de, boss.mysccg.de, dev.dieprofessionals.org {
     reverse_proxy portal:3000
 
     # Optional: Gzip compression for faster loading

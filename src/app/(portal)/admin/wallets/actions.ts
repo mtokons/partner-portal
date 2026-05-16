@@ -31,16 +31,23 @@ export async function rechargeWalletAction(userId: string, userName: string, amo
   }
 
   try {
+    // 1. Create the history record
     await createCoinTransaction({
       walletId: wallet.id,
       userId,
-      type: "top-up",
+      transactionType: "top-up",
       amount,
-      currency: "SCCG",
+      runningBalance: (wallet.balance || 0) + amount,
       description: description || `Admin top-up by ${user.name}`,
       createdAt: new Date().toISOString(),
       referenceId: `admin-${Date.now()}`,
     } as any);
+
+    // 2. Update the wallet's actual balance and total earned
+    await (await import("@/lib/sharepoint")).updateCoinWallet(userId, {
+      balance: (wallet.balance || 0) + amount,
+      totalEarned: (wallet.totalEarned || 0) + amount,
+    });
 
     return { success: true };
   } catch (error) {

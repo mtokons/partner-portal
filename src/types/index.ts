@@ -776,7 +776,7 @@ export type WalletStatus = "active" | "frozen" | "closed";
 export interface CoinWallet {
   id: string;
   userId: string;
-  userEmail: string;
+  userEmail?: string;
   userName: string;
   balance: number;
   currency: string;
