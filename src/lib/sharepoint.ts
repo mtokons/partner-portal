@@ -467,7 +467,7 @@ export async function getPartnerByEmail(email: string): Promise<Partner | null> 
       company: String(f[PART_COL.company] || ""), 
       partnerType: (f[PART_COL.partnerType] as any) || "individual",
       commissionTier: (f[PART_COL.commissionTier] as any) || "standard",
-      onboardingStatus: (f[PART_COL.onboardingStatus] as any) || "approved",
+      onboardingStatus: (String(f[PART_COL.onboardingStatus] || "approved").toLowerCase() as any),
       createdAt: String(f[PART_COL.createdAt] || new Date().toISOString()) 
     } as Partner;
   }, () => null);
@@ -493,7 +493,7 @@ export async function getPartners(): Promise<Partner[]> {
           phone: String(f[PART_COL.phone] || ""),
           partnerType: (f[PART_COL.partnerType] as any) || "individual",
           commissionTier: (f[PART_COL.commissionTier] as any) || "standard",
-          onboardingStatus: (f[PART_COL.onboardingStatus] as any) || "approved",
+          onboardingStatus: (String(f[PART_COL.onboardingStatus] || "approved").toLowerCase() as any),
           createdAt: String(f[PART_COL.createdAt] || ""),
         } as Partner;
       });

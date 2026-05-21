@@ -35,7 +35,7 @@ async function buildRolesForEmail(email: string, firebaseProfile?: FirebaseUserP
       roles.push("partner-individual");
       roles.push("partner-institutional");
     }
-    if (partner.onboardingStatus === "approved") {
+    if (partner.onboardingStatus?.toLowerCase() === "approved") {
       partnerId = partner.id;
     }
     company = partner.company || firebaseProfile?.company || "";
