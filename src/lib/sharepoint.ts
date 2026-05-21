@@ -442,8 +442,18 @@ const SESS_COL = { // Sessions
 export async function getPartnerByEmail(email: string): Promise<Partner | null> {
   return runSafe(async () => {
     const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
-    const url = `${await getSiteListUrlAsync("Partners")}?$filter=fields/${PART_COL.email} eq '${email}'&$expand=fields`;
-    const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, any> }> }>(url);
+    let url = `${await getSiteListUrlAsync("Partners")}?$filter=fields/${PART_COL.email} eq '${email}'&$expand=fields`;
+    let res = await graphGet<{ value: Array<{ id: string; fields: Record<string, any> }> }>(url);
+    if (!res.value.length && email.toLowerCase() !== email) {
+      url = `${await getSiteListUrlAsync("Partners")}?$filter=fields/${PART_COL.email} eq '${email.toLowerCase()}'&$expand=fields`;
+      res = await graphGet<{ value: Array<{ id: string; fields: Record<string, any> }> }>(url);
+    }
+    if (!res.value.length) {
+      const allUrl = `${await getSiteListUrlAsync("Partners")}?$expand=fields`;
+      const allRes = await graphGet<{ value: Array<{ id: string; fields: Record<string, any> }> }>(allUrl);
+      const matched = allRes.value.find(item => String(item.fields[PART_COL.email] || "").toLowerCase() === email.toLowerCase());
+      if (matched) res = { value: [matched] };
+    }
     if (!res.value.length) return null;
     const item = res.value[0];
     const f = item.fields;
@@ -1040,8 +1050,18 @@ export async function getCustomerByEmail(email: string): Promise<Customer | null
     const listName = await getClientsListName();
     const isLegacy = listName === "SCCG Client";
     const emailCol = isLegacy ? LEGACY_SCCG_CLIENT_COL.email : CL_COL.email;
-    const url = `${await getSiteListUrlAsync(encodeListName(listName))}?$expand=fields&$filter=fields/${emailCol} eq '${escapeOData(email)}'`;
-    const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, any> }> }>(url);
+    let url = `${await getSiteListUrlAsync(encodeListName(listName))}?$expand=fields&$filter=fields/${emailCol} eq '${escapeOData(email)}'`;
+    let res = await graphGet<{ value: Array<{ id: string; fields: Record<string, any> }> }>(url);
+    if (!res.value.length && email.toLowerCase() !== email) {
+      url = `${await getSiteListUrlAsync(encodeListName(listName))}?$expand=fields&$filter=fields/${emailCol} eq '${escapeOData(email.toLowerCase())}'`;
+      res = await graphGet<{ value: Array<{ id: string; fields: Record<string, any> }> }>(url);
+    }
+    if (!res.value.length) {
+      const allUrl = `${await getSiteListUrlAsync(encodeListName(listName))}?$expand=fields`;
+      const allRes = await graphGet<{ value: Array<{ id: string; fields: Record<string, any> }> }>(allUrl);
+      const matched = allRes.value.find(item => String(item.fields[emailCol] || "").toLowerCase() === email.toLowerCase());
+      if (matched) res = { value: [matched] };
+    }
     if (!res.value.length) return null;
     const item = res.value[0];
     const f = item.fields;
@@ -1136,8 +1156,18 @@ export async function createExpert(expert: Omit<Expert, "id"> & { id: string }):
 export async function getExpertByEmail(email: string): Promise<Expert | null> {
   return runSafe(async () => {
     const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
-    const url = `${await getSiteListUrlAsync("Experts")}?$expand=fields&$filter=fields/${EXP_COL.email} eq '${email}'`;
-    const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, any> }> }>(url);
+    let url = `${await getSiteListUrlAsync("Experts")}?$expand=fields&$filter=fields/${EXP_COL.email} eq '${email}'`;
+    let res = await graphGet<{ value: Array<{ id: string; fields: Record<string, any> }> }>(url);
+    if (!res.value.length && email.toLowerCase() !== email) {
+      url = `${await getSiteListUrlAsync("Experts")}?$expand=fields&$filter=fields/${EXP_COL.email} eq '${email.toLowerCase()}'`;
+      res = await graphGet<{ value: Array<{ id: string; fields: Record<string, any> }> }>(url);
+    }
+    if (!res.value.length) {
+      const allUrl = `${await getSiteListUrlAsync("Experts")}?$expand=fields`;
+      const allRes = await graphGet<{ value: Array<{ id: string; fields: Record<string, any> }> }>(allUrl);
+      const matched = allRes.value.find(item => String(item.fields[EXP_COL.email] || "").toLowerCase() === email.toLowerCase());
+      if (matched) res = { value: [matched] };
+    }
     if (!res.value.length) return null;
     const f = res.value[0].fields;
     const item = res.value[0];
@@ -3285,8 +3315,18 @@ export async function addUserRole(entry: Omit<UserRoleEntry, "id">): Promise<Use
 export async function getUserProfileByEmail(email: string): Promise<UserProfile | null> {
   return runSafe(async () => {
     const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
-    const url = `${await getSiteListUrlAsync("UserProfiles")}?$expand=fields&$filter=fields/${UP_COL.email} eq '${email}'`;
-    const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, unknown> }> }>(url);
+    let url = `${await getSiteListUrlAsync("UserProfiles")}?$expand=fields&$filter=fields/${UP_COL.email} eq '${email}'`;
+    let res = await graphGet<{ value: Array<{ id: string; fields: Record<string, unknown> }> }>(url);
+    if (!res.value.length && email.toLowerCase() !== email) {
+      url = `${await getSiteListUrlAsync("UserProfiles")}?$expand=fields&$filter=fields/${UP_COL.email} eq '${email.toLowerCase()}'`;
+      res = await graphGet<{ value: Array<{ id: string; fields: Record<string, unknown> }> }>(url);
+    }
+    if (!res.value.length) {
+      const allUrl = `${await getSiteListUrlAsync("UserProfiles")}?$expand=fields`;
+      const allRes = await graphGet<{ value: Array<{ id: string; fields: Record<string, unknown> }> }>(allUrl);
+      const matched = allRes.value.find(item => String(item.fields[UP_COL.email] || "").toLowerCase() === email.toLowerCase());
+      if (matched) res = { value: [matched] };
+    }
     if (!res.value.length) return null;
     const item = res.value[0];
     const f = item.fields;
