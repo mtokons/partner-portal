@@ -189,7 +189,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           return {
             id: partner.id, name: partner.name, email: partner.email,
             role: rolesInfo.primaryRole, roles: rolesInfo.roles,
-            partnerId: partner.id, company: partner.company,
+            partnerId: partner.onboardingStatus?.toLowerCase() === "approved" ? partner.id : undefined,
+            company: partner.company,
             customerId: rolesInfo.customerId, expertId: rolesInfo.expertId,
             partnerType: rolesInfo.partnerType, coinBalance: rolesInfo.coinBalance,
           } as SessionUser;
