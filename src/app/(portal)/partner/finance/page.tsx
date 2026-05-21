@@ -11,7 +11,7 @@ export default async function PartnerFinancePage() {
 
   const user = session.user as SessionUser;
   const partner = await getPartnerByEmail(user.email!);
-  if (!partner) redirect("/partner/pending");
+  if (!partner) redirect("/partner-pending");
 
   const [payouts, candidates] = await Promise.all([
     getPayouts(partner.id),

@@ -27,7 +27,7 @@ export default async function PartnerSupportPage() {
 
   const user = session.user as SessionUser;
   const partner = await getPartnerByEmail(user.email!);
-  if (!partner) redirect("/partner/pending");
+  if (!partner) redirect("/partner-pending");
 
   const tickets = await getHelpdeskTickets(partner.id);
 

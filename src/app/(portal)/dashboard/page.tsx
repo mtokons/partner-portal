@@ -22,6 +22,13 @@ export default async function DashboardPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
   const user = session.user as SessionUser;
+
+  // Redirect partner roles to the dedicated partner portal
+  const roles = (user.roles || [user.role]) as string[];
+  if (roles.some((r) => ["partner", "partner-individual", "partner-institutional"].includes(r))) {
+    redirect("/partner/dashboard");
+  }
+
   const pid = user.role === "admin" ? undefined : user.partnerId;
 
   if (user.role === "partner" && !pid) {

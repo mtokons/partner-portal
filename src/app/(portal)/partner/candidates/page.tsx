@@ -33,7 +33,7 @@ export default async function CandidatesPage() {
   let partnerId: string | undefined;
   if (!isAdmin) {
     const partner = await getPartnerByEmail(user.email!);
-    if (!partner) redirect("/partner/pending");
+    if (!partner) redirect("/partner-pending");
     partnerId = partner.id;
   }
 

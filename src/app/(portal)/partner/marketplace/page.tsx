@@ -10,7 +10,7 @@ export default async function PartnerMarketplacePage() {
 
   const user = session.user as SessionUser;
   const partner = await getPartnerByEmail(user.email!);
-  if (!partner) redirect("/partner/pending");
+  if (!partner) redirect("/partner-pending");
 
   const allProducts = await getProducts();
   const downloads = allProducts.filter(

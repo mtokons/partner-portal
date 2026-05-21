@@ -18,5 +18,12 @@ export default async function PartnerLayout({
 
   if (!isPartner) redirect("/dashboard");
 
+  // Centralized approval gate:
+  // Approved partners will always have a valid partnerId in their session.
+  // Unapproved or pending partners will not have a partnerId.
+  if (!user.partnerId) {
+    redirect("/partner-pending");
+  }
+
   return <>{children}</>;
 }
