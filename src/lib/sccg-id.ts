@@ -27,7 +27,9 @@ export type SccgEntityPrefix =
   | "BCH"  // Batch
   | "ENR"  // Enrollment
   | "TCH"  // Teacher
-  | "CERT"; // Certificate
+  | "CERT" // Certificate
+  | "CND"  // Candidate
+  | "HLP"; // Helpdesk Ticket
 
 function getTodayString(): string {
   const now = new Date();

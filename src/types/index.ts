@@ -7,6 +7,8 @@ export type PartnerType = "individual" | "institutional";
 export type PartnerStatus = "pending" | "active" | "suspended";
 export type PartnerOnboardingStatus = "application" | "review" | "approved" | "rejected";
 export type CommissionTier = "standard" | "premium" | "enterprise";
+export type TierStatus = "Silver" | "Gold" | "Diamond" | "Platinum";
+export type PartnerMargin = 8 | 15 | 20 | 25;
 export type OrderStatus = "pending" | "confirmed" | "shipped" | "delivered" | "cancelled";
 export type InstallmentStatus = "upcoming" | "paid" | "overdue";
 export type InvoiceStatus = "draft" | "sent" | "paid" | "overdue";
@@ -26,6 +28,8 @@ export interface Partner {
   partnerType: PartnerType;
   partnerCode?: string;
   commissionTier: CommissionTier;
+  tierStatus?: TierStatus;
+  marginPercentage?: PartnerMargin;
   taxId?: string;
   legalEntityName?: string;
   onboardingStatus: PartnerOnboardingStatus;
@@ -1474,4 +1478,184 @@ export interface KanbanTask {
   createdBy: string;
   createdAt: string;
   updatedAt?: string;
+}
+
+// ============================================================
+// SCCG Partner Portal — Candidate Workflow Module
+// ============================================================
+
+export type WorkflowCategory =
+  | "Training"
+  | "Ausbildung"
+  | "Student Visa"
+  | "Opportunity Card";
+
+export type TrainingStatus =
+  | "REGISTERED"
+  | "DOCUMENTS_UNDER_REVIEW"
+  | "TRAINING_STARTED"
+  | "TRAINING_FINISHED";
+
+export type AusbildungStatus =
+  | "REGISTERED"
+  | "DOCUMENTS_UNDER_REVIEW"
+  | "GERMAN_COURSE_ASSIGNED"
+  | "PROFESSIONAL_TRAINING_GOING_ON"
+  | "APPLICATION_STARTED"
+  | "ADMISSION_PROCESS"
+  | "WAITING_FOR_VISA_APPOINTMENT"
+  | "VISA_PROCESS"
+  | "COMPLETED";
+
+export type StudentVisaStatus =
+  | "REGISTERED"
+  | "DOCUMENTS_UNDER_REVIEW"
+  | "PROFESSIONAL_TRAINING_GOING_ON"
+  | "APPLICATION_STARTED"
+  | "ADMISSION_UNDER_PROCESS"
+  | "WAITING_FOR_VISA_APPOINTMENT"
+  | "VISA_PROCESS"
+  | "COMPLETED";
+
+export type OpportunityCardStatus =
+  | "REGISTERED"
+  | "DOCUMENTS_UNDER_REVIEW"
+  | "GERMAN_COURSE_ASSIGNED"
+  | "ZAB_VERIFICATION_STARTED"
+  | "ZAB_VERIFICATION_COMPLETED"
+  | "PROFESSIONAL_TRAINING_GOING_ON"
+  | "APPLICATION_SUBMITTED"
+  | "WAITING_FOR_VISA_CALL"
+  | "VISA_PROCESS_STARTED"
+  | "COMPLETED";
+
+export type CandidateStatus =
+  | TrainingStatus
+  | AusbildungStatus
+  | StudentVisaStatus
+  | OpportunityCardStatus;
+
+export type CandidatePaymentStatus =
+  | "pending"
+  | "deposit-paid"
+  | "fully-paid";
+
+export interface Candidate {
+  id: string;
+  sccgId: string;
+  submissionId?: string;
+  partnerId: string;
+  partnerName?: string;
+  workflowCategory: WorkflowCategory;
+  currentStatus: CandidateStatus;
+  fullName: string;
+  dateOfBirth: string;
+  email: string;
+  phone: string;
+  address?: string;
+  passportNumber?: string;
+  nationalId?: string;
+  nationality: string;
+  country: string;
+  totalServiceFee: number;
+  sccgShare: number;
+  partnerShare: number;
+  depositAmount: number;
+  marginPercentage: PartnerMargin;
+  paymentStatus: CandidatePaymentStatus;
+  paymentMethod?: string;
+  paymentReference?: string;
+  isOnHold?: boolean;
+  notes?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt?: string;
+  submittedAt?: string;
+}
+
+export type ServicePackageType = "all-inclusive" | "premium-bundle" | "add-on";
+
+export interface CandidateService {
+  id: string;
+  candidateId: string;
+  servicePricingId: string;
+  serviceName: string;
+  packageType: ServicePackageType;
+  basePrice: number;
+  quantity: number;
+  totalPrice: number;
+  createdAt: string;
+}
+
+export interface ServicePricing {
+  id: string;
+  workflowCategory: WorkflowCategory;
+  serviceName: string;
+  packageType: ServicePackageType;
+  basePrice: number;
+  currency: "EUR" | "BDT";
+  description?: string;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+export type CandidateTaskCategory =
+  | "Document Required"
+  | "Payment Due"
+  | "General Task";
+
+export interface CandidateTask extends KanbanTask {
+  candidateId: string;
+  candidateName?: string;
+  taskCategory: CandidateTaskCategory;
+  workflowCategory: WorkflowCategory;
+}
+
+// ============================================================
+// Helpdesk / Ticketing Module
+// ============================================================
+
+export type HelpdeskTicketStatus =
+  | "open"
+  | "in-progress"
+  | "resolved"
+  | "closed";
+
+export type HelpdeskTicketPriority = "low" | "medium" | "high" | "urgent";
+
+export type HelpdeskTicketCategory =
+  | "billing"
+  | "technical"
+  | "candidate"
+  | "workflow"
+  | "general";
+
+export interface HelpdeskTicket {
+  id: string;
+  sccgId: string;
+  submittedByUserId: string;
+  submittedByName: string;
+  submittedByEmail: string;
+  partnerId: string;
+  category: HelpdeskTicketCategory;
+  priority: HelpdeskTicketPriority;
+  subject: string;
+  description: string;
+  status: HelpdeskTicketStatus;
+  assignedTo?: string;
+  relatedCandidateId?: string;
+  createdAt: string;
+  updatedAt?: string;
+  resolvedAt?: string;
+}
+
+export interface HelpdeskMessage {
+  id: string;
+  ticketId: string;
+  senderUserId: string;
+  senderName: string;
+  isStaff: boolean;
+  message: string;
+  attachmentUrl?: string;
+  createdAt: string;
 }

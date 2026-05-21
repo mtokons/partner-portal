@@ -98,6 +98,20 @@ const PERMISSION_MAP = {
   "school.certificate.revoke": ["admin"],
   "school.report": ["admin", "school-manager", "finance"],
   "school.teacher.manage": ["admin", "school-manager"],
+
+  // Candidate management (SCCG Partner Portal)
+  "candidate.create": ["partner-individual", "partner-institutional", "admin"],
+  "candidate.view.own": ["partner-individual", "partner-institutional"],
+  "candidate.view.all": ["admin", "finance"],
+  "candidate.status.advance": ["admin"],
+  "candidate.status.advance.own": ["partner-individual", "partner-institutional"],
+  "candidate.document.upload": ["partner-individual", "partner-institutional", "admin"],
+
+  // Helpdesk ticketing
+  "helpdesk.ticket.create": ["partner-individual", "partner-institutional", "admin"],
+  "helpdesk.ticket.view.own": ["partner-individual", "partner-institutional"],
+  "helpdesk.ticket.view.all": ["admin"],
+  "helpdesk.ticket.respond": ["admin"],
 } as const;
 
 export type Permission = keyof typeof PERMISSION_MAP;

@@ -11,6 +11,8 @@ import type {
   SccgCard, SccgCardTransaction,
   KanbanTask,
   SchoolCertificate,
+  Candidate, CandidateService, CandidateTask,
+  HelpdeskTicket, HelpdeskMessage,
 } from "@/types";
 
 const isProduction = process.env.VERCEL_ENV === "production" || process.env.NODE_ENV === "production";
@@ -71,6 +73,8 @@ export async function getSharePointConnectionInfo() {
       "UserProfiles", "UserRoles", "SchoolCertificates", "CareerProfiles",
       "PromoCodes", "PromoCodeUsages", "CommissionRules", "CommissionLedger",
       "AppNotifications", "EmailTracking", "OfferAcceptanceLog",
+      "Candidates", "CandidateServices", "CandidateTasks",
+      "HelpdeskTickets", "HelpdeskMessages",
     ];
     lists.forEach(l => { listUrls[l] = `${base}/Lists/${l}/AllItems.aspx`; });
   }
@@ -3637,4 +3641,499 @@ export async function upsertCareerProfile(rec: Omit<CareerProfileRecord, "id">):
   } catch (err) {
     console.error("upsertCareerProfile failed:", err);
   }
+}
+
+// ============================================================
+// SCCG Partner Portal — Candidates
+// ============================================================
+
+const CAND_COL = {
+  sccgId: "SccgId",
+  submissionId: "SubmissionId",
+  partnerId: "PartnerId",
+  partnerName: "PartnerName",
+  workflowCategory: "WorkflowCategory",
+  currentStatus: "CurrentStatus",
+  fullName: "Title",
+  dateOfBirth: "DateOfBirth",
+  email: "Email",
+  phone: "Phone",
+  address: "Address",
+  passportNumber: "PassportNumber",
+  nationalId: "NationalId",
+  nationality: "Nationality",
+  country: "Country",
+  totalServiceFee: "TotalServiceFee",
+  sccgShare: "SccgShare",
+  partnerShare: "PartnerShare",
+  depositAmount: "DepositAmount",
+  marginPercentage: "MarginPercentage",
+  paymentStatus: "PaymentStatus",
+  paymentMethod: "PaymentMethod",
+  paymentReference: "PaymentReference",
+  isOnHold: "IsOnHold",
+  notes: "Notes",
+  createdBy: "CreatedBy",
+  createdAt: "CreatedAt",
+  updatedAt: "UpdatedAt",
+  submittedAt: "SubmittedAt",
+} as const;
+
+function mapCandidate(item: { id: string; fields: Record<string, unknown> }): Candidate {
+  const f = item.fields;
+  return {
+    id: String(item.id),
+    sccgId: String(f[CAND_COL.sccgId] || ""),
+    submissionId: f[CAND_COL.submissionId] ? String(f[CAND_COL.submissionId]) : undefined,
+    partnerId: String(f[CAND_COL.partnerId] || ""),
+    partnerName: f[CAND_COL.partnerName] ? String(f[CAND_COL.partnerName]) : undefined,
+    workflowCategory: String(f[CAND_COL.workflowCategory] || "Training") as Candidate["workflowCategory"],
+    currentStatus: String(f[CAND_COL.currentStatus] || "REGISTERED") as Candidate["currentStatus"],
+    fullName: String(f[CAND_COL.fullName] || ""),
+    dateOfBirth: String(f[CAND_COL.dateOfBirth] || ""),
+    email: String(f[CAND_COL.email] || ""),
+    phone: String(f[CAND_COL.phone] || ""),
+    address: f[CAND_COL.address] ? String(f[CAND_COL.address]) : undefined,
+    passportNumber: f[CAND_COL.passportNumber] ? String(f[CAND_COL.passportNumber]) : undefined,
+    nationalId: f[CAND_COL.nationalId] ? String(f[CAND_COL.nationalId]) : undefined,
+    nationality: String(f[CAND_COL.nationality] || ""),
+    country: String(f[CAND_COL.country] || ""),
+    totalServiceFee: Number(f[CAND_COL.totalServiceFee] || 0),
+    sccgShare: Number(f[CAND_COL.sccgShare] || 0),
+    partnerShare: Number(f[CAND_COL.partnerShare] || 0),
+    depositAmount: Number(f[CAND_COL.depositAmount] || 0),
+    marginPercentage: Number(f[CAND_COL.marginPercentage] || 8) as Candidate["marginPercentage"],
+    paymentStatus: String(f[CAND_COL.paymentStatus] || "pending") as Candidate["paymentStatus"],
+    paymentMethod: f[CAND_COL.paymentMethod] ? String(f[CAND_COL.paymentMethod]) : undefined,
+    paymentReference: f[CAND_COL.paymentReference] ? String(f[CAND_COL.paymentReference]) : undefined,
+    isOnHold: Boolean(f[CAND_COL.isOnHold]),
+    notes: f[CAND_COL.notes] ? String(f[CAND_COL.notes]) : undefined,
+    createdBy: String(f[CAND_COL.createdBy] || ""),
+    createdAt: String(f[CAND_COL.createdAt] || new Date().toISOString()),
+    updatedAt: f[CAND_COL.updatedAt] ? String(f[CAND_COL.updatedAt]) : undefined,
+    submittedAt: f[CAND_COL.submittedAt] ? String(f[CAND_COL.submittedAt]) : undefined,
+  };
+}
+
+export async function getCandidates(partnerId?: string): Promise<Candidate[]> {
+  return runSafe(async () => {
+    const { graphGet, getSiteListUrlAsync, escapeOData } = await import("@/lib/graph");
+    const listUrl = await getSiteListUrlAsync("Candidates");
+    const filter = partnerId
+      ? `&$filter=fields/${CAND_COL.partnerId} eq '${escapeOData(partnerId)}'`
+      : "";
+    const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, unknown> }> }>(
+      `${listUrl}?$expand=fields&$top=500&$orderby=fields/${CAND_COL.createdAt} desc${filter}`
+    );
+    return res.value.map(mapCandidate);
+  }, () => []);
+}
+
+export async function getCandidateById(id: string): Promise<Candidate | null> {
+  return runSafe(async () => {
+    const { graphGetSafe, getSiteListUrlAsync } = await import("@/lib/graph");
+    const listUrl = await getSiteListUrlAsync("Candidates");
+    const res = await graphGetSafe<{ id: string; fields: Record<string, unknown> }>(
+      `${listUrl}/${id}?$expand=fields`
+    );
+    if (!res) return null;
+    return mapCandidate(res);
+  }, () => null);
+}
+
+export async function createCandidate(data: Omit<Candidate, "id">): Promise<Candidate> {
+  const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
+  const listUrl = await getSiteListUrlAsync("Candidates");
+  const fields: Record<string, unknown> = {
+    [CAND_COL.sccgId]: data.sccgId,
+    [CAND_COL.submissionId]: data.submissionId,
+    [CAND_COL.partnerId]: data.partnerId,
+    [CAND_COL.partnerName]: data.partnerName,
+    [CAND_COL.workflowCategory]: data.workflowCategory,
+    [CAND_COL.currentStatus]: data.currentStatus,
+    [CAND_COL.fullName]: data.fullName,
+    [CAND_COL.dateOfBirth]: data.dateOfBirth,
+    [CAND_COL.email]: data.email,
+    [CAND_COL.phone]: data.phone,
+    [CAND_COL.address]: data.address,
+    [CAND_COL.passportNumber]: data.passportNumber,
+    [CAND_COL.nationalId]: data.nationalId,
+    [CAND_COL.nationality]: data.nationality,
+    [CAND_COL.country]: data.country,
+    [CAND_COL.totalServiceFee]: data.totalServiceFee,
+    [CAND_COL.sccgShare]: data.sccgShare,
+    [CAND_COL.partnerShare]: data.partnerShare,
+    [CAND_COL.depositAmount]: data.depositAmount,
+    [CAND_COL.marginPercentage]: data.marginPercentage,
+    [CAND_COL.paymentStatus]: data.paymentStatus,
+    [CAND_COL.paymentMethod]: data.paymentMethod,
+    [CAND_COL.paymentReference]: data.paymentReference,
+    [CAND_COL.isOnHold]: data.isOnHold ?? false,
+    [CAND_COL.notes]: data.notes,
+    [CAND_COL.createdBy]: data.createdBy,
+    [CAND_COL.createdAt]: data.createdAt,
+    [CAND_COL.updatedAt]: data.updatedAt,
+    [CAND_COL.submittedAt]: data.submittedAt,
+  };
+  const res = await graphPost<{ id: string; fields: Record<string, unknown> }>(listUrl, { fields });
+  return mapCandidate(res);
+}
+
+export async function updateCandidate(id: string, data: Partial<Candidate>): Promise<void> {
+  return runSafe(async () => {
+    const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
+    const listUrl = await getSiteListUrlAsync("Candidates");
+    const fields: Record<string, unknown> = {};
+    if (data.currentStatus !== undefined) fields[CAND_COL.currentStatus] = data.currentStatus;
+    if (data.paymentStatus !== undefined) fields[CAND_COL.paymentStatus] = data.paymentStatus;
+    if (data.paymentMethod !== undefined) fields[CAND_COL.paymentMethod] = data.paymentMethod;
+    if (data.paymentReference !== undefined) fields[CAND_COL.paymentReference] = data.paymentReference;
+    if (data.totalServiceFee !== undefined) fields[CAND_COL.totalServiceFee] = data.totalServiceFee;
+    if (data.sccgShare !== undefined) fields[CAND_COL.sccgShare] = data.sccgShare;
+    if (data.partnerShare !== undefined) fields[CAND_COL.partnerShare] = data.partnerShare;
+    if (data.depositAmount !== undefined) fields[CAND_COL.depositAmount] = data.depositAmount;
+    if (data.isOnHold !== undefined) fields[CAND_COL.isOnHold] = data.isOnHold;
+    if (data.notes !== undefined) fields[CAND_COL.notes] = data.notes;
+    if (data.submissionId !== undefined) fields[CAND_COL.submissionId] = data.submissionId;
+    if (data.submittedAt !== undefined) fields[CAND_COL.submittedAt] = data.submittedAt;
+    fields[CAND_COL.updatedAt] = new Date().toISOString();
+    await graphPatch(`${listUrl}/${id}/fields`, fields);
+  });
+}
+
+export async function advanceCandidateStatus(
+  id: string,
+  nextStatus: Candidate["currentStatus"]
+): Promise<void> {
+  return runSafe(async () => {
+    const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
+    const listUrl = await getSiteListUrlAsync("Candidates");
+    await graphPatch(`${listUrl}/${id}/fields`, {
+      [CAND_COL.currentStatus]: nextStatus,
+      [CAND_COL.updatedAt]: new Date().toISOString(),
+    });
+  });
+}
+
+// ─── Candidate Services ───────────────────────────────────────────────────────
+
+const CANDS_COL = {
+  candidateId: "CandidateId",
+  servicePricingId: "ServicePricingId",
+  serviceName: "Title",
+  packageType: "PackageType",
+  basePrice: "BasePrice",
+  quantity: "Quantity",
+  totalPrice: "TotalPrice",
+  createdAt: "CreatedAt",
+} as const;
+
+function mapCandidateService(item: { id: string; fields: Record<string, unknown> }): CandidateService {
+  const f = item.fields;
+  return {
+    id: String(item.id),
+    candidateId: String(f[CANDS_COL.candidateId] || ""),
+    servicePricingId: String(f[CANDS_COL.servicePricingId] || ""),
+    serviceName: String(f[CANDS_COL.serviceName] || ""),
+    packageType: String(f[CANDS_COL.packageType] || "all-inclusive") as CandidateService["packageType"],
+    basePrice: Number(f[CANDS_COL.basePrice] || 0),
+    quantity: Number(f[CANDS_COL.quantity] || 1),
+    totalPrice: Number(f[CANDS_COL.totalPrice] || 0),
+    createdAt: String(f[CANDS_COL.createdAt] || new Date().toISOString()),
+  };
+}
+
+export async function getCandidateServices(candidateId: string): Promise<CandidateService[]> {
+  return runSafe(async () => {
+    const { graphGet, getSiteListUrlAsync, escapeOData } = await import("@/lib/graph");
+    const listUrl = await getSiteListUrlAsync("CandidateServices");
+    const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, unknown> }> }>(
+      `${listUrl}?$expand=fields&$filter=fields/${CANDS_COL.candidateId} eq '${escapeOData(candidateId)}'&$top=100`
+    );
+    return res.value.map(mapCandidateService);
+  }, () => []);
+}
+
+export async function createCandidateService(data: Omit<CandidateService, "id">): Promise<CandidateService> {
+  const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
+  const listUrl = await getSiteListUrlAsync("CandidateServices");
+  const fields: Record<string, unknown> = {
+    [CANDS_COL.candidateId]: data.candidateId,
+    [CANDS_COL.servicePricingId]: data.servicePricingId,
+    [CANDS_COL.serviceName]: data.serviceName,
+    [CANDS_COL.packageType]: data.packageType,
+    [CANDS_COL.basePrice]: data.basePrice,
+    [CANDS_COL.quantity]: data.quantity,
+    [CANDS_COL.totalPrice]: data.totalPrice,
+    [CANDS_COL.createdAt]: data.createdAt,
+  };
+  const res = await graphPost<{ id: string; fields: Record<string, unknown> }>(listUrl, { fields });
+  return mapCandidateService(res);
+}
+
+export async function deleteCandidateServices(candidateId: string): Promise<void> {
+  return runSafe(async () => {
+    const { graphGet, graphDelete, getSiteListUrlAsync, escapeOData } = await import("@/lib/graph");
+    const listUrl = await getSiteListUrlAsync("CandidateServices");
+    const res = await graphGet<{ value: Array<{ id: string }> }>(
+      `${listUrl}?$select=id&$filter=fields/${CANDS_COL.candidateId} eq '${escapeOData(candidateId)}'&$top=500`
+    );
+    await Promise.all(res.value.map((item) => graphDelete(`${listUrl}/${item.id}`)));
+  });
+}
+
+// ─── Candidate Tasks ──────────────────────────────────────────────────────────
+
+const CANDTASK_COL = {
+  title: "Title",
+  description: "Description",
+  status: "Status",
+  priority: "Priority",
+  dueDate: "DueDate",
+  assignedTo: "AssignedTo",
+  assignedToName: "AssignedToName",
+  assignedToEmail: "AssignedToEmail",
+  partnerId: "PartnerId",
+  tags: "Tags",
+  createdBy: "CreatedBy",
+  createdAt: "CreatedAt",
+  updatedAt: "UpdatedAt",
+  candidateId: "CandidateId",
+  candidateName: "CandidateName",
+  taskCategory: "TaskCategory",
+  workflowCategory: "WorkflowCategory",
+} as const;
+
+function mapCandidateTask(item: { id: string; fields: Record<string, unknown> }): CandidateTask {
+  const f = item.fields;
+  return {
+    id: String(item.id),
+    title: String(f[CANDTASK_COL.title] || ""),
+    description: f[CANDTASK_COL.description] ? String(f[CANDTASK_COL.description]) : undefined,
+    status: String(f[CANDTASK_COL.status] || "todo") as CandidateTask["status"],
+    priority: String(f[CANDTASK_COL.priority] || "medium") as CandidateTask["priority"],
+    dueDate: f[CANDTASK_COL.dueDate] ? String(f[CANDTASK_COL.dueDate]) : undefined,
+    assignedTo: f[CANDTASK_COL.assignedTo] ? String(f[CANDTASK_COL.assignedTo]) : undefined,
+    assignedToName: f[CANDTASK_COL.assignedToName] ? String(f[CANDTASK_COL.assignedToName]) : undefined,
+    assignedToEmail: f[CANDTASK_COL.assignedToEmail] ? String(f[CANDTASK_COL.assignedToEmail]) : undefined,
+    partnerId: f[CANDTASK_COL.partnerId] ? String(f[CANDTASK_COL.partnerId]) : undefined,
+    tags: f[CANDTASK_COL.tags] ? (String(f[CANDTASK_COL.tags])).split(",").filter(Boolean) : [],
+    createdBy: String(f[CANDTASK_COL.createdBy] || ""),
+    createdAt: String(f[CANDTASK_COL.createdAt] || new Date().toISOString()),
+    updatedAt: f[CANDTASK_COL.updatedAt] ? String(f[CANDTASK_COL.updatedAt]) : undefined,
+    candidateId: String(f[CANDTASK_COL.candidateId] || ""),
+    candidateName: f[CANDTASK_COL.candidateName] ? String(f[CANDTASK_COL.candidateName]) : undefined,
+    taskCategory: String(f[CANDTASK_COL.taskCategory] || "General Task") as CandidateTask["taskCategory"],
+    workflowCategory: String(f[CANDTASK_COL.workflowCategory] || "Training") as CandidateTask["workflowCategory"],
+  };
+}
+
+export async function getCandidateTasks(candidateId: string): Promise<CandidateTask[]> {
+  return runSafe(async () => {
+    const { graphGet, getSiteListUrlAsync, escapeOData } = await import("@/lib/graph");
+    const listUrl = await getSiteListUrlAsync("CandidateTasks");
+    const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, unknown> }> }>(
+      `${listUrl}?$expand=fields&$filter=fields/${CANDTASK_COL.candidateId} eq '${escapeOData(candidateId)}'&$top=200`
+    );
+    return res.value.map(mapCandidateTask);
+  }, () => []);
+}
+
+export async function getCandidateTasksByPartner(partnerId: string): Promise<CandidateTask[]> {
+  return runSafe(async () => {
+    const { graphGet, getSiteListUrlAsync, escapeOData } = await import("@/lib/graph");
+    const listUrl = await getSiteListUrlAsync("CandidateTasks");
+    const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, unknown> }> }>(
+      `${listUrl}?$expand=fields&$filter=fields/${CANDTASK_COL.partnerId} eq '${escapeOData(partnerId)}'&$top=500`
+    );
+    return res.value.map(mapCandidateTask);
+  }, () => []);
+}
+
+export async function createCandidateTask(data: Omit<CandidateTask, "id">): Promise<CandidateTask> {
+  const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
+  const listUrl = await getSiteListUrlAsync("CandidateTasks");
+  const fields: Record<string, unknown> = {
+    [CANDTASK_COL.title]: data.title,
+    [CANDTASK_COL.description]: data.description,
+    [CANDTASK_COL.status]: data.status,
+    [CANDTASK_COL.priority]: data.priority,
+    [CANDTASK_COL.dueDate]: data.dueDate,
+    [CANDTASK_COL.assignedTo]: data.assignedTo,
+    [CANDTASK_COL.partnerId]: data.partnerId,
+    [CANDTASK_COL.tags]: data.tags?.join(","),
+    [CANDTASK_COL.createdBy]: data.createdBy,
+    [CANDTASK_COL.createdAt]: data.createdAt,
+    [CANDTASK_COL.candidateId]: data.candidateId,
+    [CANDTASK_COL.candidateName]: data.candidateName,
+    [CANDTASK_COL.taskCategory]: data.taskCategory,
+    [CANDTASK_COL.workflowCategory]: data.workflowCategory,
+  };
+  const res = await graphPost<{ id: string; fields: Record<string, unknown> }>(listUrl, { fields });
+  return mapCandidateTask(res);
+}
+
+export async function updateCandidateTask(
+  id: string,
+  data: Partial<Pick<CandidateTask, "status" | "assignedTo" | "dueDate">>
+): Promise<void> {
+  return runSafe(async () => {
+    const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
+    const listUrl = await getSiteListUrlAsync("CandidateTasks");
+    const fields: Record<string, unknown> = {};
+    if (data.status !== undefined) fields[CANDTASK_COL.status] = data.status;
+    if (data.assignedTo !== undefined) fields[CANDTASK_COL.assignedTo] = data.assignedTo;
+    if (data.dueDate !== undefined) fields[CANDTASK_COL.dueDate] = data.dueDate;
+    fields[CANDTASK_COL.updatedAt] = new Date().toISOString();
+    await graphPatch(`${listUrl}/${id}/fields`, fields);
+  });
+}
+
+// ─── Helpdesk Tickets ─────────────────────────────────────────────────────────
+
+const HT_COL = {
+  sccgId: "SccgId",
+  submittedByUserId: "SubmittedByUserId",
+  submittedByName: "SubmittedByName",
+  submittedByEmail: "SubmittedByEmail",
+  partnerId: "PartnerId",
+  category: "Category",
+  priority: "Priority",
+  subject: "Title",
+  description: "Description",
+  status: "Status",
+  assignedTo: "AssignedTo",
+  relatedCandidateId: "RelatedCandidateId",
+  createdAt: "CreatedAt",
+  updatedAt: "UpdatedAt",
+  resolvedAt: "ResolvedAt",
+} as const;
+
+function mapHelpdeskTicket(item: { id: string; fields: Record<string, unknown> }): HelpdeskTicket {
+  const f = item.fields;
+  return {
+    id: String(item.id),
+    sccgId: String(f[HT_COL.sccgId] || ""),
+    submittedByUserId: String(f[HT_COL.submittedByUserId] || ""),
+    submittedByName: String(f[HT_COL.submittedByName] || ""),
+    submittedByEmail: String(f[HT_COL.submittedByEmail] || ""),
+    partnerId: String(f[HT_COL.partnerId] || ""),
+    category: String(f[HT_COL.category] || "general") as HelpdeskTicket["category"],
+    priority: String(f[HT_COL.priority] || "medium") as HelpdeskTicket["priority"],
+    subject: String(f[HT_COL.subject] || ""),
+    description: String(f[HT_COL.description] || ""),
+    status: String(f[HT_COL.status] || "open") as HelpdeskTicket["status"],
+    assignedTo: f[HT_COL.assignedTo] ? String(f[HT_COL.assignedTo]) : undefined,
+    relatedCandidateId: f[HT_COL.relatedCandidateId] ? String(f[HT_COL.relatedCandidateId]) : undefined,
+    createdAt: String(f[HT_COL.createdAt] || new Date().toISOString()),
+    updatedAt: f[HT_COL.updatedAt] ? String(f[HT_COL.updatedAt]) : undefined,
+    resolvedAt: f[HT_COL.resolvedAt] ? String(f[HT_COL.resolvedAt]) : undefined,
+  };
+}
+
+export async function getHelpdeskTickets(partnerId?: string): Promise<HelpdeskTicket[]> {
+  return runSafe(async () => {
+    const { graphGet, getSiteListUrlAsync, escapeOData } = await import("@/lib/graph");
+    const listUrl = await getSiteListUrlAsync("HelpdeskTickets");
+    const filter = partnerId
+      ? `&$filter=fields/${HT_COL.partnerId} eq '${escapeOData(partnerId)}'`
+      : "";
+    const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, unknown> }> }>(
+      `${listUrl}?$expand=fields&$top=200&$orderby=fields/${HT_COL.createdAt} desc${filter}`
+    );
+    return res.value.map(mapHelpdeskTicket);
+  }, () => []);
+}
+
+export async function createHelpdeskTicket(data: Omit<HelpdeskTicket, "id">): Promise<HelpdeskTicket> {
+  const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
+  const listUrl = await getSiteListUrlAsync("HelpdeskTickets");
+  const fields: Record<string, unknown> = {
+    [HT_COL.sccgId]: data.sccgId,
+    [HT_COL.submittedByUserId]: data.submittedByUserId,
+    [HT_COL.submittedByName]: data.submittedByName,
+    [HT_COL.submittedByEmail]: data.submittedByEmail,
+    [HT_COL.partnerId]: data.partnerId,
+    [HT_COL.category]: data.category,
+    [HT_COL.priority]: data.priority,
+    [HT_COL.subject]: data.subject,
+    [HT_COL.description]: data.description,
+    [HT_COL.status]: data.status,
+    [HT_COL.assignedTo]: data.assignedTo,
+    [HT_COL.relatedCandidateId]: data.relatedCandidateId,
+    [HT_COL.createdAt]: data.createdAt,
+  };
+  const res = await graphPost<{ id: string; fields: Record<string, unknown> }>(listUrl, { fields });
+  return mapHelpdeskTicket(res);
+}
+
+export async function updateHelpdeskTicket(
+  id: string,
+  data: Partial<Pick<HelpdeskTicket, "status" | "assignedTo" | "resolvedAt">>
+): Promise<void> {
+  return runSafe(async () => {
+    const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
+    const listUrl = await getSiteListUrlAsync("HelpdeskTickets");
+    const fields: Record<string, unknown> = {};
+    if (data.status !== undefined) fields[HT_COL.status] = data.status;
+    if (data.assignedTo !== undefined) fields[HT_COL.assignedTo] = data.assignedTo;
+    if (data.resolvedAt !== undefined) fields[HT_COL.resolvedAt] = data.resolvedAt;
+    fields[HT_COL.updatedAt] = new Date().toISOString();
+    await graphPatch(`${listUrl}/${id}/fields`, fields);
+  });
+}
+
+// ─── Helpdesk Messages ────────────────────────────────────────────────────────
+
+const HM_COL = {
+  ticketId: "TicketId",
+  senderUserId: "SenderUserId",
+  senderName: "SenderName",
+  isStaff: "IsStaff",
+  message: "Title",
+  messageBody: "MessageBody",
+  attachmentUrl: "AttachmentUrl",
+  createdAt: "CreatedAt",
+} as const;
+
+function mapHelpdeskMessage(item: { id: string; fields: Record<string, unknown> }): HelpdeskMessage {
+  const f = item.fields;
+  return {
+    id: String(item.id),
+    ticketId: String(f[HM_COL.ticketId] || ""),
+    senderUserId: String(f[HM_COL.senderUserId] || ""),
+    senderName: String(f[HM_COL.senderName] || ""),
+    isStaff: Boolean(f[HM_COL.isStaff]),
+    message: String(f[HM_COL.messageBody] || f[HM_COL.message] || ""),
+    attachmentUrl: f[HM_COL.attachmentUrl] ? String(f[HM_COL.attachmentUrl]) : undefined,
+    createdAt: String(f[HM_COL.createdAt] || new Date().toISOString()),
+  };
+}
+
+export async function getHelpdeskMessages(ticketId: string): Promise<HelpdeskMessage[]> {
+  return runSafe(async () => {
+    const { graphGet, getSiteListUrlAsync, escapeOData } = await import("@/lib/graph");
+    const listUrl = await getSiteListUrlAsync("HelpdeskMessages");
+    const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, unknown> }> }>(
+      `${listUrl}?$expand=fields&$filter=fields/${HM_COL.ticketId} eq '${escapeOData(ticketId)}'&$top=500&$orderby=fields/${HM_COL.createdAt} asc`
+    );
+    return res.value.map(mapHelpdeskMessage);
+  }, () => []);
+}
+
+export async function createHelpdeskMessage(data: Omit<HelpdeskMessage, "id">): Promise<HelpdeskMessage> {
+  const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
+  const listUrl = await getSiteListUrlAsync("HelpdeskMessages");
+  const fields: Record<string, unknown> = {
+    [HM_COL.ticketId]: data.ticketId,
+    [HM_COL.senderUserId]: data.senderUserId,
+    [HM_COL.senderName]: data.senderName,
+    [HM_COL.isStaff]: data.isStaff,
+    [HM_COL.message]: data.message.slice(0, 255),
+    [HM_COL.messageBody]: data.message,
+    [HM_COL.attachmentUrl]: data.attachmentUrl,
+    [HM_COL.createdAt]: data.createdAt,
+  };
+  const res = await graphPost<{ id: string; fields: Record<string, unknown> }>(listUrl, { fields });
+  return mapHelpdeskMessage(res);
 }

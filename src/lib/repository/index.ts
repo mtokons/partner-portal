@@ -1,4 +1,4 @@
-import { 
+import {
   getPartnerByEmail, getPartners, updatePartnerStatus,
   getCustomerByEmail, getCustomers, getCustomerById, createCustomer,
   getExpertByEmail, getExperts,
@@ -12,13 +12,20 @@ import {
   getCoinWallet, createCoinWallet, updateWalletBalance, getWalletTransactions, createCoinTransaction,
   getReferrals, createReferral, updateReferral,
   getPayouts, createPayout, updatePayoutStatus,
-  getCertificates, createCertificate, getCertificateByCode
+  getCertificates, createCertificate, getCertificateByCode,
+  getCandidates, getCandidateById, createCandidate, updateCandidate, advanceCandidateStatus,
+  getCandidateServices, createCandidateService, deleteCandidateServices,
+  getCandidateTasks, getCandidateTasksByPartner, createCandidateTask, updateCandidateTask,
+  getHelpdeskTickets, createHelpdeskTicket, updateHelpdeskTicket,
+  getHelpdeskMessages, createHelpdeskMessage,
 } from "@/lib/sharepoint";
-import type { 
-  Partner, Customer, Expert, UserRoleEntry, KanbanTask, Activity, 
+import type {
+  Partner, Customer, Expert, UserRoleEntry, KanbanTask, Activity,
   UserRoleType, UserProfile, ServicePackage, CustomerPackage, Session,
   SalesOffer, SalesOfferItem, SalesOrder, SalesOrderItem, CoinWallet, CoinTransaction,
-  Referral, Payout, SchoolCertificate
+  Referral, Payout, SchoolCertificate,
+  Candidate, CandidateService, CandidateTask,
+  HelpdeskTicket, HelpdeskMessage,
 } from "@/types";
 
 /**
@@ -238,5 +245,64 @@ export const Repository = {
     async delete(id: string): Promise<void> {
       return deleteKanbanTask(id);
     }
-  }
+  },
+
+  // --- Candidates ---
+  candidates: {
+    async getAll(partnerId?: string): Promise<Candidate[]> {
+      return getCandidates(partnerId);
+    },
+    async getById(id: string): Promise<Candidate | null> {
+      return getCandidateById(id);
+    },
+    async create(data: Omit<Candidate, "id">): Promise<Candidate> {
+      return createCandidate(data);
+    },
+    async update(id: string, data: Partial<Candidate>): Promise<void> {
+      return updateCandidate(id, data);
+    },
+    async advanceStatus(id: string, nextStatus: Candidate["currentStatus"]): Promise<void> {
+      return advanceCandidateStatus(id, nextStatus);
+    },
+    async getServices(candidateId: string): Promise<CandidateService[]> {
+      return getCandidateServices(candidateId);
+    },
+    async addService(data: Omit<CandidateService, "id">): Promise<CandidateService> {
+      return createCandidateService(data);
+    },
+    async clearServices(candidateId: string): Promise<void> {
+      return deleteCandidateServices(candidateId);
+    },
+    async getTasks(candidateId: string): Promise<CandidateTask[]> {
+      return getCandidateTasks(candidateId);
+    },
+    async getTasksByPartner(partnerId: string): Promise<CandidateTask[]> {
+      return getCandidateTasksByPartner(partnerId);
+    },
+    async addTask(data: Omit<CandidateTask, "id">): Promise<CandidateTask> {
+      return createCandidateTask(data);
+    },
+    async updateTask(id: string, data: Parameters<typeof updateCandidateTask>[1]): Promise<void> {
+      return updateCandidateTask(id, data);
+    },
+  },
+
+  // --- Helpdesk ---
+  helpdesk: {
+    async getTickets(partnerId?: string): Promise<HelpdeskTicket[]> {
+      return getHelpdeskTickets(partnerId);
+    },
+    async createTicket(data: Omit<HelpdeskTicket, "id">): Promise<HelpdeskTicket> {
+      return createHelpdeskTicket(data);
+    },
+    async updateTicket(id: string, data: Parameters<typeof updateHelpdeskTicket>[1]): Promise<void> {
+      return updateHelpdeskTicket(id, data);
+    },
+    async getMessages(ticketId: string): Promise<HelpdeskMessage[]> {
+      return getHelpdeskMessages(ticketId);
+    },
+    async addMessage(data: Omit<HelpdeskMessage, "id">): Promise<HelpdeskMessage> {
+      return createHelpdeskMessage(data);
+    },
+  },
 };

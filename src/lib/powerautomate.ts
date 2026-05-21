@@ -8,7 +8,10 @@ type FlowEvent =
   | "monthly-summary"
   | "send-client-email"
   | "session-reminder"
-  | "invoice-created";
+  | "invoice-created"
+  | "candidate-registered"
+  | "candidate-status-changed"
+  | "candidate-payment-received";
 
 const webhookMap: Record<FlowEvent, string | undefined> = {
   "order-placed": process.env.PA_WEBHOOK_ORDER_PLACED,
@@ -21,6 +24,9 @@ const webhookMap: Record<FlowEvent, string | undefined> = {
   "send-client-email": process.env.PA_WEBHOOK_SEND_CLIENT_EMAIL,
   "session-reminder": process.env.PA_WEBHOOK_SESSION_REMINDER,
   "invoice-created": process.env.PA_WEBHOOK_INVOICE_CREATED,
+  "candidate-registered": process.env.PA_WEBHOOK_CANDIDATE_REGISTERED,
+  "candidate-status-changed": process.env.PA_WEBHOOK_CANDIDATE_STATUS_CHANGED,
+  "candidate-payment-received": process.env.PA_WEBHOOK_CANDIDATE_PAYMENT,
 };
 
 export async function triggerFlow(

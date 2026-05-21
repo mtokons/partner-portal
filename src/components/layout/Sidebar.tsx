@@ -8,7 +8,8 @@ import {
   DollarSign, Shield, BarChart3, FileText, Receipt, Handshake,
   UserCheck, Calendar, CreditCard, Zap, Mail, ChevronRight, ChevronDown,
   FlaskConical, ClipboardList, Store, Tag, Share2, Wallet, User, X, ClipboardCheck,
-  Building2, UserPlus, GraduationCap, BookOpen, Layers, Award, ShoppingBag, Search, Megaphone, Database
+  Building2, UserPlus, GraduationCap, BookOpen, Layers, Award, ShoppingBag, Search, Megaphone, Database,
+  LifeBuoy
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect } from "react";
@@ -37,7 +38,15 @@ const allLinks: LinkItem[] = [
   { href: "/admin/tasks", label: "Task Board", icon: ClipboardList, group: "main", roles: ["admin"] },
   { href: "/customer/dashboard", label: "My Dashboard", icon: LayoutDashboard, group: "main", roles: ["customer"] },
   { href: "/expert/dashboard", label: "Expert Console", icon: LayoutDashboard, group: "main", roles: ["expert"] },
-  
+
+  // Partner Portal (SCCG Partner Portal)
+  { href: "/partner/dashboard", label: "Partner Overview", icon: LayoutDashboard, group: "partner", roles: ["partner-individual", "partner-institutional"] },
+  { href: "/partner/candidates", label: "My Candidates", icon: Users, group: "partner", roles: ["partner-individual", "partner-institutional"] },
+  { href: "/partner/candidates/new", label: "Register Candidate", icon: UserPlus, group: "partner", roles: ["partner-individual", "partner-institutional"] },
+  { href: "/partner/finance", label: "Finance Ledger", icon: DollarSign, group: "partner", roles: ["partner-individual", "partner-institutional"] },
+  { href: "/partner/marketplace", label: "Downloads", icon: ShoppingBag, group: "partner", roles: ["partner-individual", "partner-institutional"] },
+  { href: "/partner/support", label: "Support / Helpdesk", icon: LifeBuoy, group: "partner", roles: ["partner-individual", "partner-institutional"] },
+
   // Sales & CRM
   { href: "/marketplace", label: "SCCG Marketplace", icon: ShoppingBag, group: "sales", roles: ["partner", "admin", "customer", "expert"] },
   { href: "/shop", label: "Offer Builder", icon: Store, group: "sales", roles: ["partner", "admin"] },
@@ -101,15 +110,20 @@ const allLinks: LinkItem[] = [
   { href: "/admin/send-email", label: "Send Email", icon: Mail, group: "admin", roles: ["admin"] },
   { href: "/activity", label: "Activity Logs", icon: Activity, group: "admin", roles: ["admin"] },
   
-  // Account
-  { href: "/profile", label: "My Profile", icon: User, group: "account", roles: ["partner", "admin", "finance", "hr", "school-manager", "customer", "expert"] },
-  
   { href: "/admin/send-email", label: "Send Email", icon: Mail, group: "admin", roles: ["admin"] },
   { href: "/activity", label: "Activity Logs", icon: Activity, group: "admin", roles: ["admin"] },
+  { href: "/admin/candidates", label: "All Candidates", icon: Users, group: "admin", roles: ["admin"] },
+  { href: "/admin/helpdesk", label: "Helpdesk", icon: LifeBuoy, group: "admin", roles: ["admin"] },
+
+  // Account
+  { href: "/profile", label: "My Profile", icon: User, group: "account", roles: ["partner", "partner-individual", "partner-institutional", "admin", "finance", "hr", "school-manager", "customer", "expert"] },
+  { href: "/wallets", label: "SCCG Wallet", icon: Wallet, group: "account", roles: ["partner", "partner-individual", "partner-institutional", "admin", "expert", "customer"] },
+
 ];
 
 const groupLabels: Record<string, string> = {
   main: "Main Console",
+  partner: "Partner Portal",
   sales: "Sales & CRM",
   finance: "Finance Department",
   wallet: "Wallet & Rewards",
@@ -165,6 +179,10 @@ export default function Sidebar({
     "/admin/sccg-cards": "GiftCards",
     "/admin/school/certificates": "SchoolCertificates",
     "/admin/users": "UserProfiles",
+    "/partner/candidates": "Candidates",
+    "/partner/support": "HelpdeskTickets",
+    "/admin/candidates": "Candidates",
+    "/admin/helpdesk": "HelpdeskTickets",
   };
   const currentListName = routeToList[pathname] || "SalesOrders";
   const sidebarLinkUrl = listUrls[currentListName] || siteUrl || "#";
