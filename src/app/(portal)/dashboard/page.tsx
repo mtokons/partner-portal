@@ -25,7 +25,7 @@ export default async function DashboardPage() {
 
   // Redirect partner roles to the dedicated partner portal
   const roles = (user.roles || [user.role]) as string[];
-  if (roles.some((r) => ["partner", "partner-individual", "partner-institutional"].includes(r))) {
+  if (roles.some((r) => ["partner", "partner-individual", "partner-institutional"].includes(r.toLowerCase()))) {
     redirect("/partner/dashboard");
   }
 

@@ -13,7 +13,7 @@ export default async function PartnerLayout({
   const user = session.user as SessionUser;
   const roles = user.roles || [user.role];
   const isPartner = roles.some((r) =>
-    ["partner-individual", "partner-institutional"].includes(r)
+    ["partner", "partner-individual", "partner-institutional"].includes(r.toLowerCase())
   );
 
   if (!isPartner) redirect("/dashboard");

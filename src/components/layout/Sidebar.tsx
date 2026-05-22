@@ -189,8 +189,9 @@ export default function Sidebar({
 
   // Filter based on roles and search
   const seen = new Set<string>();
+  const lowerRoles = roles.map((r) => r.toLowerCase());
   const filteredLinks = allLinks.filter((l) => {
-    if (!l.roles.some((r) => roles.includes(r))) return false;
+    if (!l.roles.some((r) => lowerRoles.includes(r.toLowerCase()))) return false;
     if (seen.has(l.href)) return false;
     seen.add(l.href);
     

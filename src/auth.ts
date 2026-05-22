@@ -28,7 +28,8 @@ async function buildRolesForEmail(email: string, firebaseProfile?: FirebaseUserP
     
     roles.push(primaryRole === "admin" ? "admin" : "partner");
     if (primaryRole === "partner") {
-      roles.push(`partner-${partner.partnerType}`);
+      const pType = (partner.partnerType || "individual").toLowerCase();
+      roles.push(`partner-${pType}`);
     }
     if (primaryRole === "admin") {
       roles.push("partner");
@@ -40,7 +41,7 @@ async function buildRolesForEmail(email: string, firebaseProfile?: FirebaseUserP
     }
     company = partner.company || firebaseProfile?.company || "";
     if (!name) name = partner.name;
-    partnerType = partner.partnerType;
+    partnerType = (partner.partnerType || "individual").toLowerCase() as PartnerType;
 
     const { getCoinWallet } = await import("@/lib/sharepoint");
     const wallet = await getCoinWallet(partner.id);
