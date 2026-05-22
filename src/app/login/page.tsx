@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { firebaseAuthAction } from "@/lib/actions";
 import { firebaseLogin, firebaseGoogleLogin, getFirebaseAuth } from "@/lib/firebase-auth";
 import { Eye, EyeOff, Zap, ArrowRight, Shield, BarChart3, Globe } from "lucide-react";
@@ -12,8 +12,10 @@ const features = [
   { icon: Globe, label: "Multi-currency", desc: "BDT & EUR support" },
 ];
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const approved = searchParams.get("approved");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
@@ -203,6 +205,18 @@ export default function LoginPage() {
                 </div>
               </div>
 
+              {/* Account Activated Success Banner */}
+              {approved === "true" && !error && (
+                <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                  <div className="h-4 w-4 rounded-full bg-emerald-500/30 flex items-center justify-center shrink-0 mt-0.5">
+                    <span className="text-emerald-400 text-[10px] font-bold">✓</span>
+                  </div>
+                  <p className="text-sm text-emerald-400">
+                    Account activated successfully! Please sign in to launch your partner console.
+                  </p>
+                </div>
+              )}
+
               {/* Error */}
               {error && (
                 <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-red-500/10 border border-red-500/20">
@@ -305,5 +319,20 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-[#060818] p-6">
+        <div className="animate-pulse flex flex-col items-center gap-3">
+          <div className="h-10 w-10 rounded-full border-2 border-white/20 border-t-white animate-spin" />
+          <p className="text-white/40 text-xs tracking-widest uppercase font-bold">Loading Secure Auth Console...</p>
+        </div>
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   );
 }
