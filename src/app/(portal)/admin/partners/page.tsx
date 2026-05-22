@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import type { SessionUser } from "@/types";
+import type { SessionUser, TierStatus } from "@/types";
 import { getPartners } from "@/lib/sharepoint";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,13 +8,21 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { RowActions } from "@/components/RowActions";
 import { removePartner, holdPartner } from "@/lib/row-actions";
 import { refreshPartnersAction } from "./actions";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Award } from "lucide-react";
 import PartnerStatusButtons from "./PartnerStatusButtons";
+import PartnerTierEditModal from "./PartnerTierEditModal";
 
 const statusColor: Record<string, string> = {
   active: "bg-green-100 text-green-800",
   pending: "bg-yellow-100 text-yellow-800",
   suspended: "bg-red-100 text-red-800",
+};
+
+const tierStyles: Record<TierStatus, string> = {
+  Silver: "bg-slate-500/10 text-slate-300 border-slate-500/20",
+  Gold: "bg-amber-500/10 text-amber-300 border-amber-500/20",
+  Diamond: "bg-cyan-500/10 text-cyan-300 border-cyan-500/20",
+  Platinum: "bg-indigo-500/10 text-indigo-300 border-indigo-500/20",
 };
 
 export default async function AdminPartnersPage() {
@@ -71,10 +79,11 @@ export default async function AdminPartnersPage() {
                 <TableHead>Name</TableHead>
                 <TableHead>Company</TableHead>
                 <TableHead>Email</TableHead>
-                <TableHead>Phone</TableHead>
+                <TableHead>Level / Tier</TableHead>
+                <TableHead>Commission Share</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Since</TableHead>
-                <TableHead>Status Actions</TableHead>
+                <TableHead>Actions</TableHead>
                 <TableHead className="w-10"></TableHead>
               </TableRow>
             </TableHeader>
@@ -84,7 +93,14 @@ export default async function AdminPartnersPage() {
                   <TableCell className="font-medium">{partner.name}</TableCell>
                   <TableCell>{partner.company}</TableCell>
                   <TableCell className="text-sm">{partner.email}</TableCell>
-                  <TableCell className="text-sm text-gray-500">{partner.phone || "—"}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className={`font-semibold ${tierStyles[partner.tierStatus || "Silver"]}`}>
+                      👑 {partner.tierStatus || "Silver"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="font-bold text-gray-800">
+                    {partner.marginPercentage || 15}%
+                  </TableCell>
                   <TableCell>
                     <Badge className={statusColor[partner.status] || ""}>{partner.status}</Badge>
                   </TableCell>
@@ -92,7 +108,16 @@ export default async function AdminPartnersPage() {
                     {new Date(partner.createdAt).toLocaleDateString()}
                   </TableCell>
                   <TableCell>
-                    <PartnerStatusButtons partnerId={partner.id} currentStatus={partner.status} />
+                    <div className="flex items-center gap-2">
+                      <PartnerStatusButtons partnerId={partner.id} currentStatus={partner.status} />
+                      {partner.status === "active" && (
+                        <PartnerTierEditModal
+                          partnerId={partner.id}
+                          currentTier={partner.tierStatus}
+                          currentMargin={partner.marginPercentage}
+                        />
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="text-right">
                     <RowActions
@@ -107,7 +132,7 @@ export default async function AdminPartnersPage() {
               ))}
               {partnerAccounts.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-gray-400 py-8">
+                  <TableCell colSpan={9} className="text-center text-gray-400 py-8">
                     No partners yet
                   </TableCell>
                 </TableRow>

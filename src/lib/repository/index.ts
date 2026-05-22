@@ -15,7 +15,7 @@ import {
   getCertificates, createCertificate, getCertificateByCode,
   getCandidates, getCandidateById, createCandidate, updateCandidate, advanceCandidateStatus,
   getCandidateServices, createCandidateService, deleteCandidateServices,
-  getCandidateTasks, getCandidateTasksByPartner, createCandidateTask, updateCandidateTask,
+  getCandidateTasks, getCandidateTasksByPartner, createCandidateTask, updateCandidateTask, deleteCandidateTask,
   getHelpdeskTickets, createHelpdeskTicket, updateHelpdeskTicket,
   getHelpdeskMessages, createHelpdeskMessage,
 } from "@/lib/sharepoint";
@@ -285,8 +285,11 @@ export const Repository = {
     async addTask(data: Omit<CandidateTask, "id">): Promise<CandidateTask> {
       return createCandidateTask(data);
     },
-    async updateTask(id: string, data: Parameters<typeof updateCandidateTask>[1]): Promise<void> {
+    async updateTask(id: string, data: Partial<CandidateTask>): Promise<void> {
       return updateCandidateTask(id, data);
+    },
+    async deleteTask(id: string): Promise<void> {
+      return deleteCandidateTask(id);
     },
   },
 

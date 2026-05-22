@@ -370,7 +370,10 @@ const PART_COL = { // SCCG Partners
   company: "Company",
   phone: "Phone",
   partnerType: "PartnerType",
+  partnerCode: "PartnerCode",
   commissionTier: "CommissionTier",
+  tierStatus: "TierStatus",
+  marginPercentage: "MarginPercentage",
   onboardingStatus: "OnboardingStatus",
   createdAt: "CreatedAt",
 };
@@ -470,7 +473,10 @@ export async function getPartnerByEmail(email: string): Promise<Partner | null> 
       status: String(f[PART_COL.status] || "active") as Partner["status"], 
       company: String(f[PART_COL.company] || ""), 
       partnerType: (f[PART_COL.partnerType] as any) || "individual",
+      partnerCode: String(f[PART_COL.partnerCode] || ""),
       commissionTier: (f[PART_COL.commissionTier] as any) || "standard",
+      tierStatus: f[PART_COL.tierStatus] ? (String(f[PART_COL.tierStatus]) as TierStatus) : undefined,
+      marginPercentage: f[PART_COL.marginPercentage] ? (Number(f[PART_COL.marginPercentage]) as PartnerMargin) : undefined,
       onboardingStatus: (String(f[PART_COL.onboardingStatus] || "approved").toLowerCase() as any),
       createdAt: String(f[PART_COL.createdAt] || new Date().toISOString()) 
     } as Partner;
@@ -496,7 +502,10 @@ export async function getPartners(): Promise<Partner[]> {
           company: String(f[PART_COL.company] || ""),
           phone: String(f[PART_COL.phone] || ""),
           partnerType: (f[PART_COL.partnerType] as any) || "individual",
+          partnerCode: String(f[PART_COL.partnerCode] || ""),
           commissionTier: (f[PART_COL.commissionTier] as any) || "standard",
+          tierStatus: f[PART_COL.tierStatus] ? (String(f[PART_COL.tierStatus]) as TierStatus) : undefined,
+          marginPercentage: f[PART_COL.marginPercentage] ? (Number(f[PART_COL.marginPercentage]) as PartnerMargin) : undefined,
           onboardingStatus: (String(f[PART_COL.onboardingStatus] || "approved").toLowerCase() as any),
           createdAt: String(f[PART_COL.createdAt] || ""),
         } as Partner;
@@ -517,7 +526,10 @@ export async function createPartner(data: Omit<Partner, "id" | "createdAt">): Pr
       [PART_COL.company]: data.company,
       [PART_COL.phone]: data.phone,
       [PART_COL.partnerType]: data.partnerType,
+      [PART_COL.partnerCode]: data.partnerCode || "",
       [PART_COL.commissionTier]: data.commissionTier,
+      [PART_COL.tierStatus]: data.tierStatus,
+      [PART_COL.marginPercentage]: data.marginPercentage,
       [PART_COL.onboardingStatus]: data.onboardingStatus,
       [PART_COL.createdAt]: new Date().toISOString(),
     };
@@ -539,6 +551,20 @@ export async function approvePartnerOnboarding(id: string): Promise<void> {
     await graphPatch(`${await getSiteListUrlAsync("Partners")}/${id}/fields`, { 
       [PART_COL.onboardingStatus]: "approved",
       [PART_COL.status]: "active"
+    });
+  });
+}
+
+export async function updatePartnerTierAndMargin(
+  id: string,
+  tierStatus: TierStatus,
+  marginPercentage: PartnerMargin
+): Promise<void> {
+  return runSafe(async () => {
+    const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
+    await graphPatch(`${await getSiteListUrlAsync("Partners")}/${id}/fields`, {
+      [PART_COL.tierStatus]: tierStatus,
+      [PART_COL.marginPercentage]: marginPercentage,
     });
   });
 }
@@ -566,7 +592,9 @@ export async function getProducts(): Promise<Product[]> {
           retailPriceBdt: Number(f[PR_COL.retailPriceBdt] || 0),
           price: Number(f[PR_COL.price] || f[PR_COL.retailPriceBdt] || 0),
           stock: Number(f[PR_COL.stock] || 0),
-          category: String(f[PR_COL.category] || ""),
+          category: Array.isArray(f[PR_COL.category])
+            ? f[PR_COL.category].map(String)
+            : f[PR_COL.category] ? String(f[PR_COL.category]).split(",").map(s => s.trim()).filter(Boolean) : [],
           imageUrl: f[PR_COL.imageUrl] ? String(f[PR_COL.imageUrl]) : undefined,
           discount: f[PR_COL.discount] ? Number(f[PR_COL.discount]) : undefined,
           discountType: f[PR_COL.discountType] ? String(f[PR_COL.discountType]) as "fixed" | "percent" : undefined,
@@ -3969,6 +3997,8 @@ export async function createCandidateTask(data: Omit<CandidateTask, "id">): Prom
     [CANDTASK_COL.priority]: data.priority,
     [CANDTASK_COL.dueDate]: data.dueDate,
     [CANDTASK_COL.assignedTo]: data.assignedTo,
+    [CANDTASK_COL.assignedToName]: data.assignedToName,
+    [CANDTASK_COL.assignedToEmail]: data.assignedToEmail,
     [CANDTASK_COL.partnerId]: data.partnerId,
     [CANDTASK_COL.createdBy]: data.createdBy,
     [CANDTASK_COL.createdAt]: data.createdAt,
@@ -3983,7 +4013,7 @@ export async function createCandidateTask(data: Omit<CandidateTask, "id">): Prom
 
 export async function updateCandidateTask(
   id: string,
-  data: Partial<Pick<CandidateTask, "status" | "assignedTo" | "dueDate">>
+  data: Partial<CandidateTask>
 ): Promise<void> {
   return runSafe(async () => {
     const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
@@ -3991,11 +4021,27 @@ export async function updateCandidateTask(
     const fields: Record<string, unknown> = {};
     if (data.status !== undefined) fields[CANDTASK_COL.status] = data.status;
     if (data.assignedTo !== undefined) fields[CANDTASK_COL.assignedTo] = data.assignedTo;
+    if (data.assignedToName !== undefined) fields[CANDTASK_COL.assignedToName] = data.assignedToName;
+    if (data.assignedToEmail !== undefined) fields[CANDTASK_COL.assignedToEmail] = data.assignedToEmail;
     if (data.dueDate !== undefined) fields[CANDTASK_COL.dueDate] = data.dueDate;
+    if (data.title !== undefined) fields[CANDTASK_COL.title] = data.title;
+    if (data.description !== undefined) fields[CANDTASK_COL.description] = data.description;
+    if (data.priority !== undefined) fields[CANDTASK_COL.priority] = data.priority;
+    if (data.taskCategory !== undefined) fields[CANDTASK_COL.taskCategory] = data.taskCategory;
+    if (data.workflowCategory !== undefined) fields[CANDTASK_COL.workflowCategory] = data.workflowCategory;
     fields[CANDTASK_COL.updatedAt] = new Date().toISOString();
     await graphPatch(`${listUrl}/${id}/fields`, fields);
   });
 }
+
+export async function deleteCandidateTask(id: string): Promise<void> {
+  return runSafe(async () => {
+    const { graphDelete, getSiteListUrlAsync } = await import("@/lib/graph");
+    const listUrl = await getSiteListUrlAsync("CandidateTasks");
+    await graphDelete(`${listUrl}/${id}`);
+  });
+}
+
 
 // ─── Helpdesk Tickets ─────────────────────────────────────────────────────────
 

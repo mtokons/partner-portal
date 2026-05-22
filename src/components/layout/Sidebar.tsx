@@ -34,13 +34,14 @@ interface LinkItem {
 
 const allLinks: LinkItem[] = [
   // Main
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, group: "main", roles: ["partner", "admin", "finance", "hr", "school-manager"] },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, group: "main", roles: ["admin", "finance", "hr", "school-manager"] },
   { href: "/admin/tasks", label: "Task Board", icon: ClipboardList, group: "main", roles: ["admin"] },
   { href: "/customer/dashboard", label: "My Dashboard", icon: LayoutDashboard, group: "main", roles: ["customer"] },
   { href: "/expert/dashboard", label: "Expert Console", icon: LayoutDashboard, group: "main", roles: ["expert"] },
 
   // Partner Portal (SCCG Partner Portal)
   { href: "/partner/dashboard", label: "Partner Overview", icon: LayoutDashboard, group: "partner", roles: ["partner-individual", "partner-institutional"] },
+  { href: "/partner/tasks", label: "Task Board", icon: ClipboardList, group: "partner", roles: ["partner-individual", "partner-institutional"] },
   { href: "/partner/candidates", label: "My Candidates", icon: Users, group: "partner", roles: ["partner-individual", "partner-institutional"] },
   { href: "/partner/candidates/new", label: "Register Candidate", icon: UserPlus, group: "partner", roles: ["partner-individual", "partner-institutional"] },
   { href: "/partner/finance", label: "Finance Ledger", icon: DollarSign, group: "partner", roles: ["partner-individual", "partner-institutional"] },
@@ -180,6 +181,7 @@ export default function Sidebar({
     "/admin/school/certificates": "SchoolCertificates",
     "/admin/users": "UserProfiles",
     "/partner/candidates": "Candidates",
+    "/partner/tasks": "CandidateTasks",
     "/partner/support": "HelpdeskTickets",
     "/admin/candidates": "Candidates",
     "/admin/helpdesk": "HelpdeskTickets",

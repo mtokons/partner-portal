@@ -4,10 +4,14 @@ import { revalidatePath } from "next/cache";
 import { getAdminFirestore } from "@/lib/firebase-admin";
 
 import { createExpert, getExpertById } from "@/lib/sharepoint";
-import type { Expert } from "@/types";
+import type { Expert, TierStatus, PartnerMargin } from "@/types";
 import { assertAdmin } from "@/lib/admin-guard";
 
-export async function approveUserAction(uid: string) {
+export async function approveUserAction(
+  uid: string,
+  tierStatus?: TierStatus,
+  marginPercentage?: PartnerMargin
+) {
   try {
     await assertAdmin();
     const db = getAdminFirestore();
@@ -23,6 +27,10 @@ export async function approveUserAction(uid: string) {
     // 1. Mark as active in Firestore
     await userRef.update({
       status: "active",
+      ...(userData?.role === "partner" ? {
+        tierStatus: tierStatus || "Silver",
+        marginPercentage: marginPercentage || 8,
+      } : {}),
       updatedAt: new Date(),
     });
 
@@ -48,7 +56,7 @@ export async function approveUserAction(uid: string) {
 
     // 3. If it's a partner, sync/approve in SharePoint Partners list
     if (userData?.role === "partner") {
-      const { getPartnerByEmail, createPartner, approvePartnerOnboarding } = await import("@/lib/sharepoint");
+      const { getPartnerByEmail, createPartner, approvePartnerOnboarding, updatePartnerTierAndMargin } = await import("@/lib/sharepoint");
       const existing = await getPartnerByEmail(userData.email);
       if (!existing) {
         await createPartner({
@@ -61,10 +69,13 @@ export async function approveUserAction(uid: string) {
           phone: userData.phone || "",
           partnerType: "individual",
           commissionTier: "standard",
+          tierStatus: tierStatus || "Silver",
+          marginPercentage: marginPercentage || 8,
           onboardingStatus: "approved",
         });
       } else {
         await approvePartnerOnboarding(existing.id);
+        await updatePartnerTierAndMargin(existing.id, tierStatus || "Silver", marginPercentage || 8);
       }
     }
 

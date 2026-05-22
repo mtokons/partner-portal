@@ -107,7 +107,7 @@ export default async function AdminApprovalsPage() {
                     </TableCell>
                     <TableCell className="pr-6 py-4">
                       <div className="flex justify-end">
-                        <ApprovalButtons uid={applicant.uid} />
+                        <ApprovalButtons uid={applicant.uid} role={applicant.role} />
                       </div>
                     </TableCell>
                   </TableRow>

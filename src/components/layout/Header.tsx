@@ -11,6 +11,44 @@ import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { getConnectionInfoAction } from "@/app/actions/connection";
 
+const getTierBadgeStyles = (tier: string) => {
+  switch (tier.toLowerCase()) {
+    case "platinum":
+      return {
+        bg: "bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-indigo-500/10 hover:from-purple-500/20 hover:to-indigo-500/20",
+        border: "border-purple-500/30",
+        text: "text-purple-400",
+        emoji: "👑",
+        glow: "shadow-[0_0_15px_-3px_rgba(168,85,247,0.4)]"
+      };
+    case "diamond":
+      return {
+        bg: "bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-indigo-500/10 hover:from-cyan-500/20 hover:to-indigo-500/20",
+        border: "border-cyan-500/30",
+        text: "text-cyan-400",
+        emoji: "💎",
+        glow: "shadow-[0_0_15px_-3px_rgba(6,182,212,0.4)]"
+      };
+    case "gold":
+      return {
+        bg: "bg-gradient-to-r from-amber-500/10 via-yellow-500/10 to-orange-500/10 hover:from-amber-500/20 hover:to-orange-500/20",
+        border: "border-amber-500/30",
+        text: "text-amber-400",
+        emoji: "✨",
+        glow: "shadow-[0_0_15px_-3px_rgba(245,158,11,0.4)]"
+      };
+    case "silver":
+    default:
+      return {
+        bg: "bg-gradient-to-r from-slate-400/10 via-slate-300/10 to-slate-500/10 hover:from-slate-400/20 hover:to-slate-500/20",
+        border: "border-slate-400/30",
+        text: "text-slate-300",
+        emoji: "🛡️",
+        glow: "shadow-[0_0_15px_-3px_rgba(148,163,184,0.4)]"
+      };
+  }
+};
+
 interface HeaderProps {
   userName: string;
   company: string;
@@ -19,6 +57,7 @@ interface HeaderProps {
   onMenuToggle?: () => void;
   siteUrl?: string;
   listUrls?: Record<string, string>;
+  tierStatus?: string;
 }
 
 export default function Header({ 
@@ -28,7 +67,8 @@ export default function Header({
   unpaidInvoicesCount, 
   onMenuToggle = () => {},
   siteUrl,
-  listUrls = {}
+  listUrls = {},
+  tierStatus
 }: HeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -147,6 +187,27 @@ export default function Header({
       {/* Right: alerts + user */}
       <div className="flex items-center gap-1 sm:gap-2 shrink-0">
         
+        {/* Proud SCCG Partner Badge */}
+        {tierStatus && (
+          (() => {
+            const styles = getTierBadgeStyles(tierStatus);
+            return (
+              <div className={cn(
+                "hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full border backdrop-blur-md transition-all duration-300",
+                styles.bg,
+                styles.border,
+                styles.text,
+                styles.glow
+              )}>
+                <span className="text-xs">{styles.emoji}</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider">
+                  Proud SCCG {tierStatus} Partner
+                </span>
+              </div>
+            );
+          })()
+        )}
+
         {/* Live Data Badge */}
         {siteUrl && (
           <a 

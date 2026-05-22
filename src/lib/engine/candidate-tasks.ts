@@ -223,7 +223,7 @@ export async function autoInsertCandidateTasks(
     await createTaskFn({
       title: t.title,
       description: `Auto-generated for ${candidate.fullName} — ${candidate.workflowCategory}`,
-      status: "todo",
+      status: "backlog",
       priority: t.priority,
       dueDate,
       candidateId: candidate.id,

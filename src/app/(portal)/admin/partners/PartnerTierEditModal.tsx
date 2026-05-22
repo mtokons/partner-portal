@@ -3,51 +3,36 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Check, X, Loader2, Award, Percent, UserCheck } from "lucide-react";
-import { approveUserAction, rejectUserAction } from "./actions";
+import { X, Award, Percent, Settings2, Loader2, Check } from "lucide-react";
+import { updatePartnerTierAndMarginAction } from "./actions";
 import type { TierStatus, PartnerMargin } from "@/types";
 
-interface ApprovalButtonsProps {
-  uid: string;
-  role?: string;
+interface PartnerTierEditModalProps {
+  partnerId: string;
+  currentTier?: TierStatus;
+  currentMargin?: PartnerMargin;
 }
 
-export default function ApprovalButtons({ uid, role }: ApprovalButtonsProps) {
+export default function PartnerTierEditModal({
+  partnerId,
+  currentTier = "Silver",
+  currentMargin = 15,
+}: PartnerTierEditModalProps) {
   const router = useRouter();
-  const [loading, setLoading] = useState<"approve" | "reject" | null>(null);
-  const [showModal, setShowModal] = useState(false);
-  const [selectedTier, setSelectedTier] = useState<TierStatus>("Silver");
-  const [selectedMargin, setSelectedMargin] = useState<PartnerMargin>(15);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [tier, setTier] = useState<TierStatus>(currentTier);
+  const [margin, setMargin] = useState<PartnerMargin>(currentMargin);
 
-  const isPartner = role?.toLowerCase() === "partner";
-
-  async function handleDirectApprove() {
-    setLoading("approve");
-    const res = await approveUserAction(uid);
-    if (!res.success) {
-      alert(res.error || "Failed to approve user");
-    }
-    setLoading(null);
-    router.refresh();
-  }
-
-  async function handlePartnerApprove() {
-    setLoading("approve");
-    const res = await approveUserAction(uid, selectedTier, selectedMargin);
+  async function handleSave() {
+    setLoading(true);
+    const res = await updatePartnerTierAndMarginAction(partnerId, tier, margin);
     if (res.success) {
-      setShowModal(false);
+      setOpen(false);
     } else {
-      alert(res.error || "Failed to approve partner");
+      alert(res.error || "Failed to update partner level");
     }
-    setLoading(null);
-    router.refresh();
-  }
-
-  async function handleReject() {
-    if (!confirm("Are you sure you want to reject this applicant?")) return;
-    setLoading("reject");
-    await rejectUserAction(uid);
-    setLoading(null);
+    setLoading(false);
     router.refresh();
   }
 
@@ -62,44 +47,22 @@ export default function ApprovalButtons({ uid, role }: ApprovalButtonsProps) {
 
   return (
     <>
-      <div className="flex items-center gap-2">
-        <Button
-          size="sm"
-          onClick={() => {
-            if (isPartner) {
-              setShowModal(true);
-            } else {
-              handleDirectApprove();
-            }
-          }}
-          disabled={loading !== null}
-          className="bg-emerald-500 hover:bg-emerald-600 text-white font-medium shadow-md hover:shadow-emerald-500/20 hover:scale-[1.02] transition-all"
-          title="Approve User"
-        >
-          {loading === "approve" ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Check className="h-4 w-4" />
-          )}
-        </Button>
-        <Button
-          size="sm"
-          onClick={handleReject}
-          disabled={loading !== null}
-          variant="outline"
-          className="text-white border-red-500/30 hover:bg-red-500/20 transition-all"
-          title="Reject User"
-        >
-          {loading === "reject" ? (
-            <Loader2 className="h-4 w-4 animate-spin text-red-500" />
-          ) : (
-            <X className="h-4 w-4 text-red-500" />
-          )}
-        </Button>
-      </div>
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => {
+          setTier(currentTier);
+          setMargin(currentMargin);
+          setOpen(true);
+        }}
+        className="text-indigo-400 border-indigo-500/20 hover:bg-indigo-500/10 flex items-center gap-1.5 transition-all text-xs font-semibold py-1 px-2.5 h-8 rounded-xl"
+        title="Edit Level & Margin"
+      >
+        <Settings2 className="h-3.5 w-3.5" />
+        Edit Level
+      </Button>
 
-      {/* Configuration Modal */}
-      {showModal && (
+      {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md animate-in fade-in duration-200">
           <div className="bg-[#0c1024] border border-white/10 rounded-3xl p-6 sm:p-8 w-full max-w-lg mx-4 shadow-2xl relative animate-in zoom-in-95 duration-200 text-white">
             
@@ -107,15 +70,15 @@ export default function ApprovalButtons({ uid, role }: ApprovalButtonsProps) {
             <div className="flex items-center justify-between pb-4 border-b border-white/5">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400">
-                  <UserCheck className="h-5 w-5" />
+                  <Award className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-white leading-none">Configure Partner Profile</h3>
-                  <p className="text-xs text-white/50 mt-1">Assign onboarding status tier and commission share.</p>
+                  <h3 className="text-lg font-bold text-white leading-none">Edit Status & Margin</h3>
+                  <p className="text-xs text-white/50 mt-1">Retroactively change partner's parameters.</p>
                 </div>
               </div>
               <button 
-                onClick={() => setShowModal(false)}
+                onClick={() => setOpen(false)}
                 className="h-8 w-8 rounded-full hover:bg-white/5 flex items-center justify-center transition-colors text-white/50 hover:text-white"
               >
                 <X className="h-4 w-4" />
@@ -132,12 +95,12 @@ export default function ApprovalButtons({ uid, role }: ApprovalButtonsProps) {
                 </label>
                 <div className="grid grid-cols-2 gap-3">
                   {tiers.map((t) => {
-                    const isSelected = selectedTier === t.value;
+                    const isSelected = tier === t.value;
                     return (
                       <button
                         key={t.value}
                         type="button"
-                        onClick={() => setSelectedTier(t.value)}
+                        onClick={() => setTier(t.value)}
                         className={`text-left p-3.5 rounded-2xl border text-sm font-semibold transition-all relative overflow-hidden group ${
                           isSelected 
                             ? `${t.border} ${t.bg} shadow-lg ring-1 ring-white/10 scale-[1.01]` 
@@ -167,12 +130,12 @@ export default function ApprovalButtons({ uid, role }: ApprovalButtonsProps) {
                 </label>
                 <div className="grid grid-cols-4 gap-2.5">
                   {margins.map((m) => {
-                    const isSelected = selectedMargin === m;
+                    const isSelected = margin === m;
                     return (
                       <button
                         key={m}
                         type="button"
-                        onClick={() => setSelectedMargin(m)}
+                        onClick={() => setMargin(m)}
                         className={`py-3 rounded-2xl border text-sm font-bold transition-all ${
                           isSelected 
                             ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400 shadow-md scale-[1.03]" 
@@ -184,9 +147,6 @@ export default function ApprovalButtons({ uid, role }: ApprovalButtonsProps) {
                     );
                   })}
                 </div>
-                <p className="text-[11px] text-white/40 leading-relaxed pl-1">
-                  This margin will be applied as the default partner commission split for all candidates registered by this partner.
-                </p>
               </div>
             </div>
 
@@ -194,17 +154,17 @@ export default function ApprovalButtons({ uid, role }: ApprovalButtonsProps) {
             <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/5">
               <Button
                 variant="ghost"
-                onClick={() => setShowModal(false)}
+                onClick={() => setOpen(false)}
                 className="text-white/60 hover:text-white hover:bg-white/5 rounded-2xl"
               >
                 Cancel
               </Button>
               <Button
-                onClick={handlePartnerApprove}
-                disabled={loading !== null}
+                onClick={handleSave}
+                disabled={loading}
                 className="bg-indigo-500 hover:bg-indigo-600 text-white font-semibold px-6 rounded-2xl shadow-lg hover:shadow-indigo-500/20 scale-[1.02] active:scale-100 transition-all flex items-center gap-2"
               >
-                {loading === "approve" ? (
+                {loading ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Saving...
@@ -212,7 +172,7 @@ export default function ApprovalButtons({ uid, role }: ApprovalButtonsProps) {
                 ) : (
                   <>
                     <Check className="h-4 w-4" />
-                    Approve & Onboard
+                    Save Changes
                   </>
                 )}
               </Button>

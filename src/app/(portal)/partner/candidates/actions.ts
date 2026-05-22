@@ -5,32 +5,65 @@ import { requirePermission } from "@/lib/permissions";
 import {
   getCandidates,
   getCandidateById,
+  getPartnerByEmail,
   createCandidate,
   createCandidateService,
   createCandidateTask,
   updateCandidate,
   advanceCandidateStatus,
+  getCandidateServices,
 } from "@/lib/sharepoint";
 import { canTransitionTo } from "@/lib/engine/candidate-workflow";
 import { calculateFinancialSplit } from "@/lib/engine/financial-split";
 import { autoInsertCandidateTasks } from "@/lib/engine/candidate-tasks";
-import { generateSccgId } from "@/lib/sccg-id";
+import { generatePartnerCandidateId } from "@/lib/sccg-id";
 import { triggerFlow } from "@/lib/powerautomate";
 import type { Candidate, CandidateService, WorkflowCategory, PartnerMargin, CandidatePaymentStatus } from "@/types";
 import crypto from "crypto";
 
+export async function getPartnerCandidatesAction(): Promise<Candidate[]> {
+  const user = await requirePermission("candidate.view.own");
+  const partner = await getPartnerByEmail(user.email!);
+  if (!partner) return [];
+  return getCandidates(partner.id);
+}
+
+export async function updateCandidateAction(
+  candidateId: string,
+  data: Partial<Candidate>
+): Promise<{ success: boolean } | { error: string }> {
+  try {
+    const user = await requirePermission("candidate.create");
+    const partner = await getPartnerByEmail(user.email!);
+    if (!partner) return { error: "Partner not found" };
+
+    const cand = await getCandidateById(candidateId);
+    if (!cand || cand.partnerId !== partner.id) {
+      return { error: "Candidate not found or unauthorized" };
+    }
+
+    await updateCandidate(candidateId, data);
+    revalidatePath("/partner/candidates");
+    return { success: true };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Update failed" };
+  }
+}
+
 export async function searchCandidatesAction(
   query: string
 ): Promise<Candidate[]> {
-  await requirePermission("candidate.view.own");
+  const user = await requirePermission("candidate.view.own");
+  const partner = await getPartnerByEmail(user.email!);
+  if (!partner) return [];
   if (!query.trim()) return [];
-  const all = await getCandidates();
+  const all = await getCandidates(partner.id);
   const q = query.toLowerCase();
   return all
     .filter(
       (c) =>
         c.fullName.toLowerCase().includes(q) ||
-        c.sccgId.toLowerCase().includes(q) ||
+        (c.sccgId && c.sccgId.toLowerCase().includes(q)) ||
         c.email.toLowerCase().includes(q)
     )
     .slice(0, 10);
@@ -67,6 +100,8 @@ export async function finalizeRegistrationAction(
 ): Promise<{ submissionId: string; candidateId: string } | { error: string }> {
   try {
     const user = await requirePermission("candidate.create");
+    const partner = await getPartnerByEmail(user.email!);
+    const partnerCode = partner?.partnerCode || "PART";
 
     const split = calculateFinancialSplit({
       services: state.selectedServices.map((s) => ({
@@ -78,7 +113,7 @@ export async function finalizeRegistrationAction(
       partnerMarginPercentage: state.partnerMarginPercentage,
     });
 
-    const sccgId = await generateSccgId("CND");
+    const sccgId = await generatePartnerCandidateId(partnerCode, state.workflowCategory);
     const submissionId = crypto.randomUUID();
 
     const paymentStatus: CandidatePaymentStatus =
@@ -237,5 +272,267 @@ export async function rerunFinancialSplitAction(
     revalidatePath(`/partner/candidates/${candidateId}`);
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Recalculation failed" };
+  }
+}
+
+export async function buyAdditionalServicesAction(
+  candidateId: string,
+  services: {
+    servicePricingId: string;
+    serviceName: string;
+    packageType: "all-inclusive" | "premium-bundle" | "add-on";
+    basePrice: number;
+    quantity: number;
+  }[]
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const user = await requirePermission("candidate.create");
+    const partner = await getPartnerByEmail(user.email!);
+    if (!partner) return { success: false, error: "Partner not found" };
+
+    const candidate = await getCandidateById(candidateId);
+    if (!candidate || candidate.partnerId !== partner.id) {
+      return { success: false, error: "Candidate not found or unauthorized" };
+    }
+
+    // Get existing services
+    const existingServices = await getCandidateServices(candidateId);
+
+    // Create the new candidate service records
+    for (const svc of services) {
+      await createCandidateService({
+        candidateId,
+        servicePricingId: svc.servicePricingId,
+        serviceName: svc.serviceName,
+        packageType: svc.packageType,
+        basePrice: svc.basePrice,
+        quantity: svc.quantity,
+        totalPrice: svc.basePrice * svc.quantity,
+        createdAt: new Date().toISOString(),
+      });
+    }
+
+    // Recalculate financial split with both existing and new services
+    const allServices = [
+      ...existingServices.map((s) => ({
+        servicePricingId: s.servicePricingId,
+        serviceName: s.serviceName,
+        basePrice: s.basePrice,
+        quantity: s.quantity,
+      })),
+      ...services.map((s) => ({
+        servicePricingId: s.servicePricingId,
+        serviceName: s.serviceName,
+        basePrice: s.basePrice,
+        quantity: s.quantity,
+      })),
+    ];
+
+    const split = calculateFinancialSplit({
+      services: allServices,
+      partnerMarginPercentage: candidate.marginPercentage as any,
+    });
+
+    // Update candidate details
+    await updateCandidate(candidateId, {
+      totalServiceFee: split.totalServiceFee,
+      sccgShare: split.sccgShare,
+      partnerShare: split.partnerShare,
+      depositAmount: split.depositAmount,
+    });
+
+    // Create a new Sales Order
+    const { createSalesOrder, createSalesOrderItem } = await import("@/lib/sharepoint");
+    const timestamp = Date.now().toString().slice(-6);
+    const orderNumber = `SO-${candidate.sccgId || candidate.id}-${timestamp}`;
+
+    // Total sales amount for the newly bought services (basePrice * quantity * (1 + margin / 100))
+    const newlyBoughtTotal = services.reduce((acc, s) => {
+      const marginFactor = 1 + (Number(candidate.marginPercentage || 0) / 100);
+      return acc + (s.basePrice * s.quantity * marginFactor);
+    }, 0);
+
+    const salesOrder = await createSalesOrder({
+      orderNumber,
+      salesOfferId: "direct",
+      offerNumber: "direct",
+      partnerId: partner.id,
+      partnerName: partner.name,
+      clientId: candidate.sccgId || candidate.id,
+      clientName: candidate.fullName,
+      clientEmail: candidate.email,
+      status: "completed",
+      totalAmount: newlyBoughtTotal,
+      notes: `Additional services purchased for candidate ${candidate.fullName} (${candidate.sccgId})`,
+      createdBy: user.id,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    // Create Sales Order Items
+    for (const svc of services) {
+      const marginFactor = 1 + (Number(candidate.marginPercentage || 0) / 100);
+      await createSalesOrderItem({
+        salesOrderId: salesOrder.id,
+        productId: svc.servicePricingId,
+        productName: svc.serviceName,
+        quantity: svc.quantity,
+        unitPrice: svc.basePrice * marginFactor,
+        totalPrice: svc.basePrice * svc.quantity * marginFactor,
+      });
+    }
+
+    revalidatePath(`/partner/candidates/${candidateId}`);
+    revalidatePath("/partner/finance");
+
+    return { success: true };
+  } catch (err: any) {
+    console.error("buyAdditionalServicesAction error:", err);
+    return { success: false, error: err.message || "Failed to buy services" };
+  }
+}
+
+export async function getCandidateDocumentsAction(
+  candidateId: string,
+  candidateName: string
+): Promise<{ success: boolean; data?: any[]; error?: string }> {
+  try {
+    await requirePermission("candidate.view.own");
+    const { getGraphClient, resolveSiteId } = await import("@/lib/graph");
+    const client = await getGraphClient();
+    const siteId = await resolveSiteId();
+
+    const sanitizedName = candidateName ? candidateName.replace(/[^a-zA-Z0-9_-]/g, " ").trim() : "Unknown_Candidate";
+    const folderName = `${sanitizedName} - ${candidateId}`;
+    const folderPath = `CandidateDocs/${folderName}`;
+
+    const url = `/sites/${siteId}/drive/root:/${folderPath}:/children`;
+    
+    let res;
+    try {
+      res = await client.api(url).get();
+    } catch (err: any) {
+      // Folder might not exist yet, which is fine
+      if (err.statusCode === 404) {
+        return { success: true, data: [] };
+      }
+      throw err;
+    }
+
+    const items = (res.value || []).map((item: any) => ({
+      id: item.id,
+      name: item.name,
+      size: item.size,
+      webUrl: item.webUrl,
+      downloadUrl: item["@microsoft.graph.downloadUrl"] || item.webUrl,
+      createdAt: item.createdDateTime,
+    }));
+
+    return { success: true, data: items };
+  } catch (err: any) {
+    console.error("getCandidateDocumentsAction error:", err);
+    return { success: false, error: err.message || "Failed to load documents" };
+  }
+}
+
+export async function deleteCandidateDocumentAction(
+  candidateId: string,
+  candidateName: string,
+  driveItemId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await requirePermission("candidate.create");
+    const { getGraphClient, resolveSiteId } = await import("@/lib/graph");
+    const client = await getGraphClient();
+    const siteId = await resolveSiteId();
+
+    const url = `/sites/${siteId}/drive/items/${driveItemId}`;
+    await client.api(url).delete();
+
+    revalidatePath(`/partner/candidates/${candidateId}`);
+
+    return { success: true };
+  } catch (err: any) {
+    console.error("deleteCandidateDocumentAction error:", err);
+    return { success: false, error: err.message || "Failed to delete document" };
+  }
+}
+
+export async function updateCandidateFinanceAction(
+  candidateId: string,
+  financialData: {
+    totalServiceFee?: number;
+    depositAmount?: number;
+    partnerShare?: number;
+    sccgShare?: number;
+    dueDate?: string;
+    payoutStatus?: string;
+  }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const user = await requirePermission("candidate.create");
+    const partner = await getPartnerByEmail(user.email!);
+    if (!partner) return { success: false, error: "Partner not found" };
+
+    const candidate = await getCandidateById(candidateId);
+    if (!candidate || candidate.partnerId !== partner.id) {
+      return { success: false, error: "Candidate not found or unauthorized" };
+    }
+
+    const updates: Partial<Candidate> = {};
+    if (financialData.totalServiceFee !== undefined) {
+      updates.totalServiceFee = financialData.totalServiceFee;
+    }
+    if (financialData.depositAmount !== undefined) {
+      updates.depositAmount = financialData.depositAmount;
+    }
+    if (financialData.partnerShare !== undefined) {
+      updates.partnerShare = financialData.partnerShare;
+    }
+    if (financialData.sccgShare !== undefined) {
+      updates.sccgShare = financialData.sccgShare;
+    }
+
+    const total = financialData.totalServiceFee !== undefined ? financialData.totalServiceFee : candidate.totalServiceFee;
+    const deposit = financialData.depositAmount !== undefined ? financialData.depositAmount : candidate.depositAmount;
+
+    if (deposit >= total && total > 0) {
+      updates.paymentStatus = "fully-paid";
+    } else if (deposit > 0) {
+      updates.paymentStatus = "deposit-paid";
+    } else {
+      updates.paymentStatus = "pending";
+    }
+
+    // Load existing notes to safely append/update due date & payout status
+    let notesObj: Record<string, any> = {};
+    try {
+      if (candidate.notes && candidate.notes.trim().startsWith("{")) {
+        notesObj = JSON.parse(candidate.notes);
+      } else {
+        notesObj = { customNotes: candidate.notes || "" };
+      }
+    } catch {
+      notesObj = { customNotes: candidate.notes || "" };
+    }
+
+    if (financialData.dueDate !== undefined) {
+      notesObj.dueDate = financialData.dueDate;
+    }
+    if (financialData.payoutStatus !== undefined) {
+      notesObj.payoutStatus = financialData.payoutStatus;
+    }
+
+    updates.notes = JSON.stringify(notesObj);
+
+    await updateCandidate(candidateId, updates);
+
+    revalidatePath(`/partner/candidates/${candidateId}`);
+    revalidatePath("/partner/finance");
+
+    return { success: true };
+  } catch (err: any) {
+    console.error("updateCandidateFinanceAction error:", err);
+    return { success: false, error: err.message || "Failed to update financial ledger" };
   }
 }

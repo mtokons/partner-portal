@@ -19,7 +19,7 @@ const REQUIRED: (keyof PersonalInfo)[] = [
 
 export function Step2PersonalInfo({ initialData, products, onNext, onBack }: Step2PersonalInfoProps) {
   const categories = useMemo(() => {
-    const cats = Array.from(new Set(products.map(p => p.category).filter(Boolean)));
+    const cats = Array.from(new Set(products.flatMap(p => p.category).filter(Boolean)));
     return cats.length > 0 ? (cats as WorkflowCategory[]) : ["Training", "Ausbildung", "Student Visa", "Opportunity Card"] as WorkflowCategory[];
   }, [products]);
 

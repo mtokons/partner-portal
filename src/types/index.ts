@@ -53,7 +53,7 @@ export interface Product {
   // Base B2B reference pricing/stock
   price: number;
   stock: number;
-  category: string;
+  category: string[];
   imageUrl?: string;
   // Sales Shop extensions
   discount?: number;             // Discount value
@@ -1460,7 +1460,7 @@ export interface SchoolGradingScale {
 // Task Board (Kanban)
 // ============================================================
 
-export type TaskStatus = "todo" | "in-progress" | "review" | "done";
+export type TaskStatus = "backlog" | "todo" | "in-progress" | "review" | "done";
 export type TaskPriority = "low" | "medium" | "high";
 
 export interface KanbanTask {

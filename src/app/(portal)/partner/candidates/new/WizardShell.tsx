@@ -83,12 +83,33 @@ export function WizardShell({ partnerMargin, partnerId, products }: WizardShellP
   const router = useRouter();
   const [state, setState] = useState<WizardState>(INITIAL_STATE);
 
-  function onNext(partial: Partial<WizardState>) {
-    setState((prev) => ({
-      ...prev,
-      ...partial,
-      step: prev.step + 1,
-    }));
+  function onNext(partial: Partial<WizardState> & { targetStep?: number }) {
+    setState((prev) => {
+      const nextStep = partial.targetStep ?? (prev.step + 1);
+      let personalInfo = prev.personalInfo;
+      if (prev.step === 1 && partial.isNewCandidate) {
+        personalInfo = {
+          fullName: "",
+          dateOfBirth: "",
+          email: "",
+          phone: "",
+          nationality: "",
+          country: "",
+          workflowCategory: "Training",
+        };
+      } else if (partial.personalInfo) {
+        personalInfo = {
+          ...prev.personalInfo,
+          ...partial.personalInfo,
+        };
+      }
+      return {
+        ...prev,
+        ...partial,
+        personalInfo,
+        step: nextStep,
+      };
+    });
   }
 
   function onBack() {
@@ -150,7 +171,7 @@ export function WizardShell({ partnerMargin, partnerId, products }: WizardShellP
       <div className="bg-card rounded-2xl border p-6">
         {currentStep === 1 && (
           <Step1Lookup
-            onNext={(partial) => onNext({ ...partial, step: undefined })}
+            onNext={onNext}
           />
         )}
         {currentStep === 2 && (

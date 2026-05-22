@@ -32,7 +32,7 @@ export function Step3ServicePackage({
   );
 
   const categoryProducts = useMemo(() => {
-    return products.filter((p) => p.category === workflowCategory && p.isAvailable);
+    return products.filter((p) => p.category?.includes(workflowCategory) && p.isAvailable);
   }, [products, workflowCategory]);
 
   const filtered = useMemo(() => {

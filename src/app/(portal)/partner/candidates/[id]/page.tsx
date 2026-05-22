@@ -6,12 +6,16 @@ import {
   getCandidateById,
   getCandidateServices,
   getCandidateTasks,
+  getProducts,
 } from "@/lib/sharepoint";
 import { getAllowedTransitions } from "@/lib/engine/candidate-workflow";
 import { WorkflowStepper } from "@/components/candidate/WorkflowStepper";
 import { CandidateStatusAdvancer } from "./CandidateStatusAdvancer";
 import { format, parseISO, isPast } from "date-fns";
 import { ArrowLeft, AlertCircle, FileText, CreditCard, ClipboardList } from "lucide-react";
+import { getCandidateDocumentsAction } from "../actions";
+import BuyServiceTrigger from "./BuyServiceTrigger";
+import CandidateDocumentsSection from "./CandidateDocumentsSection";
 
 const TASK_ICON = {
   "Document Required": FileText,
@@ -37,13 +41,17 @@ export default async function CandidateDetailPage({
   const roles = (user.roles || [user.role]) as string[];
   const isAdmin = roles.includes("admin");
 
-  const [candidate, services, tasks] = await Promise.all([
+  const [candidate, services, tasks, products] = await Promise.all([
     getCandidateById(id),
     getCandidateServices(id),
     getCandidateTasks(id),
+    getProducts(),
   ]);
 
   if (!candidate) notFound();
+
+  const docsRes = await getCandidateDocumentsAction(candidate.id, candidate.fullName);
+  const initialDocuments = docsRes.success && docsRes.data ? docsRes.data : [];
 
   const allowedNext = getAllowedTransitions(
     candidate.workflowCategory,
@@ -159,11 +167,22 @@ export default async function CandidateDetailPage({
       </div>
 
       {/* Services */}
-      {services.length > 0 && (
-        <div className="bg-card rounded-2xl border overflow-hidden">
-          <div className="px-6 py-4 border-b">
-            <h2 className="font-semibold text-foreground">Selected Services</h2>
+      <div className="bg-card rounded-2xl border overflow-hidden">
+        <div className="px-6 py-4 border-b flex items-center justify-between">
+          <h2 className="font-semibold text-foreground">Selected Services</h2>
+          <BuyServiceTrigger
+            candidateId={candidate.id}
+            candidateName={candidate.fullName}
+            candidateSccgId={candidate.sccgId || candidate.id}
+            candidateMargin={candidate.marginPercentage as any}
+            products={products}
+          />
+        </div>
+        {services.length === 0 ? (
+          <div className="p-6 text-center text-muted-foreground text-sm">
+            No services purchased yet. Click "Buy Additional Service" to add one.
           </div>
+        ) : (
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-muted/30">
@@ -186,8 +205,8 @@ export default async function CandidateDetailPage({
               ))}
             </tbody>
           </table>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Tasks */}
       {activeTasks.length > 0 && (
@@ -220,12 +239,31 @@ export default async function CandidateDetailPage({
       )}
 
       {/* Notes */}
-      {candidate.notes && (
-        <div className="bg-card rounded-2xl border p-6">
-          <h2 className="font-semibold text-foreground mb-2">Notes</h2>
-          <p className="text-sm text-muted-foreground whitespace-pre-wrap">{candidate.notes}</p>
-        </div>
-      )}
+      {(() => {
+        let displayNotes = candidate.notes || "";
+        try {
+          if (displayNotes.trim().startsWith("{")) {
+            const parsed = JSON.parse(displayNotes);
+            displayNotes = parsed.customNotes || "";
+          }
+        } catch {}
+        
+        if (!displayNotes) return null;
+
+        return (
+          <div className="bg-card rounded-2xl border p-6">
+            <h2 className="font-semibold text-foreground mb-2">Notes</h2>
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{displayNotes}</p>
+          </div>
+        );
+      })()}
+
+      {/* Documents */}
+      <CandidateDocumentsSection
+        candidateId={candidate.id}
+        candidateName={candidate.fullName}
+        initialDocuments={initialDocuments}
+      />
 
       {/* PDF actions */}
       <div className="flex items-center gap-3">
