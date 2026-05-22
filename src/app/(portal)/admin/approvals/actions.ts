@@ -46,6 +46,28 @@ export async function approveUserAction(uid: string) {
       }
     }
 
+    // 3. If it's a partner, sync/approve in SharePoint Partners list
+    if (userData?.role === "partner") {
+      const { getPartnerByEmail, createPartner, approvePartnerOnboarding } = await import("@/lib/sharepoint");
+      const existing = await getPartnerByEmail(userData.email);
+      if (!existing) {
+        await createPartner({
+          name: userData.displayName || "Partner",
+          email: userData.email,
+          passwordHash: "",
+          role: "partner",
+          status: "active",
+          company: userData.company || "",
+          phone: userData.phone || "",
+          partnerType: "individual",
+          commissionTier: "standard",
+          onboardingStatus: "approved",
+        });
+      } else {
+        await approvePartnerOnboarding(existing.id);
+      }
+    }
+
     revalidatePath("/admin/approvals");
     return { success: true };
   } catch (err: unknown) {

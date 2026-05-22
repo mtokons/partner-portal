@@ -533,6 +533,16 @@ export async function updatePartnerStatus(id: string, status: Partner["status"])
   });
 }
 
+export async function approvePartnerOnboarding(id: string): Promise<void> {
+  return runSafe(async () => {
+    const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
+    await graphPatch(`${await getSiteListUrlAsync("Partners")}/${id}/fields`, { 
+      [PART_COL.onboardingStatus]: "approved",
+      [PART_COL.status]: "active"
+    });
+  });
+}
+
 // ============================================================
 // Products
 // ============================================================

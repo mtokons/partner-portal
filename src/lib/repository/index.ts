@@ -1,5 +1,5 @@
 import {
-  getPartnerByEmail, getPartners, updatePartnerStatus,
+  getPartnerByEmail, getPartners, updatePartnerStatus, approvePartnerOnboarding,
   getCustomerByEmail, getCustomers, getCustomerById, createCustomer,
   getExpertByEmail, getExperts,
   getUserRoles, addUserRole, updateUserProfileRoles, getUserProfileByEmail,
@@ -45,6 +45,9 @@ export const Repository = {
     },
     async updateStatus(id: string, status: Partner["status"]): Promise<void> {
       return updatePartnerStatus(id, status);
+    },
+    async approveOnboarding(id: string): Promise<void> {
+      return approvePartnerOnboarding(id);
     }
   },
 
