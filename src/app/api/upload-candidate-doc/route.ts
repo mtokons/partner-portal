@@ -13,6 +13,7 @@ export async function POST(request: Request) {
   }
 
   const candidateId = formData.get("candidateId") as string | null;
+  const candidateName = formData.get("candidateName") as string | null;
   const documentType = formData.get("documentType") as string | null;
   const file = formData.get("file") as File | null;
 
@@ -36,12 +37,14 @@ export async function POST(request: Request) {
     const siteId = await resolveSiteId();
 
     const sanitizedType = documentType.replace(/[^a-zA-Z0-9_-]/g, "_");
+    const sanitizedName = candidateName ? candidateName.replace(/[^a-zA-Z0-9_-]/g, " ").trim() : "Unknown_Candidate";
     const ext = file.name.split(".").pop() ?? "bin";
-    const fileName = candidateId
-      ? `${candidateId}_${sanitizedType}_${Date.now()}.${ext}`
-      : `${sanitizedType}_${Date.now()}.${ext}`;
+    
+    // Create folder name: [Candidate Name] - [ID or timestamp]
+    const folderName = candidateId ? `${sanitizedName} - ${candidateId}` : `${sanitizedName} - ${Date.now()}`;
+    const fileName = `${sanitizedType}_${Date.now()}.${ext}`;
 
-    const folderPath = candidateId ? `CandidateDocs/${candidateId}` : "CandidateDocs";
+    const folderPath = `CandidateDocs/${folderName}`;
     const uploadUrl = `/sites/${siteId}/drive/root:/${folderPath}/${fileName}:/content`;
 
     const buffer = await file.arrayBuffer();

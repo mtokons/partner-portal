@@ -37,6 +37,7 @@ interface UploadedDoc {
 interface Step6DocumentsProps {
   workflowCategory: WorkflowCategory;
   candidateId?: string;
+  candidateName?: string;
   onNext: (docs: UploadedDoc[]) => void;
   onBack: () => void;
 }
@@ -44,6 +45,7 @@ interface Step6DocumentsProps {
 export function Step6Documents({
   workflowCategory,
   candidateId,
+  candidateName,
   onNext,
   onBack,
 }: Step6DocumentsProps) {
@@ -69,6 +71,7 @@ export function Step6Documents({
       formData.append("file", file);
       formData.append("documentType", docType);
       if (candidateId) formData.append("candidateId", candidateId);
+      if (candidateName) formData.append("candidateName", candidateName);
 
       const res = await fetch("/api/upload-candidate-doc", {
         method: "POST",

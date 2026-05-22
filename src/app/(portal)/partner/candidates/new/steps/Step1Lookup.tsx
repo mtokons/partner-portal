@@ -8,10 +8,9 @@ import type { WizardState } from "../WizardShell";
 
 interface Step1LookupProps {
   onNext: (partial: Partial<WizardState>) => void;
-  onNextStep: () => void;
 }
 
-export function Step1Lookup({ onNext, onNextStep }: Step1LookupProps) {
+export function Step1Lookup({ onNext }: Step1LookupProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Candidate[]>([]);
   const [searching, setSearching] = useState(false);
@@ -47,8 +46,10 @@ export function Step1Lookup({ onNext, onNextStep }: Step1LookupProps) {
         country: c.country,
         workflowCategory: c.workflowCategory,
       },
+      selectedServices: [],
+      paymentOption: "pay-later",
+      uploadedDocuments: [],
     });
-    onNextStep();
   }
 
   return (
@@ -105,7 +106,24 @@ export function Step1Lookup({ onNext, onNextStep }: Step1LookupProps) {
       )}
 
       <button
-        onClick={() => { onNext({ isNewCandidate: true, existingCandidateId: undefined }); onNextStep(); }}
+        onClick={() => {
+          onNext({
+            isNewCandidate: true,
+            existingCandidateId: undefined,
+            personalInfo: {
+              fullName: "",
+              dateOfBirth: "",
+              email: "",
+              phone: "",
+              nationality: "",
+              country: "",
+              workflowCategory: "Training",
+            },
+            selectedServices: [],
+            paymentOption: "pay-later",
+            uploadedDocuments: [],
+          });
+        }}
         className="w-full flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-primary/40 py-4 text-sm font-medium text-primary hover:bg-primary/5 transition-colors"
       >
         <UserPlus className="w-4 h-4" />

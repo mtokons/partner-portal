@@ -1,20 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import type { WorkflowCategory } from "@/types";
+import { useState, useMemo, useEffect } from "react";
+import type { WorkflowCategory, Product } from "@/types";
 import type { WizardState } from "../WizardShell";
 
 type PersonalInfo = WizardState["personalInfo"];
 
-const WORKFLOW_CATEGORIES: WorkflowCategory[] = [
-  "Training",
-  "Ausbildung",
-  "Student Visa",
-  "Opportunity Card",
-];
-
 interface Step2PersonalInfoProps {
   initialData: PersonalInfo;
+  products: Product[];
   onNext: (data: PersonalInfo) => void;
   onBack: () => void;
 }
@@ -23,8 +17,16 @@ const REQUIRED: (keyof PersonalInfo)[] = [
   "fullName", "dateOfBirth", "email", "phone", "nationality", "country", "workflowCategory",
 ];
 
-export function Step2PersonalInfo({ initialData, onNext, onBack }: Step2PersonalInfoProps) {
-  const [form, setForm] = useState<PersonalInfo>(initialData);
+export function Step2PersonalInfo({ initialData, products, onNext, onBack }: Step2PersonalInfoProps) {
+  const categories = useMemo(() => {
+    const cats = Array.from(new Set(products.map(p => p.category).filter(Boolean)));
+    return cats.length > 0 ? (cats as WorkflowCategory[]) : ["Training", "Ausbildung", "Student Visa", "Opportunity Card"] as WorkflowCategory[];
+  }, [products]);
+
+  const [form, setForm] = useState<PersonalInfo>(() => ({
+    ...initialData,
+    workflowCategory: initialData.workflowCategory || categories[0],
+  }));
   const [errors, setErrors] = useState<Partial<Record<keyof PersonalInfo, string>>>({});
 
   function set<K extends keyof PersonalInfo>(key: K, value: PersonalInfo[K]) {
@@ -109,7 +111,7 @@ export function Step2PersonalInfo({ initialData, onNext, onBack }: Step2Personal
           onChange={(e) => set("workflowCategory", e.target.value as WorkflowCategory)}
           className="w-full px-3 py-2 rounded-xl border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
         >
-          {WORKFLOW_CATEGORIES.map((c) => (
+          {categories.map((c) => (
             <option key={c} value={c}>{c}</option>
           ))}
         </select>

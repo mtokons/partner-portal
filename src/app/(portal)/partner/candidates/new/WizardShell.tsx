@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { CheckCircle2 } from "lucide-react";
-import type { WorkflowCategory, PartnerMargin } from "@/types";
+import type { WorkflowCategory, PartnerMargin, Product } from "@/types";
 import type { FinancialSplitResult } from "@/lib/engine/financial-split";
 import { Step1Lookup } from "./steps/Step1Lookup";
 import { Step2PersonalInfo } from "./steps/Step2PersonalInfo";
@@ -75,9 +76,11 @@ const INITIAL_STATE: WizardState = {
 interface WizardShellProps {
   partnerMargin: PartnerMargin;
   partnerId: string;
+  products: Product[];
 }
 
-export function WizardShell({ partnerMargin, partnerId }: WizardShellProps) {
+export function WizardShell({ partnerMargin, partnerId, products }: WizardShellProps) {
+  const router = useRouter();
   const [state, setState] = useState<WizardState>(INITIAL_STATE);
 
   function onNext(partial: Partial<WizardState>) {
@@ -106,17 +109,23 @@ export function WizardShell({ partnerMargin, partnerId }: WizardShellProps) {
               const isCurrent = stepNum === currentStep;
               return (
                 <div key={label} className="flex flex-col items-center flex-1">
-                  <div
+                  <button
+                    onClick={() => {
+                      if (isDone) {
+                        setState((prev) => ({ ...prev, step: stepNum }));
+                      }
+                    }}
+                    disabled={!isDone}
                     className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-colors ${
                       isDone
-                        ? "bg-primary border-primary text-primary-foreground"
+                        ? "bg-primary border-primary text-primary-foreground hover:bg-primary/90 cursor-pointer"
                         : isCurrent
-                        ? "border-primary text-primary bg-primary/5"
-                        : "border-muted-foreground/30 text-muted-foreground/40"
+                        ? "border-primary text-primary bg-primary/5 cursor-default"
+                        : "border-muted-foreground/30 text-muted-foreground/40 cursor-not-allowed"
                     }`}
                   >
                     {isDone ? <CheckCircle2 className="w-4 h-4" /> : stepNum}
-                  </div>
+                  </button>
                   <p
                     className={`text-[10px] mt-1 text-center ${
                       isCurrent ? "text-primary font-semibold" : "text-muted-foreground/50"
@@ -142,12 +151,12 @@ export function WizardShell({ partnerMargin, partnerId }: WizardShellProps) {
         {currentStep === 1 && (
           <Step1Lookup
             onNext={(partial) => onNext({ ...partial, step: undefined })}
-            onNextStep={() => onNext({})}
           />
         )}
         {currentStep === 2 && (
           <Step2PersonalInfo
             initialData={state.personalInfo}
+            products={products}
             onNext={(personalInfo) => onNext({ personalInfo })}
             onBack={onBack}
           />
@@ -156,6 +165,7 @@ export function WizardShell({ partnerMargin, partnerId }: WizardShellProps) {
           <Step3ServicePackage
             workflowCategory={state.personalInfo.workflowCategory}
             selectedServices={state.selectedServices}
+            products={products}
             onNext={(selectedServices) => onNext({ selectedServices })}
             onBack={onBack}
           />
@@ -179,6 +189,7 @@ export function WizardShell({ partnerMargin, partnerId }: WizardShellProps) {
           <Step6Documents
             workflowCategory={state.personalInfo.workflowCategory}
             candidateId={state.existingCandidateId}
+            candidateName={state.personalInfo.fullName}
             onNext={(uploadedDocuments) => onNext({ uploadedDocuments })}
             onBack={onBack}
           />
@@ -188,9 +199,10 @@ export function WizardShell({ partnerMargin, partnerId }: WizardShellProps) {
             state={state}
             partnerMargin={partnerMargin}
             partnerId={partnerId}
-            onDone={(result) =>
-              setState((prev) => ({ ...prev, submissionResult: result, step: 8 }))
-            }
+            onDone={(result) => {
+              setState((prev) => ({ ...prev, submissionResult: result, step: 8 }));
+              router.push("/partner/candidates");
+            }}
             onBack={onBack}
           />
         )}
