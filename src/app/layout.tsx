@@ -1,37 +1,27 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Inter, Outfit } from "next/font/google";
+import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
-import AuthContext from "@/components/providers/AuthContext";
+import AuthProvider from "@/components/providers/AuthProvider";
 import { Toaster } from "sonner";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700", "800", "900"],
+  weight: ["300", "400", "500", "600", "700"],
 });
 
 const outfit = Outfit({
   variable: "--font-outfit",
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700", "800", "900"],
+  weight: ["400", "500", "600", "700", "800"],
 });
 
 export const metadata: Metadata = {
   title: {
-    default: "Partner Portal — SCCG",
-    template: "%s | Partner Portal",
+    default: "SCCG Partner Portal",
+    template: "%s | SCCG Portal",
   },
-  description: "Enterprise B2B Partner Portal — Manage orders, clients, and financials powered by SCCG.",
+  description: "Lightweight B2B partner portal for managing clients, sales, and financials.",
 };
 
 export default function RootLayout({
@@ -40,14 +30,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${outfit.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col bg-background">
-        <AuthContext>
+    <html lang="en" className={`${inter.variable} ${outfit.variable}`}>
+      <body>
+        <AuthProvider>
           {children}
-        </AuthContext>
+        </AuthProvider>
         <Toaster richColors position="top-right" />
       </body>
     </html>

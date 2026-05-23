@@ -1,17 +1,16 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: 'standalone',
+  output: "standalone",
   typescript: {
-    ignoreBuildErrors: true,
+    // TODO: Enable strict checking once rebuild is complete
+    ignoreBuildErrors: false,
   },
-
-
   images: {
     remotePatterns: [
+      { protocol: "https", hostname: "images.unsplash.com" },
       { protocol: "https", hostname: "picsum.photos" },
       { protocol: "https", hostname: "fastly.picsum.photos" },
-      { protocol: "https", hostname: "images.unsplash.com" },
     ],
   },
   async headers() {
@@ -30,4 +29,3 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
-

@@ -1,338 +1,189 @@
 "use client";
 
-import { useState, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { firebaseAuthAction } from "@/lib/actions";
-import { firebaseLogin, firebaseGoogleLogin, getFirebaseAuth } from "@/lib/firebase-auth";
-import { Eye, EyeOff, Zap, ArrowRight, Shield, BarChart3, Globe } from "lucide-react";
+import { useState } from "react";
+import { signIn } from "next-auth/react";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { getFirebaseAuth } from "@/lib/db/client";
+import { MailIcon, LockIcon, Loader2Icon } from "lucide-react";
 
-const features = [
-  { icon: BarChart3, label: "Real-time analytics", desc: "Live financial dashboards" },
-  { icon: Shield, label: "Secure access", desc: "Enterprise-grade security" },
-  { icon: Globe, label: "Multi-currency", desc: "BDT & EUR support" },
-];
-
-function LoginContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const approved = searchParams.get("approved");
+export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [focusedField, setFocusedField] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setLoading(true);
-    
+
     try {
-      // 1. Firebase Login
-      const result = await firebaseLogin(email, password);
-      
-      if (result.success) {
-        // 2. Get ID Token for NextAuth session
-        const auth = getFirebaseAuth();
-        const idToken = await auth.currentUser?.getIdToken();
-        
-        if (idToken) {
-          const sessionResult = await firebaseAuthAction(idToken);
-          if (sessionResult.success) {
-            // Role-based redirect
-            const role = result.role;
-            if (role === "expert") {
-              router.push("/expert/dashboard");
-            } else if (role === "customer") {
-              router.push("/customer/dashboard");
-            } else {
-              router.push("/dashboard");
-            }
-            router.refresh();
-            return;
-          }
-          // Auth action returned an error (e.g. pending, suspended)
-          setError(sessionResult.error || "Login failed. Your account may be pending approval.");
-        } else {
-          setError("Failed to get authentication token.");
-        }
+      const auth = getFirebaseAuth();
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      const idToken = await result.user.getIdToken();
+
+      const res = await signIn("credentials", {
+        idToken,
+        redirect: false,
+      });
+
+      if (res?.error) {
+        setError("Invalid credentials or account not approved.");
       } else {
-        setError(result.error || "Invalid credentials. Please try again.");
+        window.location.href = "/dashboard";
       }
-    } catch {
-      setError("An unexpected error occurred.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Login failed";
+      if (msg.includes("user-not-found") || msg.includes("wrong-password") || msg.includes("invalid-credential")) {
+        setError("Invalid email or password.");
+      } else {
+        setError("Login failed. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="min-h-screen flex bg-[#060818] relative overflow-hidden">
-
-      {/* ── Ambient background ── */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-0 left-1/4 h-[500px] w-[500px] rounded-full bg-indigo-600/15 blur-[120px]" />
-        <div className="absolute bottom-0 right-1/4 h-[400px] w-[400px] rounded-full bg-violet-600/12 blur-[100px]" />
-        <div className="absolute top-1/2 left-0 h-[300px] w-[300px] rounded-full bg-blue-600/8 blur-[80px]" />
-        {/* Grid overlay */}
-        <div
-          className="absolute inset-0 opacity-[0.04]"
-          style={{
-            backgroundImage: `linear-gradient(rgba(99,102,241,1) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,1) 1px, transparent 1px)`,
-            backgroundSize: "48px 48px",
-          }}
-        />
-      </div>
-
-      {/* ── Left panel — branding (hidden on mobile) ── */}
-      <div className="hidden lg:flex lg:w-5/12 xl:w-1/2 flex-col justify-between p-14 relative z-10">
-        {/* Logo */}
-        <div className="flex items-center gap-3">
-          <img src="/assets/sccg-logo.png" alt="SCCG Logo" className="h-12 w-auto object-contain" />
-          <div className="border-l border-white/10 pl-3">
-            <p className="text-white font-bold text-[15px] leading-none font-[family-name:var(--font-outfit)]">Partner Portal</p>
-            <p className="text-white/40 text-[10px] uppercase tracking-widest mt-1">by SCCG</p>
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "linear-gradient(135deg, #0a0e1a 0%, #1a1030 50%, #0a0e1a 100%)",
+        padding: "1rem",
+      }}
+    >
+      <div className="animate-in" style={{ width: "100%", maxWidth: "420px" }}>
+        {/* Logo / Brand */}
+        <div style={{ textAlign: "center", marginBottom: "2.5rem" }}>
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: "56px",
+              height: "56px",
+              borderRadius: "16px",
+              background: "linear-gradient(135deg, var(--accent-cyan), var(--accent-purple))",
+              marginBottom: "1rem",
+              fontSize: "1.5rem",
+              fontWeight: 800,
+              color: "white",
+            }}
+          >
+            S
           </div>
-        </div>
-
-        {/* Headline */}
-        <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 mb-6">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-xs text-indigo-300 font-medium">Enterprise B2B Platform</span>
-          </div>
-
-          <h1 className="text-5xl xl:text-6xl font-black text-white leading-[1.05] tracking-tight font-[family-name:var(--font-outfit)]">
-            Your business,
-            <br />
-            <span className="bg-gradient-to-r from-indigo-400 via-violet-400 to-purple-400 bg-clip-text text-transparent">
-              crystal clear.
-            </span>
+          <h1
+            style={{
+              fontFamily: "var(--font-display)",
+              fontSize: "1.5rem",
+              fontWeight: 700,
+              letterSpacing: "-0.02em",
+            }}
+          >
+            SCCG Partner Portal
           </h1>
-
-          <p className="mt-6 text-white/50 text-lg leading-relaxed max-w-sm">
-            Access orders, financials, clients and performance insights — all in one place.
+          <p style={{ color: "var(--text-muted)", fontSize: "0.875rem", marginTop: "0.5rem" }}>
+            Sign in to your account
           </p>
+        </div>
 
-          {/* Feature list */}
-          <div className="mt-10 space-y-4">
-            {features.map((f) => (
-              <div key={f.label} className="flex items-center gap-4">
-                <div className="h-10 w-10 rounded-xl bg-white/5 border border-white/8 flex items-center justify-center shrink-0">
-                  <f.icon className="h-4.5 w-4.5 text-indigo-400" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-white/80">{f.label}</p>
-                  <p className="text-xs text-white/35">{f.desc}</p>
-                </div>
+        {/* Login Card */}
+        <div className="glass-card" style={{ padding: "2rem" }}>
+          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+            <div>
+              <label htmlFor="email" className="label">
+                Email Address
+              </label>
+              <div style={{ position: "relative" }}>
+                <MailIcon
+                  size={16}
+                  style={{
+                    position: "absolute",
+                    left: "0.75rem",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    color: "var(--text-muted)",
+                  }}
+                />
+                <input
+                  id="email"
+                  type="email"
+                  className="input"
+                  style={{ paddingLeft: "2.25rem" }}
+                  placeholder="you@company.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoComplete="email"
+                />
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Bottom */}
-        <div className="text-[10px] text-white/25 space-y-1">
-          <p className="font-bold text-white/40 uppercase tracking-widest">SCCG Career Lab UG (Haftungsbeschränkt)</p>
-          <p>Julius-Ludowieg-Straße 46, 21073 Hamburg</p>
-          <p>© 2026 SCCG. All rights reserved.</p>
-        </div>
-      </div>
-
-      {/* ── Right panel — login form ── */}
-      <div className="flex-1 flex items-center justify-center p-6 relative z-10">
-        <div className="w-full max-w-[400px]">
-
-          {/* Card */}
-          <div className="rounded-3xl bg-white/[0.055] border border-white/10 backdrop-blur-xl p-8 shadow-2xl">
-
-            {/* Mobile logo */}
-            <div className="flex lg:hidden items-center gap-3 mb-8">
-              <img src="/assets/sccg-logo.png" alt="SCCG Logo" className="h-10 w-auto object-contain" />
-              <p className="text-white font-bold text-sm border-l border-white/10 pl-3">SCCG Partner Portal</p>
             </div>
 
-            <h2 className="text-2xl font-black text-white tracking-tight font-[family-name:var(--font-outfit)]">
-              Welcome back
-            </h2>
-            <p className="text-white/40 text-sm mt-1.5 mb-8">Sign in to your account to continue</p>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Email */}
-              <div>
-                <label className="block text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">
-                  Email Address
-                </label>
-                <div className={`relative rounded-xl transition-all duration-200 ${focusedField === "email" ? "ring-2 ring-indigo-500/50" : ""}`}>
-                  <input
-                    id="email"
-                    type="email"
-                    placeholder="you@partner.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    onFocus={() => setFocusedField("email")}
-                    onBlur={() => setFocusedField(null)}
-                    required
-                    className="w-full h-12 px-4 rounded-xl bg-white/8 border border-white/12 text-white placeholder:text-white/25 text-sm outline-none transition-all focus:bg-white/12 focus:border-indigo-500/50"
-                  />
-                </div>
+            <div>
+              <label htmlFor="password" className="label">
+                Password
+              </label>
+              <div style={{ position: "relative" }}>
+                <LockIcon
+                  size={16}
+                  style={{
+                    position: "absolute",
+                    left: "0.75rem",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    color: "var(--text-muted)",
+                  }}
+                />
+                <input
+                  id="password"
+                  type="password"
+                  className="input"
+                  style={{ paddingLeft: "2.25rem" }}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  autoComplete="current-password"
+                />
               </div>
+            </div>
 
-              {/* Password */}
-              <div>
-                <label className="block text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">
-                  Password
-                </label>
-                <div className={`relative rounded-xl transition-all duration-200 ${focusedField === "password" ? "ring-2 ring-indigo-500/50" : ""}`}>
-                  <input
-                    id="password"
-                    type={showPass ? "text" : "password"}
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    onFocus={() => setFocusedField("password")}
-                    onBlur={() => setFocusedField(null)}
-                    required
-                    className="w-full h-12 px-4 pr-12 rounded-xl bg-white/8 border border-white/12 text-white placeholder:text-white/25 text-sm outline-none transition-all focus:bg-white/12 focus:border-indigo-500/50"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPass(!showPass)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
-                  >
-                    {showPass ? <EyeOff className="h-4.5 w-4.5" /> : <Eye className="h-4.5 w-4.5" />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Account Activated Success Banner */}
-              {approved === "true" && !error && (
-                <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                  <div className="h-4 w-4 rounded-full bg-emerald-500/30 flex items-center justify-center shrink-0 mt-0.5">
-                    <span className="text-emerald-400 text-[10px] font-bold">✓</span>
-                  </div>
-                  <p className="text-sm text-emerald-400">
-                    Account activated successfully! Please sign in to launch your partner console.
-                  </p>
-                </div>
-              )}
-
-              {/* Error */}
-              {error && (
-                <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-red-500/10 border border-red-500/20">
-                  <div className="h-4 w-4 rounded-full bg-red-500/30 flex items-center justify-center shrink-0 mt-0.5">
-                    <span className="text-red-400 text-[10px] font-bold">!</span>
-                  </div>
-                  <p className="text-sm text-red-400">{error}</p>
-                </div>
-              )}
-
-              {/* Forgot password */}
-              <div className="flex justify-end">
-                <a href="/forgot-password" className="text-xs text-indigo-400 hover:text-indigo-300 font-medium transition-colors">
-                  Forgot password?
-                </a>
-              </div>
-
-              {/* Submit */}
-              <button
-                type="submit"
-                disabled={loading}
-                className="relative w-full h-12 rounded-xl font-semibold text-sm text-white overflow-hidden transition-all duration-200 mt-2 group disabled:opacity-70"
-                style={{ background: "linear-gradient(135deg, #6366f1 0%, #7c3aed 100%)" }}
-              >
-                <span className="relative z-10 flex items-center justify-center gap-2">
-                  {loading ? (
-                    <>
-                      <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-                      Signing in…
-                    </>
-                  ) : (
-                    <>
-                      Sign In
-                      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                    </>
-                  )}
-                </span>
-                <div className="absolute inset-0 bg-white/0 group-hover:bg-white/10 transition-all" />
-              </button>
-
-              {/* Divider */}
-              <div className="relative my-6">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-white/10" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-[#0c1024] px-2 text-white/30 backdrop-blur-xl">Or continue with</span>
-                </div>
-              </div>
-
-              {/* Google Button */}
-              <button
-                type="button"
-                onClick={async () => {
-                  setError("");
-                  setLoading(true);
-                  try {
-                    const result = await firebaseGoogleLogin();
-                    if (result.success) {
-                      const idToken = await getFirebaseAuth().currentUser?.getIdToken();
-                      if (idToken) {
-                        const authResult = await firebaseAuthAction(idToken);
-                        if (!authResult.success) {
-                          setError(authResult.error || "Failed to synchronize session.");
-                          setLoading(false);
-                          return;
-                        }
-                      }
-                      // Role-based redirect
-                      if (result.role === "expert") router.push("/expert/dashboard");
-                      else if (result.role === "customer") router.push("/customer/dashboard");
-                      else router.push("/dashboard");
-                      router.refresh();
-                    } else {
-                      setError(result.error || "Google login failed");
-                      setLoading(false);
-                    }
-                  } catch {
-                    setError("Google login failed.");
-                    setLoading(false);
-                  }
+            {error && (
+              <div
+                style={{
+                  padding: "0.75rem",
+                  borderRadius: "var(--radius-md)",
+                  background: "rgba(239, 68, 68, 0.1)",
+                  border: "1px solid rgba(239, 68, 68, 0.2)",
+                  color: "#f87171",
+                  fontSize: "0.8125rem",
                 }}
-                disabled={loading}
-                className="w-full h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center gap-3 font-semibold text-sm text-white/80 transition-all hover:bg-white/10 hover:border-white/20 disabled:opacity-50"
               >
-                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5 font-[family-name:var(--font-outfit)]" />
-                Sign in with Google
-              </button>
-            </form>
+                {error}
+              </div>
+            )}
 
-
-            {/* Create account link */}
-            <p className="text-center text-sm text-white/40 mt-8">
-              Don&apos;t have an account?{" "}
-              <a href="/register" className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors">
-                Create account
-              </a>
-            </p>
-          </div>
+            <button type="submit" className="btn btn-primary" disabled={loading} style={{ width: "100%", marginTop: "0.5rem" }}>
+              {loading ? <Loader2Icon size={16} className="animate-spin" /> : null}
+              {loading ? "Signing in…" : "Sign In"}
+            </button>
+          </form>
         </div>
+
+        <p
+          style={{
+            textAlign: "center",
+            color: "var(--text-muted)",
+            fontSize: "0.75rem",
+            marginTop: "2rem",
+          }}
+        >
+          © {new Date().getFullYear()} SCCG. All rights reserved.
+        </p>
       </div>
     </div>
-  );
-}
-
-export default function LoginPage() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-[#060818] p-6">
-        <div className="animate-pulse flex flex-col items-center gap-3">
-          <div className="h-10 w-10 rounded-full border-2 border-white/20 border-t-white animate-spin" />
-          <p className="text-white/40 text-xs tracking-widest uppercase font-bold">Loading Secure Auth Console...</p>
-        </div>
-      </div>
-    }>
-      <LoginContent />
-    </Suspense>
   );
 }

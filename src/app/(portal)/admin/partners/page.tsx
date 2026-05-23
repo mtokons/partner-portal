@@ -1,146 +1,105 @@
 import { auth } from "@/auth";
+import { getPartners } from "@/lib/db/repositories/partners";
 import { redirect } from "next/navigation";
-import type { SessionUser, TierStatus } from "@/types";
-import { getPartners } from "@/lib/sharepoint";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { RowActions } from "@/components/RowActions";
-import { removePartner, holdPartner } from "@/lib/row-actions";
-import { refreshPartnersAction } from "./actions";
-import { RefreshCw, Award } from "lucide-react";
-import PartnerStatusButtons from "./PartnerStatusButtons";
-import PartnerTierEditModal from "./PartnerTierEditModal";
+import type { SessionUser } from "@/types";
+import { PlusIcon, ShieldIcon, ShieldCheckIcon } from "lucide-react";
+import Link from "next/link";
 
-const statusColor: Record<string, string> = {
-  active: "bg-green-100 text-green-800",
-  pending: "bg-yellow-100 text-yellow-800",
-  suspended: "bg-red-100 text-red-800",
-};
+export const metadata = { title: "Manage Partners" };
 
-const tierStyles: Record<TierStatus, string> = {
-  Silver: "bg-slate-500/10 text-slate-300 border-slate-500/20",
-  Gold: "bg-amber-500/10 text-amber-300 border-amber-500/20",
-  Diamond: "bg-cyan-500/10 text-cyan-300 border-cyan-500/20",
-  Platinum: "bg-indigo-500/10 text-indigo-300 border-indigo-500/20",
-};
-
-export default async function AdminPartnersPage() {
+export default async function PartnersPage() {
   const session = await auth();
-  if (!session?.user) redirect("/login");
-  const user = session.user as SessionUser;
-  if (user.role !== "admin") redirect("/dashboard");
+  const user = session?.user as unknown as SessionUser;
+
+  // Protect route
+  if (!user?.roles?.includes("admin") && user?.role !== "admin") {
+    redirect("/dashboard");
+  }
 
   const partners = await getPartners();
-  const partnerAccounts = partners.filter((p) => p.role === "partner");
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-900">Manage Partners</h1>
-        <form action={async () => { "use server"; await refreshPartnersAction(); }}>
-          <button
-            type="submit"
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:text-gray-900 shadow-sm transition-all"
-          >
-            <RefreshCw className="h-4 w-4" />
-            Refresh
-          </button>
-        </form>
+    <div className="animate-in">
+      <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <h1 className="page-title">Manage Partners</h1>
+          <p className="page-subtitle">
+            View and manage partner agencies in the platform.
+          </p>
+        </div>
+        <button className="btn-primary" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <PlusIcon size={16} /> Add Partner
+        </button>
       </div>
 
-      <div className="grid grid-cols-3 gap-4 text-center">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-3xl font-bold text-green-600">{partnerAccounts.filter((p) => p.status === "active").length}</div>
-            <div className="text-sm text-gray-500 mt-1">Active</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-3xl font-bold text-yellow-600">{partnerAccounts.filter((p) => p.status === "pending").length}</div>
-            <div className="text-sm text-gray-500 mt-1">Pending Approval</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-3xl font-bold text-red-600">{partnerAccounts.filter((p) => p.status === "suspended").length}</div>
-            <div className="text-sm text-gray-500 mt-1">Suspended</div>
-          </CardContent>
-        </Card>
+      <div className="glass-card" style={{ overflow: "hidden" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
+          <thead>
+            <tr style={{ borderBottom: "1px solid var(--border-default)", backgroundColor: "var(--bg-default)" }}>
+              <th style={{ padding: "1rem", fontSize: "0.8125rem", fontWeight: 600, color: "var(--text-muted)" }}>Company</th>
+              <th style={{ padding: "1rem", fontSize: "0.8125rem", fontWeight: 600, color: "var(--text-muted)" }}>Contact</th>
+              <th style={{ padding: "1rem", fontSize: "0.8125rem", fontWeight: 600, color: "var(--text-muted)" }}>Status</th>
+              <th style={{ padding: "1rem", fontSize: "0.8125rem", fontWeight: 600, color: "var(--text-muted)" }}>Onboarding</th>
+              <th style={{ padding: "1rem", fontSize: "0.8125rem", fontWeight: 600, color: "var(--text-muted)" }}>Role</th>
+              <th style={{ padding: "1rem", fontSize: "0.8125rem", fontWeight: 600, color: "var(--text-muted)" }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {partners.length === 0 ? (
+              <tr>
+                <td colSpan={6} style={{ padding: "2rem", textAlign: "center", color: "var(--text-muted)", fontSize: "0.875rem" }}>
+                  No partners found.
+                </td>
+              </tr>
+            ) : (
+              partners.map((partner) => (
+                <tr key={partner.id} style={{ borderBottom: "1px solid var(--border-default)", transition: "background 0.2s" }}>
+                  <td style={{ padding: "1rem", fontSize: "0.875rem", fontWeight: 500 }}>
+                    {partner.company}
+                  </td>
+                  <td style={{ padding: "1rem", fontSize: "0.875rem" }}>
+                    <div style={{ color: "var(--text-default)" }}>{partner.name}</div>
+                    <div style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}>{partner.email}</div>
+                  </td>
+                  <td style={{ padding: "1rem" }}>
+                    <span
+                      style={{
+                        padding: "0.25rem 0.625rem",
+                        borderRadius: "1rem",
+                        fontSize: "0.75rem",
+                        fontWeight: 600,
+                        backgroundColor: partner.status === "active" ? "rgba(16, 185, 129, 0.15)" : "rgba(245, 158, 11, 0.15)",
+                        color: partner.status === "active" ? "var(--accent-emerald)" : "var(--accent-amber)",
+                      }}
+                    >
+                      {partner.status}
+                    </span>
+                  </td>
+                  <td style={{ padding: "1rem" }}>
+                    <span style={{ fontSize: "0.8125rem", color: "var(--text-muted)", textTransform: "capitalize" }}>
+                      {partner.onboardingStatus}
+                    </span>
+                  </td>
+                  <td style={{ padding: "1rem" }}>
+                    {partner.role === "admin" ? (
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", fontSize: "0.75rem", color: "var(--accent-purple)", fontWeight: 600 }}>
+                        <ShieldCheckIcon size={14} /> Admin
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: "0.8125rem", color: "var(--text-muted)" }}>Partner</span>
+                    )}
+                  </td>
+                  <td style={{ padding: "1rem" }}>
+                    <Link href={`/admin/partners/${partner.id}`} className="text-button" style={{ fontSize: "0.8125rem", color: "var(--accent-cyan)", textDecoration: "none" }}>
+                      Edit
+                    </Link>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
-
-      <Card>
-        <CardHeader><CardTitle>All Partners ({partnerAccounts.length})</CardTitle></CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Company</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Level / Tier</TableHead>
-                <TableHead>Commission Share</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Since</TableHead>
-                <TableHead>Actions</TableHead>
-                <TableHead className="w-10"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {partnerAccounts.map((partner) => (
-                <TableRow key={partner.id}>
-                  <TableCell className="font-medium">{partner.name}</TableCell>
-                  <TableCell>{partner.company}</TableCell>
-                  <TableCell className="text-sm">{partner.email}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={`font-semibold ${tierStyles[partner.tierStatus || "Silver"]}`}>
-                      👑 {partner.tierStatus || "Silver"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="font-bold text-gray-800">
-                    {partner.marginPercentage || 15}%
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={statusColor[partner.status] || ""}>{partner.status}</Badge>
-                  </TableCell>
-                  <TableCell className="text-sm text-gray-500">
-                    {new Date(partner.createdAt).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <PartnerStatusButtons partnerId={partner.id} currentStatus={partner.status} />
-                      {partner.status === "active" && (
-                        <PartnerTierEditModal
-                          partnerId={partner.id}
-                          currentTier={partner.tierStatus}
-                          currentMargin={partner.marginPercentage}
-                        />
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <RowActions
-                      entityLabel="partner"
-                      isOnHold={!!partner.isOnHold}
-                      onHold={async () => { "use server"; return holdPartner(partner.id, !partner.isOnHold); }}
-                      onDelete={async () => { "use server"; return removePartner(partner.id); }}
-                      editHref={`/admin/partners/${partner.id}/edit`}
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
-              {partnerAccounts.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={9} className="text-center text-gray-400 py-8">
-                    No partners yet
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
     </div>
   );
 }
