@@ -10,10 +10,41 @@ export default async function PartnerPendingPage() {
   const user = session?.user as SessionUser | undefined;
 
   let isApproved = false;
+  let requireRelogin = false;
+
   if (user?.email) {
     try {
       const partner = await Repository.partners.getByEmail(user.email);
       if (partner && partner.onboardingStatus?.toLowerCase() === "approved") {
+        isApproved = true;
+      }
+
+      // If this is an Admin user but they don't have a partner record, auto-create one
+      // so they can use the Partner Console for testing/management.
+      if (!isApproved && user.role === "admin") {
+        const { createPartner, approvePartnerOnboarding, updatePartnerTierAndMargin } = await import("@/lib/sharepoint");
+        
+        if (!partner) {
+          const newPartner = await createPartner({
+            name: user.name || "Admin",
+            email: user.email,
+            passwordHash: "",
+            role: "partner",
+            status: "active",
+            company: user.company || "SCCG Internal",
+            phone: "",
+            partnerType: "individual",
+            commissionTier: "standard",
+            tierStatus: "Platinum",
+            marginPercentage: 25,
+            onboardingStatus: "approved",
+          });
+          requireRelogin = true;
+        } else {
+          await approvePartnerOnboarding(partner.id);
+          await updatePartnerTierAndMargin(partner.id, "Platinum", 25);
+          requireRelogin = true;
+        }
         isApproved = true;
       }
     } catch (err) {
