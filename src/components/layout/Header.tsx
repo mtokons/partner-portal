@@ -10,6 +10,8 @@ import { logoutAction } from "@/lib/actions";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { getConnectionInfoAction } from "@/app/actions/connection";
+import { signOut } from "next-auth/react";
+import { firebaseLogout } from "@/lib/firebase-auth";
 
 const getTierBadgeStyles = (tier: string) => {
   switch (tier.toLowerCase()) {
@@ -124,9 +126,8 @@ export default function Header({
   }));
 
   async function handleLogout() {
-    await logoutAction();
-    router.push("/login");
-    router.refresh();
+    await firebaseLogout();
+    await signOut({ callbackUrl: "/login" });
   }
 
   return (

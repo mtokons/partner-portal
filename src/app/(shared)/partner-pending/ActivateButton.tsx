@@ -1,22 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { logoutAction } from "@/lib/actions";
+import { signOut } from "next-auth/react";
+import { firebaseLogout } from "@/lib/firebase-auth";
 import { ArrowRight, Sparkles } from "lucide-react";
 
 export default function ActivateButton() {
-  const router = useRouter();
   const [loading, setLoading] = useState(false);
 
   async function handleActivate() {
     setLoading(true);
     try {
-      await logoutAction();
-      router.push("/login?approved=true");
+      await firebaseLogout();
+      await signOut({ callbackUrl: "/login?approved=true" });
     } catch (err) {
       console.error("Failed to activate partner session:", err);
-      router.push("/login");
+      window.location.href = "/login";
     }
   }
 
