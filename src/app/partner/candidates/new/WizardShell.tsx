@@ -44,6 +44,7 @@ export interface WizardState {
   paymentReference?: string;
   uploadedDocuments: { documentType: string; fileUrl: string; fileName: string }[];
   submissionResult?: { submissionId: string; candidateId: string };
+  submissionId: string;
 }
 
 const STEP_LABELS = [
@@ -71,6 +72,7 @@ const INITIAL_STATE: WizardState = {
   selectedServices: [],
   paymentOption: "pay-later",
   uploadedDocuments: [],
+  submissionId: "",
 };
 
 interface WizardShellProps {
@@ -81,7 +83,10 @@ interface WizardShellProps {
 
 export function WizardShell({ partnerMargin, partnerId, products }: WizardShellProps) {
   const router = useRouter();
-  const [state, setState] = useState<WizardState>(INITIAL_STATE);
+  const [state, setState] = useState<WizardState>(() => ({
+    ...INITIAL_STATE,
+    submissionId: typeof crypto !== "undefined" ? crypto.randomUUID() : "",
+  }));
 
   function onNext(partial: Partial<WizardState> & { targetStep?: number }) {
     setState((prev) => {
@@ -209,7 +214,7 @@ export function WizardShell({ partnerMargin, partnerId, products }: WizardShellP
         {currentStep === 6 && (
           <Step6Documents
             workflowCategory={state.personalInfo.workflowCategory}
-            candidateId={state.existingCandidateId}
+            candidateId={state.existingCandidateId || state.submissionId}
             candidateName={state.personalInfo.fullName}
             existingDocuments={state.existingCandidateId ? state.uploadedDocuments : undefined}
             onNext={(uploadedDocuments) => onNext({ uploadedDocuments })}
@@ -246,7 +251,10 @@ export function WizardShell({ partnerMargin, partnerId, products }: WizardShellP
                 View Candidate →
               </a>
               <button
-                onClick={() => setState(INITIAL_STATE)}
+                onClick={() => setState({
+                  ...INITIAL_STATE,
+                  submissionId: typeof crypto !== "undefined" ? crypto.randomUUID() : "",
+                })}
                 className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted transition-colors"
               >
                 Register Another

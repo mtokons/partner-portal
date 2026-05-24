@@ -237,6 +237,7 @@ export interface WizardCandidateInput {
   nationalId?: string;
   nationality: string;
   country: string;
+  submissionId: string;
   selectedServices: {
     servicePricingId: string;
     serviceName: string;
@@ -270,7 +271,7 @@ export async function finalizeRegistrationAction(
     });
 
     const sccgId = await generatePartnerCandidateId(partnerCode, state.workflowCategory);
-    const submissionId = crypto.randomUUID();
+    const submissionId = state.submissionId || crypto.randomUUID();
 
     const paymentStatus: CandidatePaymentStatus =
       state.paymentOption === "pay-now" ? "deposit-paid" : "pending";
@@ -329,6 +330,26 @@ export async function finalizeRegistrationAction(
       partnerId,
       workflowCategory: state.workflowCategory,
     });
+
+    // Rename document folder from submissionId to actual candidateId
+    try {
+      const { getGraphClient, resolveSiteId } = await import("@/lib/graph");
+      const client = await getGraphClient();
+      const siteId = await resolveSiteId();
+      
+      const sanitizedName = state.fullName.replace(/[^a-zA-Z0-9_-]/g, " ").trim();
+      const oldFolderName = `${sanitizedName} - ${submissionId}`;
+      const newFolderName = `${sanitizedName} - ${candidate.id}`;
+      
+      const patchUrl = `/sites/${siteId}/drive/root:/CandidateDocs/${oldFolderName}`;
+      await client.api(patchUrl).patch({
+        name: newFolderName
+      });
+    } catch (err: any) {
+      if (err.statusCode !== 404) {
+        console.error("Failed to rename document folder:", err);
+      }
+    }
 
     revalidatePath("/partner/candidates");
 

@@ -41,6 +41,7 @@ export function Step7Finalizer({
           nationalId: personalInfo.nationalId,
           nationality: personalInfo.nationality,
           country: personalInfo.country,
+          submissionId: state.submissionId,
           selectedServices,
           partnerMarginPercentage: partnerMargin,
           paymentOption,

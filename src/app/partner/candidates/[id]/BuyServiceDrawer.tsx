@@ -65,7 +65,7 @@ export default function BuyServiceDrawer({
 
   const finalPrice = customPrice !== "" ? Number(customPrice) : defaultPrice;
   const marginPercentage = Number(candidateMargin || 0);
-  const candidateTotal = finalPrice * quantity * (1 + marginPercentage / 100);
+  const candidateTotal = finalPrice * quantity;
 
   const handleSelectProduct = (prod: Product) => {
     setSelectedProduct(prod);
@@ -202,7 +202,7 @@ export default function BuyServiceDrawer({
                   </div>
                   <div className="p-4 flex items-center justify-between text-sm font-bold bg-primary/10">
                     <span className="text-foreground">Total Client Amount</span>
-                    <span className="text-primary text-base">€{candidateTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                    <span className="text-primary text-base">€{(finalPrice * quantity).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
                   </div>
                 </div>
               </div>
