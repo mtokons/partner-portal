@@ -237,7 +237,6 @@ export interface WizardCandidateInput {
   nationalId?: string;
   nationality: string;
   country: string;
-  submissionId: string;
   selectedServices: {
     servicePricingId: string;
     serviceName: string;
@@ -254,7 +253,7 @@ export interface WizardCandidateInput {
 export async function finalizeRegistrationAction(
   state: WizardCandidateInput,
   partnerId: string
-): Promise<{ submissionId: string; candidateId: string } | { error: string }> {
+): Promise<{ candidateId: string } | { error: string }> {
   try {
     const user = await requirePermission("candidate.create");
     const partner = await getPartnerByEmail(user.email!);
@@ -271,7 +270,6 @@ export async function finalizeRegistrationAction(
     });
 
     const sccgId = await generatePartnerCandidateId(partnerCode, state.workflowCategory);
-    const submissionId = state.submissionId || crypto.randomUUID();
 
     const paymentStatus: CandidatePaymentStatus =
       state.paymentOption === "pay-now" ? "deposit-paid" : "pending";
@@ -325,35 +323,14 @@ export async function finalizeRegistrationAction(
     await triggerFlow("candidate-registered", {
       candidateId: candidate.id,
       sccgId,
-      submissionId,
       fullName: state.fullName,
       partnerId,
       workflowCategory: state.workflowCategory,
     });
 
-    // Rename document folder from submissionId to actual candidateId
-    try {
-      const { getGraphClient, resolveSiteId } = await import("@/lib/graph");
-      const client = await getGraphClient();
-      const siteId = await resolveSiteId();
-      
-      const sanitizedName = state.fullName.replace(/[^a-zA-Z0-9_-]/g, " ").trim();
-      const oldFolderName = `${sanitizedName} - ${submissionId}`;
-      const newFolderName = `${sanitizedName} - ${candidate.id}`;
-      
-      const patchUrl = `/sites/${siteId}/drive/root:/CandidateDocs/${oldFolderName}`;
-      await client.api(patchUrl).patch({
-        name: newFolderName
-      });
-    } catch (err: any) {
-      if (err.statusCode !== 404) {
-        console.error("Failed to rename document folder:", err);
-      }
-    }
-
     revalidatePath("/partner/candidates");
 
-    return { submissionId, candidateId: candidate.id };
+    return { candidateId: candidate.id };
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Registration failed" };
   }

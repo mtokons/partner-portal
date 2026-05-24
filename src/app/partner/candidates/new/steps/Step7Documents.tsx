@@ -36,23 +36,21 @@ interface UploadedDoc {
   fileName: string;
 }
 
-interface Step6DocumentsProps {
+interface Step7DocumentsProps {
   workflowCategory: WorkflowCategory;
   candidateId?: string;
   candidateName?: string;
   existingDocuments?: UploadedDoc[];
   onNext: (docs: UploadedDoc[]) => void;
-  onBack: () => void;
 }
 
-export function Step6Documents({
+export function Step7Documents({
   workflowCategory,
   candidateId,
   candidateName,
   existingDocuments,
   onNext,
-  onBack,
-}: Step6DocumentsProps) {
+}: Step7DocumentsProps) {
   const requiredDocs = REQUIRED_DOCS[workflowCategory];
   const optionalDocs = OPTIONAL_DOCS[workflowCategory] || [];
   const allDocs = [...requiredDocs, ...optionalDocs];
@@ -193,19 +191,14 @@ export function Step6Documents({
         </div>
       )}
 
-      <div className="flex items-center justify-between pt-1">
-        <button
-          onClick={onBack}
-          className="px-4 py-2 rounded-xl border text-sm font-medium hover:bg-muted transition-colors"
-        >
-          ← Back
-        </button>
+      <div className="flex items-center justify-end pt-4">
         <button
           onClick={() => onNext(Array.from(uploaded.values()))}
           disabled={!mandatoryUploaded}
-          className="px-6 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+          className="px-6 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center gap-2"
         >
-          Next →
+          <CheckCircle2 className="w-4 h-4" />
+          Finish Registration
         </button>
       </div>
     </div>

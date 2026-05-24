@@ -10,8 +10,8 @@ import { Step2PersonalInfo } from "./steps/Step2PersonalInfo";
 import { Step3ServicePackage } from "./steps/Step3ServicePackage";
 import { Step4FinancialSplit } from "./steps/Step4FinancialSplit";
 import { Step5Payment } from "./steps/Step5Payment";
-import { Step6Documents } from "./steps/Step6Documents";
-import { Step7Finalizer } from "./steps/Step7Finalizer";
+import { Step6ReviewSubmit } from "./steps/Step6ReviewSubmit";
+import { Step7Documents } from "./steps/Step7Documents";
 
 export interface SelectedService {
   servicePricingId: string;
@@ -43,8 +43,7 @@ export interface WizardState {
   paymentMethod?: string;
   paymentReference?: string;
   uploadedDocuments: { documentType: string; fileUrl: string; fileName: string }[];
-  submissionResult?: { submissionId: string; candidateId: string };
-  submissionId: string;
+  submissionResult?: { candidateId: string };
 }
 
 const STEP_LABELS = [
@@ -53,8 +52,8 @@ const STEP_LABELS = [
   "Services",
   "Financial Split",
   "Payment",
-  "Documents",
   "Submit",
+  "Documents",
 ];
 
 const INITIAL_STATE: WizardState = {
@@ -72,7 +71,6 @@ const INITIAL_STATE: WizardState = {
   selectedServices: [],
   paymentOption: "pay-later",
   uploadedDocuments: [],
-  submissionId: "",
 };
 
 interface WizardShellProps {
@@ -83,10 +81,7 @@ interface WizardShellProps {
 
 export function WizardShell({ partnerMargin, partnerId, products }: WizardShellProps) {
   const router = useRouter();
-  const [state, setState] = useState<WizardState>(() => ({
-    ...INITIAL_STATE,
-    submissionId: typeof crypto !== "undefined" ? crypto.randomUUID() : "",
-  }));
+  const [state, setState] = useState<WizardState>(INITIAL_STATE);
 
   function onNext(partial: Partial<WizardState> & { targetStep?: number }) {
     setState((prev) => {
@@ -212,25 +207,23 @@ export function WizardShell({ partnerMargin, partnerId, products }: WizardShellP
           />
         )}
         {currentStep === 6 && (
-          <Step6Documents
-            workflowCategory={state.personalInfo.workflowCategory}
-            candidateId={state.existingCandidateId || state.submissionId}
-            candidateName={state.personalInfo.fullName}
-            existingDocuments={state.existingCandidateId ? state.uploadedDocuments : undefined}
-            onNext={(uploadedDocuments) => onNext({ uploadedDocuments })}
-            onBack={onBack}
-          />
-        )}
-        {currentStep === 7 && (
-          <Step7Finalizer
+          <Step6ReviewSubmit
             state={state}
             partnerMargin={partnerMargin}
             partnerId={partnerId}
             onDone={(result) => {
-              setState((prev) => ({ ...prev, submissionResult: result, step: 8 }));
-              router.push("/partner/candidates");
+              setState((prev) => ({ ...prev, submissionResult: result, step: 7 }));
             }}
             onBack={onBack}
+          />
+        )}
+        {currentStep === 7 && (
+          <Step7Documents
+            workflowCategory={state.personalInfo.workflowCategory}
+            candidateId={state.existingCandidateId || state.submissionResult?.candidateId}
+            candidateName={state.personalInfo.fullName}
+            existingDocuments={state.existingCandidateId ? state.uploadedDocuments : undefined}
+            onNext={(uploadedDocuments) => onNext({ uploadedDocuments })}
           />
         )}
         {currentStep === 8 && state.submissionResult && (
@@ -238,9 +231,9 @@ export function WizardShell({ partnerMargin, partnerId, products }: WizardShellP
             <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto" />
             <h2 className="text-xl font-bold">Candidate Registered!</h2>
             <p className="text-muted-foreground text-sm">
-              Submission ID:{" "}
+              Candidate ID:{" "}
               <span className="font-mono font-bold text-foreground">
-                {state.submissionResult.submissionId}
+                {state.submissionResult.candidateId}
               </span>
             </p>
             <div className="flex items-center justify-center gap-3 pt-2">
@@ -251,10 +244,7 @@ export function WizardShell({ partnerMargin, partnerId, products }: WizardShellP
                 View Candidate →
               </a>
               <button
-                onClick={() => setState({
-                  ...INITIAL_STATE,
-                  submissionId: typeof crypto !== "undefined" ? crypto.randomUUID() : "",
-                })}
+                onClick={() => setState(INITIAL_STATE)}
                 className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted transition-colors"
               >
                 Register Another

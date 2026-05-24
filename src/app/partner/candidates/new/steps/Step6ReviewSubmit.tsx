@@ -6,7 +6,7 @@ import { finalizeRegistrationAction } from "@/app/partner/candidates/actions";
 import type { WizardState } from "../WizardShell";
 import type { PartnerMargin } from "@/types";
 
-interface Step7FinalizerProps {
+interface Step6ReviewSubmitProps {
   state: WizardState;
   partnerMargin: PartnerMargin;
   partnerId: string;
@@ -14,13 +14,13 @@ interface Step7FinalizerProps {
   onBack: () => void;
 }
 
-export function Step7Finalizer({
+export function Step6ReviewSubmit({
   state,
   partnerMargin,
   partnerId,
   onDone,
   onBack,
-}: Step7FinalizerProps) {
+}: Step6ReviewSubmitProps) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const { personalInfo, selectedServices, financialSplit, paymentOption, paymentMethod, paymentReference } = state;
@@ -41,7 +41,6 @@ export function Step7Finalizer({
           nationalId: personalInfo.nationalId,
           nationality: personalInfo.nationality,
           country: personalInfo.country,
-          submissionId: state.submissionId,
           selectedServices,
           partnerMarginPercentage: partnerMargin,
           paymentOption,
