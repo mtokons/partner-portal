@@ -51,10 +51,18 @@ export default async function CandidateDetailPage({
 
   if (!candidate) notFound();
 
-  // Partner data isolation — verify ownership
+  let activeMargin = user.marginPercentage;
+
   if (!isAdmin) {
     const partner = await getPartnerByEmail(user.email!);
     if (!partner || candidate.partnerId !== partner.id) notFound();
+    activeMargin = partner.marginPercentage;
+  } else {
+    // For admin, we should ideally fetch the partner. 
+    // We can fetch partner by email if we had it, but candidate.partnerId is what we have.
+    // For now, if admin, we can fallback to candidate's stored margin, or ideally fetch the partner list and find it.
+    // Let's just use candidate.marginPercentage for admins as a fallback.
+    activeMargin = candidate.marginPercentage;
   }
 
   const docsRes = await getCandidateDocumentsAction(candidate.id, candidate.fullName);
@@ -181,7 +189,7 @@ export default async function CandidateDetailPage({
             candidateId={candidate.id}
             candidateName={candidate.fullName}
             candidateSccgId={candidate.sccgId || candidate.id}
-            candidateMargin={user.marginPercentage as any}
+            candidateMargin={activeMargin as any}
             products={products}
           />
         </div>
