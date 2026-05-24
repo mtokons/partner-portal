@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import type { SessionUser } from "@/types";
 import { getPartnerByEmail, getProducts } from "@/lib/sharepoint";
-import { getTierFromCommission } from "@/lib/engine/financial-split";
+
 import { WizardShell } from "./WizardShell";
 
 export default async function RegisterCandidatePage() {
@@ -13,7 +13,7 @@ export default async function RegisterCandidatePage() {
   const partner = await getPartnerByEmail(user.email!);
   if (!partner) redirect("/partner-pending");
 
-  const { margin } = getTierFromCommission(partner.commissionTier ?? "standard");
+  const margin = partner.marginPercentage || 15;
   const products = await getProducts();
 
   return (

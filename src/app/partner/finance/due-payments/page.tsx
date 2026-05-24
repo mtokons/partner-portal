@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import type { SessionUser } from "@/types";
 import { getPartnerByEmail, getCandidates, getInvoices } from "@/lib/sharepoint";
-import { getTierFromCommission } from "@/lib/engine/financial-split";
+
 import { format, parseISO } from "date-fns";
 import { AlertTriangle, CreditCard, Clock } from "lucide-react";
 import Link from "next/link";
@@ -20,7 +20,7 @@ export default async function DuePaymentsPage() {
     getInvoices(partner.id),
   ]);
 
-  const { margin } = getTierFromCommission(partner.commissionTier ?? "standard");
+  const margin = partner.marginPercentage || 15;
 
   // Candidates with outstanding balance (partially paid or pending)
   const dueCandidates = candidates.filter(

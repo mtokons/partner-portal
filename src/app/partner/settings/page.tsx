@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import type { SessionUser } from "@/types";
 import { getPartnerByEmail } from "@/lib/sharepoint";
-import { getTierFromCommission } from "@/lib/engine/financial-split";
+
 import { Settings, Award, Shield, User } from "lucide-react";
 import SettingsForm from "./SettingsForm";
 
@@ -14,7 +14,8 @@ export default async function PartnerSettingsPage() {
   const partner = await getPartnerByEmail(user.email!);
   if (!partner) redirect("/partner-pending");
 
-  const { tierStatus, margin } = getTierFromCommission(partner.commissionTier ?? "standard");
+  const tierStatus = partner.tierStatus || "Silver";
+  const margin = partner.marginPercentage || 15;
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">

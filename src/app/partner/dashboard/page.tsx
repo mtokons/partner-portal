@@ -3,7 +3,7 @@ import { auth } from "@/auth";
 import type { SessionUser } from "@/types";
 import { getPartnerByEmail } from "@/lib/sharepoint";
 import { getCandidates, getPayouts, getCandidateTasksByPartner, getSalesOffers, getInvoices } from "@/lib/sharepoint";
-import { getTierFromCommission } from "@/lib/engine/financial-split";
+
 import { RevenueCard } from "@/components/partner/RevenueCard";
 import { CandidateStatsCard } from "@/components/partner/CandidateStatsCard";
 import { TasksWidget } from "@/components/partner/TasksWidget";
@@ -42,9 +42,8 @@ export default async function PartnerDashboardPage() {
     getInvoices(partnerId),
   ]);
 
-  const { tierStatus, margin } = getTierFromCommission(
-    partner.commissionTier ?? "standard"
-  );
+  const tierStatus = partner.tierStatus || "Silver";
+  const margin = partner.marginPercentage || 15;
 
   // Quick stats for overview bar
   const pendingOffers = offers.filter((o) => o.status === "sent" || o.status === "draft").length;

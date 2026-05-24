@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import type { SessionUser } from "@/types";
 import { getPartnerByEmail, getPayouts, getInvoices, getCandidates } from "@/lib/sharepoint";
-import { getTierFromCommission } from "@/lib/engine/financial-split";
+
 import { format, parseISO, subMonths, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import { TrendingUp, DollarSign, ArrowUpRight, PieChart } from "lucide-react";
 import Link from "next/link";
@@ -21,7 +21,8 @@ export default async function RevenueBreakdownPage() {
     getCandidates(partner.id),
   ]);
 
-  const { tierStatus, margin } = getTierFromCommission(partner.commissionTier ?? "standard");
+  const tierStatus = partner.tierStatus || "Silver";
+  const margin = partner.marginPercentage || 15;
 
   // Revenue calculations — primary source is candidates' partnerShare/sccgShare
   const totalGross = candidates.reduce((s, c) => s + (c.totalServiceFee || 0), 0)
