@@ -7,7 +7,7 @@
 
 import { graphPost } from "./graph";
 
-const DEFAULT_SENDER = process.env.O365_SENDER_USER_ID || "portal@sccg.com";
+const DEFAULT_SENDER = process.env.O365_SENDER_USER_ID || "admin@mysccg.de";
 
 export interface SendEmailParams {
   to: string;
