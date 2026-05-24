@@ -348,7 +348,6 @@ export default function FinanceLedgerClient({
                         >
                           <option value="Unpaid">Unpaid</option>
                           <option value="Paid to SCCG">Paid to SCCG</option>
-                          <option value="Paid to Partner">Paid to Partner</option>
                           <option value="Fully Settled">Fully Settled</option>
                         </select>
                       </td>

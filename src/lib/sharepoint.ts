@@ -529,7 +529,7 @@ export async function createPartner(data: Omit<Partner, "id" | "createdAt">): Pr
       [PART_COL.company]: data.company,
       [PART_COL.phone]: data.phone,
       [PART_COL.partnerType]: data.partnerType,
-      [PART_COL.partnerCode]: data.partnerCode || "",
+      [PART_COL.partnerCode]: data.partnerCode || `PRT-${crypto.randomUUID().split("-")[0].toUpperCase()}`,
       [PART_COL.commissionTier]: data.commissionTier,
       [PART_COL.tierStatus]: data.tierStatus,
       [PART_COL.marginPercentage]: data.marginPercentage,
