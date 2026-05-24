@@ -109,6 +109,8 @@ const LISTS = [
       col("PartnerType", ch(["individual", "institutional"])),
       col("PartnerCode", t()),
       col("CommissionTier", ch(["standard", "premium", "enterprise"])),
+      col("TierStatus", t()),
+      col("MarginPercentage", num()),
       col("TaxId", t()),
       col("LegalEntityName", t()),
       col("OnboardingStatus", ch(["application", "review", "approved", "rejected"])),
