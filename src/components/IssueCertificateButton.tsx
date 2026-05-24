@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Award, Loader2, Check } from "lucide-react";
 import { useState } from "react";
-import { issueCertificate } from "@/app/(portal)/admin/school/actions";
+import { issueCertificate } from "@/app/admin/school/actions";
 import { generateCertificatePDF } from "@/lib/pdf-generator";
 import type { SchoolEnrollment, SchoolCertificate, CertificateType } from "@/types";
 import { cn } from "@/lib/utils";

@@ -414,14 +414,30 @@ export default function RegisterPage() {
                 onClick={async () => {
                   setError("");
                   setLoading(true);
-                  const result = await firebaseGoogleSignup(form.role, form.company, form.specialization);
-                  if (result.success) {
-                    const idToken = await getFirebaseAuth().currentUser?.getIdToken();
-                    if (idToken) await firebaseAuthAction(idToken);
-                    router.push("/dashboard");
-                    router.refresh();
-                  } else {
-                    setError(result.error || "Google registration failed");
+                  try {
+                    const result = await firebaseGoogleSignup(form.role, form.company, form.specialization);
+                    if (result.success) {
+                      try {
+                        const idToken = await getFirebaseAuth().currentUser?.getIdToken();
+                        if (idToken) await firebaseAuthAction(idToken);
+                      } catch { /* session creation may fail, but account exists */ }
+                      setSuccess(true);
+                      setLoading(false);
+                      router.push("/dashboard");
+                      router.refresh();
+                    } else {
+                      setError(result.error || "Google registration failed");
+                      setLoading(false);
+                    }
+                  } catch (err: unknown) {
+                    const msg = err instanceof Error ? err.message : "Google popup was blocked or closed";
+                    if (msg.includes("popup-closed") || msg.includes("cancelled")) {
+                      setError("Google sign-in popup was closed. Please try again.");
+                    } else if (msg.includes("popup-blocked")) {
+                      setError("Popup was blocked by your browser. Please allow popups for this site and try again.");
+                    } else {
+                      setError(msg);
+                    }
                     setLoading(false);
                   }
                 }}

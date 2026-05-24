@@ -11,8 +11,8 @@ export type TierStatus = "Silver" | "Gold" | "Diamond" | "Platinum";
 export type PartnerMargin = 8 | 15 | 20 | 25;
 export type OrderStatus = "pending" | "confirmed" | "shipped" | "delivered" | "cancelled";
 export type InstallmentStatus = "upcoming" | "paid" | "overdue";
-export type InvoiceStatus = "draft" | "sent" | "paid" | "overdue";
-export type TransactionType = "purchase" | "payment" | "refund";
+export type InvoiceStatus = "draft" | "sent" | "paid" | "overdue" | "cancelled";
+export type TransactionType = "purchase" | "payment" | "refund" | "refund-request";
 export type ActivityType = "order" | "client" | "payment" | "installment" | "login" | "expense" | "invoice";
 
 export interface Partner {
@@ -53,9 +53,10 @@ export interface Product {
   // Base B2B reference pricing/stock
   price: number;
   stock: number;
-  category: string[];
+  category: string;
   imageUrl?: string;
   // Sales Shop extensions
+  contentType?: string;
   discount?: number;             // Discount value
   discountType?: "fixed" | "percent";
   discountExpiry?: string;       // ISO date
@@ -178,6 +179,7 @@ export interface Invoice {
   clientId: string;
   clientName?: string;
   orderId?: string;
+  invoiceNumber?: string;
   amount: number;
   /** Equivalent amount in EUR (optional, computed from BDT) */
   amountEur?: number;
@@ -209,6 +211,8 @@ export interface ProfitLoss {
 }
 
 // NextAuth session extension
+export type ConsoleType = "partner" | "admin" | "student" | "customer" | "expert";
+
 export interface SessionUser {
   amountEur?: number;
   conversionRate?: number;
@@ -219,12 +223,18 @@ export interface SessionUser {
   role: UserRole;
   /** All active roles — multi-role support */
   roles: string[];
+  /** Which console the user is redirected to on login */
+  primaryConsole: ConsoleType;
   partnerId: string;
   company: string;
   customerId?: string;
   expertId?: string;
   partnerType?: PartnerType;
   coinBalance?: number;
+  /** Partner tier status: Silver, Gold, Diamond, Platinum */
+  tierStatus?: TierStatus;
+  /** Partner margin percentage: 8, 15, 20, 25 */
+  marginPercentage?: PartnerMargin;
 }
 
 // ============================================================
@@ -1538,7 +1548,8 @@ export type CandidateStatus =
 export type CandidatePaymentStatus =
   | "pending"
   | "deposit-paid"
-  | "fully-paid";
+  | "fully-paid"
+  | "refunded";
 
 export interface Candidate {
   id: string;

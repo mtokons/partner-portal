@@ -1,9 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import type { SessionUser } from "@/types";
-import { getNotifications } from "@/lib/sharepoint";
-import CustomerSidebar from "@/components/layout/CustomerSidebar";
-import Header from "@/components/layout/Header";
+import ConsoleShell from "@/components/layout/ConsoleShell";
 import NotificationsLiveBridge from "@/components/providers/NotificationsLiveBridge";
 
 export default async function CustomerLayout({ children }: { children: React.ReactNode }) {
@@ -14,22 +12,17 @@ export default async function CustomerLayout({ children }: { children: React.Rea
   const userRoles = user.roles || [user.role];
   if (!userRoles.includes("customer")) redirect("/customer-login");
 
-  const notifications = await getNotifications(user.id);
-  const unreadCount = notifications.filter((n) => !n.read).length;
-
   return (
-    <div className="min-h-screen bg-background">
+    <ConsoleShell
+      console="customer"
+      roles={userRoles}
+      userName={user.name || "Customer"}
+      company={user.company}
+      overdueCount={0}
+      unpaidInvoicesCount={0}
+    >
       <NotificationsLiveBridge />
-      <CustomerSidebar unreadCount={unreadCount} />
-      <Header
-        userName={user.name || "Customer"}
-        company={user.company || ""}
-        overdueCount={0}
-        unpaidInvoicesCount={0}
-      />
-      <main className="ml-64 mt-16 p-6">
-        {children}
-      </main>
-    </div>
+      {children}
+    </ConsoleShell>
   );
 }

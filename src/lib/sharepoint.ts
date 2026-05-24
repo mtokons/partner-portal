@@ -13,6 +13,7 @@ import type {
   SchoolCertificate,
   Candidate, CandidateService, CandidateTask,
   HelpdeskTicket, HelpdeskMessage,
+  TierStatus, PartnerMargin,
 } from "@/types";
 
 const isProduction = process.env.VERCEL_ENV === "production" || process.env.NODE_ENV === "production";
@@ -340,7 +341,9 @@ const UR_COL = { // User Roles list
 const CW_COL = { // Coin Wallets
   userId: "UserId",
   userName: "UserName",
+  userEmail: "UserEmail",
   balance: "Balance",
+  currency: "Currency",
   totalEarned: "TotalEarned",
   totalSpent: "TotalSpent",
   status: "Status",
@@ -592,9 +595,7 @@ export async function getProducts(): Promise<Product[]> {
           retailPriceBdt: Number(f[PR_COL.retailPriceBdt] || 0),
           price: Number(f[PR_COL.price] || f[PR_COL.retailPriceBdt] || 0),
           stock: Number(f[PR_COL.stock] || 0),
-          category: Array.isArray(f[PR_COL.category])
-            ? f[PR_COL.category].map(String)
-            : f[PR_COL.category] ? String(f[PR_COL.category]).split(",").map(s => s.trim()).filter(Boolean) : [],
+          category: String(f[PR_COL.category] || ""),
           imageUrl: f[PR_COL.imageUrl] ? String(f[PR_COL.imageUrl]) : undefined,
           discount: f[PR_COL.discount] ? Number(f[PR_COL.discount]) : undefined,
           discountType: f[PR_COL.discountType] ? String(f[PR_COL.discountType]) as "fixed" | "percent" : undefined,
@@ -1273,14 +1274,14 @@ export async function getCustomerPackages(customerId?: string, partnerId?: strin
       return {
         id: String(item.id),
         customerId: String(f[CP_COL.customerId] || ""),
-        clientName: String(f[CP_COL.clientName] || ""),
+        customerName: String(f[CP_COL.customerName] || ""),
         partnerId: String(f[CP_COL.partnerId] || ""),
         servicePackageId: String(f[CP_COL.packageId] || ""),
         packageName: String(f[CP_COL.packageName] || ""),
         expertId: f[CP_COL.expertId] ? String(f[CP_COL.expertId]) : undefined,
         expertName: f[CP_COL.expertName] ? String(f[CP_COL.expertName]) : undefined,
         status: String(f[CP_COL.status] || "active") as any,
-        completedSessions: Number(f[CP_COL.totalSessions] || 0) - Number(f[CP_COL.sessionsRemaining] || 0),
+        completedSessions: Number(f[CP_COL.completedSessions] || 0),
         totalSessions: Number(f[CP_COL.totalSessions] || 0),
         totalAmount: Number(f[CP_COL.totalAmount] || 0),
         amountPaid: Number(f[CP_COL.amountPaid] || 0),
@@ -1301,14 +1302,14 @@ export async function getCustomerPackageById(id: string): Promise<CustomerPackag
     return {
       id: String(res.id),
       customerId: String(f[CP_COL.customerId] || ""),
-      clientName: String(f[CP_COL.clientName] || ""),
+      customerName: String(f[CP_COL.customerName] || ""),
       partnerId: String(f[CP_COL.partnerId] || ""),
       servicePackageId: String(f[CP_COL.packageId] || ""),
       packageName: String(f[CP_COL.packageName] || ""),
       expertId: f[CP_COL.expertId] ? String(f[CP_COL.expertId]) : undefined,
       expertName: f[CP_COL.expertName] ? String(f[CP_COL.expertName]) : undefined,
       status: String(f[CP_COL.status] || "active") as any,
-      completedSessions: Number(f[CP_COL.totalSessions] || 0) - Number(f[CP_COL.sessionsRemaining] || 0),
+      completedSessions: Number(f[CP_COL.completedSessions] || 0),
       totalSessions: Number(f[CP_COL.totalSessions] || 0),
       totalAmount: Number(f[CP_COL.totalAmount] || 0),
       amountPaid: Number(f[CP_COL.amountPaid] || 0),
@@ -3939,6 +3940,7 @@ const CANDTASK_COL = {
   candidateName: "CandidateName",
   taskCategory: "TaskCategory",
   workflowCategory: "WorkflowCategory",
+  tags: "Tags",
 } as const;
 
 function mapCandidateTask(item: { id: string; fields: Record<string, unknown> }): CandidateTask {

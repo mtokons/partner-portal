@@ -1,0 +1,263 @@
+"use client";
+
+import { useState, useMemo, useEffect, useCallback } from "react";
+import type { WorkflowCategory, Product } from "@/types";
+import type { WizardState } from "../WizardShell";
+import { checkDuplicateCandidateAction, checkInstitutionalDuplicateAction } from "@/app/partner/candidates/actions";
+import { AlertTriangle, Shield, X } from "lucide-react";
+
+type PersonalInfo = WizardState["personalInfo"];
+
+interface Step2PersonalInfoProps {
+  initialData: PersonalInfo;
+  products: Product[];
+  onNext: (data: PersonalInfo) => void;
+  onBack: () => void;
+}
+
+const REQUIRED: (keyof PersonalInfo)[] = [
+  "fullName", "dateOfBirth", "email", "phone", "nationality", "country", "workflowCategory",
+];
+
+export function Step2PersonalInfo({ initialData, products, onNext, onBack }: Step2PersonalInfoProps) {
+  const categories = useMemo(() => {
+    const cats = Array.from(new Set(products.flatMap(p => p.category).filter(Boolean)));
+    return cats.length > 0 ? (cats as WorkflowCategory[]) : ["Training", "Ausbildung", "Student Visa", "Opportunity Card"] as WorkflowCategory[];
+  }, [products]);
+
+  const [form, setForm] = useState<PersonalInfo>(() => ({
+    ...initialData,
+    workflowCategory: initialData.workflowCategory || categories[0],
+  }));
+  const [errors, setErrors] = useState<Partial<Record<keyof PersonalInfo, string>>>({});
+  const [duplicateWarning, setDuplicateWarning] = useState<{
+    matches: Array<{ id: string; sccgId: string; fullName: string; matchReason: string; isOwnCandidate: boolean; workflowCategory: string }>;
+  } | null>(null);
+  const [institutionalWarning, setInstitutionalWarning] = useState<string | null>(null);
+  const [checkingDuplicates, setCheckingDuplicates] = useState(false);
+  const [duplicateAcknowledged, setDuplicateAcknowledged] = useState(false);
+
+  function set<K extends keyof PersonalInfo>(key: K, value: PersonalInfo[K]) {
+    setForm((prev) => ({ ...prev, [key]: value }));
+    if (errors[key]) setErrors((prev) => ({ ...prev, [key]: undefined }));
+    // Reset duplicate state when key fields change
+    if (["fullName", "email", "dateOfBirth"].includes(key as string)) {
+      setDuplicateWarning(null);
+      setInstitutionalWarning(null);
+      setDuplicateAcknowledged(false);
+    }
+  }
+
+  // Auto-check duplicates when name + email + DOB are filled
+  const checkDuplicates = useCallback(async () => {
+    if (!form.fullName.trim() || !form.email.trim() || !form.dateOfBirth) return;
+    setCheckingDuplicates(true);
+    try {
+      const result = await checkDuplicateCandidateAction({
+        fullName: form.fullName,
+        email: form.email,
+        dateOfBirth: form.dateOfBirth,
+        passportNumber: form.passportNumber,
+        nationalId: form.nationalId,
+      });
+      if (result.hasDuplicates) {
+        setDuplicateWarning({ matches: result.matches });
+      } else {
+        setDuplicateWarning(null);
+      }
+    } catch {
+      // Silently ignore
+    } finally {
+      setCheckingDuplicates(false);
+    }
+  }, [form.fullName, form.email, form.dateOfBirth, form.passportNumber, form.nationalId]);
+
+  // Trigger duplicate check after user fills name + email + DOB
+  useEffect(() => {
+    if (!form.fullName.trim() || !form.email.trim() || !form.dateOfBirth) return;
+    const timer = setTimeout(checkDuplicates, 800);
+    return () => clearTimeout(timer);
+  }, [form.fullName, form.email, form.dateOfBirth, checkDuplicates]);
+
+  function validate() {
+    const errs: typeof errors = {};
+    for (const key of REQUIRED) {
+      if (!form[key]) errs[key] = "Required";
+    }
+    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+      errs.email = "Invalid email";
+    }
+    return errs;
+  }
+
+  function handleNext() {
+    const errs = validate();
+    if (Object.keys(errs).length) { setErrors(errs); return; }
+    // Block if duplicates detected and not acknowledged
+    if (duplicateWarning && duplicateWarning.matches.length > 0 && !duplicateAcknowledged) {
+      return; // User must acknowledge or dismiss
+    }
+    onNext(form);
+  }
+
+  function field(label: string, key: keyof PersonalInfo, type = "text", placeholder = "") {
+    return (
+      <div key={key}>
+        <label className="block text-sm font-medium mb-1">
+          {label}
+          {REQUIRED.includes(key) && <span className="text-red-500 ml-0.5">*</span>}
+        </label>
+        <input
+          type={type}
+          value={(form[key] as string) ?? ""}
+          onChange={(e) => set(key, e.target.value as PersonalInfo[typeof key])}
+          placeholder={placeholder}
+          className={`w-full px-3 py-2 rounded-xl border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 ${
+            errors[key] ? "border-red-400" : ""
+          }`}
+        />
+        {errors[key] && <p className="text-xs text-red-500 mt-0.5">{errors[key]}</p>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <h2 className="text-lg font-semibold">Personal Information</h2>
+        <p className="text-sm text-muted-foreground mt-1">Enter the candidate's personal details.</p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {field("Full Name", "fullName", "text", "John Doe")}
+        {field("Date of Birth", "dateOfBirth", "date")}
+        {field("Email", "email", "email", "john@example.com")}
+        {field("Phone", "phone", "tel", "+880…")}
+        {field("Nationality", "nationality", "text", "Bangladeshi")}
+        {field("Country of Residence", "country", "text", "Bangladesh")}
+        {field("Passport Number", "passportNumber", "text", "A0000000")}
+        {field("National ID", "nationalId", "text")}
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-1">
+          Address
+        </label>
+        <textarea
+          rows={2}
+          value={form.address ?? ""}
+          onChange={(e) => set("address", e.target.value)}
+          className="w-full px-3 py-2 rounded-xl border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-1">
+          Workflow Category <span className="text-red-500">*</span>
+        </label>
+        <select
+          value={form.workflowCategory}
+          onChange={(e) => set("workflowCategory", e.target.value as WorkflowCategory)}
+          className="w-full px-3 py-2 rounded-xl border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+        >
+          {categories.map((c) => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
+        {errors.workflowCategory && (
+          <p className="text-xs text-red-500 mt-0.5">{errors.workflowCategory}</p>
+        )}
+      </div>
+
+      {/* Duplicate Detection Warning */}
+      {duplicateWarning && duplicateWarning.matches.length > 0 && !duplicateAcknowledged && (
+        <div className="rounded-xl border-2 border-amber-500/30 bg-amber-500/5 p-5 space-y-3">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-500 mt-0.5 shrink-0" />
+            <div className="flex-1">
+              <p className="font-semibold text-amber-600 dark:text-amber-400">
+                Potential Duplicate Candidate Detected
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                We found {duplicateWarning.matches.length} similar candidate(s) already registered. 
+                Please review to avoid duplicate entries.
+              </p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            {duplicateWarning.matches.map((m) => (
+              <div key={m.id} className="flex items-center justify-between p-3 rounded-lg bg-card border text-sm">
+                <div>
+                  <p className="font-medium text-foreground">{m.fullName}</p>
+                  <p className="text-xs text-muted-foreground">
+                    ID: {m.sccgId} · {m.workflowCategory} · {m.matchReason}
+                  </p>
+                </div>
+                {m.isOwnCandidate && (
+                  <span className="text-xs px-2 py-0.5 rounded bg-blue-500/10 text-blue-500 font-medium">
+                    Your Candidate
+                  </span>
+                )}
+                {!m.isOwnCandidate && (
+                  <span className="text-xs px-2 py-0.5 rounded bg-purple-500/10 text-purple-500 font-medium flex items-center gap-1">
+                    <Shield className="w-3 h-3" /> Global SCCG Member
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={() => setDuplicateAcknowledged(true)}
+              className="px-4 py-2 rounded-lg bg-amber-600 text-white text-xs font-medium hover:bg-amber-700 transition-colors"
+            >
+              I understand — Register as new candidate anyway
+            </button>
+            <button
+              onClick={() => { setDuplicateWarning(null); }}
+              className="px-4 py-2 rounded-lg border text-xs font-medium hover:bg-muted transition-colors"
+            >
+              Go back and edit
+            </button>
+          </div>
+        </div>
+      )}
+
+      {duplicateAcknowledged && duplicateWarning && (
+        <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-sm text-emerald-600 dark:text-emerald-400">
+          <Shield className="w-4 h-4" />
+          Duplicate check acknowledged. You may proceed with registration.
+        </div>
+      )}
+
+      {institutionalWarning && (
+        <div className="rounded-xl border-2 border-purple-500/30 bg-purple-500/5 p-5">
+          <div className="flex items-start gap-3">
+            <Shield className="w-5 h-5 text-purple-500 mt-0.5" />
+            <div>
+              <p className="font-semibold text-purple-600 dark:text-purple-400">
+                Institution Already Registered
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">{institutionalWarning}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between pt-2">
+        <button
+          onClick={onBack}
+          className="px-4 py-2 rounded-xl border text-sm font-medium hover:bg-muted transition-colors"
+        >
+          ← Back
+        </button>
+        <button
+          onClick={handleNext}
+          className="px-6 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+        >
+          Next →
+        </button>
+      </div>
+    </div>
+  );
+}

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Edit2, Trash2, MoreVertical } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
-import { deleteEnrollment, updateEnrollment } from "@/app/(portal)/admin/school/actions";
+import { deleteEnrollment, updateEnrollment } from "@/app/admin/school/actions";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";

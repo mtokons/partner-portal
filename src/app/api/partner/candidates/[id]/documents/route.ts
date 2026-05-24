@@ -1,18 +1,19 @@
 import { NextResponse } from "next/server";
-import { getCandidateDocumentsAction } from "@/app/(portal)/partner/candidates/actions";
+import { getCandidateDocumentsAction } from "@/app/partner/candidates/actions";
 import { requireSessionUser } from "@/lib/api-auth";
 import { getCandidateById } from "@/lib/sharepoint";
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const user = await requireSessionUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const candidateId = params.id;
+  const { id } = await params;
+  const candidateId = id;
   try {
     const candidate = await getCandidateById(candidateId);
     if (!candidate) {

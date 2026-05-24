@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createTeacher, updateTeacher } from "@/app/(portal)/admin/school/actions";
+import { createTeacher, updateTeacher } from "@/app/admin/school/actions";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
