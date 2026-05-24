@@ -378,6 +378,7 @@ const PART_COL = { // SCCG Partners
   tierStatus: "TierStatus",
   marginPercentage: "MarginPercentage",
   onboardingStatus: "OnboardingStatus",
+  salesTarget: "SalesTarget",
   createdAt: "CreatedAt",
 };
 
@@ -481,6 +482,7 @@ export async function getPartnerByEmail(email: string): Promise<Partner | null> 
       tierStatus: f[PART_COL.tierStatus] ? (String(f[PART_COL.tierStatus]) as TierStatus) : undefined,
       marginPercentage: f[PART_COL.marginPercentage] ? (Number(f[PART_COL.marginPercentage]) as PartnerMargin) : undefined,
       onboardingStatus: (String(f[PART_COL.onboardingStatus] || "approved").toLowerCase() as any),
+      salesTarget: f[PART_COL.salesTarget] ? Number(f[PART_COL.salesTarget]) : undefined,
       createdAt: String(f[PART_COL.createdAt] || new Date().toISOString()) 
     } as Partner;
   }, () => null);
@@ -510,6 +512,7 @@ export async function getPartners(): Promise<Partner[]> {
           tierStatus: f[PART_COL.tierStatus] ? (String(f[PART_COL.tierStatus]) as TierStatus) : undefined,
           marginPercentage: f[PART_COL.marginPercentage] ? (Number(f[PART_COL.marginPercentage]) as PartnerMargin) : undefined,
           onboardingStatus: (String(f[PART_COL.onboardingStatus] || "approved").toLowerCase() as any),
+          salesTarget: f[PART_COL.salesTarget] ? Number(f[PART_COL.salesTarget]) : undefined,
           createdAt: String(f[PART_COL.createdAt] || ""),
         } as Partner;
       });
@@ -568,6 +571,15 @@ export async function updatePartnerTierAndMargin(
     await graphPatch(`${await getSiteListUrlAsync("Partners")}/${id}/fields`, {
       [PART_COL.tierStatus]: tierStatus,
       [PART_COL.marginPercentage]: marginPercentage,
+    });
+  });
+}
+
+export async function updatePartnerSalesTarget(id: string, salesTarget: number): Promise<void> {
+  return runSafe(async () => {
+    const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
+    await graphPatch(`${await getSiteListUrlAsync("Partners")}/${id}/fields`, {
+      [PART_COL.salesTarget]: salesTarget,
     });
   });
 }

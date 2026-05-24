@@ -8,9 +8,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { RowActions } from "@/components/RowActions";
 import { removePartner, holdPartner } from "@/lib/row-actions";
 import { refreshPartnersAction } from "./actions";
-import { RefreshCw, Award } from "lucide-react";
+import { RefreshCw, Award, Eye } from "lucide-react";
+import Link from "next/link";
 import PartnerStatusButtons from "./PartnerStatusButtons";
 import PartnerTierEditModal from "./PartnerTierEditModal";
+import SalesTargetModal from "./SalesTargetModal";
 
 const statusColor: Record<string, string> = {
   active: "bg-green-100 text-green-800",
@@ -86,6 +88,7 @@ export default async function AdminPartnersPage() {
                 <TableHead>Email</TableHead>
                 <TableHead>Level / Tier</TableHead>
                 <TableHead>Commission Share</TableHead>
+                <TableHead>Sales Target</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Since</TableHead>
                 <TableHead>Actions</TableHead>
@@ -107,6 +110,12 @@ export default async function AdminPartnersPage() {
                     {partner.marginPercentage || 15}%
                   </TableCell>
                   <TableCell>
+                    <SalesTargetModal
+                      partnerId={partner.id}
+                      currentTarget={partner.salesTarget}
+                    />
+                  </TableCell>
+                  <TableCell>
                     <Badge className={statusColor[partner.status] || ""}>{partner.status}</Badge>
                   </TableCell>
                   <TableCell className="text-sm text-gray-500">
@@ -122,6 +131,13 @@ export default async function AdminPartnersPage() {
                           currentMargin={partner.marginPercentage}
                         />
                       )}
+                      <Link
+                        href={`/admin/partners/${partner.id}/finance`}
+                        className="flex items-center gap-1 px-2.5 py-1 h-8 text-xs font-semibold rounded-xl border border-blue-500/20 text-blue-400 hover:bg-blue-500/10 transition-colors"
+                        title="View Finance"
+                      >
+                        <Eye className="h-3.5 w-3.5" /> Finance
+                      </Link>
                     </div>
                   </TableCell>
                   <TableCell className="text-right">
@@ -137,7 +153,7 @@ export default async function AdminPartnersPage() {
               ))}
               {partnerAccounts.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center text-gray-400 py-8">
+                  <TableCell colSpan={10} className="text-center text-gray-400 py-8">
                     No partners yet
                   </TableCell>
                 </TableRow>

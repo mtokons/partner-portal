@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { updatePartnerStatus, updatePartnerTierAndMargin, getPartners } from "@/lib/sharepoint";
+import { updatePartnerStatus, updatePartnerTierAndMargin, updatePartnerSalesTarget, getPartners } from "@/lib/sharepoint";
 import type { PartnerStatus, TierStatus, PartnerMargin } from "@/types";
 import { assertAdmin } from "@/lib/admin-guard";
 
@@ -58,6 +58,19 @@ export async function refreshPartnersAction() {
     revalidatePath("/admin/partners");
     return { success: true };
   } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function updatePartnerSalesTargetAction(id: string, salesTarget: number) {
+  try {
+    await assertAdmin();
+    await updatePartnerSalesTarget(id, salesTarget);
+    revalidatePath("/admin/partners");
+    revalidatePath("/partner/finance");
+    return { success: true };
+  } catch (error: any) {
+    console.error("Update partner sales target error:", error);
     return { success: false, error: error.message };
   }
 }

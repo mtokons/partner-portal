@@ -35,6 +35,7 @@ export interface Partner {
   onboardingStatus: PartnerOnboardingStatus;
   approvedBy?: string;
   approvedAt?: string;
+  salesTarget?: number;
   isOnHold?: boolean;
   createdAt: string;
   updatedAt?: string;

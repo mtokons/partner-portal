@@ -9,7 +9,7 @@ import {
   UserCheck, Calendar, CreditCard, Zap, Mail, ChevronRight, ChevronDown,
   FlaskConical, ClipboardList, Store, Tag, Share2, Wallet, User, X, ClipboardCheck,
   Building2, UserPlus, GraduationCap, BookOpen, Layers, Award, ShoppingBag, Search, Megaphone, Database,
-  LifeBuoy
+  LifeBuoy, TrendingUp, ArrowUpRight, Target
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect } from "react";
@@ -44,7 +44,10 @@ const allLinks: LinkItem[] = [
   { href: "/partner/tasks", label: "Task Board", icon: ClipboardList, group: "partner", roles: ["partner-individual", "partner-institutional"] },
   { href: "/partner/candidates", label: "My Candidates", icon: Users, group: "partner", roles: ["partner-individual", "partner-institutional"] },
   { href: "/partner/candidates/new", label: "Register Candidate", icon: UserPlus, group: "partner", roles: ["partner-individual", "partner-institutional"] },
-  { href: "/partner/finance", label: "Finance Ledger", icon: DollarSign, group: "partner", roles: ["partner-individual", "partner-institutional"] },
+  { href: "/partner/finance", label: "Finance Overview", icon: DollarSign, group: "partner", roles: ["partner-individual", "partner-institutional"] },
+  { href: "/partner/finance/revenue", label: "My Revenue", icon: TrendingUp, group: "partner", roles: ["partner-individual", "partner-institutional"] },
+  { href: "/partner/finance/sccg-payments", label: "SCCG Settlements", icon: ArrowUpRight, group: "partner", roles: ["partner-individual", "partner-institutional"] },
+  { href: "/partner/finance/target", label: "Target vs Achievement", icon: Target, group: "partner", roles: ["partner-individual", "partner-institutional"] },
   { href: "/partner/marketplace", label: "Downloads", icon: ShoppingBag, group: "partner", roles: ["partner-individual", "partner-institutional"] },
   { href: "/partner/support", label: "Support / Helpdesk", icon: LifeBuoy, group: "partner", roles: ["partner-individual", "partner-institutional"] },
 
