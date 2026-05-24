@@ -181,7 +181,7 @@ export default async function CandidateDetailPage({
             candidateId={candidate.id}
             candidateName={candidate.fullName}
             candidateSccgId={candidate.sccgId || candidate.id}
-            candidateMargin={candidate.marginPercentage as any}
+            candidateMargin={user.marginPercentage as any}
             products={products}
           />
         </div>

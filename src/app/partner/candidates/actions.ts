@@ -488,33 +488,23 @@ export async function buyAdditionalServicesAction(
       });
     }
 
-    // Recalculate financial split with both existing and new services
-    const allServices = [
-      ...existingServices.map((s) => ({
-        servicePricingId: s.servicePricingId,
-        serviceName: s.serviceName,
-        basePrice: s.basePrice,
-        quantity: s.quantity,
-      })),
-      ...services.map((s) => ({
-        servicePricingId: s.servicePricingId,
-        serviceName: s.serviceName,
-        basePrice: s.basePrice,
-        quantity: s.quantity,
-      })),
-    ];
-
+    // Calculate financial split strictly for the NEW services using the PARTNER's current margin
     const split = calculateFinancialSplit({
-      services: allServices,
-      partnerMarginPercentage: candidate.marginPercentage as any,
+      services: services.map((s) => ({
+        servicePricingId: s.servicePricingId,
+        serviceName: s.serviceName,
+        basePrice: s.basePrice,
+        quantity: s.quantity,
+      })),
+      partnerMarginPercentage: partner.marginPercentage as any || 15,
     });
 
-    // Update candidate details
+    // Update candidate details by adding the new splits to the existing totals
     await updateCandidate(candidateId, {
-      totalServiceFee: split.totalServiceFee,
-      sccgShare: split.sccgShare,
-      partnerShare: split.partnerShare,
-      depositAmount: split.depositAmount,
+      totalServiceFee: (candidate.totalServiceFee || 0) + split.totalServiceFee,
+      sccgShare: (candidate.sccgShare || 0) + split.sccgShare,
+      partnerShare: (candidate.partnerShare || 0) + split.partnerShare,
+      depositAmount: (candidate.depositAmount || 0) + split.depositAmount,
     });
 
     // Create a new Sales Order
@@ -522,10 +512,10 @@ export async function buyAdditionalServicesAction(
     const timestamp = Date.now().toString().slice(-6);
     const orderNumber = `SO-${candidate.sccgId || candidate.id}-${timestamp}`;
 
-    // Total sales amount for the newly bought services (basePrice * quantity * (1 + margin / 100))
+    // Total sales amount for the newly bought services (basePrice * quantity)
+    // The price is inclusive of partner commission, so we do NOT add the margin on top.
     const newlyBoughtTotal = services.reduce((acc, s) => {
-      const marginFactor = 1 + (Number(candidate.marginPercentage || 0) / 100);
-      return acc + (s.basePrice * s.quantity * marginFactor);
+      return acc + (s.basePrice * s.quantity);
     }, 0);
 
     const salesOrder = await createSalesOrder({
@@ -547,14 +537,13 @@ export async function buyAdditionalServicesAction(
 
     // Create Sales Order Items
     for (const svc of services) {
-      const marginFactor = 1 + (Number(candidate.marginPercentage || 0) / 100);
       await createSalesOrderItem({
         salesOrderId: salesOrder.id,
         productId: svc.servicePricingId,
         productName: svc.serviceName,
         quantity: svc.quantity,
-        unitPrice: svc.basePrice * marginFactor,
-        totalPrice: svc.basePrice * svc.quantity * marginFactor,
+        unitPrice: svc.basePrice,
+        totalPrice: svc.basePrice * svc.quantity,
       });
     }
 
