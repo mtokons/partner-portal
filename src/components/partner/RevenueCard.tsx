@@ -5,10 +5,17 @@ import { DollarSign, ChevronDown, ChevronUp } from "lucide-react";
 import SalesLineChart from "@/components/charts/SalesLineChart";
 import type { Payout, Candidate } from "@/types";
 
+const CSYM: Record<string, string> = {
+  EUR: "€", BDT: "৳", INR: "₹", USD: "$", GBP: "£",
+  AED: "د.إ", SAR: "﷼", MYR: "RM", PKR: "₨", TRY: "₺",
+};
+
 interface RevenueCardProps {
   payouts: Payout[];
   candidates: Candidate[];
   partnerMargin: number;
+  secondaryCurrency?: string;
+  exchangeRate?: number;
 }
 
 interface MonthlyDataPoint {
@@ -19,6 +26,8 @@ interface MonthlyDataPoint {
 
 export function RevenueCard({ payouts, candidates, partnerMargin }: RevenueCardProps) {
   const [showBreakdown, setShowBreakdown] = useState(false);
+
+  const d = (v: number) => `€${v.toLocaleString("en", { minimumFractionDigits: 0 })}`;
 
   // Primary revenue source: candidates' partnerShare (always has data)
   const totalPartnerShare = candidates.reduce((s, c) => s + (c.partnerShare || 0), 0);
@@ -88,20 +97,20 @@ export function RevenueCard({ payouts, candidates, partnerMargin }: RevenueCardP
         <div className="space-y-4">
           <div>
             <p className="text-3xl font-bold">
-              €{totalEarnings.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+              {d(totalEarnings)}
             </p>
             <p className="text-white/70 text-sm mt-0.5">Total earnings</p>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-white/10 rounded-xl p-3">
               <p className="text-lg font-semibold">
-                €{totalPaid.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                {d(totalPaid)}
               </p>
               <p className="text-white/70 text-xs">Paid out</p>
             </div>
             <div className="bg-white/10 rounded-xl p-3">
               <p className="text-lg font-semibold">
-                €{totalPending.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                {d(totalPending)}
               </p>
               <p className="text-white/70 text-xs">Pending</p>
             </div>
@@ -112,19 +121,19 @@ export function RevenueCard({ payouts, candidates, partnerMargin }: RevenueCardP
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-white/10 rounded-xl p-3">
               <p className="text-sm font-semibold">
-                €{totalPartnerShare.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                {d(totalPartnerShare)}
               </p>
               <p className="text-white/70 text-xs">Your share ({partnerMargin}%)</p>
             </div>
             <div className="bg-white/10 rounded-xl p-3">
               <p className="text-sm font-semibold">
-                €{totalSccgShare.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                {d(totalSccgShare)}
               </p>
               <p className="text-white/70 text-xs">SCCG share</p>
             </div>
             <div className="bg-white/10 rounded-xl p-3 col-span-2">
               <p className="text-sm font-semibold">
-                €{totalGrossFromCandidates.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                {d(totalGrossFromCandidates)}
               </p>
               <p className="text-white/70 text-xs">Total gross (all candidates)</p>
             </div>

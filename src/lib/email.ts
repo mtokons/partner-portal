@@ -79,7 +79,7 @@ export function buildWelcomeCustomerEmail(data: {
   partnerName: string;
 }): { subject: string; htmlBody: string } {
   return {
-    subject: "Welcome to SCCG Portal — Your Account is Ready",
+    subject: "Welcome to SCCG Career Lab Germany — Your Account is Ready",
     htmlBody: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: linear-gradient(135deg, #0a1628, #1a2a4a); padding: 32px; border-radius: 12px 12px 0 0;">
@@ -111,7 +111,7 @@ export function buildWelcomeEmployeeEmail(data: {
   managerName?: string;
 }): { subject: string; htmlBody: string } {
   return {
-    subject: `Welcome to SCCG — ${data.designation}`,
+    subject: `Welcome to SCCG Career Lab Germany — ${data.designation}`,
     htmlBody: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: linear-gradient(135deg, #0a1628, #1a2a4a); padding: 32px; border-radius: 12px 12px 0 0;">
@@ -145,7 +145,7 @@ export function buildEnrollmentConfirmationEmail(data: {
   totalFee: number;
 }): { subject: string; htmlBody: string } {
   return {
-    subject: `Enrollment Confirmed — ${data.courseName} (${data.batchCode})`,
+    subject: `Enrollment Confirmed — SCCG Career Lab Germany (${data.courseName}, ${data.batchCode})`,
     htmlBody: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: linear-gradient(135deg, #0a1628, #1a2a4a); padding: 32px; border-radius: 12px 12px 0 0;">
@@ -178,7 +178,7 @@ export function buildCertificateEmail(data: {
   verificationUrl: string;
 }): { subject: string; htmlBody: string } {
   return {
-    subject: `Your SCCG Certificate — ${data.courseName}`,
+    subject: `Your Certificate is Ready — SCCG Career Lab Germany (${data.courseName})`,
     htmlBody: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: linear-gradient(135deg, #0a1628, #1a2a4a); padding: 32px; border-radius: 12px 12px 0 0;">
@@ -208,7 +208,7 @@ export function buildResultsPublishedEmail(data: {
   examName: string;
 }): { subject: string; htmlBody: string } {
   return {
-    subject: `Exam Results Published — ${data.courseName}`,
+    subject: `Exam Results Published — SCCG Career Lab Germany (${data.courseName})`,
     htmlBody: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: linear-gradient(135deg, #0a1628, #1a2a4a); padding: 32px; border-radius: 12px 12px 0 0;">
@@ -220,6 +220,125 @@ export function buildResultsPublishedEmail(data: {
           <p>Results for <strong>${data.examName}</strong> (${data.courseName} — ${data.batchCode}) have been published.</p>
           <p>Please log in to your student portal to view your results.</p>
           <p style="color: #64748b; font-size: 13px; margin-top: 24px;">— SCCG Language School</p>
+        </div>
+      </div>
+    `,
+  };
+}
+
+export function buildPaymentConfirmationEmail(data: {
+  clientName: string;
+  partnerName: string;
+  paymentDate: string;
+  amount: number;
+  method: string;
+  plan: string;
+  secondaryCurrency?: string;
+  exchangeRate?: number;
+}): { subject: string; htmlBody: string } {
+  const { dualHtml } = require("@/lib/formatCurrency");
+  const amountDisplay = data.secondaryCurrency && data.exchangeRate
+    ? dualHtml(data.amount, data.secondaryCurrency, data.exchangeRate)
+    : `€${data.amount.toFixed(2)}`;
+  return {
+    subject: `Payment Confirmation — SCCG Career Lab Germany (${data.plan})`,
+    htmlBody: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #0a1628, #1a2a4a); padding: 32px; border-radius: 12px 12px 0 0; color: #ffffff;">
+          <h1 style="margin: 0; font-size: 24px;">Payment Confirmation</h1>
+          <p style="margin: 8px 0 0; opacity: 0.9;">SCCG Partner Portal</p>
+        </div>
+        <div style="background: #ffffff; padding: 32px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 12px 12px;">
+          <p>Dear <strong>\${data.clientName}</strong>,</p>
+          <p>Thank you for choosing SCCG: Study and Career Coach Germany! We are pleased to confirm that we have received your payment for the (\${data.plan}) on \${data.paymentDate}.</p>
+          <h3 style="margin-top: 24px; color: #334155;">Payment Details:</h3>
+          <table style="width: 100%; margin: 12px 0 24px; border-collapse: collapse;">
+            <tr><td style="padding: 8px 0; color: #64748b;">Paid Amount:</td><td style="padding: 8px 0; font-weight: bold;">${amountDisplay}</td></tr>
+            <tr><td style="padding: 8px 0; color: #64748b;">Payment Method:</td><td style="padding: 8px 0;">\${data.method}</td></tr>
+            <tr><td style="padding: 8px 0; color: #64748b;">SCCG Plan:</td><td style="padding: 8px 0;">\${data.plan}</td></tr>
+          </table>
+          <p>We are currently organizing a professional session with one of our experts tailored to your needs. You will receive a meeting invitation within the next 10 days.</p>
+          <p>In the meantime, if you have any questions, please feel free to reach out by email or WhatsApp at +4915905840718.</p>
+          <p>Thank you again for your payment and trust in SCCG. We look forward to supporting your career journey!</p>
+          <p style="color: #64748b; font-size: 13px; margin-top: 24px;">
+            Best Regards,<br/>
+            <strong>\${data.partnerName}</strong><br/>
+            Study and Career Coach Germany<br/>
+            Website: <a href="https://www.mysccg.de/" style="color: #2563eb;">https://www.mysccg.de/</a>
+          </p>
+        </div>
+      </div>
+    `,
+  };
+}
+
+export function buildCandidateLoginEmail(data: {
+  candidateName: string;
+  sccgId: string;
+  email: string;
+  tempPassword?: string;
+  partnerName: string;
+  workflowCategory: string;
+  loginUrl: string;
+  totalServiceFee?: number;
+}): { subject: string; htmlBody: string } {
+  const passwordSection = data.tempPassword
+    ? `
+      <div style="background: #fffbeb; border: 1px solid #f59e0b; border-radius: 8px; padding: 20px; margin: 20px 0;">
+        <h3 style="margin: 0 0 12px; font-size: 14px; color: #b45309;">🔐 Your Login Credentials</h3>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr><td style="padding: 6px 0; color: #64748b; width: 140px;">Email</td><td style="padding: 6px 0; font-weight: bold;">${data.email}</td></tr>
+          <tr><td style="padding: 6px 0; color: #64748b;">Temporary Password</td><td style="padding: 6px 0; font-family: monospace; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 15px; letter-spacing: 1px;">${data.tempPassword}</td></tr>
+        </table>
+        <p style="color: #dc2626; font-size: 13px; margin: 12px 0 0;">⚠️ Please change your password after your first login for security.</p>
+      </div>`
+    : `
+      <div style="background: #f0fdf4; border: 1px solid #22c55e; border-radius: 8px; padding: 16px; margin: 20px 0;">
+        <p style="margin: 0; color: #166534; font-size: 14px;">✓ You already have an account. Please log in with your existing credentials.</p>
+      </div>`;
+
+  const feeSection = data.totalServiceFee
+    ? `<tr><td style="padding: 8px 0; color: #64748b;">Total Service Fee</td><td style="padding: 8px 0; font-weight: bold;">€${data.totalServiceFee.toFixed(2)}</td></tr>`
+    : "";
+
+  return {
+    subject: `Welcome to SCCG Career Lab Germany — Your Portal Login Details`,
+    htmlBody: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #0a1628, #1a2a4a); padding: 32px; border-radius: 12px 12px 0 0;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 24px;">Welcome to SCCG Career Lab Germany</h1>
+          <p style="color: #94a3b8; margin: 8px 0 0;">Your Portal Account is Ready</p>
+        </div>
+        <div style="background: #ffffff; padding: 32px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 12px 12px;">
+          <p>Dear <strong>${data.candidateName}</strong>,</p>
+          <p>You have been registered by <strong>${data.partnerName}</strong> for the <strong>${data.workflowCategory}</strong> program.</p>
+          
+          <table style="width: 100%; margin: 16px 0; border-collapse: collapse;">
+            <tr><td style="padding: 8px 0; color: #64748b;">Registration ID</td><td style="padding: 8px 0; font-weight: bold;">${data.sccgId}</td></tr>
+            <tr><td style="padding: 8px 0; color: #64748b;">Program</td><td style="padding: 8px 0;">${data.workflowCategory}</td></tr>
+            ${feeSection}
+          </table>
+
+          ${passwordSection}
+
+          <div style="text-align: center; margin: 24px 0;">
+            <a href="${data.loginUrl}" style="display: inline-block; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #ffffff; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px;">Log In to Your Portal</a>
+          </div>
+
+          <p>After logging in, you can:</p>
+          <ul style="color: #334155; line-height: 1.8;">
+            <li>✓ View your service offers and details</li>
+            <li>✓ Track your application timeline</li>
+            <li>✓ View payment history</li>
+            <li>✓ Send messages to your partner</li>
+            <li>✓ Upload required documents</li>
+          </ul>
+          
+          <p style="color: #64748b; font-size: 13px; margin-top: 24px;">
+            Best regards,<br/>
+            <strong>SCCG Career Lab Germany</strong><br/>
+            Website: <a href="https://www.mysccg.de/" style="color: #2563eb;">www.mysccg.de</a>
+          </p>
         </div>
       </div>
     `,

@@ -91,8 +91,8 @@ export default async function DashboardPage() {
   const kpis = [
     {
       label: "Total Revenue",
-      value: `BDT ${(totalRevenue / 1000).toFixed(1)}K`,
-      sub: totalRevenueEur ? `≈ €${totalRevenueEur.toLocaleString()}` : undefined,
+      value: `€${((totalRevenueEur ?? totalRevenue) / 1000).toFixed(1)}K`,
+      sub: undefined,
       icon: DollarSign,
       gradient: "gradient-blue",
       bg: "linear-gradient(135deg, #4f8ef7 0%, #1a4fd8 60%, #0f2fa8 100%)",
@@ -103,7 +103,7 @@ export default async function DashboardPage() {
     },
     {
       label: "Sales Pipeline",
-      value: `BDT ${(pipelineValue / 1000).toFixed(1)}K`,
+      value: `€${(rate ? pipelineValue * rate : pipelineValue / 1000).toFixed(rate ? 0 : 1)}${rate ? "" : "K"}`,
       sub: `${acceptedOffers.length} accepted / ${sentOffers.length} sent`,
       icon: Zap,
       gradient: "gradient-cosmic",
@@ -127,7 +127,7 @@ export default async function DashboardPage() {
     },
     {
       label: "Outstanding",
-      value: `BDT ${(totalOutstanding / 1000).toFixed(1)}K`,
+      value: `€${(rate ? totalOutstanding * rate : totalOutstanding / 1000).toFixed(rate ? 0 : 1)}${rate ? "" : "K"}`,
       sub: `${unpaidInvoices} unpaid documents`,
       icon: TrendingUp,
       gradient: "gradient-orange",

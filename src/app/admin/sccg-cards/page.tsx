@@ -5,6 +5,7 @@ import Link from "next/link";
 import { CreditCard, Plus, DollarSign, Users, AlertTriangle } from "lucide-react";
 import { requireAdmin } from "@/lib/admin-guard";
 import { RowActions } from "@/components/RowActions";
+import { CURRENCY_SYMBOLS } from "@/lib/currency";
 import { removeSccgCard, holdSccgCard } from "./actions";
 
 export default async function SccgCardsPage() {
@@ -92,7 +93,7 @@ export default async function SccgCardsPage() {
                         className="capitalize text-xs">{c.tier}</Badge>
                     </td>
                     <td className="py-3 px-4 font-medium">
-                      {c.currency === "EUR" ? "€" : "৳"}{c.balance.toLocaleString()}
+                      {CURRENCY_SYMBOLS[c.currency as keyof typeof CURRENCY_SYMBOLS] || c.currency}{c.balance.toLocaleString()}
                     </td>
                     <td className="py-3 px-4 text-xs text-muted-foreground">{c.issuedAt?.split("T")[0]}</td>
                     <td className="py-3 px-4">

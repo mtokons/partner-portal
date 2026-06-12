@@ -8,7 +8,7 @@ import ApprovePaymentButton from "./ApprovePaymentButton";
 import { RowActions } from "@/components/RowActions";
 import { removeExpertPayment, holdExpertPayment } from "@/lib/row-actions";
 
-// Format expert payments as BDT primary with EUR equivalent when rate available
+// Format expert payments as EUR primary with secondary equivalent when rate available
 let _rate: number | null = null;
 
 function fmt(n: number) {

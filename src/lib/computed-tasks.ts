@@ -57,7 +57,7 @@ export async function getComputedTasks(): Promise<ComputedTask[]> {
     tasks.push({
       id: `inst-${inst.id}`,
       source: "overdue-installment",
-      title: `Overdue installment · BDT ${Math.round(inst.amount).toLocaleString()}`,
+      title: `Overdue installment · €${Math.round(inst.amount).toLocaleString()}`,
       detail: `Order ${inst.orderId || "?"} — ${lateDays} day${lateDays === 1 ? "" : "s"} late`,
       severity: lateDays > 14 ? "critical" : lateDays > 3 ? "high" : "medium",
       href: `/financials`,
@@ -76,7 +76,7 @@ export async function getComputedTasks(): Promise<ComputedTask[]> {
         id: `inv-${inv.id}`,
         source: "unpaid-invoice",
         title: `${inv.status === "overdue" ? "Overdue" : "Due soon"} invoice ${inv.id}`,
-        detail: `Client: ${inv.clientName || inv.clientId || "?"} · BDT ${Math.round(inv.amount || 0).toLocaleString()}`,
+        detail: `Client: ${inv.clientName || inv.clientId || "?"} · €${Math.round(inv.amount || 0).toLocaleString()}`,
         severity: inv.status === "overdue" ? "high" : "medium",
         href: `/financials?tab=invoices`,
         due: inv.dueDate,
@@ -108,7 +108,7 @@ export async function getComputedTasks(): Promise<ComputedTask[]> {
     tasks.push({
       id: `paye-${p.id}`,
       source: "eligible-expert-payment",
-      title: `Approve expert payout · BDT ${Math.round(p.amount).toLocaleString()}`,
+      title: `Approve expert payout · €${Math.round(p.amount).toLocaleString()}`,
       detail: `${p.expertName || p.expertId} · session ${p.sessionId}`,
       severity: "medium",
       href: `/admin/payouts`,

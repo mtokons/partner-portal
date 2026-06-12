@@ -24,7 +24,7 @@ export async function adjustCommissionAction(data: {
     recipientName: data.recipientName,
     recipientType: data.recipientType,
     amount: data.amount,
-    currency: "BDT",
+    currency: "EUR",
     runningBalance: 0, // Calculated on retrieval in sharepoint.ts mock usually
     description: data.description,
     createdAt: new Date().toISOString(),

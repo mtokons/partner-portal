@@ -121,6 +121,7 @@ async function run() {
     { name: "BasePrice", number: {} },
     { name: "Quantity", number: {} },
     { name: "TotalPrice", number: {} },
+    { name: "WorkflowCategory", choice: { choices: ["Training", "Ausbildung", "Student Visa", "Opportunity Card"] } },
     { name: "CreatedAt", dateTime: {} },
   ]);
 

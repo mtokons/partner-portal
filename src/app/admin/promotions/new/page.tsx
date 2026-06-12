@@ -200,7 +200,7 @@ export default function NewPromotionPage() {
               onChange={(e) => update("discountValue", Number(e.target.value))}
               className="w-32 px-4 py-2.5 bg-muted border-0 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
-            <span className="text-sm text-muted-foreground">{form.discountType === "percent" ? "%" : "BDT"}</span>
+            <span className="text-sm text-muted-foreground">{form.discountType === "percent" ? "%" : "EUR"}</span>
           </div>
         </div>
 

@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { FileText, DollarSign, Clock, CheckCircle } from "lucide-react";
 import { requireAdmin } from "@/lib/admin-guard";
 import { RowActions } from "@/components/RowActions";
+import { CURRENCY_SYMBOLS } from "@/lib/currency";
 
 export default async function InvoicesPage() {
   await requireAdmin();
@@ -71,7 +72,7 @@ export default async function InvoicesPage() {
                     <td className="py-3 px-4 font-mono text-xs">{inv.invoiceNumber}</td>
                     <td className="py-3 px-4 capitalize text-xs">{inv.invoiceType.replace(/-/g, " ")}</td>
                     <td className="py-3 px-4 font-medium">{inv.clientName}</td>
-                    <td className="py-3 px-4 font-medium">{inv.currency === "EUR" ? "€" : "৳"}{inv.amount.toLocaleString()}</td>
+                    <td className="py-3 px-4 font-medium">{CURRENCY_SYMBOLS[inv.currency as keyof typeof CURRENCY_SYMBOLS] || inv.currency}{inv.amount.toLocaleString()}</td>
                     <td className="py-3 px-4 text-xs">{inv.dueDate}</td>
                     <td className="py-3 px-4">
                       <Badge variant={

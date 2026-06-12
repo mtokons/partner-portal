@@ -192,7 +192,7 @@ export default function EditOfferForm({ offer, initialItems }: EditOfferFormProp
                         />
                       </TableCell>
                       <TableCell className="font-semibold">
-                        BDT {(item.quantity * item.unitPrice).toLocaleString()}
+                        €{(item.quantity * item.unitPrice).toLocaleString()}
                       </TableCell>
                       <TableCell>
                         <Button variant="ghost" size="sm" onClick={() => removeItem(idx)} disabled={items.length === 1}>
@@ -219,7 +219,7 @@ export default function EditOfferForm({ offer, initialItems }: EditOfferFormProp
                   <Select value={discountType} onValueChange={(v) => setDiscountType(v as "fixed" | "percent")}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="fixed">Fixed (BDT)</SelectItem>
+                      <SelectItem value="fixed">Fixed (EUR)</SelectItem>
                       <SelectItem value="percent">Percent (%)</SelectItem>
                     </SelectContent>
                   </Select>
@@ -249,17 +249,17 @@ export default function EditOfferForm({ offer, initialItems }: EditOfferFormProp
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Subtotal</span>
-                  <span>BDT {subtotal.toLocaleString()}</span>
+                  <span>€{subtotal.toLocaleString()}</span>
                 </div>
                 {discount > 0 && (
                   <div className="flex justify-between text-red-500">
                     <span>Discount</span>
-                    <span>-BDT {discountAmount.toLocaleString()}</span>
+                    <span>-€{discountAmount.toLocaleString()}</span>
                   </div>
                 )}
                 <div className="flex justify-between font-bold text-lg border-t pt-2">
                   <span>Total</span>
-                  <span className="text-primary">BDT {total.toLocaleString()}</span>
+                  <span className="text-primary">€{total.toLocaleString()}</span>
                 </div>
               </div>
               <Button className="w-full gap-2" onClick={handleSubmit} disabled={saving || !clientId || items.some(i => !i.productId)}>

@@ -9,7 +9,13 @@ import {
   Mail, Eye, BarChart3
 } from "lucide-react";
 import type { Candidate, Transaction } from "@/types";
-import { sendPaymentReminderAction } from "./actions";
+import { sendPaymentReminderAction, sendPaymentConfirmationAction } from "./actions";
+
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  EUR: "€", BDT: "৳", INR: "₹", USD: "$", GBP: "£",
+  AED: "د.إ", SAR: "﷼", MYR: "RM", PKR: "₨", LKR: "Rs",
+  NPR: "₨", TRY: "₺",
+};
 
 interface Props {
   candidates: Candidate[];
@@ -18,13 +24,21 @@ interface Props {
   partnerCompany: string;
   marginPercent: number;
   salesTarget: number;
+  secondaryCurrency?: string;
+  exchangeRate?: number;
 }
 
 type ViewMode = "monthly" | "cumulative";
 type FilterStatus = "all" | "pending" | "deposit-paid" | "fully-paid" | "overdue";
 
+/** Format EUR amount — EUR only */
+function dual(eurAmount: number, _currency?: string, _rate?: number, _compact?: boolean): string {
+  return `€${eurAmount.toLocaleString("en", { minimumFractionDigits: 0 })}`;
+}
+
 export default function FinanceOverviewClient({
   candidates, transactions, partnerName, partnerCompany, marginPercent, salesTarget,
+  secondaryCurrency = "EUR", exchangeRate = 1,
 }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>("monthly");
   const [selectedMonth, setSelectedMonth] = useState(() => {
@@ -37,6 +51,8 @@ export default function FinanceOverviewClient({
   const [expandedClient, setExpandedClient] = useState<string | null>(null);
   const [reminderSending, setReminderSending] = useState<string | null>(null);
   const [reminderSent, setReminderSent] = useState<Set<string>>(new Set());
+  const [confirmSending, setConfirmSending] = useState<string | null>(null);
+  const [confirmSent, setConfirmSent] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
 
   // === DERIVED DATA ===
@@ -149,6 +165,24 @@ export default function FinanceOverviewClient({
     finally { setReminderSending(null); }
   }
 
+  async function handleSendConfirmation(c: Candidate, t: Transaction) {
+    if (!c.email) return;
+    setConfirmSending(t.id);
+    try {
+      await sendPaymentConfirmationAction(
+        c.id,
+        c.fullName,
+        c.email,
+        t.amount,
+        t.paymentMethod || "Bank Transfer",
+        c.serviceId || "SCCG Plan",
+        t.date || new Date().toISOString()
+      );
+      setConfirmSent((prev) => new Set(prev).add(t.id));
+    } catch { /* ignore */ }
+    finally { setConfirmSending(null); }
+  }
+
   const fmtMonth = (m: string) => {
     const [y, mo] = m.split("-");
     return new Date(parseInt(y), parseInt(mo) - 1).toLocaleString("en", { month: "long", year: "numeric" });
@@ -170,7 +204,7 @@ export default function FinanceOverviewClient({
             <p className="text-[10px] text-blue-400 uppercase tracking-wider font-bold">Total Sales</p>
             <DollarSign className="w-4 h-4 text-blue-400" />
           </div>
-          <p className="text-xl font-extrabold text-foreground mt-1">€{allTimeTotals.totalSales.toLocaleString("en", { minimumFractionDigits: 0 })}</p>
+          <p className="text-xl font-extrabold text-foreground mt-1">{dual(allTimeTotals.totalSales, secondaryCurrency, exchangeRate)}</p>
           <p className="text-[10px] text-muted-foreground mt-0.5">{candidates.length} clients total</p>
         </div>
         <div className="bg-gradient-to-br from-emerald-600/10 to-emerald-500/5 border-2 border-emerald-500/20 rounded-2xl p-4">
@@ -178,7 +212,7 @@ export default function FinanceOverviewClient({
             <p className="text-[10px] text-emerald-400 uppercase tracking-wider font-bold">Received</p>
             <Wallet className="w-4 h-4 text-emerald-400" />
           </div>
-          <p className="text-xl font-extrabold text-emerald-500 mt-1">€{allTimeTotals.totalReceived.toLocaleString("en", { minimumFractionDigits: 0 })}</p>
+          <p className="text-xl font-extrabold text-emerald-500 mt-1">{dual(allTimeTotals.totalReceived, secondaryCurrency, exchangeRate)}</p>
           <p className="text-[10px] text-muted-foreground mt-0.5">From clients</p>
         </div>
         <div className="bg-gradient-to-br from-purple-600/10 to-purple-500/5 border-2 border-purple-500/20 rounded-2xl p-4">
@@ -186,7 +220,7 @@ export default function FinanceOverviewClient({
             <p className="text-[10px] text-purple-400 uppercase tracking-wider font-bold">Your Commission</p>
             <TrendingUp className="w-4 h-4 text-purple-400" />
           </div>
-          <p className="text-xl font-extrabold text-purple-500 mt-1">€{allTimeTotals.totalPartnerShare.toLocaleString("en", { minimumFractionDigits: 0 })}</p>
+          <p className="text-xl font-extrabold text-purple-500 mt-1">{dual(allTimeTotals.totalPartnerShare, secondaryCurrency, exchangeRate)}</p>
           <p className="text-[10px] text-muted-foreground mt-0.5">{marginPercent}% margin</p>
         </div>
         <div className="bg-gradient-to-br from-indigo-600/10 to-indigo-500/5 border-2 border-indigo-500/20 rounded-2xl p-4">
@@ -194,7 +228,7 @@ export default function FinanceOverviewClient({
             <p className="text-[10px] text-indigo-400 uppercase tracking-wider font-bold">SCCG Share</p>
             <ArrowUpRight className="w-4 h-4 text-indigo-400" />
           </div>
-          <p className="text-xl font-extrabold text-indigo-500 mt-1">€{allTimeTotals.totalSccgShare.toLocaleString("en", { minimumFractionDigits: 0 })}</p>
+          <p className="text-xl font-extrabold text-indigo-500 mt-1">{dual(allTimeTotals.totalSccgShare, secondaryCurrency, exchangeRate)}</p>
           <p className="text-[10px] text-muted-foreground mt-0.5">{100 - marginPercent}% to SCCG</p>
         </div>
         <div className="bg-gradient-to-br from-amber-600/10 to-orange-500/5 border-2 border-amber-500/20 rounded-2xl p-4">
@@ -202,7 +236,7 @@ export default function FinanceOverviewClient({
             <p className="text-[10px] text-amber-400 uppercase tracking-wider font-bold">Owe to SCCG</p>
             <AlertTriangle className="w-4 h-4 text-amber-400" />
           </div>
-          <p className="text-xl font-extrabold text-amber-500 mt-1">€{outstandingToSccg.toLocaleString("en", { minimumFractionDigits: 0 })}</p>
+          <p className="text-xl font-extrabold text-amber-500 mt-1">{dual(outstandingToSccg, secondaryCurrency, exchangeRate)}</p>
           <Link href="/partner/finance/payments" className="text-[10px] text-primary hover:underline mt-0.5 block">Make Payment →</Link>
         </div>
         <div className="bg-gradient-to-br from-rose-600/10 to-rose-500/5 border-2 border-rose-500/20 rounded-2xl p-4">
@@ -210,7 +244,7 @@ export default function FinanceOverviewClient({
             <p className="text-[10px] text-rose-400 uppercase tracking-wider font-bold">Client Dues</p>
             <ArrowDownRight className="w-4 h-4 text-rose-400" />
           </div>
-          <p className="text-xl font-extrabold text-rose-500 mt-1">€{Math.max(0, allTimeTotals.totalSales - allTimeTotals.totalReceived).toLocaleString("en", { minimumFractionDigits: 0 })}</p>
+          <p className="text-xl font-extrabold text-rose-500 mt-1">{dual(Math.max(0, allTimeTotals.totalSales - allTimeTotals.totalReceived), secondaryCurrency, exchangeRate)}</p>
           <Link href="/partner/finance/due-payments" className="text-[10px] text-primary hover:underline mt-0.5 block">View Due →</Link>
         </div>
       </div>
@@ -224,8 +258,8 @@ export default function FinanceOverviewClient({
               <h3 className="font-bold text-foreground text-sm">Annual Sales Target</h3>
             </div>
             <div className="text-right">
-              <span className="text-lg font-extrabold text-foreground">€{allTimeTotals.totalSales.toLocaleString("en", { minimumFractionDigits: 0 })}</span>
-              <span className="text-sm text-muted-foreground"> / €{salesTarget.toLocaleString("en", { minimumFractionDigits: 0 })}</span>
+              <span className="text-lg font-extrabold text-foreground">{dual(allTimeTotals.totalSales, secondaryCurrency, exchangeRate)}</span>
+              <span className="text-sm text-muted-foreground"> / {dual(salesTarget, secondaryCurrency, exchangeRate)}</span>
             </div>
           </div>
           <div className="w-full bg-muted rounded-full h-4 overflow-hidden">
@@ -292,11 +326,11 @@ export default function FinanceOverviewClient({
             </div>
             <div className="grid grid-cols-3 gap-3 mb-3">
               <div className="text-center">
-                <p className="text-lg font-extrabold text-foreground">€{yearSales.toLocaleString("en")}</p>
+                <p className="text-lg font-extrabold text-foreground">{dual(yearSales, secondaryCurrency, exchangeRate)}</p>
                 <p className="text-[9px] text-muted-foreground uppercase font-bold">Achieved</p>
               </div>
               <div className="text-center">
-                <p className="text-lg font-extrabold text-muted-foreground">€{salesTarget.toLocaleString("en")}</p>
+                <p className="text-lg font-extrabold text-muted-foreground">{dual(salesTarget, secondaryCurrency, exchangeRate)}</p>
                 <p className="text-[9px] text-muted-foreground uppercase font-bold">Target</p>
               </div>
               <div className="text-center">
@@ -361,22 +395,22 @@ export default function FinanceOverviewClient({
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-card border rounded-2xl p-4 text-center">
           <p className="text-[10px] text-muted-foreground uppercase font-bold">Period Sales</p>
-          <p className="text-lg font-extrabold text-foreground mt-1">€{periodTotals.totalSales.toLocaleString("en", { minimumFractionDigits: 0 })}</p>
+          <p className="text-lg font-extrabold text-foreground mt-1">{dual(periodTotals.totalSales, secondaryCurrency, exchangeRate)}</p>
           <p className="text-[10px] text-muted-foreground">{periodCandidates.length} clients</p>
         </div>
         <div className="bg-card border rounded-2xl p-4 text-center">
           <p className="text-[10px] text-muted-foreground uppercase font-bold">Period Received</p>
-          <p className="text-lg font-extrabold text-emerald-500 mt-1">€{periodTotals.totalReceived.toLocaleString("en", { minimumFractionDigits: 0 })}</p>
+          <p className="text-lg font-extrabold text-emerald-500 mt-1">{dual(periodTotals.totalReceived, secondaryCurrency, exchangeRate)}</p>
           <p className="text-[10px] text-muted-foreground">{periodTotals.clientsPaid} fully paid</p>
         </div>
         <div className="bg-card border rounded-2xl p-4 text-center">
           <p className="text-[10px] text-muted-foreground uppercase font-bold">Your Earnings</p>
-          <p className="text-lg font-extrabold text-purple-500 mt-1">€{periodTotals.totalPartnerShare.toLocaleString("en", { minimumFractionDigits: 0 })}</p>
+          <p className="text-lg font-extrabold text-purple-500 mt-1">{dual(periodTotals.totalPartnerShare, secondaryCurrency, exchangeRate)}</p>
           <p className="text-[10px] text-muted-foreground">{marginPercent}% commission</p>
         </div>
         <div className="bg-card border rounded-2xl p-4 text-center">
           <p className="text-[10px] text-muted-foreground uppercase font-bold">SCCG Portion</p>
-          <p className="text-lg font-extrabold text-indigo-500 mt-1">€{periodTotals.totalSccgShare.toLocaleString("en", { minimumFractionDigits: 0 })}</p>
+          <p className="text-lg font-extrabold text-indigo-500 mt-1">{dual(periodTotals.totalSccgShare, secondaryCurrency, exchangeRate)}</p>
           <p className="text-[10px] text-muted-foreground">{periodTotals.clientsDue} clients due</p>
         </div>
       </div>
@@ -391,15 +425,15 @@ export default function FinanceOverviewClient({
             {monthlyChartData.map((m) => (
               <div key={m.month} className="flex-1 flex flex-col items-center gap-0.5">
                 {m.sales > 0 && (
-                  <p className="text-[9px] font-bold text-foreground">€{(m.sales / 1000).toFixed(1)}k</p>
+                  <p className="text-[9px] font-bold text-foreground">{dual(m.sales, secondaryCurrency, exchangeRate)}</p>
                 )}
                 <div className="w-full flex flex-col gap-px">
                   <div className="w-full bg-purple-500/80 rounded-t transition-all"
                     style={{ height: `${Math.max(2, (m.partnerShare / maxChartValue) * 110)}px` }}
-                    title={`Your share: €${m.partnerShare.toFixed(0)}`} />
+                    title={`Your share: ${dual(m.partnerShare, secondaryCurrency, exchangeRate)}`} />
                   <div className="w-full bg-indigo-500/60 rounded-b transition-all"
                     style={{ height: `${Math.max(2, (m.sccgShare / maxChartValue) * 110)}px` }}
-                    title={`SCCG share: €${m.sccgShare.toFixed(0)}`} />
+                    title={`SCCG share: ${dual(m.sccgShare, secondaryCurrency, exchangeRate)}`} />
                 </div>
                 <p className={`text-[9px] font-medium ${m.month === selectedMonth ? "text-primary font-bold" : "text-muted-foreground"}`}>{m.label}</p>
               </div>
@@ -456,19 +490,19 @@ export default function FinanceOverviewClient({
                         <p className="text-[10px] text-muted-foreground font-mono">{c.sccgId || c.id.slice(0, 8)}</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-xs font-bold text-foreground">€{(c.totalServiceFee || 0).toLocaleString("en", { minimumFractionDigits: 0 })}</p>
+                        <p className="text-xs font-bold text-foreground">{dual(c.totalServiceFee || 0, secondaryCurrency, exchangeRate)}</p>
                         <p className="text-[9px] text-muted-foreground">Total Fee</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-xs font-bold text-emerald-500">€{(c.depositAmount || 0).toLocaleString("en", { minimumFractionDigits: 0 })}</p>
+                        <p className="text-xs font-bold text-emerald-500">{dual(c.depositAmount || 0, secondaryCurrency, exchangeRate)}</p>
                         <p className="text-[9px] text-muted-foreground">Received</p>
                       </div>
                       <div className="text-center">
-                        <p className={`text-xs font-bold ${due > 0 ? "text-rose-500" : "text-emerald-500"}`}>€{due.toLocaleString("en", { minimumFractionDigits: 0 })}</p>
+                        <p className={`text-xs font-bold ${due > 0 ? "text-rose-500" : "text-emerald-500"}`}>{dual(due, secondaryCurrency, exchangeRate)}</p>
                         <p className="text-[9px] text-muted-foreground">Due</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-xs font-bold text-purple-500">€{(c.partnerShare || 0).toLocaleString("en", { minimumFractionDigits: 0 })}</p>
+                        <p className="text-xs font-bold text-purple-500">{dual(c.partnerShare || 0, secondaryCurrency, exchangeRate)}</p>
                         <p className="text-[9px] text-muted-foreground">Commission</p>
                       </div>
                       <div className="text-center flex items-center justify-center gap-2">
@@ -506,12 +540,12 @@ export default function FinanceOverviewClient({
                             <DollarSign className="w-3.5 h-3.5 text-primary" /> Financial Split
                           </h4>
                           <div className="space-y-1.5 text-xs">
-                            <div className="flex justify-between"><span className="text-muted-foreground">Total Fee:</span><span className="font-bold">€{(c.totalServiceFee || 0).toFixed(2)}</span></div>
-                            <div className="flex justify-between"><span className="text-muted-foreground">Your Commission ({c.marginPercentage || marginPercent}%):</span><span className="font-bold text-purple-500">€{(c.partnerShare || 0).toFixed(2)}</span></div>
-                            <div className="flex justify-between"><span className="text-muted-foreground">SCCG Share ({100 - (c.marginPercentage || marginPercent)}%):</span><span className="font-bold text-indigo-500">€{(c.sccgShare || 0).toFixed(2)}</span></div>
+                            <div className="flex justify-between"><span className="text-muted-foreground">Total Fee:</span><span className="font-bold">{dual(c.totalServiceFee || 0, secondaryCurrency, exchangeRate)}</span></div>
+                            <div className="flex justify-between"><span className="text-muted-foreground">Your Commission ({c.marginPercentage || marginPercent}%):</span><span className="font-bold text-purple-500">{dual(c.partnerShare || 0, secondaryCurrency, exchangeRate)}</span></div>
+                            <div className="flex justify-between"><span className="text-muted-foreground">SCCG Share ({100 - (c.marginPercentage || marginPercent)}%):</span><span className="font-bold text-indigo-500">{dual(c.sccgShare || 0, secondaryCurrency, exchangeRate)}</span></div>
                             <hr className="border-border" />
-                            <div className="flex justify-between"><span className="text-muted-foreground">Received from Client:</span><span className="font-bold text-emerald-500">€{(c.depositAmount || 0).toFixed(2)}</span></div>
-                            <div className="flex justify-between"><span className="text-muted-foreground">Outstanding:</span><span className="font-bold text-rose-500">€{due.toFixed(2)}</span></div>
+                            <div className="flex justify-between"><span className="text-muted-foreground">Received from Client:</span><span className="font-bold text-emerald-500">{dual(c.depositAmount || 0, secondaryCurrency, exchangeRate)}</span></div>
+                            <div className="flex justify-between"><span className="text-muted-foreground">Outstanding:</span><span className="font-bold text-rose-500">{dual(due, secondaryCurrency, exchangeRate)}</span></div>
                           </div>
                           <div className="flex gap-2 mt-3">
                             <Link href={`/partner/candidates/${c.id}`}
@@ -537,14 +571,34 @@ export default function FinanceOverviewClient({
                           ) : (
                             <div className="space-y-1.5 max-h-40 overflow-y-auto">
                               {cTx.map((t) => (
-                                <div key={t.id} className="flex items-center justify-between text-xs p-2 rounded-lg bg-muted/30">
+                                <div key={t.id} className="flex items-center justify-between text-xs p-2 rounded-lg bg-muted/30 group">
                                   <div>
                                     <p className="font-medium text-foreground capitalize">{t.type.replace("-", " ")}</p>
                                     <p className="text-[10px] text-muted-foreground">{t.date || "—"} · {t.reference || "—"}</p>
                                   </div>
-                                  <span className={`font-bold ${t.type === "payment" ? "text-emerald-500" : t.type === "refund" ? "text-rose-500" : "text-foreground"}`}>
-                                    €{t.amount.toFixed(2)}
-                                  </span>
+                                  <div className="flex items-center gap-3">
+                                    <span className={`font-bold ${t.type === "payment" ? "text-emerald-500" : t.type === "refund" ? "text-rose-500" : "text-foreground"}`}>
+                                      {dual(t.amount, secondaryCurrency, exchangeRate)}
+                                    </span>
+                                    {t.type === "payment" && c.email && (
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); handleSendConfirmation(c, t); }}
+                                        disabled={confirmSending === t.id || confirmSent.has(t.id)}
+                                        title={confirmSent.has(t.id) ? "Confirmation sent" : "Send payment confirmation"}
+                                        className={`p-1 rounded-md transition-colors ${
+                                          confirmSent.has(t.id) ? "text-emerald-500 bg-emerald-500/10" : "text-primary opacity-0 group-hover:opacity-100 hover:bg-primary/10"
+                                        } disabled:opacity-50`}
+                                      >
+                                        {confirmSending === t.id ? (
+                                          <Clock className="w-3 h-3 animate-spin" />
+                                        ) : confirmSent.has(t.id) ? (
+                                          <CheckCircle2 className="w-3 h-3" />
+                                        ) : (
+                                          <Mail className="w-3 h-3" />
+                                        )}
+                                      </button>
+                                    )}
+                                  </div>
                                 </div>
                               ))}
                             </div>

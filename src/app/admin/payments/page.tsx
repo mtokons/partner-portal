@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { DollarSign, ArrowUpRight, ArrowDownRight, Clock } from "lucide-react";
 import { requireAdmin } from "@/lib/admin-guard";
 import { RowActions } from "@/components/RowActions";
+import { CURRENCY_SYMBOLS } from "@/lib/currency";
 
 export default async function PaymentsPage() {
   await requireAdmin();
@@ -29,7 +30,7 @@ export default async function PaymentsPage() {
         <Card>
           <CardContent className="pt-4 pb-4 text-center">
             <ArrowUpRight className="h-5 w-5 mx-auto text-emerald-500 mb-1" />
-            <p className="text-2xl font-bold">৳{(totalReceived / 1000).toFixed(0)}K</p>
+            <p className="text-2xl font-bold">€{(totalReceived / 1000).toFixed(0)}K</p>
             <p className="text-xs text-muted-foreground">Received</p>
           </CardContent>
         </Card>
@@ -71,7 +72,7 @@ export default async function PaymentsPage() {
                   <tr key={p.id} className="border-b hover:bg-muted/30">
                     <td className="py-3 px-4 text-xs">{p.verifiedAt?.split("T")[0] || "—"}</td>
                     <td className="py-3 px-4 font-medium">{p.payerName}</td>
-                    <td className="py-3 px-4 font-medium">{p.currency === "EUR" ? "€" : "৳"}{p.amount.toLocaleString()}</td>
+                    <td className="py-3 px-4 font-medium">{CURRENCY_SYMBOLS[p.currency as keyof typeof CURRENCY_SYMBOLS] || p.currency}{p.amount.toLocaleString()}</td>
                     <td className="py-3 px-4 capitalize text-xs">{p.paymentMethod.replace(/-/g, " ")}</td>
                     <td className="py-3 px-4 text-xs text-muted-foreground">{p.paymentContext}</td>
                     <td className="py-3 px-4">

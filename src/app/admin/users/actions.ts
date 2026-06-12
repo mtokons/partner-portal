@@ -23,6 +23,9 @@ export async function fetchAllUsersAction() {
         role: d.role || "customer",
         company: d.company || "",
         status: d.status || "active",
+        registeredByPartnerName: d.registeredByPartnerName || "",
+        registeredByPartnerId: d.registeredByPartnerId || "",
+        candidateSccgId: d.candidateSccgId || "",
         createdAt: d.createdAt?.toDate?.()?.toISOString?.() || d.createdAt || new Date().toISOString(),
         updatedAt: d.updatedAt?.toDate?.()?.toISOString?.() || d.updatedAt || new Date().toISOString(),
       };

@@ -81,7 +81,7 @@ export default async function SalesOffersPage() {
               <TableRow className="bg-muted/30">
                 <TableHead className="pl-6">Offer #</TableHead>
                 <TableHead>Client</TableHead>
-                <TableHead>Total (BDT)</TableHead>
+                <TableHead>Total (EUR)</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Valid Until</TableHead>
                 <TableHead>Created</TableHead>
@@ -111,7 +111,7 @@ export default async function SalesOffersPage() {
                         <p className="text-xs text-muted-foreground">{offer.clientEmail}</p>
                       </div>
                     </TableCell>
-                    <TableCell className="font-semibold">BDT {offer.totalAmount.toLocaleString()}</TableCell>
+                    <TableCell className="font-semibold">€{offer.totalAmount.toLocaleString()}</TableCell>
                     <TableCell>
                       <Badge variant={cfg.variant}>{cfg.label}</Badge>
                     </TableCell>

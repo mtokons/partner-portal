@@ -16,9 +16,8 @@ const STATUS_COLORS = {
 
 const PRIORITY_COLORS = {
   low: "text-muted-foreground",
-  medium: "text-yellow-600 dark:text-yellow-400",
-  high: "text-orange-600 dark:text-orange-400",
-  urgent: "text-red-600 dark:text-red-400",
+  regular: "text-blue-600 dark:text-blue-400",
+  high: "text-red-600 dark:text-red-400",
 };
 
 export default async function PartnerSupportPage() {

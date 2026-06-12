@@ -1,11 +1,17 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import type { SessionUser } from "@/types";
-import { getPartnerByEmail, getProducts } from "@/lib/sharepoint";
+import { getPartnerByEmail, getProducts, getCandidateById, getCandidateServices } from "@/lib/sharepoint";
+import { getEurToRate } from "@/lib/currency";
 
 import { WizardShell } from "./WizardShell";
 
-export default async function RegisterCandidatePage() {
+export default async function RegisterCandidatePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ candidateId?: string }>;
+}) {
+  const { candidateId } = await searchParams;
   const session = await auth();
   if (!session?.user) redirect("/login");
 
@@ -14,12 +20,62 @@ export default async function RegisterCandidatePage() {
   if (!partner) redirect("/partner-pending");
 
   const margin = partner.marginPercentage || 15;
-  const products = await getProducts();
+  const secCur = partner.preferredCurrency || "BDT";
+  const [products, rate] = await Promise.all([
+    getProducts(),
+    secCur !== "EUR" ? getEurToRate(secCur) : Promise.resolve(1),
+  ]);
+
+  // Load existing candidate if candidateId provided (Register a Service flow)
+  let existingCandidate: Awaited<ReturnType<typeof getCandidateById>> | null = null;
+  let existingServices: Awaited<ReturnType<typeof getCandidateServices>> = [];
+  if (candidateId) {
+    existingCandidate = await getCandidateById(candidateId);
+    if (existingCandidate && existingCandidate.partnerId !== partner.id) {
+      existingCandidate = null; // Not owned by this partner
+    }
+    if (existingCandidate) {
+      existingServices = await getCandidateServices(candidateId);
+    }
+  }
+
+  const isServiceMode = !!existingCandidate;
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
-      <h1 className="text-2xl font-bold text-foreground mb-6">Register Candidate</h1>
-      <WizardShell partnerMargin={margin} partnerId={partner.id} products={products} />
+      <h1 className="text-2xl font-bold text-foreground mb-1">
+        {isServiceMode ? "Register a Service" : "Register Candidate"}
+      </h1>
+      {isServiceMode && existingCandidate && (
+        <p className="text-sm text-muted-foreground mb-6">
+          Adding services for <span className="font-semibold text-foreground">{existingCandidate.fullName}</span>
+          {existingCandidate.sccgId && (
+            <span className="ml-1 font-mono text-xs">({existingCandidate.sccgId})</span>
+          )}
+          {" · "}{existingServices.length} existing service{existingServices.length !== 1 ? "s" : ""}
+        </p>
+      )}
+      {!isServiceMode && <div className="mb-6" />}
+      <WizardShell
+        partnerMargin={margin}
+        partnerId={partner.id}
+        products={products}
+        secondaryCurrency={secCur}
+        exchangeRate={rate}
+        existingCandidate={existingCandidate ? {
+          id: existingCandidate.id,
+          fullName: existingCandidate.fullName,
+          dateOfBirth: existingCandidate.dateOfBirth,
+          email: existingCandidate.email,
+          phone: existingCandidate.phone,
+          address: existingCandidate.address,
+          passportNumber: existingCandidate.passportNumber,
+          nationalId: existingCandidate.nationalId,
+          nationality: existingCandidate.nationality,
+          country: existingCandidate.country,
+          workflowCategory: existingCandidate.workflowCategory,
+        } : undefined}
+      />
     </div>
   );
 }

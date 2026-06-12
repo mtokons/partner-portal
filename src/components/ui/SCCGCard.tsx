@@ -59,7 +59,7 @@ export default function SCCGCard({
   expiry = "MM/YY",
   tier = "standard",
   balance,
-  currency = "BDT",
+  currency = "EUR",
   className
 }: SCCGCardProps) {
   const style = tierStyles[tier];

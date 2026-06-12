@@ -36,6 +36,8 @@ export interface Partner {
   approvedBy?: string;
   approvedAt?: string;
   salesTarget?: number;
+  preferredCurrency?: string;
+  logoUrl?: string;
   isOnHold?: boolean;
   createdAt: string;
   updatedAt?: string;
@@ -50,6 +52,7 @@ export interface Product {
   sessionsCount: number;         // Expert session amount
   retailPriceEur: number;        // SCCG Retail Price in EUR
   retailPriceBdt: number;        // SCCG Retail Price in BDT
+  initialPayment?: number;       // Initial payment percentage per product (e.g. 30)
   
   // Base B2B reference pricing/stock
   price: number;
@@ -413,6 +416,10 @@ export interface SalesOffer {
   clientId: string;
   clientName?: string;
   clientEmail?: string;
+  clientType?: "registered" | "prospective";
+  prospectName?: string;
+  prospectEmail?: string;
+  prospectPhone?: string;
   status: SalesOfferStatus;
   saleType: SaleType;           // NEW — how this sale is classified
   referralId?: string;          // NEW — referrer's user ID
@@ -930,12 +937,14 @@ export type PaymentStatus =
 
 export type PaymentMethod =
   | "bkash"
+  | "nagad"
   | "city-bank"
   | "brac-bank"
   | "dbbl"
   | "paypal"
   | "sccg-card"
-  | "bank-transfer-other";
+  | "bank-transfer-other"
+  | "bangladesh-bank-transfer";
 
 export type PaymentContext = "sales-order" | "school-enrollment";
 
@@ -1496,10 +1505,11 @@ export interface KanbanTask {
 // ============================================================
 
 export type WorkflowCategory =
-  | "Training"
+  | "Training & Language"
   | "Ausbildung"
-  | "Student Visa"
-  | "Opportunity Card";
+  | "Student"
+  | "Opportunity Card"
+  | "Others";
 
 export type TrainingStatus =
   | "REGISTERED"
@@ -1518,7 +1528,7 @@ export type AusbildungStatus =
   | "VISA_PROCESS"
   | "COMPLETED";
 
-export type StudentVisaStatus =
+export type StudentStatus =
   | "REGISTERED"
   | "DOCUMENTS_UNDER_REVIEW"
   | "PROFESSIONAL_TRAINING_GOING_ON"
@@ -1540,11 +1550,17 @@ export type OpportunityCardStatus =
   | "VISA_PROCESS_STARTED"
   | "COMPLETED";
 
+export type OthersStatus =
+  | "REGISTERED"
+  | "IN_PROGRESS"
+  | "COMPLETED";
+
 export type CandidateStatus =
   | TrainingStatus
   | AusbildungStatus
-  | StudentVisaStatus
-  | OpportunityCardStatus;
+  | StudentStatus
+  | OpportunityCardStatus
+  | OthersStatus;
 
 export type CandidatePaymentStatus =
   | "pending"
@@ -1593,6 +1609,8 @@ export interface CandidateService {
   servicePricingId: string;
   serviceName: string;
   packageType: ServicePackageType;
+  workflowCategory?: WorkflowCategory;
+  currentStatus?: string;
   basePrice: number;
   quantity: number;
   totalPrice: number;
@@ -1633,7 +1651,7 @@ export type HelpdeskTicketStatus =
   | "resolved"
   | "closed";
 
-export type HelpdeskTicketPriority = "low" | "medium" | "high" | "urgent";
+export type HelpdeskTicketPriority = "low" | "regular" | "high";
 
 export type HelpdeskTicketCategory =
   | "billing"

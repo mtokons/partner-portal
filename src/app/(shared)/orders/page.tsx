@@ -86,7 +86,7 @@ export default async function OrdersPage() {
           </div>
           <div className="text-right hidden sm:block">
             <p className="text-white/50 text-xs">Conversion rate</p>
-            <p className="text-white/80 text-sm font-semibold">{rate ? `1 EUR = ${(1 / rate).toFixed(2)} BDT` : "—"}</p>
+            <p className="text-white/80 text-sm font-semibold">{rate ? `1 EUR = ${(1 / rate).toFixed(0)} BDT` : "—"}</p>
           </div>
         </div>
       </div>

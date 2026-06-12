@@ -22,6 +22,7 @@ interface SidebarProps {
   onClose: () => void;
   siteUrl?: string;
   listUrls?: Record<string, string>;
+  partnerLogoUrl?: string;
 }
 
 interface LinkItem {
@@ -107,6 +108,7 @@ const allLinks: LinkItem[] = [
   { href: "/admin/approvals", label: "Approvals", icon: ClipboardCheck, group: "admin", roles: ["admin"] },
   { href: "/admin/users", label: "Manage Users", icon: Users, group: "admin", roles: ["admin"] },
   { href: "/admin/partners", label: "Manage Partners", icon: Shield, group: "admin", roles: ["admin"] },
+  { href: "/admin/currency", label: "Currency Management", icon: DollarSign, group: "admin", roles: ["admin"] },
   { href: "/admin/customers", label: "Customers", icon: Users, group: "admin", roles: ["admin"] },
   { href: "/admin/experts", label: "Experts", icon: UserCheck, group: "admin", roles: ["admin"] },
   { href: "/admin/sessions", label: "All Sessions", icon: Calendar, group: "admin", roles: ["admin"] },
@@ -143,7 +145,8 @@ export default function Sidebar({
   open, 
   onClose = () => {}, 
   siteUrl,
-  listUrls = {}
+  listUrls = {},
+  partnerLogoUrl
 }: SidebarProps) {
   const pathname = usePathname();
   const [searchQuery, setSearchQuery] = useState("");
@@ -252,10 +255,10 @@ export default function Sidebar({
         <div className={cn("p-6 pb-4 shrink-0 transition-all", isMini && "p-4")}>
           <div className="flex items-center justify-between">
             {isMini ? (
-              <img src="/assets/sccg-logo.png" alt="Logo" className="h-8 w-auto mx-auto object-contain animate-in fade-in zoom-in-90 duration-300" />
+              <img src={partnerLogoUrl || "/assets/sccg-logo.png"} alt="Logo" className="h-8 w-auto mx-auto object-contain animate-in fade-in zoom-in-90 duration-300" />
             ) : (
               <div className="flex items-center gap-3 animate-in fade-in slide-in-from-left-2 duration-300">
-                <img src="/assets/sccg-logo.png" alt="SCCG Logo" className="h-9 w-auto object-contain" />
+                <img src={partnerLogoUrl || "/assets/sccg-logo.png"} alt="SCCG Logo" className="h-9 w-auto object-contain" />
                 <div className="border-l border-white/10 pl-3">
                   <h1 className="text-[14px] font-bold text-white tracking-tight leading-none font-[family-name:var(--font-outfit)]">
                     Partner Portal

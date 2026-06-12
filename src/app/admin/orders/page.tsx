@@ -35,6 +35,7 @@ export default async function AdminOrdersPage() {
   } catch (err) {
     rate = null;
   }
+  const fmtEur = (bdt: number) => rate ? `€${(bdt * rate).toFixed(0)} (৳${bdt.toFixed(0)})` : `৳${bdt.toFixed(0)}`;
 
   return (
     <div className="space-y-6">
@@ -55,7 +56,7 @@ export default async function AdminOrdersPage() {
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="text-3xl font-bold text-blue-600">BDT {totalValue.toFixed(0)}{rate ? ` · €${(totalValue * rate).toFixed(0)}` : ""}</div>
+            <div className="text-3xl font-bold text-blue-600">{fmtEur(totalValue)}</div>
             <div className="text-sm text-gray-500 mt-1">Total Value</div>
           </CardContent>
         </Card>
@@ -90,7 +91,7 @@ export default async function AdminOrdersPage() {
                       <TableCell className="text-xs text-gray-500 max-w-[200px] truncate">
                         {order.items.map((i) => `${i.productName} ×${i.quantity}`).join(", ")}
                       </TableCell>
-                      <TableCell className="font-semibold">BDT {order.totalAmount.toFixed(2)}{rate ? ` · €${(order.totalAmount * rate).toFixed(2)}` : ""}</TableCell>
+                      <TableCell className="font-semibold">{fmtEur(order.totalAmount)}</TableCell>
                       <TableCell>
                         <Badge className={statusColor[order.status] || ""}>{order.status}</Badge>
                       </TableCell>

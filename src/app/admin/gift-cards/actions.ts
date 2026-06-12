@@ -33,7 +33,7 @@ export async function issueGiftCardAction(data: {
     initialBalance: data.initialBalance,
     currentBalance: data.initialBalance,
     balance: data.initialBalance,
-    currency: "BDT",
+    currency: "EUR",
     tier: "standard",
     status: "active",
     designTemplate: data.designTemplate,

@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import type { SessionUser, WorkflowCategory } from "@/types";
 import { getPartnerByEmail, getCandidates, getTransactions, getProducts } from "@/lib/sharepoint";
+import { getEurToRate } from "@/lib/currency";
+import { dual } from "@/lib/formatCurrency";
 import { format, parseISO } from "date-fns";
 import {
   ArrowUpRight, DollarSign, CheckCircle2, Clock, AlertTriangle,
@@ -17,10 +19,12 @@ export default async function SccgPaymentsPage() {
   const partner = await getPartnerByEmail(user.email!);
   if (!partner) redirect("/partner-pending");
 
-  const [candidates, transactions, products] = await Promise.all([
+  const secCur = partner.preferredCurrency || "BDT";
+  const [candidates, transactions, products, rate] = await Promise.all([
     getCandidates(partner.id),
     getTransactions(partner.id),
     getProducts().catch(() => []),
+    secCur !== "EUR" ? getEurToRate(secCur) : Promise.resolve(1),
   ]);
 
   const margin = partner.marginPercentage || 15;
@@ -89,7 +93,7 @@ export default async function SccgPaymentsPage() {
             <p className="text-[10px] text-indigo-400 uppercase tracking-wider font-bold">Total SCCG Share</p>
             <DollarSign className="w-4 h-4 text-indigo-400" />
           </div>
-          <p className="text-2xl font-extrabold text-indigo-500 mt-1">€{totalSccgShare.toLocaleString("en", { minimumFractionDigits: 0 })}</p>
+          <p className="text-2xl font-extrabold text-indigo-500 mt-1">{dual(totalSccgShare, secCur, rate)}</p>
           <p className="text-[10px] text-muted-foreground mt-0.5">{100 - margin}% of all sales</p>
         </div>
         <div className="bg-gradient-to-br from-emerald-600/10 to-emerald-500/5 border-2 border-emerald-500/20 rounded-2xl p-5">
@@ -97,7 +101,7 @@ export default async function SccgPaymentsPage() {
             <p className="text-[10px] text-emerald-400 uppercase tracking-wider font-bold">Paid to SCCG</p>
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
           </div>
-          <p className="text-2xl font-extrabold text-emerald-500 mt-1">€{totalPaidToSccg.toLocaleString("en", { minimumFractionDigits: 0 })}</p>
+          <p className="text-2xl font-extrabold text-emerald-500 mt-1">{dual(totalPaidToSccg, secCur, rate)}</p>
           <p className="text-[10px] text-muted-foreground mt-0.5">{payments.length} payment(s) made</p>
         </div>
         <div className={`bg-gradient-to-br ${outstandingBalance > 0 ? "from-amber-600/10 to-orange-500/5 border-2 border-amber-500/20" : "from-emerald-600/10 to-green-500/5 border-2 border-emerald-500/20"} rounded-2xl p-5`}>
@@ -105,7 +109,7 @@ export default async function SccgPaymentsPage() {
             <p className={`text-[10px] ${outstandingBalance > 0 ? "text-amber-400" : "text-emerald-400"} uppercase tracking-wider font-bold`}>Outstanding</p>
             {outstandingBalance > 0 ? <AlertTriangle className="w-4 h-4 text-amber-400" /> : <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
           </div>
-          <p className={`text-2xl font-extrabold mt-1 ${outstandingBalance > 0 ? "text-amber-500" : "text-emerald-500"}`}>€{outstandingBalance.toLocaleString("en", { minimumFractionDigits: 0 })}</p>
+          <p className={`text-2xl font-extrabold mt-1 ${outstandingBalance > 0 ? "text-amber-500" : "text-emerald-500"}`}>{dual(outstandingBalance, secCur, rate)}</p>
           <p className="text-[10px] text-muted-foreground mt-0.5">{clientsWithDue} sale(s) pending</p>
         </div>
         <div className="bg-gradient-to-br from-blue-600/10 to-blue-500/5 border-2 border-blue-500/20 rounded-2xl p-5">
@@ -123,8 +127,8 @@ export default async function SccgPaymentsPage() {
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-bold text-foreground text-sm">Settlement Progress</h3>
           <div className="text-right text-xs">
-            <span className="font-bold text-foreground">€{totalPaidToSccg.toLocaleString("en")}</span>
-            <span className="text-muted-foreground"> / €{totalSccgShare.toLocaleString("en")}</span>
+            <span className="font-bold text-foreground">{dual(totalPaidToSccg, secCur, rate)}</span>
+            <span className="text-muted-foreground"> / {dual(totalSccgShare, secCur, rate)}</span>
           </div>
         </div>
         <div className="w-full bg-muted rounded-full h-4 overflow-hidden">
@@ -135,7 +139,7 @@ export default async function SccgPaymentsPage() {
         </div>
         <p className="text-xs text-muted-foreground mt-2">
           {outstandingBalance > 0
-            ? `€${outstandingBalance.toLocaleString("en")} remaining to settle`
+            ? `${dual(outstandingBalance, secCur, rate)} remaining to settle`
             : "All payments settled — great job!"}
         </p>
       </div>
@@ -174,10 +178,10 @@ export default async function SccgPaymentsPage() {
                       <p className="text-[10px] text-muted-foreground font-mono">{c.sccgId || c.id.slice(0, 8)}</p>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{c.workflowCategory}</td>
-                    <td className="px-4 py-3 text-right font-medium">€{(c.totalServiceFee || 0).toLocaleString("en")}</td>
-                    <td className="px-4 py-3 text-right font-bold text-indigo-500">€{(c.sccgShare || 0).toLocaleString("en")}</td>
-                    <td className="px-4 py-3 text-right font-bold text-emerald-500">€{c.sccgPaid.toLocaleString("en")}</td>
-                    <td className={`px-4 py-3 text-right font-bold ${c.sccgDue > 0 ? "text-amber-500" : "text-emerald-500"}`}>€{c.sccgDue.toLocaleString("en")}</td>
+                    <td className="px-4 py-3 text-right font-medium">{dual(c.totalServiceFee || 0, secCur, rate)}</td>
+                    <td className="px-4 py-3 text-right font-bold text-indigo-500">{dual(c.sccgShare || 0, secCur, rate)}</td>
+                    <td className="px-4 py-3 text-right font-bold text-emerald-500">{dual(c.sccgPaid, secCur, rate)}</td>
+                    <td className={`px-4 py-3 text-right font-bold ${c.sccgDue > 0 ? "text-amber-500" : "text-emerald-500"}`}>{dual(c.sccgDue, secCur, rate)}</td>
                     <td className="px-4 py-3 text-center">
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${c.sccgDue === 0 ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-500/10 text-amber-500"}`}>
                         {c.sccgDue === 0 ? "Settled" : "Pending"}
@@ -212,7 +216,7 @@ export default async function SccgPaymentsPage() {
             {[...payments].sort((a, b) => (b.date || "").localeCompare(a.date || "")).map((t) => (
               <div key={t.id} className="px-5 py-3.5 flex items-center justify-between hover:bg-muted/20 transition-colors">
                 <div>
-                  <p className="text-sm font-semibold text-foreground">€{t.amount.toFixed(2)}</p>
+                  <p className="text-sm font-semibold text-foreground">{dual(t.amount, secCur, rate)}</p>
                   <p className="text-[10px] text-muted-foreground">
                     {t.date ? format(parseISO(t.date), "dd MMM yyyy") : "—"} · Ref: {t.reference || "—"}
                   </p>

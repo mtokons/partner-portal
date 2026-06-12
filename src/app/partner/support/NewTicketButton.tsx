@@ -19,7 +19,7 @@ const CATEGORIES: HelpdeskTicketCategory[] = [
   "workflow",
   "general",
 ];
-const PRIORITIES: HelpdeskTicketPriority[] = ["low", "medium", "high", "urgent"];
+const PRIORITIES: HelpdeskTicketPriority[] = ["low", "regular", "high"];
 
 interface NewTicketButtonProps {
   partnerId: string;
@@ -30,7 +30,7 @@ export function NewTicketButton({ partnerId }: NewTicketButtonProps) {
   const [isPending, startTransition] = useTransition();
   const [form, setForm] = useState({
     category: "general" as HelpdeskTicketCategory,
-    priority: "medium" as HelpdeskTicketPriority,
+    priority: "regular" as HelpdeskTicketPriority,
     subject: "",
     description: "",
   });
@@ -41,7 +41,7 @@ export function NewTicketButton({ partnerId }: NewTicketButtonProps) {
     startTransition(async () => {
       await createHelpdeskTicketAction({ ...form, partnerId });
       setOpen(false);
-      setForm({ category: "general", priority: "medium", subject: "", description: "" });
+      setForm({ category: "general", priority: "regular", subject: "", description: "" });
     });
   }
 

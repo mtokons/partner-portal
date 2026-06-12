@@ -32,6 +32,7 @@ export default async function AdminOverviewPage() {
   } catch (err) {
     rate = null;
   }
+  const fmtEur = (bdt: number) => rate ? `€${(bdt * rate).toFixed(0)} (৳${bdt.toFixed(0)})` : `৳${bdt.toFixed(0)}`;
 
   // Global P&L by period
   const periodMap = new Map<string, { income: number; expenses: number }>();
@@ -101,7 +102,7 @@ export default async function AdminOverviewPage() {
             <CardTitle className="text-sm font-medium text-gray-500">Total Revenue</CardTitle>
             <DollarSign className="h-4 w-4 text-blue-500" />
           </CardHeader>
-          <CardContent><div className="text-2xl font-bold text-blue-600">BDT {totalRevenue.toFixed(0)}{rate ? ` · €${(totalRevenue * rate).toFixed(0)}` : ""}</div></CardContent>
+          <CardContent><div className="text-2xl font-bold text-blue-600">{fmtEur(totalRevenue)}</div></CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -110,7 +111,7 @@ export default async function AdminOverviewPage() {
           </CardHeader>
           <CardContent>
             <div className={`text-2xl font-bold ${totalProfit >= 0 ? "text-green-600" : "text-red-600"}`}>
-              BDT {totalProfit.toFixed(0)}{rate ? ` · €${(totalProfit * rate).toFixed(0)}` : ""}
+              {fmtEur(totalProfit)}
             </div>
           </CardContent>
         </Card>

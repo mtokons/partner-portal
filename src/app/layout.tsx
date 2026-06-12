@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Inter, Outfit } from "next/font/google";
 import "./globals.css";
 import AuthContext from "@/components/providers/AuthContext";
+import CurrencyCalculator from "@/components/CurrencyCalculator";
 import { Toaster } from "sonner";
 
 const geistSans = Geist({
@@ -47,6 +48,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-background">
         <AuthContext>
           {children}
+          <CurrencyCalculator />
         </AuthContext>
         <Toaster richColors position="top-right" />
       </body>

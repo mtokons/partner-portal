@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import type { SessionUser } from "@/types";
 import { getPartners, getCandidates, getTransactions } from "@/lib/sharepoint";
+import { getEurToRate } from "@/lib/currency";
+import { dual } from "@/lib/formatCurrency";
 import { DollarSign, ArrowLeft, TrendingUp, Wallet, Target, Users, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 
@@ -16,9 +18,11 @@ export default async function AdminPartnerFinancePage(props: { params: Promise<{
   const partner = partners.find((p) => p.id === id);
   if (!partner) redirect("/admin/partners");
 
-  const [candidates, allTransactions] = await Promise.all([
+  const secCur = partner.preferredCurrency || "BDT";
+  const [candidates, allTransactions, rate] = await Promise.all([
     getCandidates(partner.id),
     getTransactions(partner.id),
+    secCur !== "EUR" ? getEurToRate(secCur) : Promise.resolve(1),
   ]);
 
   const marginPercent = partner.marginPercentage || 15;
@@ -68,7 +72,7 @@ export default async function AdminPartnerFinancePage(props: { params: Promise<{
             <p className="text-[10px] text-blue-400 uppercase tracking-wider font-bold">Total Sales</p>
             <DollarSign className="w-4 h-4 text-blue-400" />
           </div>
-          <p className="text-xl font-extrabold text-foreground mt-1">€{totalSales.toLocaleString("en", { minimumFractionDigits: 0 })}</p>
+          <p className="text-xl font-extrabold text-foreground mt-1">{dual(totalSales, secCur, rate)}</p>
           <p className="text-[10px] text-muted-foreground mt-0.5">{candidates.length} clients</p>
         </div>
         <div className="bg-gradient-to-br from-emerald-600/10 to-emerald-500/5 border-2 border-emerald-500/20 rounded-2xl p-4">
@@ -76,7 +80,7 @@ export default async function AdminPartnerFinancePage(props: { params: Promise<{
             <p className="text-[10px] text-emerald-400 uppercase tracking-wider font-bold">Collected</p>
             <Wallet className="w-4 h-4 text-emerald-400" />
           </div>
-          <p className="text-xl font-extrabold text-emerald-500 mt-1">€{totalReceived.toLocaleString("en", { minimumFractionDigits: 0 })}</p>
+          <p className="text-xl font-extrabold text-emerald-500 mt-1">{dual(totalReceived, secCur, rate)}</p>
           <p className="text-[10px] text-muted-foreground mt-0.5">From clients</p>
         </div>
         <div className="bg-gradient-to-br from-purple-600/10 to-purple-500/5 border-2 border-purple-500/20 rounded-2xl p-4">
@@ -84,7 +88,7 @@ export default async function AdminPartnerFinancePage(props: { params: Promise<{
             <p className="text-[10px] text-purple-400 uppercase tracking-wider font-bold">Partner Commission</p>
             <TrendingUp className="w-4 h-4 text-purple-400" />
           </div>
-          <p className="text-xl font-extrabold text-purple-500 mt-1">€{totalPartnerShare.toLocaleString("en", { minimumFractionDigits: 0 })}</p>
+          <p className="text-xl font-extrabold text-purple-500 mt-1">{dual(totalPartnerShare, secCur, rate)}</p>
           <p className="text-[10px] text-muted-foreground mt-0.5">{marginPercent}% margin</p>
         </div>
         <div className="bg-gradient-to-br from-indigo-600/10 to-indigo-500/5 border-2 border-indigo-500/20 rounded-2xl p-4">
@@ -92,7 +96,7 @@ export default async function AdminPartnerFinancePage(props: { params: Promise<{
             <p className="text-[10px] text-indigo-400 uppercase tracking-wider font-bold">SCCG Share</p>
             <DollarSign className="w-4 h-4 text-indigo-400" />
           </div>
-          <p className="text-xl font-extrabold text-indigo-500 mt-1">€{totalSccgShare.toLocaleString("en", { minimumFractionDigits: 0 })}</p>
+          <p className="text-xl font-extrabold text-indigo-500 mt-1">{dual(totalSccgShare, secCur, rate)}</p>
           <p className="text-[10px] text-muted-foreground mt-0.5">{100 - marginPercent}% to SCCG</p>
         </div>
         <div className="bg-gradient-to-br from-amber-600/10 to-orange-500/5 border-2 border-amber-500/20 rounded-2xl p-4">
@@ -100,15 +104,15 @@ export default async function AdminPartnerFinancePage(props: { params: Promise<{
             <p className="text-[10px] text-amber-400 uppercase tracking-wider font-bold">Owes to SCCG</p>
             <AlertTriangle className="w-4 h-4 text-amber-400" />
           </div>
-          <p className="text-xl font-extrabold text-amber-500 mt-1">€{outstandingToSccg.toLocaleString("en", { minimumFractionDigits: 0 })}</p>
-          <p className="text-[10px] text-muted-foreground mt-0.5">Paid: €{totalPaidToSccg.toLocaleString("en")}</p>
+          <p className="text-xl font-extrabold text-amber-500 mt-1">{dual(outstandingToSccg, secCur, rate)}</p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">Paid: {dual(totalPaidToSccg, secCur, rate)}</p>
         </div>
         <div className="bg-gradient-to-br from-rose-600/10 to-rose-500/5 border-2 border-rose-500/20 rounded-2xl p-4">
           <div className="flex items-center justify-between">
             <p className="text-[10px] text-rose-400 uppercase tracking-wider font-bold">Client Dues</p>
             <Users className="w-4 h-4 text-rose-400" />
           </div>
-          <p className="text-xl font-extrabold text-rose-500 mt-1">€{clientDues.toLocaleString("en", { minimumFractionDigits: 0 })}</p>
+          <p className="text-xl font-extrabold text-rose-500 mt-1">{dual(clientDues, secCur, rate)}</p>
           <p className="text-[10px] text-muted-foreground mt-0.5">{statusCounts.pending + statusCounts.depositPaid} pending</p>
         </div>
       </div>
@@ -122,8 +126,8 @@ export default async function AdminPartnerFinancePage(props: { params: Promise<{
               <h3 className="font-bold text-foreground text-sm">Annual Sales Target</h3>
             </div>
             <div className="text-right">
-              <span className="text-lg font-extrabold text-foreground">€{totalSales.toLocaleString("en")}</span>
-              <span className="text-sm text-muted-foreground"> / €{salesTarget.toLocaleString("en")}</span>
+              <span className="text-lg font-extrabold text-foreground">{dual(totalSales, secCur, rate)}</span>
+              <span className="text-sm text-muted-foreground"> / {dual(salesTarget, secCur, rate)}</span>
             </div>
           </div>
           <div className="w-full bg-muted rounded-full h-4 overflow-hidden">
@@ -196,11 +200,11 @@ export default async function AdminPartnerFinancePage(props: { params: Promise<{
                     <tr key={c.id} className="hover:bg-muted/20 transition-colors">
                       <td className="px-4 py-3 font-semibold">{c.fullName}</td>
                       <td className="px-4 py-3 font-mono text-muted-foreground">{c.sccgId || "—"}</td>
-                      <td className="px-4 py-3 text-right font-bold">€{(c.totalServiceFee || 0).toLocaleString("en")}</td>
-                      <td className="px-4 py-3 text-right text-emerald-500 font-bold">€{(c.depositAmount || 0).toLocaleString("en")}</td>
-                      <td className={`px-4 py-3 text-right font-bold ${due > 0 ? "text-rose-500" : "text-emerald-500"}`}>€{due.toLocaleString("en")}</td>
-                      <td className="px-4 py-3 text-right text-purple-500 font-bold">€{(c.partnerShare || 0).toLocaleString("en")}</td>
-                      <td className="px-4 py-3 text-right text-indigo-500 font-bold">€{(c.sccgShare || 0).toLocaleString("en")}</td>
+                      <td className="px-4 py-3 text-right font-bold">{dual(c.totalServiceFee || 0, secCur, rate)}</td>
+                      <td className="px-4 py-3 text-right text-emerald-500 font-bold">{dual(c.depositAmount || 0, secCur, rate)}</td>
+                      <td className={`px-4 py-3 text-right font-bold ${due > 0 ? "text-rose-500" : "text-emerald-500"}`}>{dual(due, secCur, rate)}</td>
+                      <td className="px-4 py-3 text-right text-purple-500 font-bold">{dual(c.partnerShare || 0, secCur, rate)}</td>
+                      <td className="px-4 py-3 text-right text-indigo-500 font-bold">{dual(c.sccgShare || 0, secCur, rate)}</td>
                       <td className="px-4 py-3 text-center">
                         <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${sColors[c.paymentStatus] || sColors.pending}`}>
                           {c.paymentStatus?.replace("-", " ") || "pending"}
@@ -242,7 +246,7 @@ export default async function AdminPartnerFinancePage(props: { params: Promise<{
                     <td className="px-4 py-3 font-mono text-muted-foreground">{t.reference || "—"}</td>
                     <td className="px-4 py-3 text-muted-foreground">{t.description || "—"}</td>
                     <td className={`px-4 py-3 text-right font-bold ${t.type === "payment" ? "text-emerald-500" : t.type === "refund" ? "text-rose-500" : ""}`}>
-                      €{t.amount.toFixed(2)}
+                      {dual(t.amount, secCur, rate)}
                     </td>
                   </tr>
                 ))}

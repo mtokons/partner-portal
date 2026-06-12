@@ -69,7 +69,7 @@ export default async function InvoicesPage() {
                 <TableRow key={invoice.id}>
                   <TableCell className="font-mono text-sm">{invoice.id.toUpperCase()}</TableCell>
                   <TableCell>{invoice.clientName || invoice.clientId}</TableCell>
-                  <TableCell className="font-semibold">{fmtBdt(invoice.amount, invoice.amountEur != null ? null : rate, { compact: true })}{invoice.amountEur != null ? ` · €${invoice.amountEur.toFixed(2)}` : ""}</TableCell>
+                  <TableCell className="font-semibold">{invoice.amountEur != null ? `€${invoice.amountEur.toFixed(2)} · ৳${invoice.amount.toFixed(2)}` : fmtBdt(invoice.amount, rate, { compact: true })}</TableCell>
                   <TableCell>{new Date(invoice.dueDate).toLocaleDateString()}</TableCell>
                   <TableCell>
                     <Badge className={statusColor[invoice.status] || ""}>{invoice.status}</Badge>

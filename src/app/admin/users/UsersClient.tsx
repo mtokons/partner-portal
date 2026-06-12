@@ -50,7 +50,7 @@ export default function UsersClient() {
     try {
       const res = await fetchAllUsersAction();
       if (res.success && res.data) {
-        setUsers(res.data as (UserProfile & { roles: string[] })[]);
+        setUsers(res.data as unknown as (UserProfile & { roles: string[] })[]);
       } else {
         alert(res.error || "Failed to load users");
       }
@@ -181,6 +181,7 @@ export default function UsersClient() {
                 <th className="px-6 py-4 font-semibold">User</th>
                 <th className="px-6 py-4 font-semibold">Primary Type</th>
                 <th className="px-6 py-4 font-semibold">Active Roles</th>
+                <th className="px-6 py-4 font-semibold">Partner</th>
                 <th className="px-6 py-4 font-semibold">Status</th>
                 <th className="px-6 py-4 font-semibold text-right">Actions</th>
               </tr>
@@ -188,7 +189,7 @@ export default function UsersClient() {
             <tbody className="divide-y divide-border/50">
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">
+                  <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground">
                     <div className="flex items-center justify-center gap-2">
                       <div className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
                       Loading users...
@@ -197,7 +198,7 @@ export default function UsersClient() {
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">
+                  <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground">
                     No users found matching "{search}"
                   </td>
                 </tr>
@@ -233,6 +234,18 @@ export default function UsersClient() {
                           <span className="text-xs text-muted-foreground italic">No roles</span>
                         )}
                       </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      {(user as any).registeredByPartnerName ? (
+                        <div>
+                          <span className="text-xs font-medium text-foreground">{(user as any).registeredByPartnerName}</span>
+                          {(user as any).candidateSccgId && (
+                            <p className="text-[10px] text-muted-foreground mt-0.5">{(user as any).candidateSccgId}</p>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground italic">Direct / Self</span>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       {user.status === "active" ? (

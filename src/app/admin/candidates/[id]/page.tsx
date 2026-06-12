@@ -6,10 +6,11 @@ import {
   getCandidateTasks,
 } from "@/lib/sharepoint";
 import { getAllowedTransitions } from "@/lib/engine/candidate-workflow";
-import { WorkflowStepper } from "@/components/candidate/WorkflowStepper";
-import { CandidateStatusAdvancer } from "@/app/partner/candidates/[id]/CandidateStatusAdvancer";
+import { getCandidateDocumentsAction } from "@/app/partner/candidates/actions";
+import CandidateDocumentsSection from "@/app/partner/candidates/[id]/CandidateDocumentsSection";
+import { ServiceWorkflowView } from "@/app/partner/candidates/[id]/ServiceWorkflowView";
 import { format, parseISO, isPast } from "date-fns";
-import { ArrowLeft, AlertCircle, FileText, CreditCard, ClipboardList, ToggleLeft } from "lucide-react";
+import { ArrowLeft, AlertCircle, FileText, CreditCard, ClipboardList } from "lucide-react";
 import { AdminOnHoldToggle } from "./AdminOnHoldToggle";
 
 const TASK_ICON = {
@@ -38,10 +39,8 @@ export default async function AdminCandidateDetailPage({
 
   if (!candidate) notFound();
 
-  const allowedNext = getAllowedTransitions(
-    candidate.workflowCategory,
-    candidate.currentStatus as string
-  );
+  const docsRes = await getCandidateDocumentsAction(candidate.id, candidate.fullName);
+  const initialDocuments = docsRes.success && docsRes.data ? docsRes.data : [];
 
   const activeTasks = tasks.filter(
     (t) => t.status === "todo" || t.status === "in-progress"
@@ -67,19 +66,23 @@ export default async function AdminCandidateDetailPage({
         <AdminOnHoldToggle candidateId={candidate.id} isOnHold={candidate.isOnHold ?? false} />
       </div>
 
-      {/* Workflow stepper with advance */}
-      <div className="bg-card rounded-2xl border p-6 space-y-4">
-        <h2 className="font-semibold">{candidate.workflowCategory} Workflow</h2>
-        <WorkflowStepper
-          category={candidate.workflowCategory}
-          currentStatus={candidate.currentStatus}
-          isAdmin={true}
-          allowedNext={allowedNext}
-        />
-        {allowedNext.length > 0 && (
-          <CandidateStatusAdvancer candidateId={candidate.id} allowedNext={allowedNext} />
-        )}
-      </div>
+      {/* Workflow + Services + Payment — interactive client component */}
+      <ServiceWorkflowView
+        services={services}
+        candidateWorkflowCategory={candidate.workflowCategory}
+        candidateCurrentStatus={candidate.currentStatus}
+        candidateId={candidate.id}
+        candidateName={candidate.fullName}
+        isAdmin={true}
+        allowedTransitions={getAllowedTransitions(candidate.workflowCategory, candidate.currentStatus as string)}
+        formattedPrices={Object.fromEntries(services.map((s) => [s.id, `€${s.totalPrice.toLocaleString("en-US", { minimumFractionDigits: 2 })}`]))}
+        totalServiceFee={`€${candidate.totalServiceFee.toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
+        depositAmount={`€${candidate.depositAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
+        partnerShare={`€${candidate.partnerShare.toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
+        sccgShare={`€${candidate.sccgShare.toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
+        marginPercentage={candidate.marginPercentage}
+        paymentStatus={candidate.paymentStatus}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Personal info */}
@@ -94,7 +97,6 @@ export default async function AdminCandidateDetailPage({
               ["Country", candidate.country],
               ["Passport", candidate.passportNumber ?? "—"],
               ["National ID", candidate.nationalId ?? "—"],
-              ["Payment Status", candidate.paymentStatus.replace(/-/g, " ")],
             ].map(([label, value]) => (
               <div key={label as string}>
                 <dt className="text-muted-foreground">{label}</dt>
@@ -104,47 +106,21 @@ export default async function AdminCandidateDetailPage({
           </dl>
         </div>
 
-        {/* Financial */}
-        <div className="bg-card rounded-2xl border p-6 space-y-2">
-          <h2 className="font-semibold">Financial Split</h2>
-          <div className="space-y-1.5 text-sm">
-            {[
-              ["Total Fee", `€${candidate.totalServiceFee.toLocaleString("en-US", { minimumFractionDigits: 2 })}`],
-              [`Partner Share (${candidate.marginPercentage}%)`, `€${candidate.partnerShare.toLocaleString("en-US", { minimumFractionDigits: 2 })}`],
-              ["SCCG Share", `€${candidate.sccgShare.toLocaleString("en-US", { minimumFractionDigits: 2 })}`],
-              ["Deposit", `€${candidate.depositAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}`],
-            ].map(([label, value]) => (
-              <div key={label as string} className="flex justify-between border-b pb-1 last:border-0">
-                <span className="text-muted-foreground">{label}</span>
-                <span className="font-medium">{value}</span>
-              </div>
-            ))}
-          </div>
+        {/* Notes */}
+        <div className="bg-card rounded-2xl border p-6 space-y-3">
+          <h2 className="font-semibold">Partner Details</h2>
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+            <div>
+              <dt className="text-muted-foreground">Partner</dt>
+              <dd className="font-medium">{candidate.partnerName ?? candidate.partnerId}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">SCCG ID</dt>
+              <dd className="font-medium font-mono text-xs">{candidate.sccgId}</dd>
+            </div>
+          </dl>
         </div>
       </div>
-
-      {/* Services */}
-      {services.length > 0 && (
-        <div className="bg-card rounded-2xl border overflow-hidden">
-          <div className="px-6 py-4 border-b"><h2 className="font-semibold">Services</h2></div>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-muted/30">
-                <th className="text-left px-4 py-2 font-medium text-muted-foreground">Service</th>
-                <th className="text-right px-4 py-2 font-medium text-muted-foreground">Total</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {services.map((s) => (
-                <tr key={s.id}>
-                  <td className="px-4 py-2">{s.serviceName}</td>
-                  <td className="px-4 py-2 text-right">€{s.totalPrice.toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
 
       {/* Tasks */}
       {activeTasks.length > 0 && (
@@ -175,6 +151,13 @@ export default async function AdminCandidateDetailPage({
           </div>
         </div>
       )}
+
+      {/* Documents */}
+      <CandidateDocumentsSection
+        candidateId={candidate.id}
+        candidateName={candidate.fullName}
+        initialDocuments={initialDocuments}
+      />
 
       {/* PDF */}
       <div className="flex items-center gap-3">

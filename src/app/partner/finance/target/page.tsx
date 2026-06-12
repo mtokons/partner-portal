@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import type { SessionUser, WorkflowCategory } from "@/types";
 import { getPartnerByEmail, getCandidates, getTransactions } from "@/lib/sharepoint";
+import { getEurToRate } from "@/lib/currency";
+import { dual } from "@/lib/formatCurrency";
 import { format, parseISO, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import {
   Target, TrendingUp, Trophy, BarChart3, CheckCircle2, AlertTriangle,
@@ -16,7 +18,12 @@ export default async function TargetAchievementPage() {
   const partner = await getPartnerByEmail(user.email!);
   if (!partner) redirect("/partner-pending");
 
-  const candidates = await getCandidates(partner.id);
+  const secCur = partner.preferredCurrency || "BDT";
+  const [candidatesResult, rate] = await Promise.all([
+    getCandidates(partner.id),
+    secCur !== "EUR" ? getEurToRate(secCur) : Promise.resolve(1),
+  ]);
+  const candidates = candidatesResult;
   const margin = partner.marginPercentage || 15;
   const salesTarget = partner.salesTarget || 0;
   const now = new Date();
@@ -57,7 +64,7 @@ export default async function TargetAchievementPage() {
   const monthlyTarget = salesTarget > 0 ? salesTarget / 12 : 0;
 
   // === CATEGORY PERFORMANCE ===
-  const categories: WorkflowCategory[] = ["Training", "Ausbildung", "Student Visa", "Opportunity Card"];
+  const categories: WorkflowCategory[] = ["Training & Language", "Ausbildung", "Student", "Opportunity Card", "Others"];
   const categoryPerformance = categories.map((cat) => {
     const cs = yearCandidates.filter((c) => c.workflowCategory === cat);
     return {
@@ -111,14 +118,14 @@ export default async function TargetAchievementPage() {
               <div>
                 <h2 className="text-lg font-extrabold text-foreground">Annual Sales Target</h2>
                 <p className="text-sm text-muted-foreground">
-                  {targetProgress >= 100 ? "Target achieved! Bonus eligible" : `${remaining > 0 ? `€${remaining.toLocaleString("en")} remaining` : "On track"}`}
+                  {targetProgress >= 100 ? "Target achieved! Bonus eligible" : `${remaining > 0 ? `${dual(remaining, secCur, rate)} remaining` : "On track"}`}
                 </p>
               </div>
             </div>
             <div className="text-right">
               <p className="text-3xl font-extrabold text-foreground">
-                €{yearSales.toLocaleString("en")}
-                <span className="text-lg text-muted-foreground font-medium"> / €{salesTarget.toLocaleString("en")}</span>
+                {dual(yearSales, secCur, rate)}
+                <span className="text-lg text-muted-foreground font-medium"> / {dual(salesTarget, secCur, rate)}</span>
               </p>
               <p className={`text-sm font-bold ${targetProgress >= 100 ? "text-emerald-500" : targetProgress >= 75 ? "text-blue-500" : targetProgress >= 50 ? "text-amber-500" : "text-rose-500"}`}>
                 {targetProgress.toFixed(1)}% achieved
@@ -159,7 +166,7 @@ export default async function TargetAchievementPage() {
                 <p className="text-sm font-bold text-foreground">To Hit Your Target</p>
               </div>
               <p className="text-xs text-muted-foreground">
-                You need <span className="font-bold text-foreground">€{monthlyNeeded.toLocaleString("en", { maximumFractionDigits: 0 })}</span> in sales per month
+                You need <span className="font-bold text-foreground">{dual(monthlyNeeded, secCur, rate)}</span> in sales per month
                 for the remaining <span className="font-bold text-foreground">{monthsLeft}</span> month(s).
                 That's roughly <span className="font-bold text-foreground">{monthlyTarget > 0 ? Math.ceil(monthlyNeeded / (monthlyTarget / (yearClients / Math.max(now.getMonth() + 1, 1) || 1))) : "—"}</span> new client(s) per month at your average sale value.
               </p>
@@ -191,11 +198,11 @@ export default async function TargetAchievementPage() {
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <div className="bg-card border rounded-2xl p-4 text-center">
           <p className="text-[10px] text-muted-foreground uppercase font-bold">Year Sales</p>
-          <p className="text-lg font-extrabold text-foreground mt-1">€{yearSales.toLocaleString("en")}</p>
+          <p className="text-lg font-extrabold text-foreground mt-1">{dual(yearSales, secCur, rate)}</p>
         </div>
         <div className="bg-card border rounded-2xl p-4 text-center">
           <p className="text-[10px] text-muted-foreground uppercase font-bold">Commission Earned</p>
-          <p className="text-lg font-extrabold text-emerald-500 mt-1">€{yearCommission.toLocaleString("en")}</p>
+          <p className="text-lg font-extrabold text-emerald-500 mt-1">{dual(yearCommission, secCur, rate)}</p>
         </div>
         <div className="bg-card border rounded-2xl p-4 text-center">
           <p className="text-[10px] text-muted-foreground uppercase font-bold">Clients This Year</p>
@@ -203,7 +210,7 @@ export default async function TargetAchievementPage() {
         </div>
         <div className="bg-card border rounded-2xl p-4 text-center">
           <p className="text-[10px] text-muted-foreground uppercase font-bold">Avg per Sale</p>
-          <p className="text-lg font-extrabold text-purple-500 mt-1">€{yearClients > 0 ? (yearSales / yearClients).toFixed(0) : 0}</p>
+          <p className="text-lg font-extrabold text-purple-500 mt-1">{dual(yearClients > 0 ? Math.round(yearSales / yearClients) : 0, secCur, rate)}</p>
         </div>
         <div className="bg-card border rounded-2xl p-4 text-center">
           <p className="text-[10px] text-muted-foreground uppercase font-bold">YoY Growth</p>
@@ -222,13 +229,13 @@ export default async function TargetAchievementPage() {
           {monthlyData.map((m) => (
             <div key={m.month} className="flex-1 flex flex-col items-center gap-0.5">
               {m.sales > 0 && (
-                <p className="text-[8px] font-bold text-foreground">€{(m.sales / 1000).toFixed(1)}k</p>
+                <p className="text-[8px] font-bold text-foreground">{dual(m.sales, secCur, rate)}</p>
               )}
               <div className="w-full relative">
                 <div
                   className={`w-full rounded-lg transition-all ${m.isCurrent ? "bg-primary/80 ring-2 ring-primary/30" : m.isPast ? (m.sales >= monthlyTarget && salesTarget > 0 ? "bg-emerald-500/70" : "bg-blue-500/50") : "bg-muted/40"}`}
                   style={{ height: `${Math.max(4, (m.sales / maxMonthlySales) * 140)}px` }}
-                  title={`${m.fullLabel}: €${m.sales.toLocaleString("en")} · ${m.clients} clients`}
+                  title={`${m.fullLabel}: ${dual(m.sales, secCur, rate)} · ${m.clients} clients`}
                 />
                 {/* Monthly target line */}
                 {salesTarget > 0 && monthlyTarget > 0 && (
@@ -278,11 +285,11 @@ export default async function TargetAchievementPage() {
                       <p className="text-[9px] text-muted-foreground">Clients</p>
                     </div>
                     <div>
-                      <p className="text-lg font-extrabold text-blue-500">€{(cat.sales / 1000).toFixed(1)}k</p>
+                      <p className="text-lg font-extrabold text-blue-500">{dual(cat.sales, secCur, rate)}</p>
                       <p className="text-[9px] text-muted-foreground">Sales</p>
                     </div>
                     <div>
-                      <p className="text-lg font-extrabold text-emerald-500">€{(cat.commission / 1000).toFixed(1)}k</p>
+                      <p className="text-lg font-extrabold text-emerald-500">{dual(cat.commission, secCur, rate)}</p>
                       <p className="text-[9px] text-muted-foreground">Commission</p>
                     </div>
                   </div>
@@ -321,9 +328,9 @@ export default async function TargetAchievementPage() {
                     <td className="px-4 py-3 font-medium">
                       {m.fullLabel} {m.isCurrent && <span className="text-[9px] text-primary font-bold ml-1">Current</span>}
                     </td>
-                    <td className="px-4 py-3 text-right font-bold">€{m.sales.toLocaleString("en")}</td>
-                    <td className="px-4 py-3 text-right font-bold text-foreground">€{cumulative.toLocaleString("en")}</td>
-                    {salesTarget > 0 && <td className="px-4 py-3 text-right text-muted-foreground">€{expectedCumulative.toLocaleString("en", { maximumFractionDigits: 0 })}</td>}
+                    <td className="px-4 py-3 text-right font-bold">{dual(m.sales, secCur, rate)}</td>
+                    <td className="px-4 py-3 text-right font-bold text-foreground">{dual(cumulative, secCur, rate)}</td>
+                    {salesTarget > 0 && <td className="px-4 py-3 text-right text-muted-foreground">{dual(expectedCumulative, secCur, rate)}</td>}
                     {salesTarget > 0 && (
                       <td className="px-4 py-3 text-center">
                         {onTrack ? (

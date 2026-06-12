@@ -14,6 +14,7 @@ interface PortalShellProps {
   siteUrl?: string | null;
   listUrls?: Record<string, string>;
   tierStatus?: string;
+  partnerLogoUrl?: string;
 }
 
 export default function PortalShell({
@@ -26,6 +27,7 @@ export default function PortalShell({
   siteUrl,
   listUrls,
   tierStatus,
+  partnerLogoUrl,
 }: PortalShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -37,6 +39,7 @@ export default function PortalShell({
         onClose={() => setSidebarOpen(false)} 
         siteUrl={siteUrl || undefined}
         listUrls={listUrls}
+        partnerLogoUrl={partnerLogoUrl}
       />
       <Header
         userName={userName}

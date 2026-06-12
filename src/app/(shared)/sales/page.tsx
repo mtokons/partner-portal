@@ -107,7 +107,7 @@ export default async function SalesDashboard() {
               </div>
               <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground bg-muted px-2 py-1 rounded-full">Volume</span>
             </div>
-            <p className="text-3xl font-black text-foreground">BDT {totalSalesAmount.toLocaleString()}</p>
+            <p className="text-3xl font-black text-foreground">€{totalSalesAmount.toLocaleString()}</p>
             <p className="text-sm text-muted-foreground mt-1">Total revenue volume</p>
             <div className="mt-4 pt-4 border-t border-dashed flex items-center justify-between">
               <span className="text-xs font-bold text-emerald-600">+12% vs last month</span>

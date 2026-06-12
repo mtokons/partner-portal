@@ -2,10 +2,13 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import type { SessionUser } from "@/types";
 import { getPartnerByEmail, getInvoices, getCandidates } from "@/lib/sharepoint";
+import { getEurToRate } from "@/lib/currency";
+import { dual } from "@/lib/formatCurrency";
 import { format, parseISO } from "date-fns";
-import { FileText, CheckCircle, Clock, AlertTriangle } from "lucide-react";
+import { FileText, CheckCircle, Clock, AlertTriangle, Download, Send } from "lucide-react";
 import Link from "next/link";
 import CreateInvoiceButton from "./CreateInvoiceButton";
+import InvoiceActions from "./InvoiceActions";
 
 const STATUS_STYLES: Record<string, string> = {
   draft: "bg-gray-500/10 text-gray-500",
@@ -23,9 +26,11 @@ export default async function InvoicesPage() {
   const partner = await getPartnerByEmail(user.email!);
   if (!partner) redirect("/partner-pending");
 
-  const [invoices, candidates] = await Promise.all([
+  const secCur = partner.preferredCurrency || "BDT";
+  const [invoices, candidates, rate] = await Promise.all([
     getInvoices(partner.id),
     getCandidates(partner.id),
+    secCur !== "EUR" ? getEurToRate(secCur) : Promise.resolve(1),
   ]);
   const sorted = [...invoices].sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
 
@@ -61,13 +66,13 @@ export default async function InvoicesPage() {
         <div className="bg-card border rounded-2xl p-5">
           <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Paid</p>
           <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
-            €{totalPaid.toLocaleString("en-US", { minimumFractionDigits: 0 })}
+            {dual(totalPaid, secCur, rate)}
           </p>
         </div>
         <div className="bg-card border rounded-2xl p-5">
           <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Outstanding</p>
           <p className="text-3xl font-bold text-amber-600 dark:text-amber-400 mt-1">
-            €{totalOutstanding.toLocaleString("en-US", { minimumFractionDigits: 0 })}
+            {dual(totalOutstanding, secCur, rate)}
           </p>
         </div>
       </div>
@@ -91,6 +96,7 @@ export default async function InvoicesPage() {
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Due</th>
                   <th className="text-right px-5 py-3.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Amount</th>
                   <th className="text-center px-5 py-3.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
+                  <th className="text-right px-5 py-3.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -104,11 +110,14 @@ export default async function InvoicesPage() {
                     <td className="px-5 py-4 text-muted-foreground">
                       {inv.dueDate ? format(parseISO(inv.dueDate), "MMM d, yyyy") : "—"}
                     </td>
-                    <td className="px-5 py-4 text-right font-semibold">€{inv.amount.toFixed(2)}</td>
+                    <td className="px-5 py-4 text-right font-semibold">{dual(inv.amount, secCur, rate)}</td>
                     <td className="px-5 py-4 text-center">
                       <span className={`text-xs px-2.5 py-1 rounded-full font-semibold uppercase tracking-wider ${STATUS_STYLES[inv.status] || STATUS_STYLES.draft}`}>
                         {inv.status}
                       </span>
+                    </td>
+                    <td className="px-5 py-4 text-right">
+                      <InvoiceActions invoiceId={inv.id} invoiceNumber={inv.invoiceNumber || inv.id.slice(0, 8)} status={inv.status} />
                     </td>
                   </tr>
                 ))}

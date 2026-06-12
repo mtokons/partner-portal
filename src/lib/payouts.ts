@@ -84,7 +84,7 @@ export function buildPayoutRecords(
       gross: dist.referralPayout,
       deductions: Math.round(dist.referralPayout * COMMISSION_RATES.platformFee * 100) / 100,
       net: Math.round(dist.referralPayout * (1 - COMMISSION_RATES.platformFee) * 100) / 100,
-      currency: "BDT",
+      currency: "EUR",
       status: "pending",
       createdAt: now,
     });
@@ -100,7 +100,7 @@ export function buildPayoutRecords(
       gross: dist.partnerPayout,
       deductions: Math.round(dist.partnerPayout * COMMISSION_RATES.platformFee * 100) / 100,
       net: Math.round(dist.partnerPayout * (1 - COMMISSION_RATES.platformFee) * 100) / 100,
-      currency: "BDT",
+      currency: "EUR",
       status: "pending",
       createdAt: now,
     });

@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import type { SessionUser } from "@/types";
 import { getSalesOffers, getPartnerByEmail } from "@/lib/sharepoint";
+import { getEurToRate } from "@/lib/currency";
+import { dual } from "@/lib/formatCurrency";
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { Plus, FileText, Send, Eye, Trash2 } from "lucide-react";
@@ -22,7 +24,12 @@ export default async function PartnerOffersPage() {
   const user = session.user as SessionUser;
   if (!user.partnerId) redirect("/partner-pending");
 
-  const offers = await getSalesOffers(user.partnerId);
+  const partner = await getPartnerByEmail(user.email!);
+  const secCur = partner?.preferredCurrency || "BDT";
+  const [offers, rate] = await Promise.all([
+    getSalesOffers(user.partnerId),
+    secCur !== "EUR" ? getEurToRate(secCur) : Promise.resolve(1),
+  ]);
 
   // Sort by newest first
   const sorted = [...offers].sort((a, b) =>
@@ -111,14 +118,21 @@ export default async function PartnerOffersPage() {
                       </Link>
                     </td>
                     <td className="px-5 py-4">
-                      <p className="font-medium text-foreground">{offer.clientName}</p>
-                      <p className="text-xs text-muted-foreground">{offer.clientEmail}</p>
+                      <p className="font-medium text-foreground">
+                        {offer.clientName}
+                        {offer.clientType === "prospective" && (
+                          <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-bold uppercase">
+                            Prospective
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{offer.clientEmail || offer.prospectEmail}</p>
                     </td>
                     <td className="px-5 py-4 text-muted-foreground">
                       {offer.createdAt ? format(parseISO(offer.createdAt), "MMM d, yyyy") : "—"}
                     </td>
                     <td className="px-5 py-4 text-right font-semibold">
-                      €{offer.totalAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                      {dual(offer.totalAmount, secCur, rate)}
                     </td>
                     <td className="px-5 py-4 text-center">
                       <span className={`text-xs px-2.5 py-1 rounded-full font-semibold uppercase tracking-wider border ${STATUS_STYLES[offer.status] || STATUS_STYLES.draft}`}>

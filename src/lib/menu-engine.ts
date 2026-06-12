@@ -67,6 +67,7 @@ const PARTNER_MENU: MenuItem[] = [
   { key: "partner.candidates.new",  label: "Register Candidate", href: "/partner/candidates/new",    icon: "UserPlus",        group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
   { key: "partner.offers",          label: "Create Offer",       href: "/partner/offers",            icon: "Handshake",       group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false },
   { key: "partner.tasks",           label: "My Tasks",           href: "/partner/tasks",             icon: "ClipboardList",   group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 5, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "partner.bookings",        label: "Bookings & Leads",   href: "/sales/bookings",            icon: "CalendarCheck",   group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 6, isEnabled: false, isDefault: false, isLocked: true },
 
   // Finance
   { key: "partner.finance",         label: "Finance Overview",   href: "/partner/finance",           icon: "DollarSign",      group: "finance",    groupLabel: "Finance",            groupOrder: 2, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
@@ -102,8 +103,10 @@ const ADMIN_MENU: MenuItem[] = [
 
   // Sales & CRM
   { key: "admin.products",          label: "Manage Products",    href: "/admin/products",            icon: "Package",         group: "sales",      groupLabel: "Sales & CRM",        groupOrder: 4, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
-  { key: "admin.orders",            label: "All Orders",         href: "/admin/orders",              icon: "ShoppingCart",    group: "sales",      groupLabel: "Sales & CRM",        groupOrder: 4, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
-  { key: "admin.sessions",          label: "All Sessions",       href: "/admin/sessions",            icon: "Calendar",        group: "sales",      groupLabel: "Sales & CRM",        groupOrder: 4, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.register",          label: "Register Candidate", href: "/admin/candidates/new",      icon: "UserPlus",        group: "sales",      groupLabel: "Sales & CRM",        groupOrder: 4, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.orders",            label: "All Orders",         href: "/admin/orders",              icon: "ShoppingCart",    group: "sales",      groupLabel: "Sales & CRM",        groupOrder: 4, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.sessions",          label: "All Sessions",       href: "/admin/sessions",            icon: "Calendar",        group: "sales",      groupLabel: "Sales & CRM",        groupOrder: 4, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.bookings",          label: "Bookings & Leads",   href: "/sales/bookings",            icon: "CalendarCheck",   group: "sales",      groupLabel: "Sales & CRM",        groupOrder: 4, itemOrder: 5, isEnabled: true, isDefault: true, isLocked: false },
 
   // Finance
   { key: "admin.financials",        label: "Global Financials",  href: "/admin/financials",          icon: "DollarSign",      group: "finance",    groupLabel: "Finance",            groupOrder: 5, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
@@ -147,13 +150,16 @@ const ADMIN_MENU: MenuItem[] = [
 
 const CUSTOMER_MENU: MenuItem[] = [
   { key: "customer.dashboard",      label: "Dashboard",          href: "/customer/dashboard",        icon: "LayoutDashboard", group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: true },
-  { key: "customer.packages",       label: "My Packages",        href: "/customer/packages",         icon: "Package",         group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
-  { key: "customer.courses",        label: "My Courses",         href: "/customer/school",           icon: "GraduationCap",   group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
-  { key: "customer.sessions",       label: "Sessions",           href: "/customer/sessions",         icon: "Calendar",        group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false },
-  { key: "customer.payments",       label: "Payments",           href: "/customer/payments",         icon: "CreditCard",      group: "finance",    groupLabel: "Finance",            groupOrder: 2, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
-  { key: "customer.invoices",       label: "Invoices",           href: "/customer/invoices",         icon: "FileText",        group: "finance",    groupLabel: "Finance",            groupOrder: 2, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
-  { key: "customer.notifications",  label: "Notifications",      href: "/customer/notifications",    icon: "Bell",            group: "account",    groupLabel: "Account",            groupOrder: 3, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
-  { key: "customer.career",         label: "Career Suggestions", href: "/customer/career",           icon: "Sparkles",        group: "account",    groupLabel: "Account",            groupOrder: 3, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "customer.offers",         label: "My Offers",          href: "/customer/offers",           icon: "FileText",        group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "customer.timeline",       label: "My Timeline",        href: "/customer/timeline",         icon: "ClipboardList",   group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "customer.packages",       label: "My Packages",        href: "/customer/packages",         icon: "Package",         group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "customer.courses",        label: "My Courses",         href: "/customer/school",           icon: "GraduationCap",   group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 5, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "customer.sessions",       label: "Sessions",           href: "/customer/sessions",         icon: "Calendar",        group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 6, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "customer.messages",       label: "Messages",           href: "/customer/messages",         icon: "MessageSquare",   group: "communication", groupLabel: "Communication",   groupOrder: 2, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "customer.payments",       label: "Payments",           href: "/customer/payments",         icon: "CreditCard",      group: "finance",    groupLabel: "Finance",            groupOrder: 3, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "customer.invoices",       label: "Invoices",           href: "/customer/invoices",         icon: "FileText",        group: "finance",    groupLabel: "Finance",            groupOrder: 3, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "customer.notifications",  label: "Notifications",      href: "/customer/notifications",    icon: "Bell",            group: "account",    groupLabel: "Account",            groupOrder: 4, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "customer.career",         label: "Career Suggestions", href: "/customer/career",           icon: "Sparkles",        group: "account",    groupLabel: "Account",            groupOrder: 4, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
 ];
 
 const EXPERT_MENU: MenuItem[] = [

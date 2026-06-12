@@ -85,7 +85,7 @@ export default function CartDrawer({
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-sm text-foreground truncate">{item.product.name}</p>
-                  <p className="text-xs text-muted-foreground">BDT {item.effectivePrice.toLocaleString()} / unit</p>
+                  <p className="text-xs text-muted-foreground">€{item.effectivePrice.toLocaleString()} / unit</p>
                 </div>
                 <div className="flex flex-col items-end gap-2">
                   <button onClick={() => onRemove(item.product.id)}>
@@ -107,7 +107,7 @@ export default function CartDrawer({
                     </button>
                   </div>
                   <p className="text-xs font-black text-foreground">
-                    BDT {(item.effectivePrice * item.quantity).toLocaleString()}
+                    €{(item.effectivePrice * item.quantity).toLocaleString()}
                   </p>
                 </div>
               </div>
@@ -120,7 +120,7 @@ export default function CartDrawer({
           {/* Total */}
           <div className="flex justify-between items-center">
             <span className="text-sm text-muted-foreground font-medium">Subtotal</span>
-            <span className="text-xl font-black text-foreground">BDT {cartTotal.toLocaleString()}</span>
+            <span className="text-xl font-black text-foreground">€{cartTotal.toLocaleString()}</span>
           </div>
 
           {/* Client */}

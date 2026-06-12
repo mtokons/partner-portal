@@ -226,6 +226,7 @@ const PR_COL = { // SCCG Products
   sessionsCount: "SessionsCount",
   retailPriceEur: "RetailPriceEur",
   retailPriceBdt: "RetailPriceBdt",
+  initialPayment: "InitialPayment",
   category: "Category",
   price: "Price",
   description: "Description",
@@ -379,6 +380,7 @@ const PART_COL = { // SCCG Partners
   marginPercentage: "MarginPercentage",
   onboardingStatus: "OnboardingStatus",
   salesTarget: "SalesTarget",
+  preferredCurrency: "PreferredCurrency",
   createdAt: "CreatedAt",
 };
 
@@ -483,6 +485,8 @@ export async function getPartnerByEmail(email: string): Promise<Partner | null> 
       marginPercentage: f[PART_COL.marginPercentage] ? (Number(f[PART_COL.marginPercentage]) as PartnerMargin) : undefined,
       onboardingStatus: (String(f[PART_COL.onboardingStatus] || "approved").toLowerCase() as any),
       salesTarget: f[PART_COL.salesTarget] ? Number(f[PART_COL.salesTarget]) : undefined,
+      preferredCurrency: f[PART_COL.preferredCurrency] ? String(f[PART_COL.preferredCurrency]) : undefined,
+      logoUrl: f.LogoUrl ? String(f.LogoUrl) : undefined,
       createdAt: String(f[PART_COL.createdAt] || new Date().toISOString()) 
     } as Partner;
   }, () => null);
@@ -513,6 +517,7 @@ export async function getPartners(): Promise<Partner[]> {
           marginPercentage: f[PART_COL.marginPercentage] ? (Number(f[PART_COL.marginPercentage]) as PartnerMargin) : undefined,
           onboardingStatus: (String(f[PART_COL.onboardingStatus] || "approved").toLowerCase() as any),
           salesTarget: f[PART_COL.salesTarget] ? Number(f[PART_COL.salesTarget]) : undefined,
+          preferredCurrency: f[PART_COL.preferredCurrency] ? String(f[PART_COL.preferredCurrency]) : undefined,
           createdAt: String(f[PART_COL.createdAt] || ""),
         } as Partner;
       });
@@ -584,6 +589,15 @@ export async function updatePartnerSalesTarget(id: string, salesTarget: number):
   });
 }
 
+export async function updatePartnerCurrency(id: string, preferredCurrency: string): Promise<void> {
+  return runSafe(async () => {
+    const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
+    await graphPatch(`${await getSiteListUrlAsync("Partners")}/${id}/fields`, {
+      [PART_COL.preferredCurrency]: preferredCurrency,
+    });
+  });
+}
+
 // ============================================================
 // Products
 // ============================================================
@@ -605,7 +619,8 @@ export async function getProducts(): Promise<Product[]> {
           sessionsCount: Number(f[PR_COL.sessionsCount] || 0),
           retailPriceEur: Number(f[PR_COL.retailPriceEur] || 0),
           retailPriceBdt: Number(f[PR_COL.retailPriceBdt] || 0),
-          price: Number(f[PR_COL.price] || f[PR_COL.retailPriceBdt] || 0),
+          initialPayment: f[PR_COL.initialPayment] !== undefined ? Number(f[PR_COL.initialPayment]) : undefined,
+          price: Number(f[PR_COL.retailPriceEur] || f[PR_COL.price] || 0),
           stock: Number(f[PR_COL.stock] || 0),
           category: String(f[PR_COL.category] || ""),
           imageUrl: f[PR_COL.imageUrl] ? String(f[PR_COL.imageUrl]) : undefined,
@@ -1013,8 +1028,28 @@ export async function createInvoice(invoice: Omit<Invoice, "id">): Promise<Invoi
   const amountEur = Math.round((invoice.amount * rate + Number.EPSILON) * 100) / 100;
   
   const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
-  const res = await graphPost<{ id: string }>(await getSiteListUrlAsync("Invoices"), { fields: { PartnerId: invoice.partnerId, ClientId: invoice.clientId, ClientName: invoice.clientName, OrderId: invoice.orderId, Amount: invoice.amount, AmountEUR: amountEur, ConversionRate: rate, Status: invoice.status, DueDate: invoice.dueDate, CreatedAt: invoice.createdAt } });
+  const res = await graphPost<{ id: string }>(await getSiteListUrlAsync("Invoices"), { fields: { PartnerId: invoice.partnerId, ClientId: invoice.clientId, ClientName: invoice.clientName, OrderId: invoice.orderId, Amount: invoice.amount, AmountEUR: amountEur, ConversionRate: rate, Status: invoice.status, DueDate: invoice.dueDate, CreatedAt: invoice.createdAt, InvoiceNumber: (invoice as any).invoiceNumber || "" } });
   return { ...invoice, id: String(res.id) } as Invoice;
+}
+
+export async function getInvoiceById(invoiceId: string): Promise<Invoice | null> {
+  return runSafe(async () => {
+    const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
+    const url = `${await getSiteListUrlAsync("Invoices")}/${invoiceId}?$expand=fields`;
+    const item = await graphGet<{ id: string; fields: Record<string, unknown> }>(url);
+    if (!item) return null;
+    const f = item.fields;
+    return { id: String(item.id), partnerId: String(f.PartnerId), clientId: String(f.ClientId), clientName: String(f.ClientName || ""), orderId: f.OrderId ? String(f.OrderId) : undefined, invoiceNumber: f.InvoiceNumber ? String(f.InvoiceNumber) : undefined, amount: Number(f.Amount), amountEur: f.AmountEUR ? Number(f.AmountEUR) : undefined, conversionRate: f.ConversionRate ? Number(f.ConversionRate) : undefined, status: String(f.Status), dueDate: String(f.DueDate), createdAt: String(f.CreatedAt) } as Invoice;
+  }, () => null);
+}
+
+export async function updateInvoice(invoiceId: string, updates: Partial<Record<string, unknown>>): Promise<void> {
+  const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
+  const fields: Record<string, unknown> = {};
+  if (updates.status) fields.Status = updates.status;
+  if (updates.updatedAt) fields.UpdatedAt = updates.updatedAt;
+  if (updates.pdfUrl) fields.PdfUrl = updates.pdfUrl;
+  await graphPatch(`${await getSiteListUrlAsync("Invoices")}/${invoiceId}`, { fields });
 }
 
 // ============================================================
@@ -3738,7 +3773,7 @@ function mapCandidate(item: { id: string; fields: Record<string, unknown> }): Ca
     submissionId: f[CAND_COL.submissionId] ? String(f[CAND_COL.submissionId]) : undefined,
     partnerId: String(f[CAND_COL.partnerId] || ""),
     partnerName: f[CAND_COL.partnerName] ? String(f[CAND_COL.partnerName]) : undefined,
-    workflowCategory: String(f[CAND_COL.workflowCategory] || "Training") as Candidate["workflowCategory"],
+    workflowCategory: String(f[CAND_COL.workflowCategory] || "Training & Language") as Candidate["workflowCategory"],
     currentStatus: String(f[CAND_COL.currentStatus] || "REGISTERED") as Candidate["currentStatus"],
     fullName: String(f[CAND_COL.fullName] || ""),
     dateOfBirth: String(f[CAND_COL.dateOfBirth] || ""),
@@ -3873,6 +3908,8 @@ const CANDS_COL = {
   servicePricingId: "ServicePricingId",
   serviceName: "Title",
   packageType: "PackageType",
+  workflowCategory: "WorkflowCategory",
+  currentStatus: "CurrentStatus",
   basePrice: "BasePrice",
   quantity: "Quantity",
   totalPrice: "TotalPrice",
@@ -3887,6 +3924,8 @@ function mapCandidateService(item: { id: string; fields: Record<string, unknown>
     servicePricingId: String(f[CANDS_COL.servicePricingId] || ""),
     serviceName: String(f[CANDS_COL.serviceName] || ""),
     packageType: String(f[CANDS_COL.packageType] || "all-inclusive") as CandidateService["packageType"],
+    workflowCategory: (f[CANDS_COL.workflowCategory] as CandidateService["workflowCategory"]) || undefined,
+    currentStatus: (f[CANDS_COL.currentStatus] as string) || "REGISTERED",
     basePrice: Number(f[CANDS_COL.basePrice] || 0),
     quantity: Number(f[CANDS_COL.quantity] || 1),
     totalPrice: Number(f[CANDS_COL.totalPrice] || 0),
@@ -3918,7 +3957,24 @@ export async function createCandidateService(data: Omit<CandidateService, "id">)
     [CANDS_COL.totalPrice]: data.totalPrice,
     [CANDS_COL.createdAt]: data.createdAt,
   };
-  const res = await graphPost<{ id: string; fields: Record<string, unknown> }>(listUrl, { fields });
+  // Write WorkflowCategory if provided
+  if (data.workflowCategory) fields[CANDS_COL.workflowCategory] = data.workflowCategory;
+  // Write CurrentStatus — default to REGISTERED
+  fields[CANDS_COL.currentStatus] = data.currentStatus || "REGISTERED";
+
+  let res: { id: string; fields: Record<string, unknown> };
+  try {
+    res = await graphPost<{ id: string; fields: Record<string, unknown> }>(listUrl, { fields });
+  } catch (err) {
+    // If SP WorkflowCategory column doesn't exist yet, retry without it
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("WorkflowCategory") || msg.includes("not recognized")) {
+      const { [CANDS_COL.workflowCategory]: _drop, ...safeFields } = fields;
+      res = await graphPost<{ id: string; fields: Record<string, unknown> }>(listUrl, { fields: safeFields });
+    } else {
+      throw err;
+    }
+  }
   return mapCandidateService(res);
 }
 
@@ -3930,6 +3986,17 @@ export async function deleteCandidateServices(candidateId: string): Promise<void
       `${listUrl}?$select=id&$filter=fields/${CANDS_COL.candidateId} eq '${escapeOData(candidateId)}'&$top=500`
     );
     await Promise.all(res.value.map((item) => graphDelete(`${listUrl}/${item.id}`)));
+  });
+}
+
+export async function updateCandidateServiceStatus(
+  serviceId: string,
+  nextStatus: string
+): Promise<void> {
+  const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
+  const listUrl = await getSiteListUrlAsync("CandidateServices");
+  await graphPatch(`${listUrl}/${serviceId}/fields`, {
+    [CANDS_COL.currentStatus]: nextStatus,
   });
 }
 
@@ -3975,7 +4042,7 @@ function mapCandidateTask(item: { id: string; fields: Record<string, unknown> })
     candidateId: String(f[CANDTASK_COL.candidateId] || ""),
     candidateName: f[CANDTASK_COL.candidateName] ? String(f[CANDTASK_COL.candidateName]) : undefined,
     taskCategory: String(f[CANDTASK_COL.taskCategory] || "General Task") as CandidateTask["taskCategory"],
-    workflowCategory: String(f[CANDTASK_COL.workflowCategory] || "Training") as CandidateTask["workflowCategory"],
+    workflowCategory: String(f[CANDTASK_COL.workflowCategory] || "Training & Language") as CandidateTask["workflowCategory"],
   };
 }
 
@@ -4021,7 +4088,18 @@ export async function createCandidateTask(data: Omit<CandidateTask, "id">): Prom
     [CANDTASK_COL.taskCategory]: data.taskCategory,
     [CANDTASK_COL.workflowCategory]: data.workflowCategory,
   };
-  const res = await graphPost<{ id: string; fields: Record<string, unknown> }>(listUrl, { fields });
+  let res: { id: string; fields: Record<string, unknown> };
+  try {
+    res = await graphPost<{ id: string; fields: Record<string, unknown> }>(listUrl, { fields });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("WorkflowCategory") || msg.includes("not recognized")) {
+      const { [CANDTASK_COL.workflowCategory]: _drop, ...safeFields } = fields;
+      res = await graphPost<{ id: string; fields: Record<string, unknown> }>(listUrl, { fields: safeFields });
+    } else {
+      throw err;
+    }
+  }
   return mapCandidateTask(res);
 }
 
@@ -4044,7 +4122,17 @@ export async function updateCandidateTask(
     if (data.taskCategory !== undefined) fields[CANDTASK_COL.taskCategory] = data.taskCategory;
     if (data.workflowCategory !== undefined) fields[CANDTASK_COL.workflowCategory] = data.workflowCategory;
     fields[CANDTASK_COL.updatedAt] = new Date().toISOString();
-    await graphPatch(`${listUrl}/${id}/fields`, fields);
+    try {
+      await graphPatch(`${listUrl}/${id}/fields`, fields);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("WorkflowCategory") || msg.includes("not recognized")) {
+        delete fields[CANDTASK_COL.workflowCategory];
+        await graphPatch(`${listUrl}/${id}/fields`, fields);
+      } else {
+        throw err;
+      }
+    }
   });
 }
 

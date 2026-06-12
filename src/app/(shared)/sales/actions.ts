@@ -116,7 +116,7 @@ async function confirmMarketplacePaymentAndActivateServices(order: NonNullable<A
           initialBalance: item.unitPrice,
           currentBalance: item.unitPrice,
           balance: item.unitPrice,
-          currency: "BDT",
+          currency: "EUR",
           tier: "standard",
           status: "active",
           designTemplate: "standard",
@@ -287,8 +287,8 @@ export async function sendOfferEmailAction(offerId: string) {
       (i) =>
         `<tr><td style="padding:8px;border:1px solid #e5e7eb;">${i.productName}</td>` +
         `<td style="padding:8px;border:1px solid #e5e7eb;text-align:center;">${i.quantity}</td>` +
-        `<td style="padding:8px;border:1px solid #e5e7eb;text-align:right;">BDT ${i.unitPrice.toLocaleString()}</td>` +
-        `<td style="padding:8px;border:1px solid #e5e7eb;text-align:right;">BDT ${i.totalPrice.toLocaleString()}</td></tr>`
+        `<td style="padding:8px;border:1px solid #e5e7eb;text-align:right;">€${i.unitPrice.toLocaleString()}</td>` +
+        `<td style="padding:8px;border:1px solid #e5e7eb;text-align:right;">€${i.totalPrice.toLocaleString()}</td></tr>`
     )
     .join("");
 
@@ -319,9 +319,9 @@ export async function sendOfferEmailAction(offerId: string) {
         <tbody>${itemRows}</tbody>
       </table>
       <table style="width:100%;margin:16px 0;">
-        <tr><td style="padding:4px;"><strong>Subtotal:</strong></td><td style="text-align:right;">BDT ${offer.subtotal.toLocaleString()}</td></tr>
-        ${offer.discount > 0 ? `<tr><td style="padding:4px;"><strong>Discount (${offer.discountType === "percent" ? offer.discount + "%" : "fixed"}):</strong></td><td style="text-align:right;">-BDT ${(offer.subtotal - offer.totalAmount).toLocaleString()}</td></tr>` : ""}
-        <tr style="font-size:1.2em;font-weight:bold;"><td style="padding:4px;">Total:</td><td style="text-align:right;color:#1e40af;">BDT ${offer.totalAmount.toLocaleString()}</td></tr>
+        <tr><td style="padding:4px;"><strong>Subtotal:</strong></td><td style="text-align:right;">€${offer.subtotal.toLocaleString()}</td></tr>
+        ${offer.discount > 0 ? `<tr><td style="padding:4px;"><strong>Discount (${offer.discountType === "percent" ? offer.discount + "%" : "fixed"}):</strong></td><td style="text-align:right;">-€${(offer.subtotal - offer.totalAmount).toLocaleString()}</td></tr>` : ""}
+        <tr style="font-size:1.2em;font-weight:bold;"><td style="padding:4px;">Total:</td><td style="text-align:right;color:#1e40af;">€${offer.totalAmount.toLocaleString()}</td></tr>
       </table>
       <p><strong>Valid until:</strong> ${new Date(offer.validUntil).toLocaleDateString()}</p>
       ${offer.notes ? `<p><strong>Notes:</strong> ${offer.notes}</p>` : ""}
@@ -349,7 +349,7 @@ export async function sendOfferEmailAction(offerId: string) {
     recipientEmail: offer.clientEmail,
     recipientName: offer.clientName,
     senderName: offer.partnerName || user.name,
-    subject: `Sales Offer ${offer.offerNumber} — ${offer.partnerName || "Partner Portal"}`,
+    subject: `Service Offer from SCCG Career Lab Germany (Offer No: ${offer.offerNumber})`,
     status: "sent",
     sentAt: new Date().toISOString(),
     acceptToken,
@@ -359,7 +359,7 @@ export async function sendOfferEmailAction(offerId: string) {
   const result = await sendClientEmail({
     recipientEmail: offer.clientEmail,
     recipientName: offer.clientName || "",
-    subject: `Sales Offer ${offer.offerNumber} — ${offer.partnerName || "Partner Portal"}`,
+    subject: `Service Offer from SCCG Career Lab Germany (Offer No: ${offer.offerNumber})`,
     htmlBody,
     senderName: offer.partnerName || user.name,
   });

@@ -71,7 +71,8 @@ export default function SccgCardDetailPage({ params }: { params: Promise<{ id: s
 
   if (loading || !card) return <div className="py-12 text-center text-muted-foreground">Loading...</div>;
 
-  const currencySymbol = card.currency === "EUR" ? "€" : "৳";
+  const CSYM: Record<string, string> = { EUR: "€", BDT: "৳", INR: "₹", USD: "$", GBP: "£", AED: "د.إ", SAR: "﷼", MYR: "RM", PKR: "₨", TRY: "₺" };
+  const currencySymbol = CSYM[card.currency] || card.currency;
 
   return (
     <div className="space-y-6">

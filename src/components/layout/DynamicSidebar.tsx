@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Package, ShoppingCart, Users, Activity,
   DollarSign, Shield, BarChart3, FileText, Receipt, Handshake,
-  UserCheck, Calendar, CreditCard, ChevronRight, ChevronDown,
+  UserCheck, Calendar, CalendarCheck, CreditCard, ChevronRight, ChevronDown,
   ClipboardList, Store, Tag, Share2, Wallet, User, X, ClipboardCheck,
   Building2, UserPlus, GraduationCap, BookOpen, Layers, Award, ShoppingBag, Search, Megaphone, Database,
   LifeBuoy, Settings, Bell, Sparkles, TrendingUp, AlertCircle, RotateCcw, Gift, Mail,
@@ -20,7 +20,7 @@ import type { LucideIcon } from "lucide-react";
 const ICON_MAP: Record<string, LucideIcon> = {
   LayoutDashboard, Package, ShoppingCart, Users, Activity,
   DollarSign, Shield, BarChart3, FileText, Receipt, Handshake,
-  UserCheck, Calendar, CreditCard, ChevronRight, ChevronDown,
+  UserCheck, Calendar, CalendarCheck, CreditCard, ChevronRight, ChevronDown,
   ClipboardList, Store, Tag, Share2, Wallet, User, ClipboardCheck,
   Building2, UserPlus, GraduationCap, BookOpen, Layers, Award, ShoppingBag, Search, Megaphone, Database,
   LifeBuoy, Settings, Bell, Sparkles, TrendingUp, AlertCircle, RotateCcw, Gift, Mail,
@@ -37,6 +37,7 @@ interface DynamicSidebarProps {
   onClose: () => void;
   tierStatus?: string;
   marginPercentage?: number;
+  partnerLogoUrl?: string;
 }
 
 const getTierBadge = (tier: string) => {
@@ -55,6 +56,7 @@ export default function DynamicSidebar({
   onClose,
   tierStatus,
   marginPercentage,
+  partnerLogoUrl,
 }: DynamicSidebarProps) {
   const pathname = usePathname();
   const [searchQuery, setSearchQuery] = useState("");
@@ -97,10 +99,10 @@ export default function DynamicSidebar({
         <div className={cn("p-6 pb-4 shrink-0 transition-all", isMini && "p-4")}>
           <div className="flex items-center justify-between">
             {isMini ? (
-              <img src="/assets/sccg-logo.png" alt="Logo" className="h-8 w-auto mx-auto object-contain animate-in fade-in zoom-in-90 duration-300" />
+              <img src={partnerLogoUrl || "/assets/sccg-logo.png"} alt="Logo" className="h-8 w-auto mx-auto object-contain animate-in fade-in zoom-in-90 duration-300" />
             ) : (
               <div className="flex items-center gap-3 animate-in fade-in slide-in-from-left-2 duration-300">
-                <img src="/assets/sccg-logo.png" alt="SCCG Logo" className="h-9 w-auto object-contain" />
+                <img src={partnerLogoUrl || "/assets/sccg-logo.png"} alt="SCCG Logo" className="h-9 w-auto object-contain" />
                 <div className="border-l border-white/10 pl-3">
                   <h1 className="text-[14px] font-bold text-white tracking-tight leading-none font-[family-name:var(--font-outfit)]">
                     {meta.label}

@@ -6,17 +6,16 @@ import {
   getCandidateById,
   getCandidateServices,
   getCandidateTasks,
-  getProducts,
   getPartnerByEmail,
 } from "@/lib/sharepoint";
+import { getEurToRate } from "@/lib/currency";
+import { dual } from "@/lib/formatCurrency";
 import { getAllowedTransitions } from "@/lib/engine/candidate-workflow";
-import { WorkflowStepper } from "@/components/candidate/WorkflowStepper";
-import { CandidateStatusAdvancer } from "./CandidateStatusAdvancer";
 import { format, parseISO, isPast } from "date-fns";
-import { ArrowLeft, AlertCircle, FileText, CreditCard, ClipboardList } from "lucide-react";
+import { ArrowLeft, AlertCircle, FileText, CreditCard, ClipboardList, ShoppingBag } from "lucide-react";
 import { getCandidateDocumentsAction } from "../actions";
-import BuyServiceTrigger from "./BuyServiceTrigger";
 import CandidateDocumentsSection from "./CandidateDocumentsSection";
+import { ServiceWorkflowView } from "./ServiceWorkflowView";
 
 const TASK_ICON = {
   "Document Required": FileText,
@@ -42,36 +41,32 @@ export default async function CandidateDetailPage({
   const roles = (user.roles || [user.role]) as string[];
   const isAdmin = roles.includes("admin");
 
-  const [candidate, services, tasks, products] = await Promise.all([
+  const [candidate, services, tasks] = await Promise.all([
     getCandidateById(id),
     getCandidateServices(id),
     getCandidateTasks(id),
-    getProducts(),
   ]);
 
   if (!candidate) notFound();
 
   let activeMargin = user.marginPercentage;
+  let secCur = "BDT";
 
   if (!isAdmin) {
     const partner = await getPartnerByEmail(user.email!);
     if (!partner || candidate.partnerId !== partner.id) notFound();
     activeMargin = partner.marginPercentage;
+    secCur = partner.preferredCurrency || "BDT";
   } else {
-    // For admin, we should ideally fetch the partner. 
-    // We can fetch partner by email if we had it, but candidate.partnerId is what we have.
-    // For now, if admin, we can fallback to candidate's stored margin, or ideally fetch the partner list and find it.
-    // Let's just use candidate.marginPercentage for admins as a fallback.
     activeMargin = candidate.marginPercentage;
   }
+
+  const rate = secCur !== "EUR" ? await getEurToRate(secCur) : 1;
+  const d = (v: number) => dual(v, secCur, rate);
 
   const docsRes = await getCandidateDocumentsAction(candidate.id, candidate.fullName);
   const initialDocuments = docsRes.success && docsRes.data ? docsRes.data : [];
 
-  const allowedNext = getAllowedTransitions(
-    candidate.workflowCategory,
-    candidate.currentStatus as string
-  );
   const activeTasks = tasks.filter(
     (t) => t.status === "todo" || t.status === "in-progress"
   );
@@ -102,124 +97,58 @@ export default async function CandidateDetailPage({
         )}
       </div>
 
-      {/* Workflow stepper */}
-      <div className="bg-card rounded-2xl border p-6 space-y-4">
-        <h2 className="font-semibold text-foreground">
-          {candidate.workflowCategory} Workflow
-        </h2>
-        <WorkflowStepper
-          category={candidate.workflowCategory}
-          currentStatus={candidate.currentStatus}
-          isAdmin={isAdmin}
-          allowedNext={allowedNext}
-        />
-        {isAdmin && allowedNext.length > 0 && (
-          <CandidateStatusAdvancer
-            candidateId={candidate.id}
-            allowedNext={allowedNext}
-          />
-        )}
+      {/* Workflow + Services + Payment — interactive client component */}
+      <ServiceWorkflowView
+        services={services}
+        candidateWorkflowCategory={candidate.workflowCategory}
+        candidateCurrentStatus={candidate.currentStatus}
+        candidateId={candidate.id}
+        candidateName={candidate.fullName}
+        isAdmin={isAdmin}
+        allowedTransitions={getAllowedTransitions(candidate.workflowCategory, candidate.currentStatus as string)}
+        formattedPrices={Object.fromEntries(services.map((s) => [s.id, d(s.totalPrice)]))}
+        totalServiceFee={d(candidate.totalServiceFee)}
+        depositAmount={d(candidate.depositAmount)}
+        partnerShare={d(candidate.partnerShare)}
+        sccgShare={d(candidate.sccgShare)}
+        marginPercentage={candidate.marginPercentage}
+        paymentStatus={candidate.paymentStatus}
+      />
+
+      {/* Register Service */}
+      <div className="flex items-center">
+        <Link
+          href={`/partner/candidates/new?candidateId=${candidate.id}`}
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors shadow-sm"
+        >
+          <ShoppingBag className="w-4 h-4" /> Register Service
+        </Link>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Personal info */}
-        <div className="bg-card rounded-2xl border p-6 space-y-3">
-          <h2 className="font-semibold text-foreground">Personal Information</h2>
-          <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-            {[
-              ["Email", candidate.email],
-              ["Phone", candidate.phone],
-              ["Date of Birth", candidate.dateOfBirth ? format(parseISO(candidate.dateOfBirth), "MMM d, yyyy") : "—"],
-              ["Nationality", candidate.nationality],
-              ["Country", candidate.country],
-              ["Passport", candidate.passportNumber ?? "—"],
-              ["National ID", candidate.nationalId ?? "—"],
-            ].map(([label, value]) => (
-              <div key={label as string}>
-                <dt className="text-muted-foreground">{label}</dt>
-                <dd className="font-medium text-foreground truncate">{value}</dd>
-              </div>
-            ))}
-          </dl>
-          {candidate.address && (
-            <div className="text-sm">
-              <dt className="text-muted-foreground">Address</dt>
-              <dd className="font-medium text-foreground">{candidate.address}</dd>
+      {/* Personal info */}
+      <div className="bg-card rounded-2xl border p-6 space-y-3">
+        <h2 className="font-semibold text-foreground">Personal Information</h2>
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+          {[
+            ["Email", candidate.email],
+            ["Phone", candidate.phone],
+            ["Date of Birth", candidate.dateOfBirth ? format(parseISO(candidate.dateOfBirth), "MMM d, yyyy") : "—"],
+            ["Nationality", candidate.nationality],
+            ["Country", candidate.country],
+            ["Passport", candidate.passportNumber ?? "—"],
+            ["National ID", candidate.nationalId ?? "—"],
+          ].map(([label, value]) => (
+            <div key={label as string}>
+              <dt className="text-muted-foreground">{label}</dt>
+              <dd className="font-medium text-foreground truncate">{value}</dd>
             </div>
-          )}
-        </div>
-
-        {/* Financial summary */}
-        <div className="bg-card rounded-2xl border p-6 space-y-3">
-          <h2 className="font-semibold text-foreground">Financial Split</h2>
-          <div className="space-y-2 text-sm">
-            {[
-              ["Total Service Fee", `€${candidate.totalServiceFee.toLocaleString("en-US", { minimumFractionDigits: 2 })}`],
-              ["Partner Share", `€${candidate.partnerShare.toLocaleString("en-US", { minimumFractionDigits: 2 })} (${candidate.marginPercentage}%)`],
-              ["SCCG Share", `€${candidate.sccgShare.toLocaleString("en-US", { minimumFractionDigits: 2 })}`],
-              ["Required Deposit", `€${candidate.depositAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}`],
-            ].map(([label, value]) => (
-              <div key={label as string} className="flex items-center justify-between py-1 border-b last:border-0">
-                <span className="text-muted-foreground">{label}</span>
-                <span className="font-medium text-foreground">{value}</span>
-              </div>
-            ))}
+          ))}
+        </dl>
+        {candidate.address && (
+          <div className="text-sm">
+            <dt className="text-muted-foreground">Address</dt>
+            <dd className="font-medium text-foreground">{candidate.address}</dd>
           </div>
-          <div className="pt-1">
-            <span
-              className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                candidate.paymentStatus === "fully-paid"
-                  ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                  : candidate.paymentStatus === "deposit-paid"
-                  ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-                  : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
-              }`}
-            >
-              {candidate.paymentStatus.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Services */}
-      <div className="bg-card rounded-2xl border overflow-hidden">
-        <div className="px-6 py-4 border-b flex items-center justify-between">
-          <h2 className="font-semibold text-foreground">Selected Services</h2>
-          <BuyServiceTrigger
-            candidateId={candidate.id}
-            candidateName={candidate.fullName}
-            candidateSccgId={candidate.sccgId || candidate.id}
-            candidateMargin={activeMargin as any}
-            products={products}
-          />
-        </div>
-        {services.length === 0 ? (
-          <div className="p-6 text-center text-muted-foreground text-sm">
-            No services purchased yet. Click "Buy Additional Service" to add one.
-          </div>
-        ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-muted/30">
-                <th className="text-left px-4 py-2 font-medium text-muted-foreground">Service</th>
-                <th className="text-left px-4 py-2 font-medium text-muted-foreground">Type</th>
-                <th className="text-right px-4 py-2 font-medium text-muted-foreground">Price</th>
-                <th className="text-right px-4 py-2 font-medium text-muted-foreground">Qty</th>
-                <th className="text-right px-4 py-2 font-medium text-muted-foreground">Total</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {services.map((s) => (
-                <tr key={s.id}>
-                  <td className="px-4 py-2 font-medium">{s.serviceName}</td>
-                  <td className="px-4 py-2 text-muted-foreground capitalize">{s.packageType.replace(/-/g, " ")}</td>
-                  <td className="px-4 py-2 text-right">€{s.basePrice.toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>
-                  <td className="px-4 py-2 text-right">{s.quantity}</td>
-                  <td className="px-4 py-2 text-right font-medium">€{s.totalPrice.toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         )}
       </div>
 

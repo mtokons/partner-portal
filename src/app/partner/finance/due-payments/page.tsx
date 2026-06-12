@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import type { SessionUser } from "@/types";
 import { getPartnerByEmail, getCandidates, getInvoices } from "@/lib/sharepoint";
+import { getEurToRate } from "@/lib/currency";
+import { dual } from "@/lib/formatCurrency";
 
 import { format, parseISO } from "date-fns";
 import { AlertTriangle, CreditCard, Clock } from "lucide-react";
@@ -15,9 +17,11 @@ export default async function DuePaymentsPage() {
   const partner = await getPartnerByEmail(user.email!);
   if (!partner) redirect("/partner-pending");
 
-  const [candidates, invoices] = await Promise.all([
+  const secCur = partner.preferredCurrency || "BDT";
+  const [candidates, invoices, rate] = await Promise.all([
     getCandidates(partner.id),
     getInvoices(partner.id),
+    secCur !== "EUR" ? getEurToRate(secCur) : Promise.resolve(1),
   ]);
 
   const margin = partner.marginPercentage || 15;
@@ -54,7 +58,7 @@ export default async function DuePaymentsPage() {
         <div className="bg-card border rounded-2xl p-5">
           <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Total Due</p>
           <p className="text-3xl font-bold text-amber-600 dark:text-amber-400 mt-1">
-            €{totalDue.toLocaleString("en-US", { minimumFractionDigits: 0 })}
+            {dual(totalDue, secCur, rate)}
           </p>
         </div>
         <div className="bg-card border rounded-2xl p-5">
@@ -120,10 +124,10 @@ export default async function DuePaymentsPage() {
                           {(c.paymentStatus || "pending").replace("-", " ")}
                         </span>
                       </td>
-                      <td className="px-5 py-4 text-right">€{totalFee.toFixed(2)}</td>
-                      <td className="px-5 py-4 text-right text-emerald-600 dark:text-emerald-400">€{paid.toFixed(2)}</td>
+                      <td className="px-5 py-4 text-right">{dual(totalFee, secCur, rate)}</td>
+                      <td className="px-5 py-4 text-right text-emerald-600 dark:text-emerald-400">{dual(paid, secCur, rate)}</td>
                       <td className="px-5 py-4 text-right font-semibold text-red-600 dark:text-red-400">
-                        €{due.toFixed(2)}
+                        {dual(due, secCur, rate)}
                       </td>
                     </tr>
                   );
@@ -159,7 +163,7 @@ export default async function DuePaymentsPage() {
                     <td className="px-5 py-4 text-red-500 font-medium">
                       {inv.dueDate ? format(parseISO(inv.dueDate), "MMM d, yyyy") : "—"}
                     </td>
-                    <td className="px-5 py-4 text-right font-semibold">€{inv.amount.toFixed(2)}</td>
+                    <td className="px-5 py-4 text-right font-semibold">{dual(inv.amount, secCur, rate)}</td>
                   </tr>
                 ))}
               </tbody>

@@ -42,6 +42,8 @@ export default auth((req: NextAuthRequest) => {
   const isPublic =
     publicPaths.includes(pathname) ||
     pathname.startsWith("/api/auth") ||
+    pathname.startsWith("/api/health") ||
+    pathname.startsWith("/api/livez") ||
     pathname.startsWith("/verify") ||
     pathname.startsWith("/offer-response");
 

@@ -12,12 +12,14 @@ import {
   updateCandidate,
   advanceCandidateStatus,
   getCandidateServices,
+  updateCandidateServiceStatus,
 } from "@/lib/sharepoint";
-import { canTransitionTo } from "@/lib/engine/candidate-workflow";
+import { canTransitionTo, formatStatusLabel } from "@/lib/engine/candidate-workflow";
 import { calculateFinancialSplit } from "@/lib/engine/financial-split";
 import { autoInsertCandidateTasks } from "@/lib/engine/candidate-tasks";
 import { generatePartnerCandidateId } from "@/lib/sccg-id";
 import { triggerFlow } from "@/lib/powerautomate";
+import { sendEmailViaGraph } from "@/lib/email";
 import type { Candidate, CandidateService, WorkflowCategory, PartnerMargin, CandidatePaymentStatus } from "@/types";
 import crypto from "crypto";
 
@@ -243,6 +245,7 @@ export interface WizardCandidateInput {
     packageType: "all-inclusive" | "premium-bundle" | "add-on";
     basePrice: number;
     quantity: number;
+    initialPaymentAmount?: number;
   }[];
   partnerMarginPercentage: PartnerMargin;
   paymentOption: "pay-now" | "pay-later";
@@ -253,11 +256,12 @@ export interface WizardCandidateInput {
 export async function finalizeRegistrationAction(
   state: WizardCandidateInput,
   partnerId: string
-): Promise<{ candidateId: string } | { error: string }> {
+): Promise<{ candidateId: string; submissionId: string } | { error: string }> {
   try {
     const user = await requirePermission("candidate.create");
-    const partner = await getPartnerByEmail(user.email!);
-    const partnerCode = partner?.partnerCode || "PART";
+    const isDirectSale = partnerId === "SCCG-DIRECT";
+    const partner = isDirectSale ? null : await getPartnerByEmail(user.email!);
+    const partnerCode = isDirectSale ? "SCCG" : (partner?.partnerCode || "PART");
 
     const split = calculateFinancialSplit({
       services: state.selectedServices.map((s) => ({
@@ -265,11 +269,13 @@ export async function finalizeRegistrationAction(
         serviceName: s.serviceName,
         basePrice: s.basePrice,
         quantity: s.quantity,
+        initialPaymentAmount: s.initialPaymentAmount,
       })),
       partnerMarginPercentage: state.partnerMarginPercentage,
     });
 
     const sccgId = await generatePartnerCandidateId(partnerCode, state.workflowCategory);
+    const submissionId = crypto.randomUUID();
 
     const paymentStatus: CandidatePaymentStatus =
       state.paymentOption === "pay-now" ? "deposit-paid" : "pending";
@@ -278,6 +284,7 @@ export async function finalizeRegistrationAction(
       sccgId,
       submissionId,
       partnerId,
+      partnerName: isDirectSale ? "SCCG Direct" : (partner?.company || partner?.name),
       workflowCategory: state.workflowCategory,
       currentStatus: "REGISTERED",
       fullName: state.fullName,
@@ -309,6 +316,7 @@ export async function finalizeRegistrationAction(
         servicePricingId: svc.servicePricingId,
         serviceName: svc.serviceName,
         packageType: svc.packageType,
+        workflowCategory: (svc as { workflowCategory?: string }).workflowCategory as WorkflowCategory || state.workflowCategory,
         basePrice: svc.basePrice,
         quantity: svc.quantity,
         totalPrice: svc.basePrice * svc.quantity,
@@ -318,6 +326,55 @@ export async function finalizeRegistrationAction(
 
     // Auto-insert tasks for REGISTERED status
     await autoInsertCandidateTasks(candidate, user.id, createCandidateTask);
+
+    // Auto-create user account for candidate (deduplication by email)
+    let tempPassword: string | undefined;
+    try {
+      if (state.email) {
+        const { ensureCandidateUserAccount } = await import("@/lib/candidate-user");
+        const partnerDisplayName = isDirectSale ? "SCCG Career Lab Germany" : (partner?.company || partner?.name || "SCCG Partner");
+        const accountResult = await ensureCandidateUserAccount({
+          email: state.email,
+          fullName: state.fullName,
+          phone: state.phone,
+          partnerId,
+          partnerName: partnerDisplayName,
+          sccgId,
+        });
+        if (accountResult.tempPassword) {
+          tempPassword = accountResult.tempPassword;
+        }
+      }
+    } catch {
+      // User account creation is non-blocking
+    }
+
+    // Send welcome email with portal login credentials to candidate
+    try {
+      if (state.email) {
+        const { sendEmailViaGraph, buildCandidateLoginEmail } = await import("@/lib/email");
+        const partnerDisplayName = isDirectSale ? "SCCG Career Lab Germany" : (partner?.company || partner?.name || "SCCG Partner");
+        const portalUrl = process.env.NEXTAUTH_URL || "https://portal.mysccg.de";
+        const emailData = buildCandidateLoginEmail({
+          candidateName: state.fullName,
+          sccgId,
+          email: state.email,
+          tempPassword,
+          partnerName: partnerDisplayName,
+          workflowCategory: state.workflowCategory,
+          loginUrl: `${portalUrl}/login`,
+          totalServiceFee: split.totalServiceFee,
+        });
+        await sendEmailViaGraph({
+          to: state.email,
+          toName: state.fullName,
+          subject: emailData.subject,
+          htmlBody: emailData.htmlBody,
+        });
+      }
+    } catch {
+      // Email sending is non-blocking — don't fail registration
+    }
 
     // Fire webhook
     await triggerFlow("candidate-registered", {
@@ -329,8 +386,9 @@ export async function finalizeRegistrationAction(
     });
 
     revalidatePath("/partner/candidates");
+    revalidatePath("/admin/candidates");
 
-    return { candidateId: candidate.id };
+    return { candidateId: candidate.id, submissionId };
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Registration failed" };
   }
@@ -338,7 +396,8 @@ export async function finalizeRegistrationAction(
 
 export async function advanceCandidateStatusAction(
   candidateId: string,
-  nextStatus: string
+  nextStatus: string,
+  comment?: string
 ): Promise<{ error: string } | undefined> {
   try {
     const user = await requirePermission("candidate.status.advance");
@@ -389,10 +448,102 @@ export async function advanceCandidateStatusAction(
       workflowCategory: candidate.workflowCategory,
     });
 
+    // Send email notifications to candidate and partner
+    const fromLabel = formatStatusLabel(candidate.currentStatus as string);
+    const toLabel = formatStatusLabel(nextStatus);
+    const statusEmailHtml = buildStatusChangeEmailHtml({
+      candidateName: candidate.fullName,
+      sccgId: candidate.sccgId,
+      workflowCategory: candidate.workflowCategory,
+      fromStatus: fromLabel,
+      toStatus: toLabel,
+      comment,
+    });
+
+    // Email to candidate
+    if (candidate.email) {
+      sendEmailViaGraph({
+        to: candidate.email,
+        toName: candidate.fullName,
+        subject: `SCCG — Status Update: ${toLabel}`,
+        htmlBody: statusEmailHtml,
+      }).catch(() => {/* best-effort */});
+    }
+
+    // Email to partner
+    if (user.email) {
+      sendEmailViaGraph({
+        to: user.email,
+        toName: user.name || user.email,
+        subject: `SCCG — Candidate ${candidate.fullName} moved to: ${toLabel}`,
+        htmlBody: statusEmailHtml,
+      }).catch(() => {/* best-effort */});
+    }
+
     revalidatePath(`/partner/candidates/${candidateId}`);
     revalidatePath("/partner/candidates");
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Status advance failed" };
+  }
+}
+
+/**
+ * Advance the status of an individual candidate service (per-service workflow).
+ */
+export async function advanceServiceStatusAction(
+  serviceId: string,
+  candidateId: string,
+  workflowCategory: string,
+  currentStatus: string,
+  nextStatus: string,
+  comment?: string
+): Promise<{ error: string } | undefined> {
+  try {
+    const user = await requirePermission("candidate.status.advance");
+    const candidate = await getCandidateById(candidateId);
+    if (!candidate) return { error: "Candidate not found" };
+
+    // Partner ownership check (admins bypass)
+    const roles = (user.roles || [user.role]) as string[];
+    if (!roles.includes("admin")) {
+      const partner = await getPartnerByEmail(user.email!);
+      if (!partner || candidate.partnerId !== partner.id) {
+        return { error: "Unauthorized: candidate belongs to another partner" };
+      }
+    }
+
+    if (!canTransitionTo(workflowCategory as WorkflowCategory, currentStatus, nextStatus)) {
+      return { error: `Cannot transition from ${currentStatus} to ${nextStatus}` };
+    }
+
+    await updateCandidateServiceStatus(serviceId, nextStatus);
+
+    // Send email notifications
+    const fromLabel = formatStatusLabel(currentStatus);
+    const toLabel = formatStatusLabel(nextStatus);
+    const statusEmailHtml = buildStatusChangeEmailHtml({
+      candidateName: candidate.fullName,
+      sccgId: candidate.sccgId,
+      workflowCategory: workflowCategory as WorkflowCategory,
+      fromStatus: fromLabel,
+      toStatus: toLabel,
+      comment,
+    });
+
+    if (candidate.email) {
+      sendEmailViaGraph({
+        to: candidate.email,
+        toName: candidate.fullName,
+        subject: `SCCG — Service Status Update: ${toLabel}`,
+        htmlBody: statusEmailHtml,
+      }).catch(() => {/* best-effort */});
+    }
+
+    revalidatePath(`/partner/candidates/${candidateId}`);
+    revalidatePath("/partner/candidates");
+    revalidatePath(`/admin/candidates/${candidateId}`);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Service status advance failed" };
   }
 }
 
@@ -698,4 +849,149 @@ export async function updateCandidateFinanceAction(
     console.error("updateCandidateFinanceAction error:", err);
     return { success: false, error: err.message || "Failed to update financial ledger" };
   }
+}
+
+/**
+ * Add a new service order to an EXISTING candidate (no duplicate candidate creation).
+ * This is the "Register a Service" flow for existing candidates.
+ */
+export async function addServiceOrderAction(
+  candidateId: string,
+  input: {
+    workflowCategory: WorkflowCategory;
+    selectedServices: {
+      servicePricingId: string;
+      serviceName: string;
+      packageType: "all-inclusive" | "premium-bundle" | "add-on";
+      basePrice: number;
+      quantity: number;
+      initialPaymentAmount?: number;
+      workflowCategory?: string;
+    }[];
+    partnerMarginPercentage: PartnerMargin;
+    paymentOption: "pay-now" | "pay-later";
+    paymentMethod?: string;
+    paymentReference?: string;
+    personalInfoUpdates?: Partial<{
+      fullName: string;
+      email: string;
+      phone: string;
+      address: string;
+      nationality: string;
+      country: string;
+      passportNumber: string;
+      nationalId: string;
+    }>;
+  }
+): Promise<{ candidateId: string; submissionId: string } | { error: string }> {
+  try {
+    const user = await requirePermission("candidate.create");
+    const partner = await getPartnerByEmail(user.email!);
+    if (!partner) return { error: "Partner not found" };
+
+    const candidate = await getCandidateById(candidateId);
+    if (!candidate) return { error: "Candidate not found" };
+
+    const roles = (user.roles || [user.role]) as string[];
+    if (!roles.includes("admin") && candidate.partnerId !== partner.id) {
+      return { error: "Unauthorized" };
+    }
+
+    // Optionally update personal info if changed
+    if (input.personalInfoUpdates && Object.keys(input.personalInfoUpdates).length > 0) {
+      await updateCandidate(candidateId, input.personalInfoUpdates);
+    }
+
+    const split = calculateFinancialSplit({
+      services: input.selectedServices.map((s) => ({
+        servicePricingId: s.servicePricingId,
+        serviceName: s.serviceName,
+        basePrice: s.basePrice,
+        quantity: s.quantity,
+        initialPaymentAmount: s.initialPaymentAmount,
+      })),
+      partnerMarginPercentage: input.partnerMarginPercentage,
+    });
+
+    const submissionId = crypto.randomUUID();
+
+    // Create new service records with workflowCategory
+    for (const svc of input.selectedServices) {
+      await createCandidateService({
+        candidateId,
+        servicePricingId: svc.servicePricingId,
+        serviceName: svc.serviceName,
+        packageType: svc.packageType,
+        workflowCategory: (svc.workflowCategory as WorkflowCategory) || input.workflowCategory,
+        basePrice: svc.basePrice,
+        quantity: svc.quantity,
+        totalPrice: svc.basePrice * svc.quantity,
+        createdAt: new Date().toISOString(),
+      });
+    }
+
+    // Update candidate totals (add new amounts to existing)
+    await updateCandidate(candidateId, {
+      totalServiceFee: (candidate.totalServiceFee || 0) + split.totalServiceFee,
+      sccgShare: (candidate.sccgShare || 0) + split.sccgShare,
+      partnerShare: (candidate.partnerShare || 0) + split.partnerShare,
+      depositAmount: (candidate.depositAmount || 0) + split.depositAmount,
+    });
+
+    // Fire webhook
+    await triggerFlow("candidate-service-added", {
+      candidateId,
+      sccgId: candidate.sccgId,
+      fullName: candidate.fullName,
+      partnerId: partner.id,
+      workflowCategory: input.workflowCategory,
+      newServicesCount: input.selectedServices.length,
+    });
+
+    revalidatePath(`/partner/candidates/${candidateId}`);
+    revalidatePath("/partner/candidates");
+
+    return { candidateId, submissionId };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to add service order" };
+  }
+}
+
+// ── Email Template for Status Change ──
+
+function buildStatusChangeEmailHtml(data: {
+  candidateName: string;
+  sccgId: string;
+  workflowCategory: string;
+  fromStatus: string;
+  toStatus: string;
+  comment?: string;
+}): string {
+  const commentBlock = data.comment
+    ? `<div style="margin: 20px 0; padding: 16px; background: #f8fafc; border-left: 4px solid #2563eb; border-radius: 0 8px 8px 0;">
+        <p style="margin: 0 0 6px; font-size: 12px; font-weight: 600; color: #2563eb; text-transform: uppercase; letter-spacing: 0.05em;">Notes from your advisor</p>
+        <p style="margin: 0; color: #334155; font-style: italic;">&ldquo;${data.comment}&rdquo;</p>
+      </div>`
+    : "";
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #0a1628, #1a2a4a); padding: 32px; border-radius: 12px 12px 0 0;">
+        <h1 style="color: #ffffff; margin: 0; font-size: 24px;">Workflow Status Update</h1>
+        <p style="color: #94a3b8; margin: 8px 0 0;">SCCG Partner Portal</p>
+      </div>
+      <div style="background: #ffffff; padding: 32px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 12px 12px;">
+        <p>Dear <strong>${data.candidateName}</strong>,</p>
+        <p>Your application status has been updated:</p>
+        <table style="width: 100%; margin: 20px 0; border-collapse: collapse;">
+          <tr><td style="padding: 8px 0; color: #64748b;">Candidate ID</td><td style="padding: 8px 0; font-weight: bold;">${data.sccgId}</td></tr>
+          <tr><td style="padding: 8px 0; color: #64748b;">Workflow</td><td style="padding: 8px 0;">${data.workflowCategory}</td></tr>
+          <tr><td style="padding: 8px 0; color: #64748b;">Previous Status</td><td style="padding: 8px 0;">${data.fromStatus}</td></tr>
+          <tr><td style="padding: 8px 0; color: #64748b;">New Status</td><td style="padding: 8px 0; font-weight: bold; color: #2563eb;">${data.toStatus}</td></tr>
+        </table>
+        ${commentBlock}
+        <p>If you have any questions, please contact your partner or reach us at <a href="mailto:info@mysccg.de">info@mysccg.de</a>.</p>
+        <p style="color: #64748b; font-size: 13px; margin-top: 24px;">— SCCG Portal Team</p>
+      </div>
+    </div>
+  `;
 }

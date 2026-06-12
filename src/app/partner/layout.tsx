@@ -52,6 +52,7 @@ export default async function PartnerLayout({ children }: { children: React.Reac
       listUrls={spInfo.listUrls}
       tierStatus={partnerData?.tierStatus}
       marginPercentage={partnerData?.marginPercentage}
+      partnerLogoUrl={partnerData?.logoUrl}
     >
       <NotificationsLiveBridge />
       {children}

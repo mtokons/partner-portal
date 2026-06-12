@@ -2,11 +2,22 @@ import jsPDF from "jspdf";
 import type { Candidate, CandidateService, Partner } from "@/types";
 import type { FinancialSplitResult } from "@/lib/engine/financial-split";
 
+const CSYM: Record<string, string> = {
+  EUR: "€", BDT: "BDT", INR: "INR", USD: "$", GBP: "GBP",
+  AED: "AED", SAR: "SAR", MYR: "MYR", PKR: "PKR", TRY: "TRY",
+};
+
+function dualPdf(v: number, _cur?: string, _rate?: number): string {
+  return `\u20AC${v.toFixed(2)}`;
+}
+
 export function generateCandidateOfferPdf(
   candidate: Candidate,
   partner: Partner,
   services: CandidateService[],
-  split: FinancialSplitResult
+  split: FinancialSplitResult,
+  secondaryCurrency = "EUR",
+  exchangeRate = 1,
 ): Uint8Array {
   const doc = new jsPDF();
   const w = doc.internal.pageSize.getWidth();
@@ -61,7 +72,7 @@ export function generateCandidateOfferPdf(
   for (const svc of services) {
     doc.text(svc.serviceName, 22, y);
     doc.text(svc.packageType.replace(/-/g, " "), 110, y);
-    doc.text(`€${svc.totalPrice.toFixed(2)}`, w - 22, y, { align: "right" });
+    doc.text(dualPdf(svc.totalPrice, secondaryCurrency, exchangeRate), w - 22, y, { align: "right" });
     y += 7;
   }
 
@@ -73,12 +84,12 @@ export function generateCandidateOfferPdf(
   doc.setFontSize(10);
   doc.setTextColor(30, 64, 175);
   doc.text(`Total Service Fee:`, 20, y);
-  doc.text(`€${split.totalServiceFee.toFixed(2)}`, w - 22, y, { align: "right" });
+  doc.text(dualPdf(split.totalServiceFee, secondaryCurrency, exchangeRate), w - 22, y, { align: "right" });
   y += 7;
   doc.setFontSize(9);
   doc.setTextColor(60);
   doc.text(`Required Deposit (30%):`, 20, y);
-  doc.text(`€${split.depositAmount.toFixed(2)}`, w - 22, y, { align: "right" });
+  doc.text(dualPdf(split.depositAmount, secondaryCurrency, exchangeRate), w - 22, y, { align: "right" });
 
   // Footer
   doc.setFontSize(8);
@@ -92,7 +103,9 @@ export function generateCandidateInvoicePdf(
   candidate: Candidate,
   services: CandidateService[],
   split: FinancialSplitResult,
-  invoiceNumber: string
+  invoiceNumber: string,
+  secondaryCurrency = "EUR",
+  exchangeRate = 1,
 ): Uint8Array {
   const doc = new jsPDF();
   const w = doc.internal.pageSize.getWidth();
@@ -139,7 +152,7 @@ export function generateCandidateInvoicePdf(
   for (const svc of services) {
     doc.text(svc.serviceName, 22, y);
     doc.text(String(svc.quantity), 115, y);
-    doc.text(`€${svc.totalPrice.toFixed(2)}`, w - 22, y, { align: "right" });
+    doc.text(dualPdf(svc.totalPrice, secondaryCurrency, exchangeRate), w - 22, y, { align: "right" });
     y += 7;
   }
 
@@ -151,7 +164,7 @@ export function generateCandidateInvoicePdf(
   doc.setFontSize(10);
   doc.setTextColor(30, 64, 175);
   doc.text("Total:", 20, y);
-  doc.text(`€${split.totalServiceFee.toFixed(2)}`, w - 22, y, { align: "right" });
+  doc.text(dualPdf(split.totalServiceFee, secondaryCurrency, exchangeRate), w - 22, y, { align: "right" });
   y += 7;
   doc.setFontSize(9);
   doc.setTextColor(60);
@@ -161,12 +174,12 @@ export function generateCandidateInvoicePdf(
   const balanceDue = fullyPaid ? 0 : split.totalServiceFee - (depositPaid ? split.depositAmount : 0);
 
   doc.text(`Deposit Paid:`, 20, y);
-  doc.text(`€${depositPaid ? split.depositAmount.toFixed(2) : "0.00"}`, w - 22, y, { align: "right" });
+  doc.text(dualPdf(depositPaid ? split.depositAmount : 0, secondaryCurrency, exchangeRate), w - 22, y, { align: "right" });
   y += 7;
   doc.setFontSize(10);
   doc.setTextColor(balanceDue > 0 ? 180 : 60, balanceDue > 0 ? 0 : 120, 0);
   doc.text(`Balance Due:`, 20, y);
-  doc.text(`€${balanceDue.toFixed(2)}`, w - 22, y, { align: "right" });
+  doc.text(dualPdf(balanceDue, secondaryCurrency, exchangeRate), w - 22, y, { align: "right" });
 
   doc.setFontSize(8);
   doc.setTextColor(150);

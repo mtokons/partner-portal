@@ -191,7 +191,7 @@ export function Step1Lookup({ onNext }: Step1LookupProps) {
               phone: "",
               nationality: "",
               country: "",
-              workflowCategory: "Training",
+              workflowCategory: "Training & Language",
             },
             selectedServices: [],
             paymentOption: "pay-later",

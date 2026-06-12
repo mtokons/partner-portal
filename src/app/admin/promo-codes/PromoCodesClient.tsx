@@ -113,7 +113,7 @@ export default function PromoCodesClient({ promoCodes }: { promoCodes: PromoCode
               <label className="text-xs font-semibold text-muted-foreground uppercase">Discount Type</label>
               <select value={discountType} onChange={(e) => setDiscountType(e.target.value as "fixed" | "percent" | "none")} className="w-full mt-1 px-3 py-2 bg-muted rounded-xl text-sm border-0 focus:outline-none focus:ring-2 focus:ring-primary/30">
                 <option value="percent">Percent</option>
-                <option value="fixed">Fixed (BDT)</option>
+                <option value="fixed">Fixed (EUR)</option>
                 <option value="none">None</option>
               </select>
             </div>
@@ -130,7 +130,7 @@ export default function PromoCodesClient({ promoCodes }: { promoCodes: PromoCode
               <input type="number" value={maxUsesPerUser} onChange={(e) => setMaxUsesPerUser(Number(e.target.value))} className="w-full mt-1 px-3 py-2 bg-muted rounded-xl text-sm border-0 focus:outline-none focus:ring-2 focus:ring-primary/30" />
             </div>
             <div>
-              <label className="text-xs font-semibold text-muted-foreground uppercase">Min Order (BDT)</label>
+              <label className="text-xs font-semibold text-muted-foreground uppercase">Min Order (EUR)</label>
               <input type="number" value={minOrderAmount} onChange={(e) => setMinOrderAmount(Number(e.target.value))} className="w-full mt-1 px-3 py-2 bg-muted rounded-xl text-sm border-0 focus:outline-none focus:ring-2 focus:ring-primary/30" />
             </div>
             <div>
@@ -176,7 +176,7 @@ export default function PromoCodesClient({ promoCodes }: { promoCodes: PromoCode
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">{TYPE_LABELS[pc.codeType]}</td>
                   <td className="px-4 py-3">
-                    {pc.discountType === "percent" ? `${pc.discountValue}%` : pc.discountType === "fixed" ? `BDT ${pc.discountValue.toLocaleString()}` : "—"}
+                    {pc.discountType === "percent" ? `${pc.discountValue}%` : pc.discountType === "fixed" ? `€${pc.discountValue.toLocaleString()}` : "—"}
                   </td>
                   <td className="px-4 py-3">{pc.currentUses}{pc.maxUses > 0 ? ` / ${pc.maxUses}` : " / ∞"}</td>
                   <td className="px-4 py-3">

@@ -37,7 +37,7 @@ const PRIORITY_THEMES = {
 };
 
 const CATEGORIES: CandidateTaskCategory[] = ["Document Required", "Payment Due", "General Task"];
-const WORKFLOW_CATEGORIES: WorkflowCategory[] = ["Training", "Ausbildung", "Student Visa"];
+const WORKFLOW_CATEGORIES: WorkflowCategory[] = ["Training & Language", "Ausbildung", "Student", "Opportunity Card", "Others"];
 
 export default function TaskBoardClient({ initialTasks, candidates, partner }: TaskBoardClientProps) {
   const [tasks, setTasks] = useState<CandidateTask[]>(initialTasks);
@@ -106,7 +106,7 @@ export default function TaskBoardClient({ initialTasks, candidates, partner }: T
       status,
       priority: "medium",
       taskCategory: "General Task",
-      workflowCategory: "Training",
+      workflowCategory: "Training & Language",
       dueDate: new Date().toISOString().split("T")[0],
     });
     setIsModalOpen(true);
@@ -437,7 +437,7 @@ export default function TaskBoardClient({ initialTasks, candidates, partner }: T
                 <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Workflow Category</label>
                 <div className="relative">
                   <select
-                    value={editingTask.workflowCategory || "Training"}
+                    value={editingTask.workflowCategory || "Training & Language"}
                     onChange={(e) => setEditingTask(prev => ({ ...prev, workflowCategory: e.target.value as WorkflowCategory }))}
                     className="w-full bg-muted/60 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary/50 appearance-none cursor-pointer"
                   >

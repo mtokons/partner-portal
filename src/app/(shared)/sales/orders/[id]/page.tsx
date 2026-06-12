@@ -219,8 +219,8 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                       <TableRow key={item.id}>
                         <TableCell className="pl-6 font-medium">{item.productName}</TableCell>
                         <TableCell className="text-center">{item.quantity}</TableCell>
-                        <TableCell className="text-right">BDT {item.unitPrice.toLocaleString()}</TableCell>
-                        <TableCell className="text-right pr-6 font-semibold">BDT {item.totalPrice.toLocaleString()}</TableCell>
+                        <TableCell className="text-right">€{item.unitPrice.toLocaleString()}</TableCell>
+                        <TableCell className="text-right pr-6 font-semibold">€{item.totalPrice.toLocaleString()}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -250,7 +250,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
             <CardContent className="space-y-3 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Total Amount</span>
-                <span className="font-bold text-lg text-primary">BDT {order.totalAmount.toLocaleString()}</span>
+                <span className="font-bold text-lg text-primary">€{order.totalAmount.toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Status</span>

@@ -79,7 +79,7 @@ export default async function SalesOrdersPage() {
                 <TableHead className="pl-6">Order #</TableHead>
                 <TableHead>From Offer</TableHead>
                 <TableHead>Client</TableHead>
-                <TableHead>Total (BDT)</TableHead>
+                <TableHead>Total (EUR)</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Created</TableHead>
                 <TableHead className="pr-6">Actions</TableHead>
@@ -106,7 +106,7 @@ export default async function SalesOrdersPage() {
                     <TableCell>
                       <p className="font-medium text-foreground">{order.clientName}</p>
                     </TableCell>
-                    <TableCell className="font-semibold">BDT {order.totalAmount.toLocaleString()}</TableCell>
+                    <TableCell className="font-semibold">€{order.totalAmount.toLocaleString()}</TableCell>
                     <TableCell>
                       <Badge variant={cfg.variant}>{cfg.label}</Badge>
                     </TableCell>

@@ -3,6 +3,8 @@ import { auth } from "@/auth";
 import type { SessionUser } from "@/types";
 import { getPartnerByEmail } from "@/lib/sharepoint";
 import { getCandidates, getPayouts, getCandidateTasksByPartner, getSalesOffers, getInvoices } from "@/lib/sharepoint";
+import { getEurToRate } from "@/lib/currency";
+import { dual } from "@/lib/formatCurrency";
 
 import { RevenueCard } from "@/components/partner/RevenueCard";
 import { CandidateStatsCard } from "@/components/partner/CandidateStatsCard";
@@ -33,13 +35,15 @@ export default async function PartnerDashboardPage() {
   if (!partner) redirect("/partner-pending");
 
   const partnerId = partner.id;
+  const secCur = partner.preferredCurrency || "BDT";
 
-  const [candidates, payouts, tasks, offers, invoices] = await Promise.all([
+  const [candidates, payouts, tasks, offers, invoices, rate] = await Promise.all([
     getCandidates(partnerId),
     getPayouts(partnerId),
     getCandidateTasksByPartner(partnerId),
     getSalesOffers(partnerId),
     getInvoices(partnerId),
+    secCur !== "EUR" ? getEurToRate(secCur) : Promise.resolve(1),
   ]);
 
   const tierStatus = partner.tierStatus || "Silver";
@@ -58,9 +62,20 @@ export default async function PartnerDashboardPage() {
       {/* Partner Tier Banner */}
       <div className={`rounded-2xl border bg-gradient-to-r p-5 flex items-center justify-between ${TIER_BG[tierStatus]}`}>
         <div className="flex items-center gap-3">
-          <div className={`p-2.5 rounded-xl bg-white/80 dark:bg-white/10`}>
-            <Award className={`w-6 h-6 ${TIER_COLORS[tierStatus]}`} />
-          </div>
+          {/* Partner logo (if set) or tier icon */}
+          {partner.logoUrl ? (
+            <div className="h-12 w-12 rounded-xl bg-white/80 dark:bg-white/10 flex items-center justify-center overflow-hidden shrink-0 border border-white/20">
+              <img
+                src={partner.logoUrl}
+                alt={`${partner.name} logo`}
+                className="h-10 w-10 object-contain"
+              />
+            </div>
+          ) : (
+            <div className={`p-2.5 rounded-xl bg-white/80 dark:bg-white/10`}>
+              <Award className={`w-6 h-6 ${TIER_COLORS[tierStatus]}`} />
+            </div>
+          )}
           <div>
             <p className={`text-lg font-bold ${TIER_COLORS[tierStatus]}`}>
               Proud SCCG {tierStatus} Partner
@@ -96,7 +111,7 @@ export default async function PartnerDashboardPage() {
               <span className="text-xs text-muted-foreground">Total Revenue</span>
             </div>
             <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-              €{totalRevenue.toLocaleString("en-US", { minimumFractionDigits: 0 })}
+              {dual(totalRevenue, secCur, rate)}
             </p>
           </div>
         </Link>
@@ -122,7 +137,7 @@ export default async function PartnerDashboardPage() {
 
       {/* Main KPI Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <RevenueCard payouts={payouts} candidates={candidates} partnerMargin={margin} />
+        <RevenueCard payouts={payouts} candidates={candidates} partnerMargin={margin} secondaryCurrency={secCur} exchangeRate={rate} />
         <CandidateStatsCard candidates={candidates} />
         <TasksWidget tasks={tasks} />
       </div>

@@ -13,8 +13,8 @@ interface PaymentGatewayProps {
 }
 
 export default function PaymentGateway({ amount, currency, onSuccess, onClose }: PaymentGatewayProps) {
-  const [step, setStep] = useState<"method" | "input" | "processing" | "otp" | "success">("method");
-  const [selectedMethod, setSelectedMethod] = useState<"bkash" | "nagad" | "citybank" | null>(null);
+  const [step, setStep] = useState<"method" | "input" | "processing" | "otp" | "success" | "bank-details">("method");
+  const [selectedMethod, setSelectedMethod] = useState<"bkash" | "nagad" | "citybank" | "bank-transfer" | null>(null);
   const [inputValue, setInputValue] = useState("");
   const [otp, setOtp] = useState("");
 
@@ -22,10 +22,17 @@ export default function PaymentGateway({ amount, currency, onSuccess, onClose }:
     { id: "bkash", name: "bKash", color: "bg-[#D12053]", logo: "bK" },
     { id: "nagad", name: "Nagad", color: "bg-[#F7941D]", logo: "Ng" },
     { id: "citybank", name: "City Bank", color: "bg-[#005CAB]", logo: "CB" },
+    { id: "bank-transfer", name: "Bangladesh Bank Transfer", color: "bg-[#006A4E]", logo: "BB" },
   ] as const;
 
   function handleNext() {
-    if (step === "method" && selectedMethod) setStep("input");
+    if (step === "method" && selectedMethod) {
+      if (selectedMethod === "bank-transfer") {
+        setStep("bank-details");
+      } else {
+        setStep("input");
+      }
+    }
     else if (step === "input") setStep("processing");
     else if (step === "otp") setStep("processing");
   }
@@ -33,9 +40,10 @@ export default function PaymentGateway({ amount, currency, onSuccess, onClose }:
   useEffect(() => {
     if (step === "processing") {
       const timer = setTimeout(() => {
-        if (selectedMethod === "citybank") {
-           // City bank usually doesn't have an extra OTP step in this sim
-           onSuccess(`CITY-${Math.random().toString(36).substring(7).toUpperCase()}`);
+        if (selectedMethod === "citybank" || selectedMethod === "bank-transfer") {
+           // City bank and bank transfer don't have an extra OTP step in this sim
+           const prefix = selectedMethod === "bank-transfer" ? "BBT" : "CITY";
+           onSuccess(`${prefix}-${Math.random().toString(36).substring(7).toUpperCase()}`);
         } else {
            setStep("otp");
         }
@@ -147,6 +155,41 @@ export default function PaymentGateway({ amount, currency, onSuccess, onClose }:
                 className="w-full h-14 rounded-2xl bg-slate-900 text-white font-black text-sm"
               >
                 Proceed
+              </Button>
+            </div>
+          )}
+
+          {step === "bank-details" && (
+            <div className="space-y-6">
+              <div className="text-center">
+                <div className="h-16 w-16 rounded-2xl mx-auto mb-4 flex items-center justify-center text-white text-xl font-black bg-[#006A4E]">
+                  BB
+                </div>
+                <h3 className="text-lg font-black text-slate-900">Bank Transfer Details</h3>
+                <p className="text-xs text-muted-foreground mt-1">Transfer the amount to the account below</p>
+              </div>
+              <div className="bg-slate-50 rounded-2xl p-4 space-y-2 text-sm">
+                <div className="flex justify-between"><span className="text-muted-foreground">Bank</span><span className="font-bold">SCCG Career Lab</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Account</span><span className="font-mono font-bold">1234 5678 9012</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Branch</span><span className="font-bold">Dhaka Main</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Routing</span><span className="font-mono font-bold">012345678</span></div>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-600 mb-1 block">Transaction Reference</label>
+                <input
+                  autoFocus
+                  placeholder="Enter your bank transfer reference"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  className="w-full px-4 h-14 bg-slate-50 border-0 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-primary/20 transition-all"
+                />
+              </div>
+              <Button
+                onClick={() => { setStep("processing"); }}
+                disabled={!inputValue}
+                className="w-full h-14 rounded-2xl bg-[#006A4E] text-white font-black text-sm"
+              >
+                I&apos;ve Completed the Transfer
               </Button>
             </div>
           )}

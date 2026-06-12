@@ -90,7 +90,7 @@ export default async function AdminProductsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/30">
-                  {["Product", "Category", "Price (BDT)", "Discount", "Stock", "Status", "Actions", ""].map((h) => (
+                  {["Product", "Category", "Price (EUR)", "Discount", "Stock", "Status", "Actions", ""].map((h) => (
                     <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                       {h}
                     </th>
@@ -138,7 +138,7 @@ export default async function AdminProductsPage() {
                       <td className="px-6 py-4">
                         {hasDiscount ? (
                           <Badge className="bg-rose-100 text-rose-700 border-rose-200 rounded-full text-[10px] border">
-                            {product.discountType === "percent" ? `${product.discount}% OFF` : `BDT ${product.discount} OFF`}
+                            {product.discountType === "percent" ? `${product.discount}% OFF` : `€${product.discount} OFF`}
                           </Badge>
                         ) : (
                           <span className="text-muted-foreground text-xs">—</span>

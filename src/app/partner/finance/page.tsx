@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import type { SessionUser } from "@/types";
 import { getPartnerByEmail, getCandidates, getTransactions } from "@/lib/sharepoint";
+import { getEurToRate } from "@/lib/currency";
 import { DollarSign } from "lucide-react";
 import FinanceOverviewClient from "./FinanceOverviewClient";
 
@@ -13,9 +14,11 @@ export default async function PartnerFinancePage() {
   const partner = await getPartnerByEmail(user.email!);
   if (!partner) redirect("/partner-pending");
 
-  const [candidates, transactions] = await Promise.all([
+  const secondaryCurrency = partner.preferredCurrency || "BDT";
+  const [candidates, transactions, exchangeRate] = await Promise.all([
     getCandidates(partner.id),
     getTransactions(partner.id),
+    secondaryCurrency !== "EUR" ? getEurToRate(secondaryCurrency) : Promise.resolve(1),
   ]);
 
   const marginPercent = partner.marginPercentage || 15;
@@ -43,6 +46,8 @@ export default async function PartnerFinancePage() {
         partnerCompany={partner.company}
         marginPercent={marginPercent}
         salesTarget={salesTarget}
+        secondaryCurrency={secondaryCurrency}
+        exchangeRate={exchangeRate}
       />
     </div>
   );

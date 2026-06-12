@@ -1,7 +1,16 @@
 import jsPDF from "jspdf";
 import type { Invoice, Order, Client } from "@/types";
 
-export function generateInvoicePdf(invoice: Invoice, order?: Order, client?: Client, rate?: number): Uint8Array {
+const CSYM: Record<string, string> = {
+  EUR: "EUR", BDT: "BDT", INR: "INR", USD: "USD", GBP: "GBP",
+  AED: "AED", SAR: "SAR", MYR: "MYR", PKR: "PKR", TRY: "TRY",
+};
+
+function dp(v: number, _cur?: string, _rate?: number): string {
+  return `EUR ${v.toFixed(2)}`;
+}
+
+export function generateInvoicePdf(invoice: Invoice, order?: Order, client?: Client, rate?: number, secondaryCurrency = "BDT", secondaryRate?: number): Uint8Array {
   const doc = new jsPDF();
   const w = doc.internal.pageSize.getWidth();
 
@@ -44,12 +53,10 @@ export function generateInvoicePdf(invoice: Invoice, order?: Order, client?: Cli
     for (const item of order.items) {
       doc.text(item.productName, 22, y);
       doc.text(String(item.quantity), 110, y);
-      // unitPrice assumed in BDT; show BDT primary and EUR equivalent if available
-      const eurUnit = rate ? ((item.unitPrice * rate).toFixed(2)) : null;
-      doc.text(`BDT ${item.unitPrice.toFixed(2)}${eurUnit ? ` · €${eurUnit}` : ""}`, 130, y);
+      const eurUnit = item.unitPrice;
+      doc.text(dp(eurUnit, secondaryCurrency, secondaryRate || 1), 130, y);
       const lineTotal = item.quantity * item.unitPrice;
-      const eurLine = rate ? ((lineTotal * rate).toFixed(2)) : null;
-      doc.text(`BDT ${lineTotal.toFixed(2)}${eurLine ? ` · €${eurLine}` : ""}`, 160, y);
+      doc.text(dp(lineTotal, secondaryCurrency, secondaryRate || 1), 160, y);
       y += 8;
     }
   }
@@ -61,8 +68,8 @@ export function generateInvoicePdf(invoice: Invoice, order?: Order, client?: Cli
   y += 10;
   doc.setFontSize(14);
   doc.setTextColor(30, 64, 175);
-  const eurTotal = invoice.amountEur ?? (rate ? Math.round((invoice.amount * rate + Number.EPSILON) * 100) / 100 : undefined);
-  doc.text(`Total: BDT ${invoice.amount.toFixed(2)}${eurTotal ? ` · €${eurTotal.toFixed(2)}` : ""}`, w - 120, y);
+  const totalEur = invoice.amountEur ?? invoice.amount;
+  doc.text(`Total: ${dp(totalEur, secondaryCurrency, secondaryRate || 1)}`, w - 120, y);
 
   // Footer
   doc.setFontSize(8);
@@ -79,6 +86,8 @@ export function generateSalesOfferPdf(
   validUntil: string,
   rate?: number,
   totals?: { subtotal?: number; discount?: number; discountType?: "fixed" | "percent"; totalAmount?: number },
+  secondaryCurrency = "BDT",
+  secondaryRate?: number,
 ): Uint8Array {
   const doc = new jsPDF();
   const w = doc.internal.pageSize.getWidth();
@@ -114,10 +123,8 @@ export function generateSalesOfferPdf(
     total += lineTotal;
     doc.text(item.name, 22, y);
     doc.text(String(item.quantity), 110, y);
-    const eurUnit = rate ? (item.price * rate).toFixed(2) : null;
-    const eurLine = rate ? (lineTotal * rate).toFixed(2) : null;
-    doc.text(`BDT ${item.price.toFixed(2)}${eurUnit ? ` · €${eurUnit}` : ""}`, 130, y);
-    doc.text(`BDT ${lineTotal.toFixed(2)}${eurLine ? ` · €${eurLine}` : ""}`, 160, y);
+    doc.text(dp(item.price, secondaryCurrency, secondaryRate || 1), 130, y);
+    doc.text(dp(lineTotal, secondaryCurrency, secondaryRate || 1), 160, y);
     y += 8;
   }
 
@@ -136,17 +143,16 @@ export function generateSalesOfferPdf(
   y += 8;
   doc.setFontSize(10);
   doc.setTextColor(80);
-  doc.text(`Subtotal: BDT ${subtotal.toFixed(2)}${rate ? ` · €${(subtotal * rate).toFixed(2)}` : ""}`, w - 100, y);
+  doc.text(`Subtotal: ${dp(subtotal, secondaryCurrency, secondaryRate || 1)}`, w - 100, y);
   if (computedDiscountValue > 0) {
     y += 6;
     const dLabel = discountType === "percent" ? `Discount (${discountAmt}%)` : "Discount";
-    doc.text(`${dLabel}: -BDT ${computedDiscountValue.toFixed(2)}`, w - 100, y);
+    doc.text(`${dLabel}: -EUR ${computedDiscountValue.toFixed(2)}`, w - 100, y);
   }
   y += 10;
   doc.setFontSize(14);
   doc.setTextColor(30, 64, 175);
-  const eurTotal = rate ? (grandTotal * rate).toFixed(2) : null;
-  doc.text(`Grand Total: BDT ${grandTotal.toFixed(2)}${eurTotal ? ` · €${eurTotal}` : ""}`, w - 100, y);
+  doc.text(`Grand Total: ${dp(grandTotal, secondaryCurrency, secondaryRate || 1)}`, w - 100, y);
 
   // Terms
   y += 20;

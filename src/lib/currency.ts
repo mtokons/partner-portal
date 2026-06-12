@@ -1,49 +1,102 @@
-"use server";
+// Multi-currency conversion service.
+// EUR is the home/primary currency. Converts EUR → any target currency.
+// Uses exchangerate.host free API with 10-minute cache per currency pair.
 
-// Simple server-side currency conversion helper.
-// Uses exchangerate.host free API to get latest BDT -> EUR rate and caches it for 10 minutes.
+export type SupportedCurrency = "EUR" | "BDT" | "INR" | "USD" | "GBP" | "AED" | "SAR" | "MYR" | "PKR" | "LKR" | "NPR" | "TRY";
 
-let _cache: { rate: number; fetchedAt: number } | null = null;
-const CACHE_TTL_MS = Number(process.env.CURRENCY_CACHE_TTL_MS || String(10 * 60 * 1000)); // default 10 minutes
+export const CURRENCY_SYMBOLS: Record<string, string> = {
+  EUR: "€", BDT: "৳", INR: "₹", USD: "$", GBP: "£",
+  AED: "د.إ", SAR: "﷼", MYR: "RM", PKR: "₨", LKR: "Rs",
+  NPR: "₨", TRY: "₺",
+};
 
-const DEFAULT_API = process.env.EXCHANGE_API_URL || "https://api.exchangerate.host/latest";
+export const CURRENCY_NAMES: Record<string, string> = {
+  EUR: "Euro", BDT: "Bangladeshi Taka", INR: "Indian Rupee",
+  USD: "US Dollar", GBP: "British Pound", AED: "UAE Dirham",
+  SAR: "Saudi Riyal", MYR: "Malaysian Ringgit", PKR: "Pakistani Rupee",
+  LKR: "Sri Lankan Rupee", NPR: "Nepalese Rupee", TRY: "Turkish Lira",
+};
 
-export async function getBdtToEurRate(): Promise<number> {
+// Fallback rates (EUR → X) — approximate, used when API is down
+const FALLBACK_RATES: Record<string, number> = {
+  BDT: 142.72, INR: 111.37, USD: 1.16, GBP: 0.87, AED: 4.27,
+  SAR: 4.36, MYR: 4.61, PKR: 330.0, LKR: 340.0, NPR: 178.0, TRY: 53.42,
+};
+
+interface RateCache {
+  rates: Record<string, number>;
+  fetchedAt: number;
+}
+
+let _cache: RateCache | null = null;
+const CACHE_TTL_MS = Number(process.env.CURRENCY_CACHE_TTL_MS || String(10 * 60 * 1000));
+
+/** Fetch all EUR→X rates from open.er-api.com (same source as Google Finance), cached for 10 minutes */
+export async function getExchangeRates(): Promise<Record<string, number>> {
   const now = Date.now();
   if (_cache && now - _cache.fetchedAt < CACHE_TTL_MS) {
-    return _cache.rate;
+    return _cache.rates;
   }
 
   try {
-    const url = `${DEFAULT_API}?base=BDT&symbols=EUR`;
-    const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
-    if (!res.ok) throw new Error(`Failed to fetch exchange rates: HTTP ${res.status}`);
+    const res = await fetch("https://open.er-api.com/v6/latest/EUR", { signal: AbortSignal.timeout(5000) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    const rate = Number(data?.rates?.EUR);
-    if (!rate || Number.isNaN(rate)) throw new Error("Invalid rate received");
+    const rates: Record<string, number> = {};
 
-    _cache = { rate, fetchedAt: now };
-    return rate;
-  } catch (err) {
-    // Non-fatal: warn once instead of erroring on every render.
-    if (!_cache) {
-       
-      console.warn("[currency] live rate unavailable, using fallback 1 BDT ≈ 0.0084 EUR:", (err as Error)?.message || err);
+    if (data?.rates) {
+      for (const code of Object.keys(CURRENCY_SYMBOLS)) {
+        if (code === "EUR") continue;
+        const val = Number(data.rates[code]);
+        if (val > 0) rates[code] = val;
+      }
     }
-    // Cache the fallback briefly so we don't retry every request.
-    _cache = { rate: 0.0084, fetchedAt: now - CACHE_TTL_MS / 2 };
-    return 0.0084;
+
+    // Fill missing with fallbacks
+    for (const [code, fb] of Object.entries(FALLBACK_RATES)) {
+      if (!rates[code]) rates[code] = fb;
+    }
+
+    _cache = { rates, fetchedAt: now };
+    return rates;
+  } catch (err) {
+    console.warn("[currency] live rates unavailable, using fallbacks:", (err as Error)?.message);
+    // Cache fallbacks briefly
+    _cache = { rates: { ...FALLBACK_RATES }, fetchedAt: now - CACHE_TTL_MS / 2 };
+    return FALLBACK_RATES;
   }
 }
 
-/**
- * Convert BDT to EUR using provided `rate` or by fetching the latest cached rate.
- * Returns EUR rounded to 2 decimals.
- */
+/** Get EUR → single currency rate */
+export async function getEurToRate(currency: string): Promise<number> {
+  if (currency === "EUR") return 1;
+  const rates = await getExchangeRates();
+  return rates[currency] || FALLBACK_RATES[currency] || 1;
+}
+
+/** Convert EUR amount to target currency */
+export async function convertEurTo(amountEur: number, currency: string, rate?: number): Promise<number> {
+  if (currency === "EUR") return amountEur;
+  const r = rate ?? await getEurToRate(currency);
+  return Math.round((amountEur * r + Number.EPSILON) * 100) / 100;
+}
+
+/** Convert target currency to EUR */
+export async function convertToEur(amount: number, currency: string, rate?: number): Promise<number> {
+  if (currency === "EUR") return amount;
+  const r = rate ?? await getEurToRate(currency);
+  if (r <= 0) return amount;
+  return Math.round((amount / r + Number.EPSILON) * 100) / 100;
+}
+
+// Legacy compat
+export async function getBdtToEurRate(): Promise<number> {
+  const r = await getEurToRate("BDT");
+  return r > 0 ? 1 / r : 0.0084;
+}
+
 export async function convertBdtToEur(amountBdt: number, rate?: number): Promise<number> {
-  const r = rate ?? await getBdtToEurRate();
-  const eur = Math.round((amountBdt * r + Number.EPSILON) * 100) / 100;
-  return eur;
+  return convertToEur(amountBdt, "BDT", rate ? 1 / rate : undefined);
 }
 
 export async function clearCurrencyCache() {

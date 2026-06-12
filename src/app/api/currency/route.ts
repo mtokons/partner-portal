@@ -1,21 +1,38 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 /**
- * GET /api/currency
- * Returns the current BDT→EUR rate from the cache (or freshly fetched).
- * Used by client components that need the rate without a server action.
- *
- * Response: { rate: number, fetchedAt: string }
+ * GET /api/currency?target=BDT
+ * Returns EUR → target currency rate(s).
+ * If no target specified, returns all rates.
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const { getBdtToEurRate } = await import("@/lib/currency");
-    const rate = await getBdtToEurRate();
-    return NextResponse.json({ rate, fetchedAt: new Date().toISOString() });
-  } catch (err) {
-    // Fallback so clients can still render something useful
+    const { getExchangeRates, getEurToRate, CURRENCY_SYMBOLS, CURRENCY_NAMES } = await import("@/lib/currency");
+    const target = req.nextUrl.searchParams.get("target");
+
+    if (target && target !== "EUR") {
+      const rate = await getEurToRate(target);
+      return NextResponse.json({
+        base: "EUR",
+        target,
+        rate,
+        symbol: CURRENCY_SYMBOLS[target] || target,
+        name: CURRENCY_NAMES[target] || target,
+        fetchedAt: new Date().toISOString(),
+      });
+    }
+
+    const rates = await getExchangeRates();
+    return NextResponse.json({
+      base: "EUR",
+      rates,
+      symbols: CURRENCY_SYMBOLS,
+      names: CURRENCY_NAMES,
+      fetchedAt: new Date().toISOString(),
+    });
+  } catch {
     return NextResponse.json(
-      { error: "Rate unavailable", rate: null, fetchedAt: new Date().toISOString() },
+      { error: "Rates unavailable", rate: null, fetchedAt: new Date().toISOString() },
       { status: 503 }
     );
   }

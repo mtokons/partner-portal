@@ -125,7 +125,7 @@ export default function SalesOfferPage() {
                   <TableRow>
                     <TableHead>Product / Service</TableHead>
                     <TableHead className="w-24">Qty</TableHead>
-                    <TableHead className="w-32">Unit Price (BDT)</TableHead>
+                    <TableHead className="w-32">Unit Price (EUR)</TableHead>
                     <TableHead className="w-28">Total</TableHead>
                     <TableHead className="w-10"></TableHead>
                   </TableRow>
@@ -158,7 +158,7 @@ export default function SalesOfferPage() {
                         />
                       </TableCell>
                       <TableCell className="font-semibold">
-                        BDT {(item.quantity * item.price).toFixed(2)}{rate ? ` · €${((item.quantity * item.price) * rate).toFixed(2)}` : ""}
+                        {rate ? `€${((item.quantity * item.price) * rate).toFixed(2)} · ৳${(item.quantity * item.price).toFixed(2)}` : `৳${(item.quantity * item.price).toFixed(2)}`}
                       </TableCell>
                       <TableCell>
                         <Button
@@ -187,7 +187,7 @@ export default function SalesOfferPage() {
                 <div className="flex justify-between"><span className="text-gray-500">Items</span><span>{items.length}</span></div>
                 <div className="flex justify-between font-semibold text-lg border-t pt-2">
                   <span>Total</span>
-                  <span className="text-blue-700">BDT {total.toFixed(2)}{rate ? ` · €${(total * rate).toFixed(2)}` : ""}</span>
+                  <span className="text-blue-700">{rate ? `€${(total * rate).toFixed(2)} · ৳${total.toFixed(2)}` : `৳${total.toFixed(2)}`}</span>
                 </div>
               </div>
               <Button

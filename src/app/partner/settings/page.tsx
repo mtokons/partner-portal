@@ -69,6 +69,8 @@ export default async function PartnerSettingsPage() {
           phone: partner.phone || "",
           partnerType: partner.partnerType || "individual",
           partnerCode: partner.partnerCode || "",
+          preferredCurrency: partner.preferredCurrency || "EUR",
+          logoUrl: partner.logoUrl || "",
         }}
       />
     </div>

@@ -9,12 +9,22 @@ interface Step5PaymentProps {
   depositAmount: number;
   onNext: (data: Pick<WizardState, "paymentOption" | "paymentMethod" | "paymentReference">) => void;
   onBack: () => void;
+  secondaryCurrency?: string;
+  exchangeRate?: number;
 }
 
-export function Step5Payment({ depositAmount, onNext, onBack }: Step5PaymentProps) {
+const CSYM: Record<string, string> = {
+  EUR: "€", BDT: "৳", INR: "₹", USD: "$", GBP: "£",
+  AED: "د.إ", SAR: "﷼", MYR: "RM", PKR: "₨", TRY: "₺",
+};
+
+export function Step5Payment({ depositAmount, onNext, onBack, secondaryCurrency = "EUR", exchangeRate = 1 }: Step5PaymentProps) {
   const [option, setOption] = useState<"pay-now" | "pay-later">("pay-later");
   const [showGateway, setShowGateway] = useState(false);
   const [reference, setReference] = useState<string | null>(null);
+  const showSec = secondaryCurrency !== "EUR" && exchangeRate > 1;
+  const secSym = CSYM[secondaryCurrency] || secondaryCurrency;
+  const secAmount = Math.round(depositAmount * exchangeRate);
 
   function handlePayNow() {
     if (option === "pay-now" && !reference) {
@@ -34,8 +44,14 @@ export function Step5Payment({ depositAmount, onNext, onBack }: Step5PaymentProp
         <h2 className="text-lg font-semibold">Payment</h2>
         <p className="text-sm text-muted-foreground mt-1">
           Choose how you'd like to handle the required deposit of{" "}
-          <strong>€{depositAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong>.
+          <strong>€{depositAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong>
+          {showSec && <span className="text-muted-foreground"> (≈ {secSym}{secAmount.toLocaleString()})</span>}.
         </p>
+        {showSec && (
+          <p className="text-xs text-muted-foreground mt-1">
+            Local payments ({secondaryCurrency}) are calculated based on real-time exchange rates.
+          </p>
+        )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

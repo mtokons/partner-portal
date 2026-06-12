@@ -240,6 +240,11 @@ export default function CheckoutPage() {
                   <div>
                     <p className="font-bold">Bangladesh Online Payment</p>
                     <p className="text-xs text-muted-foreground">bKash, Nagad, Rocket, DBBL gateway transfer</p>
+                    <div className="flex gap-1.5 mt-1.5">
+                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-pink-500/10 text-pink-600 font-bold">bKash</span>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-orange-500/10 text-orange-600 font-bold">Nagad</span>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 font-bold">Bank Transfer</span>
+                    </div>
                   </div>
                 </div>
                 {paymentMethod === "bangladesh-online" && <Badge className="bg-primary text-white font-black uppercase text-[10px]">SELECTED</Badge>}
@@ -393,6 +398,9 @@ export default function CheckoutPage() {
                   <p className="text-[10px] text-muted-foreground bg-amber-500/10 text-amber-600 p-3 rounded-lg border border-amber-500/20 text-center font-medium">
                     Admin verifies your submitted payment reference before service activation.
                   </p>
+                  <p className="text-[10px] text-muted-foreground bg-blue-500/10 text-blue-600 p-3 rounded-lg border border-blue-500/20 text-center font-medium">
+                    💱 All prices are in Euro (EUR). Use the currency calculator for local equivalents.
+                  </p>
                 </div>
               )}
 
@@ -457,7 +465,7 @@ export default function CheckoutPage() {
         {showGateway && (
           <PaymentGateway 
             amount={cartTotal}
-            currency="BDT"
+            currency="EUR"
             onClose={() => setShowGateway(false)}
             onSuccess={(ref) => {
               setReference(ref);
@@ -487,10 +495,10 @@ export default function CheckoutPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold line-clamp-1">{item.product.name}</p>
-                      <p className="text-xs text-muted-foreground">{item.quantity} x BDT {item.effectivePrice.toLocaleString()}</p>
+                      <p className="text-xs text-muted-foreground">{item.quantity} x €{item.effectivePrice.toLocaleString()}</p>
                     </div>
                     <p className="text-sm font-black whitespace-nowrap">
-                      BDT {(item.quantity * item.effectivePrice).toLocaleString()}
+                      €{(item.quantity * item.effectivePrice).toLocaleString()}
                     </p>
                   </div>
                 ))}
@@ -499,15 +507,15 @@ export default function CheckoutPage() {
               <div className="border-t pt-4 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Subtotal</span>
-                  <span className="font-bold">BDT {cartTotal.toLocaleString()}</span>
+                  <span className="font-bold">€{cartTotal.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Tax (Included)</span>
-                  <span className="font-bold">BDT 0</span>
+                  <span className="font-bold">€0</span>
                 </div>
                 <div className="flex justify-between text-lg pt-2 border-t mt-2">
                   <span className="font-black">Total</span>
-                  <span className="font-black text-primary">BDT {cartTotal.toLocaleString()}</span>
+                  <span className="font-black text-primary">€{cartTotal.toLocaleString()}</span>
                 </div>
               </div>
             </CardContent>

@@ -151,7 +151,7 @@ export default function NewOfferPage() {
                   <TableRow>
                     <TableHead>Product</TableHead>
                     <TableHead className="w-24">Qty</TableHead>
-                    <TableHead className="w-36">Unit Price (BDT)</TableHead>
+                    <TableHead className="w-36">Unit Price (EUR)</TableHead>
                     <TableHead className="w-32">Total</TableHead>
                     <TableHead className="w-10"></TableHead>
                   </TableRow>
@@ -164,7 +164,7 @@ export default function NewOfferPage() {
                           <SelectTrigger><SelectValue placeholder="Select product" /></SelectTrigger>
                           <SelectContent>
                             {products.map((p) => (
-                              <SelectItem key={p.id} value={p.id}>{p.name} — BDT {p.price}</SelectItem>
+                              <SelectItem key={p.id} value={p.id}>{p.name} — €{p.price}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -195,7 +195,7 @@ export default function NewOfferPage() {
                         />
                       </TableCell>
                       <TableCell className="font-semibold">
-                        BDT {(item.quantity * item.unitPrice).toLocaleString()}
+                        €{(item.quantity * item.unitPrice).toLocaleString()}
                       </TableCell>
                       <TableCell>
                         <Button variant="ghost" size="sm" onClick={() => removeItem(idx)} disabled={items.length === 1}>
@@ -228,7 +228,7 @@ export default function NewOfferPage() {
                   <Select value={discountType} onValueChange={(v) => setDiscountType(v as "fixed" | "percent")}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="fixed">Fixed (BDT)</SelectItem>
+                      <SelectItem value="fixed">Fixed (EUR)</SelectItem>
                       <SelectItem value="percent">Percent (%)</SelectItem>
                     </SelectContent>
                   </Select>
@@ -279,17 +279,17 @@ export default function NewOfferPage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Subtotal</span>
-                  <span>BDT {subtotal.toLocaleString()}</span>
+                  <span>€{subtotal.toLocaleString()}</span>
                 </div>
                 {discount > 0 && (
                   <div className="flex justify-between text-red-500">
                     <span>Discount</span>
-                    <span>-BDT {discountAmount.toLocaleString()}</span>
+                    <span>-€{discountAmount.toLocaleString()}</span>
                   </div>
                 )}
                 <div className="flex justify-between font-bold text-lg border-t pt-2">
                   <span>Total</span>
-                  <span className="text-primary">BDT {total.toLocaleString()}</span>
+                  <span className="text-primary">€{total.toLocaleString()}</span>
                 </div>
               </div>
               <Button

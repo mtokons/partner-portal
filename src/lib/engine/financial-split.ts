@@ -23,6 +23,7 @@ export interface FinancialSplitLineItem {
   basePrice: number;
   quantity: number;
   lineTotal: number;
+  depositAmount: number;
 }
 
 export interface FinancialSplitInput {
@@ -31,9 +32,11 @@ export interface FinancialSplitInput {
     serviceName?: string;
     basePrice: number;
     quantity: number;
+    /** Fixed deposit amount in EUR per unit from the product's InitialPayment column. */
+    initialPaymentAmount?: number;
   }>;
   partnerMarginPercentage: PartnerMargin;
-  /** Fraction of totalServiceFee required as initial deposit. Defaults to 0.30 (30%). */
+  /** Fraction of totalServiceFee required as initial deposit. Defaults to 0.30 (30%). Used only when no per-product initialPaymentAmount is set. */
   depositPercentage?: number;
 }
 
@@ -51,13 +54,24 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 export function calculateFinancialSplit(
   input: FinancialSplitInput
 ): FinancialSplitResult {
-  const lineItems: FinancialSplitLineItem[] = input.services.map((s) => ({
-    servicePricingId: s.servicePricingId ?? "",
-    serviceName: s.serviceName ?? "",
-    basePrice: s.basePrice,
-    quantity: s.quantity,
-    lineTotal: round2(s.basePrice * s.quantity),
-  }));
+  const defaultDepositFraction = input.depositPercentage ?? 0.3;
+  const lineItems: FinancialSplitLineItem[] = input.services.map((s) => {
+    const lineTotal = round2(s.basePrice * s.quantity);
+    // initialPaymentAmount is a fixed EUR amount per unit from the product table
+    const depositAmount =
+      s.initialPaymentAmount !== undefined && Number.isFinite(s.initialPaymentAmount) && s.initialPaymentAmount > 0
+        ? round2(s.initialPaymentAmount * s.quantity)
+        : round2(lineTotal * defaultDepositFraction);
+
+    return {
+      servicePricingId: s.servicePricingId ?? "",
+      serviceName: s.serviceName ?? "",
+      basePrice: s.basePrice,
+      quantity: s.quantity,
+      lineTotal,
+      depositAmount: Math.min(depositAmount, lineTotal),
+    };
+  });
 
   const totalServiceFee = round2(
     lineItems.reduce((sum, l) => sum + l.lineTotal, 0)
@@ -66,8 +80,9 @@ export function calculateFinancialSplit(
     totalServiceFee * (input.partnerMarginPercentage / 100)
   );
   const sccgShare = round2(totalServiceFee - partnerShare);
-  const depositPercent = input.depositPercentage ?? 0.3;
-  const depositAmount = round2(totalServiceFee * depositPercent);
+  const depositAmount = round2(
+    lineItems.reduce((sum, l) => sum + l.depositAmount, 0)
+  );
 
   return {
     totalServiceFee,

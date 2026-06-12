@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import type { SessionUser } from "@/types";
 import { getPartnerByEmail, getCandidates, getTransactions } from "@/lib/sharepoint";
+import { getEurToRate } from "@/lib/currency";
+import { dual } from "@/lib/formatCurrency";
 import { RotateCcw, Clock, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
 import RefundRequestForm from "./RefundRequestForm";
 
@@ -20,9 +22,11 @@ export default async function RefundsPage() {
   const partner = await getPartnerByEmail(user.email!);
   if (!partner) redirect("/partner-pending");
 
-  const [candidates, transactions] = await Promise.all([
+  const secCur = partner.preferredCurrency || "BDT";
+  const [candidates, transactions, rate] = await Promise.all([
     getCandidates(partner.id),
     getTransactions(partner.id),
+    secCur !== "EUR" ? getEurToRate(secCur) : Promise.resolve(1),
   ]);
 
   // Only candidates with some deposit can be refunded
@@ -89,7 +93,7 @@ export default async function RefundsPage() {
                     </p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-sm font-bold text-foreground">€{r.amount.toFixed(2)}</p>
+                    <p className="text-sm font-bold text-foreground">{dual(r.amount, secCur, rate)}</p>
                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${st.color}`}>
                       {st.label}
                     </span>

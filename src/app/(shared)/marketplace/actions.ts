@@ -165,7 +165,7 @@ export async function createDirectOrderAction(data: {
             initialBalance: item.unitPrice,
             currentBalance: item.unitPrice,
             balance: item.unitPrice,
-            currency: "BDT",
+            currency: "EUR",
             tier: "standard",
             status: "active",
             designTemplate: "standard",

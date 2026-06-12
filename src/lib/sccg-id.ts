@@ -115,10 +115,11 @@ export async function generatePartnerCandidateId(
   const db = getAdminFirestore();
   const rawCode = (partnerCode || "PART").trim().toUpperCase();
   const categoryMap: Record<string, string> = {
-    "Training": "TRN",
+    "Training & Language": "TRN",
     "Ausbildung": "AUS",
-    "Student Visa": "STU",
+    "Student": "STU",
     "Opportunity Card": "OPP",
+    "Others": "OTH",
   };
   const categoryAbbr = (categoryMap[workflowCategory] || workflowCategory.slice(0, 3)).toUpperCase();
   const seqKey = `${rawCode}-${categoryAbbr}`;

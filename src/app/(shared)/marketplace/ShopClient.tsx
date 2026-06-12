@@ -75,7 +75,7 @@ export default function ShopClient({ products, promotions, user }: ShopClientPro
         <div className="flex items-center gap-4">
           <div className="text-right hidden sm:block">
             <p className="text-xs font-bold text-muted-foreground uppercase">Cart Subtotal</p>
-            <p className="text-xl font-black text-primary">BDT {cartTotal.toLocaleString()}</p>
+            <p className="text-xl font-black text-primary">€{cartTotal.toLocaleString()}</p>
           </div>
           <button
             onClick={handleProceedToCheckout}
@@ -161,7 +161,7 @@ export default function ShopClient({ products, promotions, user }: ShopClientPro
             className="flex items-center gap-4 px-6 py-4 bg-primary text-white rounded-full shadow-2xl font-black text-sm ring-4 ring-background"
           >
             <ShoppingBag className="h-5 w-5" />
-            <span>Pay BDT {cartTotal.toLocaleString()}</span>
+            <span>Pay €{cartTotal.toLocaleString()}</span>
             <span className="bg-white/20 px-2 py-0.5 rounded-lg ml-1">{cartCount}</span>
           </button>
         )}

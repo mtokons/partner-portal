@@ -85,8 +85,8 @@ export default function PlaceOrderButton({ productId, productName, price, partne
             <Input type="number" min={1} value={quantity} onChange={(e) => setQuantity(Number(e.target.value))} />
           </div>
           <div className="text-lg font-semibold">
-            Total: BDT {(price * quantity).toFixed(2)}
-            {eurRate ? ` (≈ €${((price * quantity) * eurRate).toFixed(2)})` : ""}
+            Total: €{((price * quantity) * (eurRate || 1)).toFixed(2)}
+            {eurRate ? ` (৳${(price * quantity).toFixed(2)})` : ""}
           </div>
           <Button onClick={handleOrder} disabled={loading || !clientId} className="w-full">
             {loading ? "Placing..." : "Confirm Order"}

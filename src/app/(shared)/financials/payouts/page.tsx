@@ -47,7 +47,7 @@ export default async function MyPayoutsPage() {
           { label: "Total Payouts", value: payouts.length, icon: Wallet, color: "text-blue-500", bg: "bg-blue-50 border-blue-100" },
           { label: "Pending", value: pending, icon: Clock, color: "text-amber-500", bg: "bg-amber-50 border-amber-100" },
           { label: "Paid Out", value: paid, icon: CheckCircle2, color: "text-emerald-500", bg: "bg-emerald-50 border-emerald-100" },
-          { label: "Total Paid (BDT)", value: `${paidTotal.toLocaleString()}`, icon: TrendingUp, color: "text-violet-500", bg: "bg-violet-50 border-violet-100" },
+          { label: "Total Paid (EUR)", value: `€${paidTotal.toLocaleString()}`, icon: TrendingUp, color: "text-violet-500", bg: "bg-violet-50 border-violet-100" },
         ].map((kpi) => (
           <div key={kpi.label} className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl border ${kpi.bg}`}>
             <div className="h-9 w-9 rounded-xl bg-white flex items-center justify-center shadow-sm">
@@ -65,12 +65,12 @@ export default async function MyPayoutsPage() {
       <div className="bg-gradient-to-r from-primary/10 to-violet-500/10 border border-primary/20 rounded-3xl px-6 py-5 flex items-center justify-between">
         <div>
           <p className="text-sm font-semibold text-muted-foreground">Total Lifetime Earnings</p>
-          <p className="text-4xl font-black text-primary mt-1">BDT {earned.toLocaleString()}</p>
+          <p className="text-4xl font-black text-primary mt-1">€{earned.toLocaleString()}</p>
         </div>
         <div className="text-right">
           <p className="text-sm font-semibold text-muted-foreground">Pending Release</p>
           <p className="text-2xl font-black text-amber-600 mt-1">
-            BDT {payouts.filter((p) => p.status !== "paid").reduce((s, p) => s + p.net, 0).toLocaleString()}
+            €{payouts.filter((p) => p.status !== "paid").reduce((s, p) => s + p.net, 0).toLocaleString()}
           </p>
         </div>
       </div>
@@ -111,9 +111,9 @@ export default async function MyPayoutsPage() {
                       <td className="px-6 py-4">
                         <Badge variant="outline" className="capitalize rounded-full text-[10px]">{payout.recipientType}</Badge>
                       </td>
-                      <td className="px-6 py-4 text-muted-foreground">BDT {payout.gross.toLocaleString()}</td>
-                      <td className="px-6 py-4 text-rose-600 text-xs">−BDT {payout.deductions.toLocaleString()}</td>
-                      <td className="px-6 py-4 font-black text-foreground text-lg">BDT {payout.net.toLocaleString()}</td>
+                      <td className="px-6 py-4 text-muted-foreground">€{payout.gross.toLocaleString()}</td>
+                      <td className="px-6 py-4 text-rose-600 text-xs">−€{payout.deductions.toLocaleString()}</td>
+                      <td className="px-6 py-4 font-black text-foreground text-lg">€{payout.net.toLocaleString()}</td>
                       <td className="px-6 py-4">
                         <Badge className={`capitalize rounded-full text-[10px] border ${statusColors[payout.status] || ""}`}>
                           {payout.status}

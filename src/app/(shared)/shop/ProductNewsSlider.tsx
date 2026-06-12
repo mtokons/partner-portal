@@ -73,7 +73,7 @@ export default function ProductNewsSlider({ promotions }: ProductNewsSliderProps
             </Badge>
             {promo.discountValue > 0 && (
               <Badge className="bg-white border-white/30 text-gray-900 font-black text-[10px] px-2 py-0.5">
-                {promo.discountType === "percent" ? `${promo.discountValue}% OFF` : `BDT ${promo.discountValue} OFF`}
+                {promo.discountType === "percent" ? `${promo.discountValue}% OFF` : `€${promo.discountValue} OFF`}
               </Badge>
             )}
           </div>

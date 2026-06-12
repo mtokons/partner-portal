@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import type { SessionUser, WorkflowCategory } from "@/types";
 import { getPartnerByEmail, getCandidates, getTransactions } from "@/lib/sharepoint";
+import { getEurToRate } from "@/lib/currency";
+import { dual } from "@/lib/formatCurrency";
 import { format, parseISO, subMonths, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import { TrendingUp, DollarSign, Wallet, Users, Briefcase, ArrowUpRight, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
@@ -14,9 +16,11 @@ export default async function RevenueBreakdownPage() {
   const partner = await getPartnerByEmail(user.email!);
   if (!partner) redirect("/partner-pending");
 
-  const [candidates, transactions] = await Promise.all([
+  const secCur = partner.preferredCurrency || "BDT";
+  const [candidates, transactions, rate] = await Promise.all([
     getCandidates(partner.id),
     getTransactions(partner.id),
+    secCur !== "EUR" ? getEurToRate(secCur) : Promise.resolve(1),
   ]);
 
   const margin = partner.marginPercentage || 15;
@@ -32,12 +36,13 @@ export default async function RevenueBreakdownPage() {
   const pendingEarnings = candidates.filter((c) => c.paymentStatus !== "fully-paid" && c.paymentStatus !== "refunded").reduce((s, c) => s + (c.partnerShare || 0), 0);
 
   // === REVENUE BY PRODUCT/SERVICE (workflowCategory) ===
-  const categories: WorkflowCategory[] = ["Training", "Ausbildung", "Student Visa", "Opportunity Card"];
+  const categories: WorkflowCategory[] = ["Training & Language", "Ausbildung", "Student", "Opportunity Card", "Others"];
   const categoryColors: Record<string, { bg: string; text: string; border: string }> = {
-    Training: { bg: "bg-blue-500/10", text: "text-blue-500", border: "border-blue-500/20" },
+    "Training & Language": { bg: "bg-blue-500/10", text: "text-blue-500", border: "border-blue-500/20" },
     Ausbildung: { bg: "bg-emerald-500/10", text: "text-emerald-500", border: "border-emerald-500/20" },
-    "Student Visa": { bg: "bg-purple-500/10", text: "text-purple-500", border: "border-purple-500/20" },
+    "Student": { bg: "bg-purple-500/10", text: "text-purple-500", border: "border-purple-500/20" },
     "Opportunity Card": { bg: "bg-amber-500/10", text: "text-amber-500", border: "border-amber-500/20" },
+    "Others": { bg: "bg-gray-500/10", text: "text-gray-500", border: "border-gray-500/20" },
   };
 
   const revenueByCategory = categories.map((cat) => {
@@ -96,15 +101,15 @@ export default async function RevenueBreakdownPage() {
             <p className="text-[10px] text-emerald-400 uppercase tracking-wider font-bold">Total Commission</p>
             <DollarSign className="w-4 h-4 text-emerald-400" />
           </div>
-          <p className="text-2xl font-extrabold text-emerald-500 mt-1">€{totalCommission.toLocaleString("en", { minimumFractionDigits: 0 })}</p>
-          <p className="text-[10px] text-muted-foreground mt-0.5">{margin}% of €{totalSales.toLocaleString("en")} total sales</p>
+          <p className="text-2xl font-extrabold text-emerald-500 mt-1">{dual(totalCommission, secCur, rate)}</p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">{margin}% of {dual(totalSales, secCur, rate)} total sales</p>
         </div>
         <div className="bg-gradient-to-br from-blue-600/10 to-blue-500/5 border-2 border-blue-500/20 rounded-2xl p-5">
           <div className="flex items-center justify-between">
             <p className="text-[10px] text-blue-400 uppercase tracking-wider font-bold">Earned (Paid Clients)</p>
             <CheckCircle2 className="w-4 h-4 text-blue-400" />
           </div>
-          <p className="text-2xl font-extrabold text-blue-500 mt-1">€{earnedFromPaid.toLocaleString("en", { minimumFractionDigits: 0 })}</p>
+          <p className="text-2xl font-extrabold text-blue-500 mt-1">{dual(earnedFromPaid, secCur, rate)}</p>
           <p className="text-[10px] text-muted-foreground mt-0.5">{paidClients} fully paid clients</p>
         </div>
         <div className="bg-gradient-to-br from-amber-600/10 to-amber-500/5 border-2 border-amber-500/20 rounded-2xl p-5">
@@ -112,7 +117,7 @@ export default async function RevenueBreakdownPage() {
             <p className="text-[10px] text-amber-400 uppercase tracking-wider font-bold">Pending Earnings</p>
             <Wallet className="w-4 h-4 text-amber-400" />
           </div>
-          <p className="text-2xl font-extrabold text-amber-500 mt-1">€{pendingEarnings.toLocaleString("en", { minimumFractionDigits: 0 })}</p>
+          <p className="text-2xl font-extrabold text-amber-500 mt-1">{dual(pendingEarnings, secCur, rate)}</p>
           <p className="text-[10px] text-muted-foreground mt-0.5">{pendingClients} clients pending</p>
         </div>
         <div className="bg-gradient-to-br from-purple-600/10 to-purple-500/5 border-2 border-purple-500/20 rounded-2xl p-5">
@@ -122,7 +127,7 @@ export default async function RevenueBreakdownPage() {
           </div>
           <p className="text-2xl font-extrabold text-purple-500 mt-1">{candidates.length}</p>
           <p className="text-[10px] text-muted-foreground mt-0.5">
-            Avg €{candidates.length > 0 ? (totalCommission / candidates.length).toFixed(0) : 0} per client
+            Avg {dual(candidates.length > 0 ? Math.round(totalCommission / candidates.length) : 0, secCur, rate)} per client
           </p>
         </div>
       </div>
@@ -147,7 +152,7 @@ export default async function RevenueBreakdownPage() {
                       <span className="text-[10px] text-muted-foreground font-medium">{r.clients} client(s)</span>
                     </div>
                     <div className="text-right">
-                      <span className={`text-lg font-extrabold ${c.text}`}>€{r.commission.toLocaleString("en")}</span>
+                      <span className={`text-lg font-extrabold ${c.text}`}>{dual(r.commission, secCur, rate)}</span>
                       <span className="text-xs text-muted-foreground ml-2">({pct}%)</span>
                     </div>
                   </div>
@@ -155,8 +160,8 @@ export default async function RevenueBreakdownPage() {
                     <div className={`h-full rounded-full ${c.text.replace("text-", "bg-")}/60`} style={{ width: `${(r.commission / maxCatCommission) * 100}%` }} />
                   </div>
                   <div className="flex justify-between mt-2 text-[10px] text-muted-foreground">
-                    <span>Sales: €{r.totalSales.toLocaleString("en")}</span>
-                    <span>Received: €{r.received.toLocaleString("en")}</span>
+                    <span>Sales: {dual(r.totalSales, secCur, rate)}</span>
+                    <span>Received: {dual(r.received, secCur, rate)}</span>
                   </div>
                 </div>
               );
@@ -174,11 +179,11 @@ export default async function RevenueBreakdownPage() {
           {months.map((m) => (
             <div key={m.label} className="flex-1 flex flex-col items-center gap-1">
               {m.commission > 0 && (
-                <p className="text-[9px] font-bold text-foreground">€{m.commission >= 1000 ? `${(m.commission / 1000).toFixed(1)}k` : m.commission.toFixed(0)}</p>
+                <p className="text-[9px] font-bold text-foreground">{dual(m.commission, secCur, rate)}</p>
               )}
               <div className="w-full bg-emerald-500/70 rounded-lg transition-all"
                 style={{ height: `${Math.max(4, (m.commission / maxMonthly) * 130)}px` }}
-                title={`Commission: €${m.commission.toFixed(0)}`} />
+                title={`Commission: ${dual(m.commission, secCur, rate)}`} />
               <p className="text-[10px] text-muted-foreground font-medium">{m.short}</p>
               <p className="text-[9px] text-muted-foreground">{m.clients} sales</p>
             </div>
@@ -232,8 +237,8 @@ export default async function RevenueBreakdownPage() {
                           {c.workflowCategory}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-right font-medium">€{(c.totalServiceFee || 0).toLocaleString("en")}</td>
-                      <td className="px-4 py-3 text-right font-bold text-emerald-500">€{(c.partnerShare || 0).toLocaleString("en")}</td>
+                      <td className="px-4 py-3 text-right font-medium">{dual(c.totalServiceFee || 0, secCur, rate)}</td>
+                      <td className="px-4 py-3 text-right font-bold text-emerald-500">{dual(c.partnerShare || 0, secCur, rate)}</td>
                       <td className="px-4 py-3 text-center">
                         <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${sc[c.paymentStatus] || sc.pending}`}>
                           {c.paymentStatus?.replace("-", " ") || "pending"}

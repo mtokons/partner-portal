@@ -5,20 +5,21 @@ import { Upload, CheckCircle2, Loader2 } from "lucide-react";
 import type { WorkflowCategory } from "@/types";
 
 const REQUIRED_DOCS: Record<WorkflowCategory, string[]> = {
-  Training: ["Passport Copy", "CV/Resume"],
+  "Training & Language": ["Passport Copy", "CV/Resume"],
   Ausbildung: ["Passport Copy", "CV/Resume"],
-  "Student Visa": ["Passport Copy", "CV/Resume"],
+  "Student": ["Passport Copy", "CV/Resume"],
   "Opportunity Card": ["Passport Copy", "CV/Resume"],
+  "Others": ["Passport Copy"],
 };
 
 const OPTIONAL_DOCS: Record<WorkflowCategory, string[]> = {
-  Training: ["Educational Certificates"],
+  "Training & Language": ["Educational Certificates"],
   Ausbildung: [
     "Educational Certificates",
     "Language Certificate (B1+)",
     "Motivation Letter",
   ],
-  "Student Visa": [
+  "Student": [
     "Educational Certificates",
     "Admission Letter",
     "Bank Statement",
@@ -28,6 +29,7 @@ const OPTIONAL_DOCS: Record<WorkflowCategory, string[]> = {
     "ZAB Recognition Document",
     "Bank Statement",
   ],
+  "Others": ["Supporting Documents"],
 };
 
 interface UploadedDoc {
@@ -108,21 +110,21 @@ export function Step7Documents({
     }
   }
 
-  const mandatoryUploaded = requiredDocs.every((d) => uploaded.has(d));
+  const allUploaded = requiredDocs.every((d) => uploaded.has(d));
 
   return (
     <div className="space-y-5">
       <div>
         <h2 className="text-lg font-semibold">Document Upload</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Upload documents for {workflowCategory}. PDF, JPG, PNG — max 5MB each.
+          Upload documents for {workflowCategory}. PDF, JPG, PNG — max 5MB each. You can also skip and upload later.
         </p>
       </div>
 
-      {/* Mandatory Documents */}
+      {/* Recommended Documents */}
       <div className="space-y-2">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-          Required Documents <span className="text-red-500">*</span>
+          Recommended Documents <span className="text-muted-foreground/60">(can upload later)</span>
         </p>
         {requiredDocs.map((docType) => {
           const doc = uploaded.get(docType);
@@ -135,7 +137,7 @@ export function Step7Documents({
                 <Upload className="w-5 h-5 text-muted-foreground shrink-0" />
               )}
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium">{docType} <span className="text-red-500">*</span></p>
+                <p className="text-sm font-medium">{docType}</p>
                 {doc && (
                   <p className="text-xs text-muted-foreground truncate">{doc.fileName}</p>
                 )}
@@ -191,14 +193,20 @@ export function Step7Documents({
         </div>
       )}
 
-      <div className="flex items-center justify-end pt-4">
+      <div className="flex items-center justify-between pt-4">
+        <button
+          onClick={() => onNext([])}
+          className="px-4 py-2 rounded-xl border text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
+        >
+          Skip for now
+        </button>
         <button
           onClick={() => onNext(Array.from(uploaded.values()))}
-          disabled={!mandatoryUploaded}
+          disabled={uploaded.size === 0}
           className="px-6 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center gap-2"
         >
           <CheckCircle2 className="w-4 h-4" />
-          Finish Registration
+          {allUploaded ? "Finish Registration" : `Finish with ${uploaded.size} doc${uploaded.size !== 1 ? "s" : ""}`}
         </button>
       </div>
     </div>

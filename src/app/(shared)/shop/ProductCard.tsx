@@ -64,10 +64,10 @@ export default function ProductCard({
               {appliedPromotion
                 ? appliedPromotion.discountType === "percent"
                   ? `${appliedPromotion.discountValue}% OFF`
-                  : `BDT ${appliedPromotion.discountValue} OFF`
+                  : `€${appliedPromotion.discountValue} OFF`
                 : product.discountType === "percent"
                 ? `${product.discount}% OFF`
-                : `BDT ${product.discount} OFF`}
+                : `€${product.discount} OFF`}
             </Badge>
           )}
           {product.tags?.includes("new") && (
@@ -125,16 +125,16 @@ export default function ProductCard({
               <>
                 <div className="flex flex-col gap-0.5">
                   <p className="text-2xl font-black text-primary leading-none flex items-baseline gap-1">
-                    BDT {effectivePrice.toLocaleString()}
+                    €{product.retailPriceEur?.toLocaleString("en-DE", { minimumFractionDigits: 2 }) || effectivePrice.toLocaleString()}
                     <span className="text-[10px] font-semibold text-muted-foreground uppercase">Inc. VAT</span>
                   </p>
                   <p className="text-sm font-semibold text-muted-foreground flex items-baseline gap-1 mt-1">
-                    € {product.retailPriceEur.toLocaleString("en-DE", { minimumFractionDigits: 2 })}
+                    ৳{effectivePrice.toLocaleString()}
                   </p>
                 </div>
                 {hasDiscount && (
                   <p className="text-xs text-muted-foreground line-through mt-0.5">
-                    BDT {product.price.toLocaleString()}
+                    €{product.price.toLocaleString()}
                   </p>
                 )}
               </>

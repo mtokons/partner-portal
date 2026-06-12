@@ -8,6 +8,8 @@ import { revalidatePath } from "next/cache";
 export async function updatePartnerProfile(data: {
   phone?: string;
   company?: string;
+  preferredCurrency?: string;
+  logoUrl?: string;
 }) {
   const session = await auth();
   if (!session?.user) throw new Error("Unauthorized");
@@ -22,6 +24,8 @@ export async function updatePartnerProfile(data: {
   const fields: Record<string, string | undefined> = {};
   if (data.phone !== undefined) fields["Phone"] = data.phone;
   if (data.company !== undefined) fields["Company"] = data.company;
+  if (data.preferredCurrency !== undefined) fields["PreferredCurrency"] = data.preferredCurrency;
+  if (data.logoUrl !== undefined) fields["LogoUrl"] = data.logoUrl;
 
   if (Object.keys(fields).length > 0) {
     await graphPatch(`${await getSiteListUrlAsync("Partners")}/${partner.id}/fields`, fields);

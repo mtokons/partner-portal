@@ -16,7 +16,14 @@ interface BuyServiceDrawerProps {
   candidateSccgId: string;
   candidateMargin: PartnerMargin;
   products: Product[];
+  secondaryCurrency?: string;
+  exchangeRate?: number;
 }
+
+const CSYM: Record<string, string> = {
+  EUR: "€", BDT: "৳", INR: "₹", USD: "$", GBP: "£",
+  AED: "د.إ", SAR: "﷼", MYR: "RM", PKR: "₨", TRY: "₺",
+};
 
 export default function BuyServiceDrawer({
   isOpen,
@@ -25,8 +32,12 @@ export default function BuyServiceDrawer({
   candidateName,
   candidateSccgId,
   candidateMargin,
-  products
+  products,
+  secondaryCurrency = "EUR",
+  exchangeRate = 1,
 }: BuyServiceDrawerProps) {
+  const d = (v: number) => `€${v.toLocaleString("en", { minimumFractionDigits: 2 })}`;
+
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [quantity, setQuantity] = useState(1);
@@ -187,22 +198,22 @@ export default function BuyServiceDrawer({
                       className="w-full bg-muted border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary/50"
                     />
                   </div>
-                  <p className="text-[10px] text-muted-foreground">Default base price is €{defaultPrice.toLocaleString()}</p>
+                  <p className="text-[10px] text-muted-foreground">Default base price is {d(defaultPrice)}</p>
                 </div>
 
                 {/* Pricing summary */}
                 <div className="border border-white/15 rounded-2xl overflow-hidden divide-y divide-white/5 bg-primary/5">
                   <div className="p-4 flex items-center justify-between text-xs">
                     <span className="text-muted-foreground">Base Subtotal</span>
-                    <span className="font-semibold text-foreground">€{(finalPrice * quantity).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                    <span className="font-semibold text-foreground">{d(finalPrice * quantity)}</span>
                   </div>
                   <div className="p-4 flex items-center justify-between text-xs">
                     <span className="text-muted-foreground">Partner Markup ({candidateMargin}%)</span>
-                    <span className="font-semibold text-emerald-400">€{(finalPrice * quantity * marginPercentage / 100).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                    <span className="font-semibold text-emerald-400">{d(finalPrice * quantity * marginPercentage / 100)}</span>
                   </div>
                   <div className="p-4 flex items-center justify-between text-sm font-bold bg-primary/10">
                     <span className="text-foreground">Total Client Amount</span>
-                    <span className="text-primary text-base">€{(finalPrice * quantity).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                    <span className="text-primary text-base">{d(finalPrice * quantity)}</span>
                   </div>
                 </div>
               </div>
@@ -276,7 +287,7 @@ export default function BuyServiceDrawer({
 
                         <div className="flex items-center gap-3 shrink-0">
                           <span className="font-bold text-foreground text-sm">
-                            €{price.toLocaleString()}
+                            {d(price)}
                           </span>
                           <div className="p-1 bg-primary text-primary-foreground rounded-lg group-hover:scale-105 transition-transform">
                             <Plus className="w-4 h-4" />

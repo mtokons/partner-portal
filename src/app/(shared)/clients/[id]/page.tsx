@@ -118,7 +118,7 @@ export default async function ClientDetailPage({ params }: Props) {
                       <TableCell className="font-mono text-xs">{tx.reference}</TableCell>
                       <TableCell className="text-sm">{tx.description}</TableCell>
                       <TableCell className={`font-semibold ${tx.type === "payment" || tx.type === "refund" ? "text-green-600" : "text-red-600"}`}>
-                        {tx.type === "payment" || tx.type === "refund" ? "-" : "+"}{fmtBdt(tx.amount, tx.amountEur != null ? null : rate, { compact: true })}{tx.amountEur != null ? ` · €${tx.amountEur.toFixed(2)}` : ""}
+                        {tx.type === "payment" || tx.type === "refund" ? "-" : "+"}{tx.amountEur != null ? `€${tx.amountEur.toFixed(2)} · ৳${tx.amount.toFixed(2)}` : fmtBdt(tx.amount, rate, { compact: true })}
                       </TableCell>
                       <TableCell className="font-semibold">{fmtBdt(tx.balance, rate, { compact: true })}</TableCell>
                     </TableRow>

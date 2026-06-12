@@ -52,7 +52,7 @@ export default async function AdminFinancialsPage() {
     return { ...p, revenue, expenses: expTotal, profit: revenue - expTotal };
   }).sort((a, b) => b.revenue - a.revenue);
 
-  // attempt to get conversion rate
+  // attempt to get conversion rate (BDT→EUR)
   let rate: number | null = null;
   try {
     const { getBdtToEurRate } = await import("@/lib/currency");
@@ -60,6 +60,10 @@ export default async function AdminFinancialsPage() {
   } catch (err) {
     rate = null;
   }
+  const fmtEur = (bdt: number) => {
+    if (rate) return `€${(bdt * rate).toLocaleString("en", { maximumFractionDigits: 0 })}`;
+    return `€${bdt.toLocaleString("en", { maximumFractionDigits: 0 })}`;
+  };
 
   return (
     <div className="space-y-6">
@@ -69,23 +73,23 @@ export default async function AdminFinancialsPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm text-gray-500">Total Revenue</CardTitle></CardHeader>
-          <CardContent><div className="text-2xl font-bold text-blue-600">BDT {totalRevenue.toFixed(0)}{rate ? ` · €${(totalRevenue * rate).toFixed(0)}` : ""}</div></CardContent>
+          <CardContent><div className="text-2xl font-bold text-blue-600">{fmtEur(totalRevenue)}</div></CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm text-gray-500">Total Expenses</CardTitle></CardHeader>
-          <CardContent><div className="text-2xl font-bold text-red-600">BDT {totalExpenses.toFixed(0)}{rate ? ` · €${(totalExpenses * rate).toFixed(0)}` : ""}</div></CardContent>
+          <CardContent><div className="text-2xl font-bold text-red-600">{fmtEur(totalExpenses)}</div></CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm text-gray-500">Net Profit</CardTitle></CardHeader>
           <CardContent>
             <div className={`text-2xl font-bold ${totalProfit >= 0 ? "text-green-600" : "text-red-600"}`}>
-              BDT {totalProfit.toFixed(0)}{rate ? ` · €${(totalProfit * rate).toFixed(0)}` : ""}
+              {fmtEur(totalProfit)}
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm text-gray-500">Outstanding</CardTitle></CardHeader>
-          <CardContent><div className="text-2xl font-bold text-orange-600">BDT {totalOutstanding.toFixed(0)}{rate ? ` · €${(totalOutstanding * rate).toFixed(0)}` : ""}</div></CardContent>
+          <CardContent><div className="text-2xl font-bold text-orange-600">{fmtEur(totalOutstanding)}</div></CardContent>
         </Card>
       </div>
 
@@ -100,7 +104,7 @@ export default async function AdminFinancialsPage() {
                   {overdueInstallments.slice(0, 4).map((i) => (
                     <div key={i.id} className="flex justify-between text-xs text-red-700">
                       <span>{i.clientName}</span>
-                      <span>BDT {i.amount.toFixed(2)}{rate ? ` · €${(i.amount * rate).toFixed(2)}` : ""} — due {i.dueDate}</span>
+                      <span>{fmtEur(i.amount)} — due {i.dueDate}</span>
                     </div>
                   ))}
                   {overdueInstallments.length > 4 && <p className="text-xs text-red-500">+{overdueInstallments.length - 4} more</p>}
@@ -116,7 +120,7 @@ export default async function AdminFinancialsPage() {
                   {overdueInvoices.slice(0, 4).map((i) => (
                     <div key={i.id} className="flex justify-between text-xs text-orange-700">
                       <span>{i.clientName}</span>
-                      <span>BDT {i.amount.toFixed(2)}{rate ? ` · €${(i.amount * rate).toFixed(2)}` : ""} — due {i.dueDate}</span>
+                      <span>{fmtEur(i.amount)} — due {i.dueDate}</span>
                     </div>
                   ))}
                 </div>
@@ -152,10 +156,10 @@ export default async function AdminFinancialsPage() {
                 <TableRow key={p.id}>
                   <TableCell className="font-medium">{p.name}</TableCell>
                   <TableCell>{p.company}</TableCell>
-                  <TableCell className="text-blue-600 font-semibold">BDT {p.revenue.toFixed(0)}{rate ? ` · €${(p.revenue * rate).toFixed(0)}` : ""}</TableCell>
-                  <TableCell className="text-red-600">BDT {p.expenses.toFixed(0)}{rate ? ` · €${(p.expenses * rate).toFixed(0)}` : ""}</TableCell>
+                  <TableCell className="text-blue-600 font-semibold">{fmtEur(p.revenue)}</TableCell>
+                  <TableCell className="text-red-600">{fmtEur(p.expenses)}</TableCell>
                   <TableCell className={p.profit >= 0 ? "text-green-600 font-semibold" : "text-red-600 font-semibold"}>
-                    BDT {p.profit.toFixed(0)}{rate ? ` · €${(p.profit * rate).toFixed(0)}` : ""}
+                    {fmtEur(p.profit)}
                   </TableCell>
                   <TableCell>
                     <Badge className={p.status === "active" ? "bg-green-100 text-green-800" : p.status === "suspended" ? "bg-red-100 text-red-800" : "bg-yellow-100 text-yellow-800"}>

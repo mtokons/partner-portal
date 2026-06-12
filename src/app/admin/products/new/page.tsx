@@ -136,7 +136,7 @@ export default function NewProductPage() {
           <h2 className="font-bold text-sm uppercase tracking-wider text-muted-foreground">Pricing & Stock</h2>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wider">Price (BDT) <span className="text-rose-500">*</span></label>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wider">Price (EUR) <span className="text-rose-500">*</span></label>
               <input type="number" min={0} required value={form.price} onChange={(e) => update("price", Number(e.target.value))}
                 className="w-full px-4 py-2.5 bg-muted border-0 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
             </div>
@@ -155,7 +155,7 @@ export default function NewProductPage() {
             <button type="button" onClick={() => update("discountType", "percent")}
               className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-colors ${form.discountType === "percent" ? "bg-primary text-white" : "bg-muted text-muted-foreground"}`}>%</button>
             <button type="button" onClick={() => update("discountType", "fixed")}
-              className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-colors ${form.discountType === "fixed" ? "bg-primary text-white" : "bg-muted text-muted-foreground"}`}>BDT Fixed</button>
+              className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-colors ${form.discountType === "fixed" ? "bg-primary text-white" : "bg-muted text-muted-foreground"}`}>EUR Fixed</button>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>

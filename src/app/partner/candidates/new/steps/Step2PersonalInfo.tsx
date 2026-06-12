@@ -11,18 +11,19 @@ type PersonalInfo = WizardState["personalInfo"];
 interface Step2PersonalInfoProps {
   initialData: PersonalInfo;
   products: Product[];
+  isExistingCandidate?: boolean;
   onNext: (data: PersonalInfo) => void;
   onBack: () => void;
 }
 
 const REQUIRED: (keyof PersonalInfo)[] = [
-  "fullName", "dateOfBirth", "email", "phone", "nationality", "country", "workflowCategory",
+  "fullName", "dateOfBirth", "email", "phone", "nationality", "country",
 ];
 
-export function Step2PersonalInfo({ initialData, products, onNext, onBack }: Step2PersonalInfoProps) {
+export function Step2PersonalInfo({ initialData, products, isExistingCandidate, onNext, onBack }: Step2PersonalInfoProps) {
   const categories = useMemo(() => {
     const cats = Array.from(new Set(products.flatMap(p => p.category).filter(Boolean)));
-    return cats.length > 0 ? (cats as WorkflowCategory[]) : ["Training", "Ausbildung", "Student Visa", "Opportunity Card"] as WorkflowCategory[];
+    return cats.length > 0 ? (cats as WorkflowCategory[]) : ["Training & Language", "Ausbildung", "Student", "Opportunity Card", "Others"] as WorkflowCategory[];
   }, [products]);
 
   const [form, setForm] = useState<PersonalInfo>(() => ({
@@ -125,7 +126,11 @@ export function Step2PersonalInfo({ initialData, products, onNext, onBack }: Ste
     <div className="space-y-5">
       <div>
         <h2 className="text-lg font-semibold">Personal Information</h2>
-        <p className="text-sm text-muted-foreground mt-1">Enter the candidate's personal details.</p>
+        <p className="text-sm text-muted-foreground mt-1">
+          {isExistingCandidate
+            ? "Review and update the candidate's details if needed, then select a workflow category for this order."
+            : "Enter the candidate's personal details."}
+        </p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -149,24 +154,6 @@ export function Step2PersonalInfo({ initialData, products, onNext, onBack }: Ste
           onChange={(e) => set("address", e.target.value)}
           className="w-full px-3 py-2 rounded-xl border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none"
         />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium mb-1">
-          Workflow Category <span className="text-red-500">*</span>
-        </label>
-        <select
-          value={form.workflowCategory}
-          onChange={(e) => set("workflowCategory", e.target.value as WorkflowCategory)}
-          className="w-full px-3 py-2 rounded-xl border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-        >
-          {categories.map((c) => (
-            <option key={c} value={c}>{c}</option>
-          ))}
-        </select>
-        {errors.workflowCategory && (
-          <p className="text-xs text-red-500 mt-0.5">{errors.workflowCategory}</p>
-        )}
       </div>
 
       {/* Duplicate Detection Warning */}
@@ -249,7 +236,7 @@ export function Step2PersonalInfo({ initialData, products, onNext, onBack }: Ste
           onClick={onBack}
           className="px-4 py-2 rounded-xl border text-sm font-medium hover:bg-muted transition-colors"
         >
-          ← Back
+          ← Cancel
         </button>
         <button
           onClick={handleNext}

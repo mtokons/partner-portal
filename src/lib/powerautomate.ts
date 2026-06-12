@@ -99,7 +99,7 @@ export async function sendInvoiceEmail(
         <p>A new invoice has been created for your account:</p>
         <table style="width:100%;border-collapse:collapse;margin:16px 0;">
           <tr><td style="padding:8px;border:1px solid #e5e7eb;font-weight:600;">Invoice ID</td><td style="padding:8px;border:1px solid #e5e7eb;">${invoiceId}</td></tr>
-          <tr><td style="padding:8px;border:1px solid #e5e7eb;font-weight:600;">Amount</td><td style="padding:8px;border:1px solid #e5e7eb;">BDT ${amount.toLocaleString()}</td></tr>
+          <tr><td style="padding:8px;border:1px solid #e5e7eb;font-weight:600;">Amount</td><td style="padding:8px;border:1px solid #e5e7eb;">€${amount.toLocaleString()}</td></tr>
           <tr><td style="padding:8px;border:1px solid #e5e7eb;font-weight:600;">Due Date</td><td style="padding:8px;border:1px solid #e5e7eb;">${dueDate}</td></tr>
         </table>
         <p>Please ensure timely payment to avoid any late fees.</p>

@@ -2,6 +2,10 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import type { SessionUser } from "@/types";
 import { getPartnerByEmail, getCandidates, getTransactions } from "@/lib/sharepoint";
+import { getEurToRate } from "@/lib/currency";
+import { isBkashConfigured } from "@/lib/gateways/bkash";
+import { isNagadConfigured } from "@/lib/gateways/nagad";
+import { dual } from "@/lib/formatCurrency";
 import { format, parseISO } from "date-fns";
 import { CreditCard, ArrowUpRight, ArrowDownRight, Clock, CheckCircle2 } from "lucide-react";
 import PaymentForm from "./PaymentForm";
@@ -13,17 +17,40 @@ const TYPE_STYLES: Record<string, { color: string; label: string }> = {
   deposit: { color: "text-blue-500 bg-blue-500/10", label: "Deposit" },
 };
 
-export default async function PaymentsPage() {
+// Payment outcome banners shown after redirect from gateway callbacks
+const PAYMENT_BANNERS: Record<string, { msg: string; style: string }> = {
+  "bkash-success": { msg: "bKash payment completed successfully.", style: "bg-emerald-500/10 border-emerald-500/30 text-emerald-600" },
+  "nagad-success": { msg: "Nagad payment completed successfully.", style: "bg-emerald-500/10 border-emerald-500/30 text-emerald-600" },
+  cancelled:       { msg: "Payment was cancelled.", style: "bg-amber-500/10 border-amber-500/30 text-amber-600" },
+  error:           { msg: "Something went wrong with the payment. Please try again.", style: "bg-red-500/10 border-red-500/30 text-red-600" },
+  "auth-required": { msg: "Session expired during payment. Please log in again.", style: "bg-red-500/10 border-red-500/30 text-red-600" },
+};
+
+export default async function PaymentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ payment?: string }>;
+}) {
+  const { payment } = await searchParams;
+
   const session = await auth();
   if (!session?.user) redirect("/login");
   const user = session.user as SessionUser;
   const partner = await getPartnerByEmail(user.email!);
   if (!partner) redirect("/partner-pending");
 
-  const [candidates, transactions] = await Promise.all([
+  const secCur = partner.preferredCurrency || "BDT";
+
+  // Always fetch BDT rate for payment methods denominated in BDT
+  const [candidates, transactions, rate, bdtRate] = await Promise.all([
     getCandidates(partner.id),
     getTransactions(partner.id),
+    secCur !== "EUR" ? getEurToRate(secCur) : Promise.resolve(1),
+    secCur !== "BDT" ? getEurToRate("BDT") : Promise.resolve(1),
   ]);
+
+  // Use secCur rate for display, bdtRate for BDT payment fields
+  const effectiveBdtRate = secCur === "BDT" ? rate : bdtRate;
 
   // Calculate totals
   const totalServiceFees = candidates.reduce((s, c) => s + (c.totalServiceFee || 0), 0);
@@ -32,6 +59,8 @@ export default async function PaymentsPage() {
   const payableToSccg = Math.max(0, sccgShare - totalPayments);
 
   const sorted = [...transactions].sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+
+  const banner = payment ? PAYMENT_BANNERS[payment] : null;
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -46,28 +75,48 @@ export default async function PaymentsPage() {
         </p>
       </div>
 
+      {/* Gateway callback banner */}
+      {banner && (
+        <div className={`flex items-center gap-3 p-4 rounded-2xl border text-sm font-medium ${banner.style}`}>
+          <CheckCircle2 className="w-5 h-5 shrink-0" />
+          {banner.msg}
+        </div>
+      )}
+
       {/* Payable Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <div className="bg-card border rounded-2xl p-5">
           <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Total Fees Collected</p>
-          <p className="text-2xl font-bold text-foreground mt-1">€{totalServiceFees.toFixed(2)}</p>
+          <p className="text-2xl font-bold text-foreground mt-1">{dual(totalServiceFees, secCur, rate)}</p>
         </div>
         <div className="bg-card border rounded-2xl p-5">
           <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">SCCG Share</p>
-          <p className="text-2xl font-bold text-foreground mt-1">€{sccgShare.toFixed(2)}</p>
+          <p className="text-2xl font-bold text-foreground mt-1">{dual(sccgShare, secCur, rate)}</p>
         </div>
         <div className="bg-card border rounded-2xl p-5">
           <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Already Paid</p>
-          <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">€{totalPayments.toFixed(2)}</p>
+          <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">{dual(totalPayments, secCur, rate)}</p>
         </div>
         <div className="bg-gradient-to-br from-amber-500/10 to-orange-500/5 border-2 border-amber-500/20 rounded-2xl p-5">
           <p className="text-xs text-amber-600 dark:text-amber-400 uppercase tracking-wider font-semibold">Payable to SCCG</p>
-          <p className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">€{payableToSccg.toFixed(2)}</p>
+          <p className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">{dual(payableToSccg, secCur, rate)}</p>
         </div>
       </div>
 
       {/* Payment Form */}
-      <PaymentForm totalPayable={payableToSccg} />
+      <PaymentForm
+        totalPayable={payableToSccg}
+        bdtRate={effectiveBdtRate}
+        bkashEnabled={isBkashConfigured()}
+        nagadEnabled={isNagadConfigured()}
+        sccgBkashNumber={process.env.SCCG_BKASH_NUMBER}
+        sccgNagadNumber={process.env.SCCG_NAGAD_NUMBER}
+        cityBankAccount={process.env.CITYBANK_ACCOUNT_NO}
+        cityBankName={process.env.CITYBANK_ACCOUNT_NAME}
+        cityBankBranch={process.env.CITYBANK_BRANCH}
+        cityBankRoutingNo={process.env.CITYBANK_ROUTING_NO}
+        cityBankSwift={process.env.CITYBANK_SWIFT}
+      />
 
       {/* Transaction History */}
       <div className="bg-card border rounded-2xl overflow-hidden">
@@ -107,7 +156,7 @@ export default async function PaymentsPage() {
                   </div>
                   <div className="text-right shrink-0">
                     <p className={`text-sm font-bold ${t.type === "payment" ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"}`}>
-                      {t.type === "payment" ? "+" : ""}€{t.amount.toFixed(2)}
+                      {t.type === "payment" ? "+" : ""}{dual(t.amount, secCur, rate)}
                     </p>
                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${style.color}`}>
                       {style.label}

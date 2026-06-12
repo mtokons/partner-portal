@@ -73,7 +73,7 @@ export function EnrollmentActions({ enrollment }: EnrollmentActionsProps) {
                 <Input disabled value={enrollment.studentName} className="rounded-xl h-12 bg-gray-50 border-gray-100 font-medium" />
               </div>
               <div className="space-y-2">
-                <Label className="font-bold">Net Fee (BDT)</Label>
+                <Label className="font-bold">Net Fee (EUR)</Label>
                 <Input name="netFee" type="number" defaultValue={enrollment.netFee} className="rounded-xl h-12" required />
               </div>
               <div className="space-y-2">

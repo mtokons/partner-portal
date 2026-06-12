@@ -167,7 +167,7 @@ export default function AdminCommissionsClient({ entries }: { entries: Commissio
                   <td className="px-6 py-4 text-right">
                     <div className={`flex items-center justify-end gap-1.5 font-black text-base tabular-nums ${e.amount >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
                        <span className="text-xs font-bold">{e.amount >= 0 ? "+" : "-"}</span>
-                       <span>BDT {Math.abs(e.amount).toLocaleString()}</span>
+                       <span>€{Math.abs(e.amount).toLocaleString()}</span>
                        {e.amount >= 0 ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownLeft className="h-4 w-4" />}
                     </div>
                   </td>

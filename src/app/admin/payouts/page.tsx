@@ -78,7 +78,7 @@ export default async function AdminPayoutsPage() {
           { label: "Total Payouts", value: payouts.length, icon: Users, color: "text-blue-500", bg: "bg-blue-50 border-blue-100" },
           { label: "Pending/Eligible", value: pendingCount, icon: Clock, color: "text-amber-500", bg: "bg-amber-50 border-amber-100" },
           { label: "Paid Out", value: paidCount, icon: CheckCircle2, color: "text-emerald-500", bg: "bg-emerald-50 border-emerald-100" },
-          { label: "Total Net (BDT)", value: `${(totalNet / 1000).toFixed(1)}K`, icon: DollarSign, color: "text-violet-500", bg: "bg-violet-50 border-violet-100" },
+          { label: "Total Net (EUR)", value: `€${(totalNet / 1000).toFixed(1)}K`, icon: DollarSign, color: "text-violet-500", bg: "bg-violet-50 border-violet-100" },
         ].map((kpi) => (
           <div key={kpi.label} className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl border ${kpi.bg}`}>
             <div className="h-9 w-9 rounded-xl bg-white flex items-center justify-center shadow-sm">
@@ -133,8 +133,8 @@ export default async function AdminPayoutsPage() {
                       <td className="px-6 py-4 text-muted-foreground font-mono text-xs">
                         {payout.relatedOrderNumber || payout.relatedOrderId.slice(0, 8)}
                       </td>
-                      <td className="px-6 py-4 font-semibold">BDT {payout.gross.toLocaleString()}</td>
-                      <td className="px-6 py-4 font-black text-primary">BDT {payout.net.toLocaleString()}</td>
+                      <td className="px-6 py-4 font-semibold">€{payout.gross.toLocaleString()}</td>
+                      <td className="px-6 py-4 font-black text-primary">€{payout.net.toLocaleString()}</td>
                       <td className="px-6 py-4">
                         <Badge className={`capitalize rounded-full text-[10px] border ${statusColors[payout.status] || ""}`}>
                           {payout.status}

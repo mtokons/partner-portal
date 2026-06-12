@@ -11,6 +11,8 @@ interface BuyServiceTriggerProps {
   candidateSccgId: string;
   candidateMargin: PartnerMargin;
   products: Product[];
+  secondaryCurrency?: string;
+  exchangeRate?: number;
 }
 
 export default function BuyServiceTrigger({
@@ -18,7 +20,9 @@ export default function BuyServiceTrigger({
   candidateName,
   candidateSccgId,
   candidateMargin,
-  products
+  products,
+  secondaryCurrency,
+  exchangeRate,
 }: BuyServiceTriggerProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -39,6 +43,8 @@ export default function BuyServiceTrigger({
         candidateSccgId={candidateSccgId}
         candidateMargin={candidateMargin}
         products={products}
+        secondaryCurrency={secondaryCurrency}
+        exchangeRate={exchangeRate}
       />
     </>
   );

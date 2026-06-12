@@ -13,6 +13,11 @@ interface LineItem {
   unitPrice: number;
 }
 
+const CSYM: Record<string, string> = {
+  EUR: "€", BDT: "৳", INR: "₹", USD: "$", GBP: "£",
+  AED: "د.إ", SAR: "﷼", MYR: "RM", PKR: "₨", TRY: "₺",
+};
+
 export default function NewPartnerOfferPage() {
   const router = useRouter();
   const [clients, setClients] = useState<Client[]>([]);
@@ -21,8 +26,14 @@ export default function NewPartnerOfferPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [secCur, setSecCur] = useState("EUR");
+  const [xRate, setXRate] = useState(1);
 
   const [clientId, setClientId] = useState("");
+  const [clientMode, setClientMode] = useState<"registered" | "prospective">("registered");
+  const [prospectName, setProspectName] = useState("");
+  const [prospectEmail, setProspectEmail] = useState("");
+  const [prospectPhone, setProspectPhone] = useState("");
   const [items, setItems] = useState<LineItem[]>([
     { productId: "", productName: "", quantity: 1, unitPrice: 0 },
   ]);
@@ -38,9 +49,16 @@ export default function NewPartnerOfferPage() {
       setClients(data.clients);
       setProducts(data.products);
       setPartnerName(data.partnerName);
+      const cur = data.preferredCurrency || "BDT";
+      setSecCur(cur);
+      if (cur !== "EUR") {
+        fetch(`/api/currency?target=${cur}`).then(r => r.json()).then(j => setXRate(j.rate || 1)).catch(() => {});
+      }
       setLoading(false);
     });
   }, []);
+
+  const d = (v: number) => `€${v.toLocaleString("en", { minimumFractionDigits: 2 })}`;
 
   const selectedClient = clients.find((c) => c.id === clientId);
   const subtotal = items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
@@ -68,17 +86,30 @@ export default function NewPartnerOfferPage() {
   }
 
   async function handleSubmit() {
-    if (!clientId || items.length === 0 || items.some((i) => !i.productId)) {
-      setError("Please select a client and add at least one product.");
+    const isProspect = clientMode === "prospective";
+    if (!isProspect && !clientId) {
+      setError("Please select a client or switch to Prospective Client mode.");
+      return;
+    }
+    if (isProspect && !prospectName.trim()) {
+      setError("Please enter the prospective client's name.");
+      return;
+    }
+    if (items.length === 0 || items.some((i) => !i.productId)) {
+      setError("Please add at least one product.");
       return;
     }
     setSaving(true);
     setError("");
     try {
       const result = await createPartnerOffer({
-        clientId,
-        clientName: selectedClient?.name || "",
-        clientEmail: selectedClient?.email || "",
+        clientId: isProspect ? "" : clientId,
+        clientName: isProspect ? prospectName : (selectedClient?.name || ""),
+        clientEmail: isProspect ? prospectEmail : (selectedClient?.email || ""),
+        clientType: clientMode,
+        prospectName: isProspect ? prospectName : undefined,
+        prospectEmail: isProspect ? prospectEmail : undefined,
+        prospectPhone: isProspect ? prospectPhone : undefined,
         items,
         discount,
         discountType,
@@ -129,27 +160,84 @@ export default function NewPartnerOfferPage() {
         <div className="lg:col-span-2 space-y-6">
           {/* Client Selection */}
           <div className="bg-card border rounded-2xl p-6 space-y-4">
-            <h2 className="font-semibold text-foreground">Client Details</h2>
-            <div>
-              <label className="text-sm font-medium text-muted-foreground mb-1.5 block">Select Client</label>
-              <select
-                value={clientId}
-                onChange={(e) => setClientId(e.target.value)}
-                className="w-full rounded-lg border bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-              >
-                <option value="">Choose a client...</option>
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} — {c.email}
-                  </option>
-                ))}
-              </select>
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-foreground">Client Details</h2>
+              <div className="flex rounded-lg border overflow-hidden text-xs">
+                <button
+                  onClick={() => setClientMode("registered")}
+                  className={`px-3 py-1.5 font-medium transition-colors ${clientMode === "registered" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                >
+                  Registered
+                </button>
+                <button
+                  onClick={() => setClientMode("prospective")}
+                  className={`px-3 py-1.5 font-medium transition-colors ${clientMode === "prospective" ? "bg-amber-500 text-white" : "hover:bg-muted"}`}
+                >
+                  Prospective Client
+                </button>
+              </div>
             </div>
-            {selectedClient && (
-              <div className="p-3 rounded-lg bg-muted/50 text-sm">
-                <p className="font-medium">{selectedClient.name}</p>
-                <p className="text-muted-foreground">{selectedClient.email}</p>
-                {selectedClient.phone && <p className="text-muted-foreground">{selectedClient.phone}</p>}
+
+            {clientMode === "registered" ? (
+              <>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground mb-1.5 block">Select Client</label>
+                  <select
+                    value={clientId}
+                    onChange={(e) => setClientId(e.target.value)}
+                    className="w-full rounded-lg border bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  >
+                    <option value="">Choose a client...</option>
+                    {clients.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} — {c.email}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {selectedClient && (
+                  <div className="p-3 rounded-lg bg-muted/50 text-sm">
+                    <p className="font-medium">{selectedClient.name}</p>
+                    <p className="text-muted-foreground">{selectedClient.email}</p>
+                    {selectedClient.phone && <p className="text-muted-foreground">{selectedClient.phone}</p>}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="space-y-3">
+                <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-medium">
+                  ⚡ Prospective Client — Offer will be created without requiring registration
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground mb-1.5 block">Full Name *</label>
+                  <input
+                    type="text"
+                    value={prospectName}
+                    onChange={(e) => setProspectName(e.target.value)}
+                    placeholder="Enter client name..."
+                    className="w-full rounded-lg border bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground mb-1.5 block">Email</label>
+                  <input
+                    type="email"
+                    value={prospectEmail}
+                    onChange={(e) => setProspectEmail(e.target.value)}
+                    placeholder="client@example.com"
+                    className="w-full rounded-lg border bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground mb-1.5 block">Phone</label>
+                  <input
+                    type="tel"
+                    value={prospectPhone}
+                    onChange={(e) => setProspectPhone(e.target.value)}
+                    placeholder="+880..."
+                    className="w-full rounded-lg border bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  />
+                </div>
               </div>
             )}
           </div>
@@ -180,7 +268,7 @@ export default function NewPartnerOfferPage() {
                         <option value="">Select product...</option>
                         {products.map((p) => (
                           <option key={p.id} value={p.id}>
-                            {p.name} — €{p.price}
+                            {p.name} — {d(p.price)}
                           </option>
                         ))}
                       </select>
@@ -199,7 +287,7 @@ export default function NewPartnerOfferPage() {
                     </div>
                   </div>
                   <div className="text-right pt-6 min-w-[80px]">
-                    <p className="text-sm font-semibold">€{(item.quantity * item.unitPrice).toFixed(2)}</p>
+                    <p className="text-sm font-semibold">{d(item.quantity * item.unitPrice)}</p>
                   </div>
                   <button
                     onClick={() => removeItem(idx)}
@@ -249,7 +337,7 @@ export default function NewPartnerOfferPage() {
                   onChange={(e) => setDiscountType(e.target.value as "fixed" | "percent")}
                   className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                 >
-                  <option value="fixed">€ Fixed</option>
+                  <option value="fixed">EUR Fixed</option>
                   <option value="percent">% Percent</option>
                 </select>
               </div>
@@ -270,24 +358,24 @@ export default function NewPartnerOfferPage() {
             <div className="border-t pt-4 space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Subtotal</span>
-                <span className="font-medium">€{subtotal.toFixed(2)}</span>
+                <span className="font-medium">{d(subtotal)}</span>
               </div>
               {discount > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Discount</span>
-                  <span className="text-red-500 font-medium">-€{discountAmount.toFixed(2)}</span>
+                  <span className="text-red-500 font-medium">-{d(discountAmount)}</span>
                 </div>
               )}
               <div className="flex justify-between text-lg font-bold border-t pt-2">
                 <span>Total</span>
-                <span className="text-primary">€{total.toFixed(2)}</span>
+                <span className="text-primary">{d(total)}</span>
               </div>
             </div>
 
             {/* Actions */}
             <button
               onClick={handleSubmit}
-              disabled={saving || !clientId || items.every((i) => !i.productId)}
+              disabled={saving || (clientMode === "registered" ? !clientId : !prospectName.trim()) || items.every((i) => !i.productId)}
               className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-primary text-primary-foreground font-medium text-sm hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <Save className="w-4 h-4" />
