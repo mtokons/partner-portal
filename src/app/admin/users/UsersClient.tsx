@@ -1,48 +1,76 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { fetchAllUsersAction, updateUserRolesAction, createUserAction } from "./actions";
+import { useRouter } from "next/navigation";
+import { fetchAllUsersAction, updateUserRolesAction, createUserAction, deleteUserAction, setUserTestDataFlagAction, checkSuperAdminAction, ensurePartnerRecordAction, resetUserPasswordAction, type DeleteMode, fetchProjectOrgsAction, updateUserDetailsAction, fetchB2bPartnersAction } from "./actions";
+import { startImpersonationAction } from "@/app/actions/impersonation";
 import { UserProfile, UserRoleType } from "@/types";
+import { AVAILABLE_ROLES } from "@/lib/role-options";
 import { 
   Users, Search, Shield, Save, X, Edit2, 
-  Activity, XCircle, CheckCircle2, UserPlus, Phone, Briefcase, Mail, User as UserIcon
+  Activity, XCircle, CheckCircle2, UserPlus, Phone, Briefcase, Mail, User as UserIcon,
+  Eye, Loader2, Trash2, FlaskConical, AlertTriangle, ShieldAlert, UserMinus,
 } from "lucide-react";
 
-const AVAILABLE_ROLES: { id: UserRoleType; label: string }[] = [
-  { id: "admin", label: "Administrator" },
-  { id: "finance", label: "Finance Manager" },
-  { id: "hr", label: "HR Manager" },
-  { id: "school-manager", label: "School Manager" },
-  { id: "partner", label: "Partner" },
-  { id: "expert", label: "Expert" },
-  { id: "customer", label: "Customer" },
-  { id: "teacher", label: "Teacher" },
-];
-
 export default function UsersClient() {
+  const router = useRouter();
   const [users, setUsers] = useState<(UserProfile & { roles: string[] })[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
-  
+  const [viewingAsId, setViewingAsId] = useState<string | null>(null);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [syncingPartnerId, setSyncingPartnerId] = useState<string | null>(null);
+
+  // Delete / flag state (super-admin only)
+  const [deletingUser, setDeletingUser] = useState<(UserProfile & { roles: string[] }) | null>(null);
+  const [deleteMode, setDeleteMode] = useState<DeleteMode>("flag");
+  const [confirmText, setConfirmText] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [flaggingId, setFlaggingId] = useState<string | null>(null);
+
   // Selection / Editing State
   const [editingUser, setEditingUser] = useState<(UserProfile & { roles: string[] }) | null>(null);
   const [selectedRoles, setSelectedRoles] = useState<UserRoleType[]>([]);
   const [isUpdating, setIsUpdating] = useState(false);
 
+  // Edit fields state
+  const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editCompany, setEditCompany] = useState("");
+  const [editStatus, setEditStatus] = useState("");
+  const [editOrgId, setEditOrgId] = useState("");
+  const [editPassword, setEditPassword] = useState("");
+  const [orgs, setOrgs] = useState<Array<{ id: string; name: string }>>([]);
+  const [b2bPartners, setB2bPartners] = useState<Array<{ id: string; name: string }>>([]);
+
   // Add User State
   const [showAddModal, setShowAddModal] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
-  const [newUser, setNewUser] = useState<Partial<UserProfile>>({
+  const [newUser, setNewUser] = useState<Partial<UserProfile & { orgId: string }>>({
     displayName: "",
     email: "",
     phone: "",
     role: "customer",
     company: "",
     status: "active",
+    orgId: "",
   });
+  // Credentials shown to admin after user creation
+  const [createdCredentials, setCreatedCredentials] = useState<{ email: string; password: string; name: string } | null>(null);
 
   useEffect(() => {
     loadUsers();
+    checkSuperAdminAction().then((r) => setIsSuperAdmin(r.isSuperAdmin)).catch(() => {});
+    fetchProjectOrgsAction().then((res) => {
+      if (res.success && res.data) {
+        setOrgs(res.data);
+      }
+    });
+    fetchB2bPartnersAction().then((res) => {
+      if (res.success && res.data) {
+        setB2bPartners(res.data);
+      }
+    });
   }, []);
 
   const loadUsers = async () => {
@@ -73,6 +101,12 @@ export default function UsersClient() {
   const handleEditClick = (user: UserProfile & { roles: string[] }) => {
     setEditingUser(user);
     setSelectedRoles((user.roles as UserRoleType[]) || []);
+    setEditName(user.displayName || "");
+    setEditPhone(user.phone || "");
+    setEditCompany(user.company || "");
+    setEditStatus(user.status || "active");
+    setEditOrgId((user as any).orgId || (user as any).registeredByPartnerId || (user as any).partnerId || "");
+    setEditPassword("");
   };
 
   const handleToggleRole = (role: UserRoleType) => {
@@ -81,48 +115,146 @@ export default function UsersClient() {
     );
   };
 
-  const handleSaveRoles = async () => {
+  const handleSaveUser = async () => {
     if (!editingUser) return;
     setIsUpdating(true);
     try {
-      const res = await updateUserRolesAction(editingUser.id, selectedRoles);
+      const isPartnerRole = selectedRoles.includes("partner");
+      const selectedOrg = isPartnerRole 
+        ? b2bPartners.find((o) => o.id === editOrgId)
+        : orgs.find((o) => o.id === editOrgId);
+      const res = await updateUserDetailsAction(editingUser.id, {
+        displayName: editName,
+        phone: editPhone,
+        company: editCompany,
+        status: editStatus,
+        orgId: editOrgId,
+        orgName: selectedOrg ? selectedOrg.name : "",
+        roles: selectedRoles,
+      });
       if (res.success) {
-        alert("User roles updated successfully");
+        if (editPassword.trim()) {
+          const passRes = await resetUserPasswordAction(editingUser.email, editPassword.trim());
+          if (!passRes.success) {
+            alert("User updated but failed to set password: " + passRes.error);
+          } else {
+            alert("User updated successfully, including password");
+          }
+        } else {
+          alert("User updated successfully");
+        }
         setEditingUser(null);
         loadUsers(); // Refresh the list
       } else {
-        alert(res.error || "Failed to update roles");
+        alert(res.error || "Failed to update user");
       }
     } catch (err: any) {
-      alert("Failed to update roles");
+      alert("Failed to update user");
     } finally {
       setIsUpdating(false);
     }
   };
 
-  const handleAddUser = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleViewAs = async (user: UserProfile & { roles: string[] }) => {
+    setViewingAsId(user.id);
+    try {
+      const result = await startImpersonationAction(
+        user.email,
+        user.displayName,
+        user.roles?.length ? user.roles : [user.role],
+        user.id
+      );
+      if (result.success && result.redirectTo) {
+        router.push(result.redirectTo);
+        router.refresh();
+      } else {
+        alert(result.error || "Failed to start impersonation");
+        setViewingAsId(null);
+      }
+    } catch {
+      alert("Failed to start impersonation");
+      setViewingAsId(null);
+    }
+  };
+
+  const openDeleteModal = (user: UserProfile & { roles: string[] }) => {
+    setDeletingUser(user);
+    setDeleteMode("flag");
+    setConfirmText("");
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingUser) return;
+    if (deleteMode !== "flag" && confirmText.trim().toUpperCase() !== "DELETE") {
+      alert('Type DELETE to confirm this irreversible action.');
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      const res = await deleteUserAction(deletingUser.id, deletingUser.email, deleteMode);
+      if (res.success) {
+        alert(res.message || "Done");
+        setDeletingUser(null);
+        loadUsers();
+      } else {
+        alert(res.error || "Operation failed");
+      }
+    } catch (err: any) {
+      alert(err?.message || "Operation failed");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleToggleTestFlag = async (user: UserProfile & { roles: string[] }) => {
+    setFlaggingId(user.id);
+    try {
+      const res = await setUserTestDataFlagAction(user.id, !(user as any).isTestData);
+      if (res.success) {
+        loadUsers();
+      } else {
+        alert(res.error || "Failed to update flag");
+      }
+    } catch {
+      alert("Failed to update flag");
+    } finally {
+      setFlaggingId(null);
+    }
+  };
+
+  const handleAddUser = async (e: React.FormEvent) => {    e.preventDefault();
     if (!newUser.displayName || !newUser.email) return;
     setIsAdding(true);
     try {
+      const isPartnerRole = newUser.role === "partner";
+      const selectedOrg = isPartnerRole 
+        ? b2bPartners.find((o) => o.id === (newUser as any).orgId)
+        : orgs.find((o) => o.id === (newUser as any).orgId);
+
       const res = await createUserAction({
         ...newUser,
+        orgName: selectedOrg ? selectedOrg.name : "",
+        registeredByPartnerId: (newUser as any).orgId || "",
+        registeredByPartnerName: selectedOrg ? selectedOrg.name : "",
+        partnerId: (newUser as any).orgId || "",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       } as Omit<UserProfile, "id">);
 
       if (res.success) {
-        alert("User created successfully");
         setShowAddModal(false);
-        setNewUser({
-          displayName: "",
-          email: "",
-          phone: "",
-          role: "customer",
-          company: "",
-          status: "active",
-        });
+        setNewUser({ displayName: "", email: "", phone: "", role: "customer", company: "", status: "active", orgId: "" });
         loadUsers();
+        // Show credentials popup so admin can copy & share them
+        if ((res as any).tempPassword) {
+          setCreatedCredentials({
+            email: newUser.email as string,
+            password: (res as any).tempPassword,
+            name: newUser.displayName as string,
+          });
+        } else {
+          alert("User created successfully");
+        }
       } else {
         alert(res.error || "Failed to create user");
       }
@@ -183,13 +315,14 @@ export default function UsersClient() {
                 <th className="px-6 py-4 font-semibold">Active Roles</th>
                 <th className="px-6 py-4 font-semibold">Partner</th>
                 <th className="px-6 py-4 font-semibold">Status</th>
+                <th className="px-6 py-4 font-semibold text-center">View As</th>
                 <th className="px-6 py-4 font-semibold text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/50">
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground">
+                  <td colSpan={7} className="px-6 py-8 text-center text-muted-foreground">
                     <div className="flex items-center justify-center gap-2">
                       <div className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
                       Loading users...
@@ -198,7 +331,7 @@ export default function UsersClient() {
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground">
+                  <td colSpan={7} className="px-6 py-8 text-center text-muted-foreground">
                     No users found matching "{search}"
                   </td>
                 </tr>
@@ -211,7 +344,14 @@ export default function UsersClient() {
                           {user.displayName.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <div className="font-semibold text-foreground">{user.displayName}</div>
+                          <div className="font-semibold text-foreground flex items-center gap-2">
+                            {user.displayName}
+                            {(user as any).isTestData && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-300/60 uppercase tracking-wide">
+                                <FlaskConical className="w-3 h-3" /> Test
+                              </span>
+                            )}
+                          </div>
                           <div className="text-xs text-muted-foreground mt-0.5">{user.email}</div>
                           {user.company && <div className="text-xs text-muted-foreground opacity-80">{user.company}</div>}
                         </div>
@@ -236,9 +376,9 @@ export default function UsersClient() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      {(user as any).registeredByPartnerName ? (
+                      {(user as any).orgName || (user as any).registeredByPartnerName ? (
                         <div>
-                          <span className="text-xs font-medium text-foreground">{(user as any).registeredByPartnerName}</span>
+                          <span className="text-xs font-medium text-foreground">{(user as any).orgName || (user as any).registeredByPartnerName}</span>
                           {(user as any).candidateSccgId && (
                             <p className="text-[10px] text-muted-foreground mt-0.5">{(user as any).candidateSccgId}</p>
                           )}
@@ -265,14 +405,82 @@ export default function UsersClient() {
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-6 py-4 text-center">
                       <button
-                        onClick={() => handleEditClick(user)}
-                        className="inline-flex items-center justify-center p-2 rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                        title="Edit Roles"
+                        onClick={() => handleViewAs(user)}
+                        disabled={viewingAsId === user.id}
+                        title={`View portal as ${user.displayName}`}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-cyan-500/15 text-cyan-500 border border-cyan-500/30 hover:bg-cyan-500/25 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <Edit2 className="w-4 h-4" />
+                        {viewingAsId === user.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Eye className="w-3.5 h-3.5" />
+                        )}
+                        View As
                       </button>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        {/* Sync Partner record for partner-role users ─────── */}
+                        {user.role === "partner" && (
+                          <button
+                            onClick={async () => {
+                              setSyncingPartnerId(user.id);
+                              try {
+                                const res = await ensurePartnerRecordAction(user.email, user.displayName, user.company);
+                                alert(res.success ? (res.existed ? `Partner record already exists for ${user.email}` : `Partner record created and approved for ${user.email}. User can now log in.`) : (res.error || "Failed"));
+                              } finally { setSyncingPartnerId(null); loadUsers(); }
+                            }}
+                            disabled={syncingPartnerId === user.id}
+                            className="inline-flex items-center justify-center p-2 rounded-lg text-emerald-600 hover:bg-emerald-500/10 transition-colors disabled:opacity-50"
+                            title="Create / approve partner record so user can log in without approval screen"
+                          >
+                            {syncingPartnerId === user.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                          </button>
+                        )}
+                        {/* Get / reset login credentials for any user ──── */}
+                        <button
+                          onClick={async () => {
+                            const res = await resetUserPasswordAction(user.email);
+                            if (res.success && (res as any).tempPassword) {
+                              setCreatedCredentials({ email: user.email, password: (res as any).tempPassword, name: user.displayName });
+                            } else {
+                              alert((res as any).error || "Failed to reset password");
+                            }
+                          }}
+                          className="inline-flex items-center justify-center p-2 rounded-lg text-blue-600 hover:bg-blue-500/10 transition-colors"
+                          title="Generate / reset login password and show credentials to share"
+                        >
+                          <Shield className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleEditClick(user)}
+                          className="inline-flex items-center justify-center p-2 rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                          title="Edit Roles"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        {isSuperAdmin && (
+                          <>
+                            <button
+                              onClick={() => handleToggleTestFlag(user)}
+                              disabled={flaggingId === user.id}
+                              className={`inline-flex items-center justify-center p-2 rounded-lg transition-colors disabled:opacity-50 ${(user as any).isTestData ? "text-amber-600 bg-amber-500/10 hover:bg-amber-500/20" : "text-muted-foreground hover:bg-amber-500/10 hover:text-amber-600"}`}
+                              title={(user as any).isTestData ? "Unflag test data" : "Flag as test data"}
+                            >
+                              {flaggingId === user.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <FlaskConical className="w-4 h-4" />}
+                            </button>
+                            <button
+                              onClick={() => openDeleteModal(user)}
+                              className="inline-flex items-center justify-center p-2 rounded-lg text-muted-foreground hover:bg-rose-500/10 hover:text-rose-600 transition-colors"
+                              title="Delete user"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -282,10 +490,42 @@ export default function UsersClient() {
         </div>
       </div>
 
-      {/* Edit Role Modal */}
+      {/* ── Credentials popup (shown after admin creates a user) ───────────── */}
+      {createdCredentials && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-2xl border border-emerald-500/30 bg-[#0c1024] shadow-2xl">
+            <div className="flex items-center gap-3 border-b border-white/10 p-5">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-500/20 text-emerald-400">
+                <CheckCircle2 className="h-5 w-5" />
+              </span>
+              <div>
+                <h3 className="text-base font-semibold text-white">User created — share these credentials</h3>
+                <p className="text-xs text-white/40">Ask the user to change their password after first login.</p>
+              </div>
+            </div>
+            <div className="space-y-3 p-5">
+              <CredentialRow label="Name" value={createdCredentials.name} />
+              <CredentialRow label="Login URL" value={`${typeof window !== "undefined" ? window.location.origin : ""}/login`} />
+              <CredentialRow label="Email" value={createdCredentials.email} />
+              <CredentialRow label="Temporary Password" value={createdCredentials.password} secret />
+              <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-400">
+                ⚠️ This password is shown only once. Copy it now before closing.
+              </p>
+            </div>
+            <div className="flex justify-end border-t border-white/10 p-4">
+              <button onClick={() => setCreatedCredentials(null)}
+                className="rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20">
+                Done — I have copied the credentials
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit User Modal */}
       {editingUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-card w-full max-w-md rounded-2xl shadow-2xl border border-border/50 flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="bg-card w-full max-w-lg rounded-2xl shadow-2xl border border-border/50 flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200">
             {/* Modal Header */}
             <div className="flex items-center justify-between p-5 border-b border-border/50 bg-muted/20">
               <div className="flex items-center gap-3">
@@ -293,8 +533,8 @@ export default function UsersClient() {
                   <Shield className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg">Manage Roles</h3>
-                  <p className="text-xs text-muted-foreground">{editingUser.displayName}</p>
+                  <h3 className="font-semibold text-lg">Edit User Profile</h3>
+                  <p className="text-xs text-muted-foreground">{editingUser.email}</p>
                 </div>
               </div>
               <button
@@ -306,39 +546,138 @@ export default function UsersClient() {
             </div>
 
             {/* Modal Body */}
-            <div className="p-5 overflow-y-auto min-h-[50vh]">
-              <p className="text-sm border-b border-border/50 pb-4 mb-4 text-card-foreground">
-                Select the roles you want to grant to this user. Each role unlocks different menu options and system access.
-              </p>
-              
-              <div className="flex flex-col gap-3">
-                {AVAILABLE_ROLES.map((roleDef) => {
-                  const isSelected = selectedRoles.includes(roleDef.id);
-                  return (
-                    <label 
-                      key={roleDef.id} 
-                      className={`flex items-center p-3 rounded-xl border transition-all cursor-pointer select-none
-                        ${isSelected 
-                          ? 'bg-primary/5 border-primary shadow-sm' 
-                          : 'bg-background border-border hover:bg-muted/50 hover:border-primary/30'
-                        }
-                      `}
-                    >
-                      <div className="flex items-center justify-center w-5 h-5 rounded border mr-3 shrink-0 transition-colors">
-                        <input
-                          type="checkbox"
-                          className="w-4 h-4 accent-primary rounded cursor-pointer"
-                          checked={isSelected}
-                          onChange={() => handleToggleRole(roleDef.id)}
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <div className="font-medium text-sm text-foreground">{roleDef.label}</div>
-                        <div className="text-xs text-muted-foreground mt-0.5">System identifier: <code className="bg-muted px-1 rounded">{roleDef.id}</code></div>
-                      </div>
-                    </label>
-                  );
-                })}
+            <div className="p-5 overflow-y-auto space-y-4 max-h-[70vh]">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 uppercase tracking-wider">
+                    <UserIcon className="w-3 h-3" /> Full Name
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="w-full px-4 py-2 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/50 outline-none transition-all text-sm"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 uppercase tracking-wider">
+                    <Phone className="w-3 h-3" /> Phone Number
+                  </label>
+                  <input
+                    type="tel"
+                    value={editPhone}
+                    onChange={(e) => setEditPhone(e.target.value)}
+                    className="w-full px-4 py-2 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/50 outline-none transition-all text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 uppercase tracking-wider">
+                    <Briefcase className="w-3 h-3" /> Company
+                  </label>
+                  <input
+                    type="text"
+                    value={editCompany}
+                    onChange={(e) => setEditCompany(e.target.value)}
+                    className="w-full px-4 py-2 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/50 outline-none transition-all text-sm"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Status
+                  </label>
+                  <select
+                    value={editStatus}
+                    onChange={(e) => setEditStatus(e.target.value)}
+                    className="w-full px-4 py-2 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/50 outline-none transition-all text-sm appearance-none"
+                  >
+                    <option value="active">Active</option>
+                    <option value="pending">Pending</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Set New Password
+                </label>
+                <input
+                  type="text"
+                  placeholder="Leave blank to keep current password"
+                  value={editPassword}
+                  onChange={(e) => setEditPassword(e.target.value)}
+                  className="w-full px-4 py-2 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/50 outline-none transition-all text-sm"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Partner Assignment
+                </label>
+                <select
+                  value={editOrgId}
+                  onChange={(e) => setEditOrgId(e.target.value)}
+                  className="w-full px-4 py-2 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/50 outline-none transition-all text-sm"
+                >
+                  <option value="">— Direct (No Partner Organization) —</option>
+                  {selectedRoles.includes("partner") ? (
+                    b2bPartners.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))
+                  ) : (
+                    orgs.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.name}
+                      </option>
+                    ))
+                  )}
+                </select>
+                <p className="text-[10px] text-muted-foreground px-1">
+                  Assigning a partner links this user to the selected Project Partner organisation.
+                </p>
+              </div>
+
+              <div className="space-y-1.5 border-t border-border/50 pt-4">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2">
+                  System Roles
+                </label>
+                <div className="grid grid-cols-1 gap-2">
+                  {AVAILABLE_ROLES.map((roleDef) => {
+                    const isSelected = selectedRoles.includes(roleDef.id);
+                    return (
+                      <label
+                        key={roleDef.id}
+                        className={`flex items-center p-3 rounded-xl border transition-all cursor-pointer select-none
+                          ${isSelected
+                            ? 'bg-primary/5 border-primary shadow-sm'
+                            : 'bg-background border-border hover:bg-muted/50 hover:border-primary/30'
+                          }
+                        `}
+                      >
+                        <div className="flex items-center justify-center w-5 h-5 rounded border mr-3 shrink-0 transition-colors">
+                          <input
+                            type="checkbox"
+                            className="w-4 h-4 accent-primary rounded cursor-pointer"
+                            checked={isSelected}
+                            onChange={() => handleToggleRole(roleDef.id)}
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-medium text-sm text-foreground">{roleDef.label}</div>
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            System identifier: <code className="bg-muted px-1 rounded">{roleDef.id}</code>
+                          </div>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
@@ -351,7 +690,7 @@ export default function UsersClient() {
                 Cancel
               </button>
               <button
-                onClick={handleSaveRoles}
+                onClick={handleSaveUser}
                 disabled={isUpdating}
                 className="px-4 py-2 font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed shadow-sm shadow-primary/20"
               >
@@ -360,7 +699,7 @@ export default function UsersClient() {
                 ) : (
                   <Save className="w-4 h-4" />
                 )}
-                {isUpdating ? "Saving..." : "Save Roles"}
+                {isUpdating ? "Saving..." : "Save Changes"}
               </button>
             </div>
           </div>
@@ -464,6 +803,35 @@ export default function UsersClient() {
                 </p>
               </div>
 
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Partner Assignment
+                </label>
+                <select
+                  value={newUser.orgId}
+                  onChange={(e) => setNewUser(prev => ({ ...prev, orgId: e.target.value }))}
+                  className="w-full px-4 py-2 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/50 outline-none transition-all text-sm"
+                >
+                  <option value="">— Direct (No Partner Organization) —</option>
+                  {newUser.role === "partner" ? (
+                    b2bPartners.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))
+                  ) : (
+                    orgs.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.name}
+                      </option>
+                    ))
+                  )}
+                </select>
+                <p className="text-[10px] text-muted-foreground px-1">
+                  Assigning a partner links this user to the selected Project Partner organisation.
+                </p>
+              </div>
+
               <div className="pt-4 flex justify-end gap-3 border-t border-border/50">
                 <button
                   type="button"
@@ -489,6 +857,114 @@ export default function UsersClient() {
           </div>
         </div>
       )}
+
+      {/* Delete / Test-data Modal (super-admin only) */}
+      {deletingUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-card w-full max-w-lg rounded-2xl shadow-2xl border border-border/50 flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between p-5 border-b border-border/50 bg-rose-500/5">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-rose-500/10 text-rose-600 rounded-lg">
+                  <ShieldAlert className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg">Delete User</h3>
+                  <p className="text-xs text-muted-foreground">{deletingUser.displayName} &middot; {deletingUser.email}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setDeletingUser(null)}
+                className="p-2 rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 overflow-y-auto space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Choose how to handle this user. Use <strong>Flag as test data</strong> for dummy accounts so they are excluded from real metrics on the admin dashboard.
+              </p>
+
+              {/* Option: Flag */}
+              <label className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${deleteMode === "flag" ? "bg-amber-500/5 border-amber-500/60" : "bg-background border-border hover:border-amber-500/30"}`}>
+                <input type="radio" name="deleteMode" className="mt-1 accent-amber-500" checked={deleteMode === "flag"} onChange={() => setDeleteMode("flag")} />
+                <div>
+                  <div className="font-medium text-sm flex items-center gap-2"><FlaskConical className="w-4 h-4 text-amber-500" /> Only flag as test data</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">Nothing is deleted. The user and their records are marked as dummy data.</div>
+                </div>
+              </label>
+
+              {/* Option: Account only */}
+              <label className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${deleteMode === "account" ? "bg-orange-500/5 border-orange-500/60" : "bg-background border-border hover:border-orange-500/30"}`}>
+                <input type="radio" name="deleteMode" className="mt-1 accent-orange-500" checked={deleteMode === "account"} onChange={() => setDeleteMode("account")} />
+                <div>
+                  <div className="font-medium text-sm flex items-center gap-2"><UserMinus className="w-4 h-4 text-orange-500" /> Delete user account only</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">Removes the login (Auth + profile + roles). Business records they created are kept.</div>
+                </div>
+              </label>
+
+              {/* Option: All */}
+              <label className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${deleteMode === "all" ? "bg-rose-500/5 border-rose-500/60" : "bg-background border-border hover:border-rose-500/30"}`}>
+                <input type="radio" name="deleteMode" className="mt-1 accent-rose-500" checked={deleteMode === "all"} onChange={() => setDeleteMode("all")} />
+                <div>
+                  <div className="font-medium text-sm flex items-center gap-2"><Trash2 className="w-4 h-4 text-rose-500" /> Delete user AND all related records</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">Full cascade: candidates, services, tasks, offers, orders, invoices, installments, B2B, partner record, account.</div>
+                </div>
+              </label>
+
+              {deleteMode !== "flag" && (
+                <div className="bg-rose-500/5 border border-rose-500/30 rounded-xl p-3 space-y-2">
+                  <div className="flex items-center gap-2 text-rose-600 text-xs font-semibold">
+                    <AlertTriangle className="w-4 h-4" /> This action is irreversible.
+                  </div>
+                  <input
+                    type="text"
+                    value={confirmText}
+                    onChange={(e) => setConfirmText(e.target.value)}
+                    placeholder="Type DELETE to confirm"
+                    className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:ring-2 focus:ring-rose-500/40 outline-none"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="p-5 border-t border-border/50 bg-muted/20 flex justify-end gap-3">
+              <button
+                onClick={() => setDeletingUser(null)}
+                className="px-4 py-2 font-medium bg-background text-foreground border border-border rounded-lg hover:bg-muted transition-colors text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                disabled={isDeleting || (deleteMode !== "flag" && confirmText.trim().toUpperCase() !== "DELETE")}
+                className={`px-4 py-2 font-medium rounded-lg transition-colors text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm ${deleteMode === "flag" ? "bg-amber-500 text-white hover:bg-amber-600" : "bg-rose-600 text-white hover:bg-rose-700"}`}
+              >
+                {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : deleteMode === "flag" ? <FlaskConical className="w-4 h-4" /> : <Trash2 className="w-4 h-4" />}
+                {isDeleting ? "Working..." : deleteMode === "flag" ? "Flag as Test" : deleteMode === "account" ? "Delete Account" : "Delete Everything"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CredentialRow({ label, value, secret }: { label: string; value: string; secret?: boolean }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    navigator.clipboard.writeText(value).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
+  };
+  return (
+    <div className="flex items-center justify-between gap-2 rounded-lg bg-white/5 px-3 py-2">
+      <div className="min-w-0">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-white/40">{label}</p>
+        <p className={`truncate text-sm font-mono text-white ${secret ? "tracking-widest" : ""}`}>{value}</p>
+      </div>
+      <button onClick={copy} className="shrink-0 rounded bg-white/10 px-2 py-1 text-[11px] font-medium text-white hover:bg-white/20">
+        {copied ? "✓ Copied" : "Copy"}
+      </button>
     </div>
   );
 }
