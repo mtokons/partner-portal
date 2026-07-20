@@ -1,6 +1,6 @@
 "use server";
 
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import type { SessionUser } from "@/types";
 import {
   getSalesOffers, getSalesOfferById, getSalesOfferItems,
@@ -9,11 +9,13 @@ import {
   updateSalesOffer, deleteSalesOffer,
   generateOfferNumber,
   getPartnerByEmail,
+  createEmailTracking,
 } from "@/lib/sharepoint";
+import crypto from "crypto";
 import { revalidatePath } from "next/cache";
 
 async function requirePartner(): Promise<SessionUser & { partnerId: string }> {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) throw new Error("Unauthorized");
   const user = session.user as SessionUser;
   if (!user.partnerId) throw new Error("Not an approved partner");
@@ -170,21 +172,146 @@ export async function sendPartnerOffer(offerId: string) {
   const partner = await getPartnerByEmail(user.email!);
   const secCur = partner?.preferredCurrency || "BDT";
   const { getEurToRate } = await import("@/lib/currency");
-  const { dualHtml } = await import("@/lib/formatCurrency");
   const rate = secCur !== "EUR" ? await getEurToRate(secCur) : 1;
 
-  // Generate PDF for attachment
+  // ── Fetch offer items + product details ──────────────────────────────────
+  const items = await getSalesOfferItems(offerId);
+  const products = await getProducts();
+  const productMap = Object.fromEntries(products.map((p) => [p.id, p]));
+
+  // Derive service category label for the email
+  const primaryCategory = (() => {
+    const cats = items.map((i) => productMap[i.productId]?.category).filter(Boolean);
+    if (!cats.length) return "Germany Career Services";
+    const cat = cats[0]!;
+    const map: Record<string, string> = {
+      "Opportunity Card": "Opportunity Card (Chancenkarte)",
+      "Ausbildung": "Ausbildung (Vocational Training)",
+      "Student": "Student Programme",
+      "Training & Language": "Language & Training",
+      "Others": "Career Services",
+    };
+    return map[cat] ?? cat;
+  })();
+
+  const serviceDetails = items.map((item) => {
+    const product = productMap[item.productId];
+    const rawTags = product?.tags ?? [];
+    const includes = rawTags
+      .filter((t) => t.toLowerCase().startsWith("include:") || t.toLowerCase().startsWith("includes:"))
+      .map((t) => t.replace(/^includes?:/i, "").trim());
+    return {
+      name: item.productName,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      totalPrice: item.totalPrice,
+      description: product?.description || "",
+      sessions: product?.sessionsCount || 0,
+      category: product?.category || "",
+      includes,
+    };
+  });
+
+  // ── Create accept/reject tokens ───────────────────────────────────────────
+  // Guard against a localhost NEXTAUTH_URL leaking into public email links.
+  const rawBaseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL;
+  const baseUrl =
+    rawBaseUrl && !rawBaseUrl.includes("localhost") && !rawBaseUrl.includes("127.0.0.1")
+      ? rawBaseUrl.replace(/\/$/, "")
+      : "https://portal.mysccg.de";
+  let acceptUrl = `${baseUrl}/login?portal=customer`;
+  let rejectUrl: string | undefined;
+  try {
+    if (offer.clientEmail) {
+      const acceptToken = crypto.randomBytes(32).toString("hex");
+      const rejectToken = crypto.randomBytes(32).toString("hex");
+      const now = new Date().toISOString();
+      await createEmailTracking({
+        salesOfferId: offer.id,
+        offerNumber: offer.offerNumber,
+        recipientEmail: offer.clientEmail,
+        recipientName: offer.clientName || undefined,
+        senderName: partner?.name || user.name || "SCCG Partner",
+        subject: `Service Offer ${offer.offerNumber}`,
+        status: "sent",
+        sentAt: now,
+        acceptToken,
+        createdAt: now,
+      });
+      // Create a second record for reject token
+      await createEmailTracking({
+        salesOfferId: offer.id,
+        offerNumber: offer.offerNumber,
+        recipientEmail: offer.clientEmail,
+        recipientName: offer.clientName || undefined,
+        senderName: partner?.name || user.name || "SCCG Partner",
+        subject: `Service Offer ${offer.offerNumber}`,
+        status: "sent",
+        sentAt: now,
+        acceptToken: rejectToken,
+        createdAt: now,
+      });
+      acceptUrl = `${baseUrl}/api/offer-accept?token=${acceptToken}&action=accepted`;
+      rejectUrl = `${baseUrl}/api/offer-accept?token=${rejectToken}&action=rejected`;
+    }
+  } catch {
+    // Non-blocking — fall back to portal login
+  }
+
+  // ── Ensure candidate has a portal login ───────────────────────────────────
+  let loginPassword: string | undefined;
+  try {
+    if (offer.clientEmail) {
+      const { ensureCandidateUserAccount } = await import("@/lib/candidate-user");
+      const result = await ensureCandidateUserAccount({
+        email: offer.clientEmail,
+        fullName: offer.clientName || "Candidate",
+        partnerId: user.partnerId,
+        partnerName: partner?.name || user.name || "SCCG Partner",
+        sccgId: offer.offerNumber,
+      });
+      if (result.tempPassword) loginPassword = result.tempPassword;
+    }
+  } catch {
+    // Non-blocking
+  }
+
+  // ── Fetch partner logo as base64 for PDF ────────────────────────────────
+  let logoBase64: string | undefined;
+  let logoMime = "image/png";
+  try {
+    if (partner?.logoUrl) {
+      const res = await fetch(partner.logoUrl, { signal: AbortSignal.timeout(5000) });
+      if (res.ok) {
+        logoMime = res.headers.get("content-type") || "image/png";
+        logoBase64 = Buffer.from(await res.arrayBuffer()).toString("base64");
+      }
+    }
+  } catch {
+    // Non-blocking
+  }
+
+  // ── Generate PDF with partner logo + service descriptions ────────────────
   let pdfBase64: string | undefined;
   try {
-    const items = await getSalesOfferItems(offerId);
     const { generateSalesOfferPdf } = await import("@/lib/pdf");
-    const pdfItems = items.map((i) => ({
-      name: i.productName,
-      quantity: i.quantity,
-      price: i.unitPrice,
-    }));
+    const pdfItems = items.map((i) => {
+      const product = productMap[i.productId];
+      const rawTags = product?.tags ?? [];
+      const includes = rawTags
+        .filter((t) => t.toLowerCase().startsWith("include:") || t.toLowerCase().startsWith("includes:"))
+        .map((t) => t.replace(/^includes?:/i, "").trim());
+      return {
+        name: i.productName,
+        quantity: i.quantity,
+        price: i.unitPrice,
+        description: product?.description,
+        sessions: product?.sessionsCount,
+        includes: includes.length > 0 ? includes : undefined,
+      };
+    });
     const pdfBytes = generateSalesOfferPdf(
-      partner?.name || offer.partnerName || "SCCG",
+      partner?.name || offer.partnerName || "SCCG Career Lab Germany",
       offer.clientName || "Client",
       pdfItems,
       offer.validUntil,
@@ -195,45 +322,57 @@ export async function sendPartnerOffer(offerId: string) {
         discountType: offer.discountType,
         totalAmount: offer.totalAmount,
       },
+      secCur,
+      rate,
+      logoBase64 ? { base64: logoBase64, mime: logoMime } : undefined,
     );
     pdfBase64 = Buffer.from(pdfBytes).toString("base64");
   } catch {
-    // PDF generation is non-blocking — email will still be sent without attachment
+    // Non-blocking
   }
-  
-  // Email sending via existing email system
+
+  // ── Send rich offer email ────────────────────────────────────────────────
   try {
     if (offer.clientEmail) {
-      const { sendEmailViaGraph } = await import("@/lib/email");
+      const { sendEmailViaGraph, buildPartnerOfferEmail } = await import("@/lib/email");
+      const { subject, htmlBody } = buildPartnerOfferEmail({
+        candidateName: offer.clientName || "Candidate",
+        candidateEmail: offer.clientEmail,
+        offerNumber: offer.offerNumber,
+        partnerName: partner?.name || offer.partnerName || "SCCG Partner",
+        partnerLogoUrl: partner?.logoUrl,
+        services: serviceDetails,
+        totalAmount: offer.totalAmount,
+        currency: secCur,
+        rate,
+        validUntil: offer.validUntil,
+        notes: offer.notes,
+        loginUrl: acceptUrl,
+        loginPassword,
+        acceptUrl,
+        rejectUrl,
+        serviceCategory: primaryCategory,
+      });
       await sendEmailViaGraph({
         to: offer.clientEmail,
         toName: offer.clientName,
-        subject: `Service Offer from SCCG Career Lab Germany (Offer No: ${offer.offerNumber})`,
-        htmlBody: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <div style="background: linear-gradient(135deg, #0a1628, #1a2a4a); padding: 32px; border-radius: 12px 12px 0 0;">
-              <h1 style="color: #ffffff; margin: 0; font-size: 24px;">Sales Offer</h1>
-              <p style="color: #94a3b8; margin: 8px 0 0;">Offer #${offer.offerNumber}</p>
-            </div>
-            <div style="background: #ffffff; padding: 32px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 12px 12px;">
-              <p>Dear <strong>${offer.clientName}</strong>,</p>
-              <p>You have received a new offer with a total of <strong>${dualHtml(offer.totalAmount, secCur, rate)}</strong>.</p>
-              <p>Please find the complete offer details in the attached PDF document.</p>
-              <p style="color: #64748b; font-size: 13px; margin-top: 24px;">— SCCG Career Lab Germany<br/><a href="https://www.mysccg.de/" style="color: #2563eb;">www.mysccg.de</a></p>
-            </div>
-          </div>
-        `,
-        ...(pdfBase64 ? {
-          attachments: [{
-            name: `Offer-${offer.offerNumber}.pdf`,
-            contentType: "application/pdf",
-            contentBase64: pdfBase64,
-          }],
-        } : {}),
+        subject,
+        htmlBody,
+        ...(pdfBase64
+          ? {
+              attachments: [
+                {
+                  name: `ServiceOffer-${offer.offerNumber}.pdf`,
+                  contentType: "application/pdf",
+                  contentBase64: pdfBase64,
+                },
+              ],
+            }
+          : {}),
       });
     }
   } catch {
-    // Email sending is optional — don't fail the action
+    // Email is non-blocking
   }
 
   revalidatePath("/partner/offers");
@@ -244,7 +383,6 @@ export async function deletePartnerOffer(offerId: string) {
   const user = await requirePartner();
   const offer = await getSalesOfferById(offerId);
   if (!offer || offer.partnerId !== user.partnerId) throw new Error("Offer not found");
-  if (offer.status !== "draft") throw new Error("Can only delete draft offers");
 
   await deleteSalesOffer(offerId);
   revalidatePath("/partner/offers");

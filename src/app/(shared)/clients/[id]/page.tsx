@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import { redirect } from "next/navigation";
 import type { SessionUser } from "@/types";
 import { getClientById, getTransactionsByClient, getInstallmentsByClient, getOrders } from "@/lib/sharepoint";
@@ -15,7 +15,7 @@ interface Props {
 
 export default async function ClientDetailPage({ params }: Props) {
   const { id } = await params;
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) redirect("/login");
   const user = session.user as SessionUser;
 

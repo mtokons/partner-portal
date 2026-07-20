@@ -333,7 +333,7 @@ export default function Sidebar({
                     onClick={() => toggleGroup(group)}
                     className="flex items-center justify-between w-full px-3 mb-1.5 focus:outline-none group/btn transition-all"
                   >
-                    <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-sidebar-foreground/40 group-hover/btn:text-sidebar-foreground/70 transition-colors">
+                    <span className="text-[12px] xl:text-[13px] 2xl:text-[14px] font-bold uppercase tracking-[0.12em] text-sidebar-foreground/50 group-hover/btn:text-sidebar-foreground/80 transition-colors">
                       {groupLabels[group] || group}
                     </span>
                     <ChevronDown className={cn(
@@ -356,7 +356,7 @@ export default function Sidebar({
                         onClick={onClose}
                         title={isMini ? link.label : ""}
                         className={cn(
-                          "group flex items-center gap-3 rounded-xl text-sm font-medium transition-all duration-200 relative overflow-hidden",
+                          "group flex items-center gap-3 rounded-xl text-sm xl:text-[15px] 2xl:text-[16px] font-semibold transition-all duration-200 relative overflow-hidden",
                           isMini ? "justify-center p-3 h-12 w-12 mx-auto" : "px-3 py-2.5",
                           isActive
                             ? "bg-gradient-to-r from-[rgba(99,130,245,0.25)] to-[rgba(99,130,245,0.08)] text-white shadow-sm border border-[rgba(99,130,245,0.25)]"

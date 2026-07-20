@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import DynamicSidebar from "@/components/layout/DynamicSidebar";
 import Header from "@/components/layout/Header";
-import { resolveMenu } from "@/lib/menu-engine";
+import { resolveMenu, isManagementMenuKey } from "@/lib/menu-engine";
 import type { ConsoleType, MenuConfigRecord } from "@/lib/menu-engine";
 
 const SHELL_THEME: Record<ConsoleType, { shellClass: string; frameClass: string }> = {
@@ -27,6 +28,30 @@ const SHELL_THEME: Record<ConsoleType, { shellClass: string; frameClass: string 
     shellClass: "role-student",
     frameClass: "portal-frame-student",
   },
+  "school-admin": {
+    shellClass: "role-admin",
+    frameClass: "portal-frame-admin",
+  },
+  "project-partner": {
+    shellClass: "role-partner",
+    frameClass: "portal-frame-partner",
+  },
+  "job-seeker": {
+    shellClass: "role-customer",
+    frameClass: "portal-frame-customer",
+  },
+  "job-partner": {
+    shellClass: "role-partner",
+    frameClass: "portal-frame-partner",
+  },
+  "ausbildung-seeker": {
+    shellClass: "role-student",
+    frameClass: "portal-frame-student",
+  },
+  "ausbildung-partner": {
+    shellClass: "role-partner",
+    frameClass: "portal-frame-partner",
+  },
 };
 
 interface ConsoleShellProps {
@@ -35,8 +60,8 @@ interface ConsoleShellProps {
   roles: string[];
   userName: string;
   company: string;
-  overdueCount: number;
-  unpaidInvoicesCount: number;
+  overdueCount?: number;
+  unpaidInvoicesCount?: number;
   siteUrl?: string | null;
   listUrls?: Record<string, string>;
   tierStatus?: string;
@@ -46,6 +71,8 @@ interface ConsoleShellProps {
   /** User-level menu overrides from DB */
   userMenuOverrides?: MenuConfigRecord[];
   partnerLogoUrl?: string;
+  /** True when an admin is impersonating this user */
+  impersonating?: boolean;
 }
 
 const CONSOLE_THEME: Record<ConsoleType, string> = {
@@ -54,6 +81,12 @@ const CONSOLE_THEME: Record<ConsoleType, string> = {
   customer: "console-theme-customer",
   expert: "console-theme-expert",
   student: "console-theme-student",
+  "school-admin": "console-theme-admin",
+  "project-partner": "console-theme-partner",
+  "job-seeker": "console-theme-customer",
+  "job-partner": "console-theme-partner",
+  "ausbildung-seeker": "console-theme-student",
+  "ausbildung-partner": "console-theme-partner",
 };
 
 /** Ornate arabesque medallion inspired by carved calligraphic artwork, without text. */
@@ -181,6 +214,7 @@ function CalligraphyArt() {
 export default function ConsoleShell({
   children,
   console: consoleName,
+  roles,
   userName,
   company,
   overdueCount,
@@ -192,13 +226,21 @@ export default function ConsoleShell({
   roleMenuOverrides,
   userMenuOverrides,
   partnerLogoUrl,
+  impersonating,
 }: ConsoleShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const theme = SHELL_THEME[consoleName];
 
   // Resolve final menu items for this console + overrides
   const themeClass = CONSOLE_THEME[consoleName];
-  const menuItems = resolveMenu(consoleName, roleMenuOverrides, userMenuOverrides);
+  const resolvedMenu = resolveMenu(consoleName, roleMenuOverrides, userMenuOverrides);
+  // Hide management (ppa.*) items from read-only viewers
+  const lowerRoles = (roles || []).map((r) => r.toLowerCase());
+  const canManage = lowerRoles.includes("admin") || lowerRoles.includes("project-partner-admin");
+  const menuItems = canManage ? resolvedMenu : resolvedMenu.filter((m) => !isManagementMenuKey(m.key));
+
+  const pathname = usePathname();
+  const isFullBleed = pathname?.includes("/cv-suite/create") || pathname?.includes("/cv-maker");
 
   return (
     <div className={`console-theme ${themeClass} portal-shell ${theme.shellClass}`}>
@@ -219,19 +261,25 @@ export default function ConsoleShell({
       <Header
         userName={userName}
         company={company}
-        overdueCount={overdueCount}
-        unpaidInvoicesCount={unpaidInvoicesCount}
+        overdueCount={overdueCount ?? 0}
+        unpaidInvoicesCount={unpaidInvoicesCount ?? 0}
         onMenuToggle={() => setSidebarOpen(!sidebarOpen)}
         siteUrl={siteUrl || undefined}
         listUrls={listUrls}
         tierStatus={tierStatus}
       />
-      <main className="relative lg:ml-64 mt-14 lg:mt-16 min-h-[calc(100vh-3.5rem)] lg:min-h-[calc(100vh-4rem)]">
-        <div className="console-content p-4 sm:p-5 lg:p-7 max-w-[1600px]">
-          <div className={`portal-content-frame ${theme.frameClass}`}>
+      <main className={`relative lg:ml-64 min-h-[calc(100vh-3.5rem)] lg:min-h-[calc(100vh-4rem)] ${impersonating ? "mt-24 lg:mt-26" : "mt-14 lg:mt-16"}`}>
+        {isFullBleed ? (
+          <div className="w-full h-full min-h-[calc(100vh-4rem)]">
             {children}
           </div>
-        </div>
+        ) : (
+          <div className="console-content p-4 sm:p-5 lg:p-7 max-w-[1600px]">
+            <div className={`portal-content-frame ${theme.frameClass}`}>
+              {children}
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

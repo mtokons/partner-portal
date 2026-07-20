@@ -1,6 +1,6 @@
 "use server";
 
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import type { SessionUser } from "@/types";
 import { getPartnerByEmail } from "@/lib/sharepoint";
 import { sendEmailViaGraph } from "@/lib/email";
@@ -9,7 +9,7 @@ import { getEurToRate } from "@/lib/currency";
 import { dualHtml } from "@/lib/formatCurrency";
 
 export async function sendPaymentReminderAction(candidateId: string, candidateName: string, candidateEmail: string, dueAmount: number) {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) throw new Error("Not authenticated");
   const user = session.user as SessionUser;
   const partner = await getPartnerByEmail(user.email!);
@@ -65,7 +65,7 @@ export async function sendPaymentReminderAction(candidateId: string, candidateNa
 }
 
 export async function sendPaymentConfirmationAction(candidateId: string, candidateName: string, candidateEmail: string, amount: number, method: string, plan: string, paymentDate: string) {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) throw new Error("Not authenticated");
   const user = session.user as SessionUser;
   const partner = await getPartnerByEmail(user.email!);

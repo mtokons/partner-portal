@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { 
   Award, Download, Share2, User, Mail, Calendar, 
-  Layers, CheckCircle2, ShieldCheck, Loader2, ArrowRight, FileText
+  Layers, CheckCircle2, ShieldCheck, Loader2, ArrowRight, FileText, BookOpen
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { QRCodeSVG, QRCodeCanvas } from "qrcode.react";
 import jsPDF from "jspdf";
 import { cn } from "@/lib/utils";
-import { registerManualCertificate } from "../actions";
+import { registerManualCertificate, fetchLanguageProducts } from "../actions";
 import { toast } from "sonner";
 
 const LEVEL_NAMES: Record<string, string> = {
@@ -29,6 +29,7 @@ interface CertData {
   name: string;
   email: string;
   type: CertType;
+  courseName: string;
   level: string;
   issueDate: string;
   endDate: string;
@@ -40,6 +41,7 @@ export default function CertificateGeneratorPage() {
     name: "",
     email: "",
     type: "participation",
+    courseName: "",
     level: "A1",
     issueDate: new Date().toISOString().split("T")[0],
     endDate: "",
@@ -53,6 +55,7 @@ export default function CertificateGeneratorPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
   const [lastRegisteredId, setLastRegisteredId] = useState<string | null>(null);
+  const [availableCourses, setAvailableCourses] = useState<Array<{id: string; name: string; sku: string}>>([]);
 
   const loadImage = (src: string): Promise<HTMLImageElement> => {
     return new Promise((resolve, reject) => {
@@ -63,6 +66,13 @@ export default function CertificateGeneratorPage() {
       img.src = src;
     });
   };
+
+  // Load language products for course selector
+  useEffect(() => {
+    fetchLanguageProducts()
+      .then((ps) => setAvailableCourses(ps.map((p) => ({ id: p.id, name: p.name, sku: p.sku }))))
+      .catch(() => {});
+  }, []);
 
   // Generate ID if empty
   const ensureCertId = useCallback(() => {
@@ -189,10 +199,10 @@ export default function CertificateGeneratorPage() {
 
     ctx.font = "bold 42px Georgia, serif";
     ctx.fillStyle = "#2c3e50";
-    ctx.fillText(`Deutschkurs ${data.level}`, W / 2, boxY + boxH/2 - 5);
+    ctx.fillText(data.courseName || `Course Level ${data.level}`, W / 2, boxY + boxH/2 - 5);
     ctx.font = "24px Georgia, serif";
     ctx.fillStyle = "#7f8c8d";
-    ctx.fillText(`${LEVEL_NAMES[data.level]}`, W / 2, boxY + boxH/2 + 35);
+    ctx.fillText(data.level ? `Level: ${data.level}` : "", W / 2, boxY + boxH/2 + 35);
 
     // Status Detail
     let statusMsg = "";
@@ -247,7 +257,7 @@ export default function CertificateGeneratorPage() {
 
     // Email/Phone (Middle)
     ctx.textAlign = "center";
-    ctx.fillText("admin@mysccg.de", W/2, contactY);
+    ctx.fillText("portal@mysccg.de", W/2, contactY);
     ctx.fillText("+49 159 05840718", W/2, contactY + 35);
 
     // Website (Right)
@@ -341,7 +351,7 @@ export default function CertificateGeneratorPage() {
     if (isPreviewing && canvasRef.current) {
       drawCertificate();
     }
-  }, [isPreviewing, data.name, data.type, data.level, data.issueDate, data.endDate, data.certId, qrCodeData]);
+  }, [isPreviewing, data.name, data.type, data.courseName, data.level, data.issueDate, data.endDate, data.certId, qrCodeData]);
 
   const handlePreview = () => {
     if (!data.name) return;
@@ -389,6 +399,7 @@ export default function CertificateGeneratorPage() {
         studentEmail: data.email,
         certificateType: data.type,
         courseLevel: data.level,
+        courseName: data.courseName || undefined,
         issueDate: data.issueDate,
         endDate: data.endDate || undefined
       });
@@ -477,7 +488,7 @@ export default function CertificateGeneratorPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Type</label>
                   <select
@@ -490,17 +501,51 @@ export default function CertificateGeneratorPage() {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Level</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Level (optional)</label>
                   <select
                     value={data.level}
                     onChange={(e) => setData({ ...data, level: e.target.value })}
                     className="w-full h-12 px-4 rounded-xl border border-gray-200 bg-white/50 focus:ring-4 focus:ring-primary/10 transition-all outline-none appearance-none"
                   >
+                    <option value="">— None —</option>
                     {Object.keys(LEVEL_NAMES).map(lvl => (
                       <option key={lvl} value={lvl}>{lvl}</option>
                     ))}
                   </select>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                  <BookOpen className="h-3 w-3" /> Course Name
+                </label>
+                {availableCourses.length > 0 ? (
+                  <select
+                    value={data.courseName}
+                    onChange={(e) => {
+                      const selected = availableCourses.find(c => c.name === e.target.value);
+                      setData(prev => ({
+                        ...prev,
+                        courseName: e.target.value,
+                        level: selected?.sku || prev.level,
+                      }));
+                    }}
+                    className="w-full h-12 px-4 rounded-xl border border-gray-200 bg-white/50 focus:ring-4 focus:ring-primary/10 transition-all outline-none appearance-none"
+                  >
+                    <option value="">— Select a course —</option>
+                    {availableCourses.map(c => (
+                      <option key={c.id} value={c.name}>{c.name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    placeholder="e.g. German Language Course A1"
+                    value={data.courseName}
+                    onChange={(e) => setData(prev => ({ ...prev, courseName: e.target.value }))}
+                    className="w-full h-12 px-4 rounded-xl border border-gray-200 bg-white/50 focus:bg-white focus:ring-4 focus:ring-primary/10 transition-all outline-none"
+                  />
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">

@@ -31,7 +31,9 @@ export default async function SchoolReportsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">School Reports</h1>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <h1 className="text-2xl font-bold">School Reports</h1>
+      </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">

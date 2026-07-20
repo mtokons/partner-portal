@@ -1,6 +1,6 @@
 "use server";
 
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import type { SessionUser } from "@/types";
 import { 
   createSalesOrder, createSalesOrderItem, createInvoice, createTransaction, 
@@ -20,7 +20,7 @@ export async function createDirectOrderAction(data: {
   paymentMethod?: "bangladesh-online" | "manual-transfer" | "coin" | "paypal";
 
 }) {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) throw new Error("Unauthorized");
   const user = session.user as SessionUser;
 
@@ -194,7 +194,7 @@ export async function createDirectOrderAction(data: {
 }
 
 export async function getNextOrderNumberAction() {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) throw new Error("Unauthorized");
   return await generateOrderNumber();
 }

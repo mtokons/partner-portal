@@ -138,7 +138,8 @@ export default function EnrollmentDetailPage({ params }: { params: Promise<{ enr
         <Card>
           <CardHeader><CardTitle>My Attendance ({attendance.length} records)</CardTitle></CardHeader>
           <CardContent className="p-0">
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[350px] text-sm">
               <thead><tr className="border-b bg-muted/50">
                 <th className="text-left py-2 px-4 text-xs text-muted-foreground">Session</th>
                 <th className="text-left py-2 px-4 text-xs text-muted-foreground">Date</th>
@@ -160,6 +161,7 @@ export default function EnrollmentDetailPage({ params }: { params: Promise<{ enr
                 )}
               </tbody>
             </table>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -168,7 +170,8 @@ export default function EnrollmentDetailPage({ params }: { params: Promise<{ enr
         <Card>
           <CardHeader><CardTitle>My Results ({results.length})</CardTitle></CardHeader>
           <CardContent className="p-0">
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[400px] text-sm">
               <thead><tr className="border-b bg-muted/50">
                 <th className="text-left py-2 px-4 text-xs text-muted-foreground">Exam</th>
                 <th className="text-left py-2 px-4 text-xs text-muted-foreground">Score</th>
@@ -194,6 +197,7 @@ export default function EnrollmentDetailPage({ params }: { params: Promise<{ enr
                 )}
               </tbody>
             </table>
+            </div>
           </CardContent>
         </Card>
       )}

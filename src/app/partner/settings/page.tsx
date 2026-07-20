@@ -1,17 +1,21 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import type { SessionUser } from "@/types";
 import { getPartnerByEmail } from "@/lib/sharepoint";
 
 import { Settings, Award, Shield, User } from "lucide-react";
 import SettingsForm from "./SettingsForm";
+import { getPartnerPaymentInfoForSettings } from "./actions";
 
 export default async function PartnerSettingsPage() {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) redirect("/login");
 
   const user = session.user as SessionUser;
-  const partner = await getPartnerByEmail(user.email!);
+  const [partner, paymentInfo] = await Promise.all([
+    getPartnerByEmail(user.email!),
+    getPartnerPaymentInfoForSettings(),
+  ]);
   if (!partner) redirect("/partner-pending");
 
   const tierStatus = partner.tierStatus || "Silver";
@@ -25,7 +29,7 @@ export default async function PartnerSettingsPage() {
           Account Settings
         </h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Manage your partner profile, company info, and preferences.
+          Manage your partner profile, company info, and payment details.
         </p>
       </div>
 
@@ -72,7 +76,9 @@ export default async function PartnerSettingsPage() {
           preferredCurrency: partner.preferredCurrency || "EUR",
           logoUrl: partner.logoUrl || "",
         }}
+        initialPaymentInfo={paymentInfo}
       />
     </div>
   );
 }
+

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { CheckCircle2 } from "lucide-react";
 import type { WorkflowCategory, PartnerMargin, Product } from "@/types";
 import type { FinancialSplitResult } from "@/lib/engine/financial-split";
+import type { PartnerPaymentData } from "@/app/partner/settings/actions";
 import { Step2PersonalInfo } from "./steps/Step2PersonalInfo";
 import { Step3ServicePackage } from "./steps/Step3ServicePackage";
 import { Step4FinancialSplit } from "./steps/Step4FinancialSplit";
@@ -88,6 +89,8 @@ interface WizardShellProps {
   adminMode?: boolean;
   /** Pre-fill personal info from booking */
   prefill?: { name: string; email: string; phone: string; notes: string };
+  /** Partner's payment details (bKash, Nagad, bank) to show in payment step */
+  partnerPaymentInfo?: PartnerPaymentData;
 }
 
 export function WizardShell({
@@ -99,6 +102,7 @@ export function WizardShell({
   existingCandidate,
   adminMode = false,
   prefill,
+  partnerPaymentInfo,
 }: WizardShellProps) {
   const candidatesPath = adminMode ? "/admin/candidates" : "/partner/candidates";
   const newCandidatePath = adminMode ? "/admin/candidates/new" : "/partner/candidates/new";
@@ -259,6 +263,7 @@ export function WizardShell({
             onBack={onBack}
             secondaryCurrency={secondaryCurrency}
             exchangeRate={exchangeRate}
+            partnerPaymentInfo={partnerPaymentInfo}
           />
         )}
         {currentStep === 5 && (

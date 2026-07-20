@@ -1,11 +1,11 @@
 import { redirect, notFound } from "next/navigation";
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import type { SessionUser } from "@/types";
 import { getSalesOfferById, getSalesOfferItems } from "@/lib/sharepoint";
 import EditOfferForm from "./EditOfferForm";
 
 export default async function EditOfferPage({ params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) redirect("/login");
   const user = session.user as SessionUser;
   const { id } = await params;

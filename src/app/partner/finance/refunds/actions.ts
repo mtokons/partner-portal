@@ -1,6 +1,6 @@
 "use server";
 
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import type { SessionUser } from "@/types";
 import { createTransaction } from "@/lib/sharepoint";
 import { revalidatePath } from "next/cache";
@@ -11,7 +11,7 @@ export async function submitRefundRequest(data: {
   amount: number;
   reason: string;
 }) {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) throw new Error("Unauthorized");
   const user = session.user as SessionUser;
   if (!user.partnerId) throw new Error("Not a partner");

@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import { redirect } from "next/navigation";
 import type { SessionUser } from "@/types";
 import { getCustomerPackages, getSessionsByExpert } from "@/lib/sharepoint";
@@ -7,12 +7,12 @@ import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 
 export default async function ExpertClientsPage() {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) redirect("/expert-login");
   const user = session.user as SessionUser;
 
   const [allPackages, sessions] = await Promise.all([
-    getCustomerPackages(),
+    getCustomerPackages(undefined, undefined, user.id),
     getSessionsByExpert(user.id),
   ]);
 

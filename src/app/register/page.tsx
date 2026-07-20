@@ -70,20 +70,22 @@ export default function RegisterPage() {
       );
 
       if (result.success) {
-        // For customers (auto-active): create NextAuth session and redirect
-        if (form.role === "customer") {
-          const fbAuth = getFirebaseAuth();
-          const idToken = await fbAuth.currentUser?.getIdToken();
-          if (idToken) {
-            const sessionResult = await firebaseAuthAction(idToken);
-            if (sessionResult.success) {
-              router.push("/customer/dashboard");
-              router.refresh();
-              return;
-            }
+        // Automatically create session and redirect for all roles
+        const fbAuth = getFirebaseAuth();
+        const idToken = await fbAuth.currentUser?.getIdToken();
+        if (idToken) {
+          const sessionResult = await firebaseAuthAction(idToken);
+          if (sessionResult.success) {
+            const redirectPath = 
+              form.role === "customer" ? "/customer/dashboard" :
+              form.role === "expert" ? "/expert/dashboard" :
+              form.role === "project-partner" || form.role === "project-partner-admin" ? "/project-partner/dashboard" :
+              "/partner/dashboard";
+            router.push(redirectPath);
+            router.refresh();
+            return;
           }
         }
-        // For partners/experts (pending approval): just show success, no session
         setSuccess(true);
       } else {
         setError(result.error || "Registration failed. Please try again.");

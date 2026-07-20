@@ -9,7 +9,8 @@ import {
   UserCheck, Calendar, CalendarCheck, CreditCard, ChevronRight, ChevronDown,
   ClipboardList, Store, Tag, Share2, Wallet, User, X, ClipboardCheck,
   Building2, UserPlus, GraduationCap, BookOpen, Layers, Award, ShoppingBag, Search, Megaphone, Database,
-  LifeBuoy, Settings, Bell, Sparkles, TrendingUp, AlertCircle, RotateCcw, Gift, Mail,
+  LifeBuoy, Settings, Bell, Sparkles, TrendingUp, AlertCircle, RotateCcw, Gift, Mail, ScrollText,
+  FolderKanban, Table2, Briefcase, FolderCog, SlidersHorizontal, UsersRound, FileSearch, FilePen, FileArchive, Wand2, ShieldAlert,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { MenuItem, ConsoleType } from "@/lib/menu-engine";
@@ -23,7 +24,8 @@ const ICON_MAP: Record<string, LucideIcon> = {
   UserCheck, Calendar, CalendarCheck, CreditCard, ChevronRight, ChevronDown,
   ClipboardList, Store, Tag, Share2, Wallet, User, ClipboardCheck,
   Building2, UserPlus, GraduationCap, BookOpen, Layers, Award, ShoppingBag, Search, Megaphone, Database,
-  LifeBuoy, Settings, Bell, Sparkles, TrendingUp, AlertCircle, RotateCcw, Gift, Mail,
+  LifeBuoy, Settings, Bell, Sparkles, TrendingUp, AlertCircle, RotateCcw, Gift, Mail, ScrollText,
+  FolderKanban, Table2, Briefcase, FolderCog, SlidersHorizontal, UsersRound, FileSearch, FilePen, FileArchive, Wand2, ShieldAlert,
 };
 
 function getIcon(name: string): LucideIcon {
@@ -166,6 +168,30 @@ export default function DynamicSidebar({
               </div>
             )}
           </div>
+          {!isMini && (
+            <div className="mt-3 flex justify-between items-center px-1 animate-in fade-in duration-300">
+              <button 
+                onClick={() => {
+                  const collapsed: Record<string, boolean> = {};
+                  groups.forEach(g => { collapsed[g.group] = false; });
+                  setCollapsedGroups(collapsed);
+                }}
+                className="text-[10px] text-sidebar-foreground/40 hover:text-white transition-colors cursor-pointer font-medium"
+              >
+                Alle erweitern
+              </button>
+              <button 
+                onClick={() => {
+                  const collapsed: Record<string, boolean> = {};
+                  groups.forEach(g => { collapsed[g.group] = true; });
+                  setCollapsedGroups(collapsed);
+                }}
+                className="text-[10px] text-sidebar-foreground/40 hover:text-white transition-colors cursor-pointer font-medium"
+              >
+                Alle einklappen
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Navigation */}
@@ -177,14 +203,19 @@ export default function DynamicSidebar({
           )}
 
           {groups.map(({ group, label, items }) => {
-            const isCollapsed = !searchQuery.trim() && !isMini && collapsedGroups[group];
+            const isCollapsed = !searchQuery.trim() && !isMini && collapsedGroups[group] !== false;
 
             return (
               <div key={group} className="flex flex-col">
                 {!isMini && (
                   <button
-                    onClick={() => toggleGroup(group)}
-                    className="flex items-center justify-between w-full px-3 mb-1.5 focus:outline-none group/btn transition-all"
+                    onClick={() => {
+                      setCollapsedGroups(prev => ({
+                        ...prev,
+                        [group]: prev[group] === false ? true : false
+                      }));
+                    }}
+                    className="flex items-center justify-between w-full px-3 mb-1.5 focus:outline-none group/btn transition-all cursor-pointer"
                   >
                     <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-sidebar-foreground/40 group-hover/btn:text-sidebar-foreground/70 transition-colors">
                       {label}

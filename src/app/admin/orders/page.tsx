@@ -41,7 +41,7 @@ export default async function AdminOrdersPage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">All Orders</h1>
 
-      <div className="grid grid-cols-3 gap-4 text-center">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
         <Card>
           <CardContent className="pt-6">
             <div className="text-3xl font-bold">{orders.length}</div>
@@ -65,7 +65,8 @@ export default async function AdminOrdersPage() {
       <Card>
         <CardHeader><CardTitle>All Orders ({orders.length})</CardTitle></CardHeader>
         <CardContent>
-          <Table>
+          <div className="overflow-x-auto">
+          <Table className="min-w-[700px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Order ID</TableHead>
@@ -123,6 +124,7 @@ export default async function AdminOrdersPage() {
               )}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
     </div>

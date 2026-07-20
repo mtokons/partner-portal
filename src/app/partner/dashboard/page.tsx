@@ -1,15 +1,15 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
-import type { SessionUser } from "@/types";
+import { getEffectiveUser } from "@/lib/effective-user";
 import { getPartnerByEmail } from "@/lib/sharepoint";
-import { getCandidates, getPayouts, getCandidateTasksByPartner, getSalesOffers, getInvoices } from "@/lib/sharepoint";
+import { getCandidates, getPayouts, getCandidateTasksByPartner, getSalesOffers, getInvoices, getB2BCompanies } from "@/lib/sharepoint";
 import { getEurToRate } from "@/lib/currency";
 import { dual } from "@/lib/formatCurrency";
 
 import { RevenueCard } from "@/components/partner/RevenueCard";
 import { CandidateStatsCard } from "@/components/partner/CandidateStatsCard";
 import { TasksWidget } from "@/components/partner/TasksWidget";
-import { Award, FileText, ShoppingBag, AlertCircle, TrendingUp, Users, DollarSign } from "lucide-react";
+import PartnerCharts from "@/components/partner/PartnerCharts";
+import { Award, FileText, ShoppingBag, AlertCircle, TrendingUp, Users, DollarSign, Building2 } from "lucide-react";
 import Link from "next/link";
 
 const TIER_COLORS = {
@@ -27,22 +27,22 @@ const TIER_BG = {
 };
 
 export default async function PartnerDashboardPage() {
-  const session = await auth();
-  if (!session?.user) redirect("/login");
+  const user = await getEffectiveUser();
+  if (!user) redirect("/login");
 
-  const user = session.user as SessionUser;
   const partner = await getPartnerByEmail(user.email!);
   if (!partner) redirect("/partner-pending");
 
   const partnerId = partner.id;
   const secCur = partner.preferredCurrency || "BDT";
 
-  const [candidates, payouts, tasks, offers, invoices, rate] = await Promise.all([
+  const [candidates, payouts, tasks, offers, invoices, b2bCompanies, rate] = await Promise.all([
     getCandidates(partnerId),
     getPayouts(partnerId),
     getCandidateTasksByPartner(partnerId),
     getSalesOffers(partnerId),
     getInvoices(partnerId),
+    getB2BCompanies(partnerId),
     secCur !== "EUR" ? getEurToRate(secCur) : Promise.resolve(1),
   ]);
 
@@ -56,6 +56,28 @@ export default async function PartnerDashboardPage() {
   // Derive revenue from candidates' partnerShare (populated via registration workflow)
   const totalRevenue = candidates.reduce((s, c) => s + (c.partnerShare || 0), 0)
     || payouts.reduce((s, p) => s + p.net, 0);
+
+  // Chart data ---------------------------------------------------------------
+  const prettifyWorkflow = (w: string) =>
+    String(w || "Other").replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+  const paymentStatusMap = new Map<string, number>();
+  candidates.forEach((c) => {
+    const k = c.paymentStatus || "pending";
+    paymentStatusMap.set(k, (paymentStatusMap.get(k) || 0) + 1);
+  });
+  const paymentStatus = Array.from(paymentStatusMap.entries()).map(([name, value]) => ({ name, value }));
+
+  const offerStatusMap = new Map<string, number>();
+  offers.forEach((o) => offerStatusMap.set(o.status, (offerStatusMap.get(o.status) || 0) + 1));
+  const offerStatus = Array.from(offerStatusMap.entries()).map(([name, value]) => ({ name, value }));
+
+  const workflowMap = new Map<string, number>();
+  candidates.forEach((c) => {
+    const k = prettifyWorkflow(c.workflowCategory);
+    workflowMap.set(k, (workflowMap.get(k) || 0) + 1);
+  });
+  const workflowMix = Array.from(workflowMap.entries()).map(([name, value]) => ({ name, value }));
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -94,7 +116,7 @@ export default async function PartnerDashboardPage() {
       </div>
 
       {/* Quick Stats Bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         <Link href="/partner/candidates" className="group">
           <div className="bg-card rounded-xl border p-4 hover:shadow-md hover:border-blue-500/30 transition-all">
             <div className="flex items-center gap-2 mb-1">
@@ -133,6 +155,15 @@ export default async function PartnerDashboardPage() {
             <p className="text-2xl font-bold text-foreground">{activeTasks}</p>
           </div>
         </Link>
+        <Link href="/partner/b2b" className="group">
+          <div className="bg-card rounded-xl border p-4 hover:shadow-md hover:border-purple-500/30 transition-all">
+            <div className="flex items-center gap-2 mb-1">
+              <Building2 className="w-4 h-4 text-purple-500" />
+              <span className="text-xs text-muted-foreground">B2B Network</span>
+            </div>
+            <p className="text-2xl font-bold text-foreground">{b2bCompanies.length}</p>
+          </div>
+        </Link>
       </div>
 
       {/* Main KPI Grid */}
@@ -141,6 +172,9 @@ export default async function PartnerDashboardPage() {
         <CandidateStatsCard candidates={candidates} />
         <TasksWidget tasks={tasks} />
       </div>
+
+      {/* Visual analytics */}
+      <PartnerCharts paymentStatus={paymentStatus} offerStatus={offerStatus} workflowMix={workflowMix} />
     </div>
   );
 }

@@ -2,7 +2,7 @@
 // B2B Partner Portal — Data Models (map to SharePoint lists)
 // ============================================================
 
-export type UserRole = "partner" | "admin" | "customer" | "expert" | "student";
+export type UserRole = "partner" | "admin" | "customer" | "expert" | "student" | "project-partner" | "project-partner-admin" | "project-admin";
 export type PartnerType = "individual" | "institutional";
 export type PartnerStatus = "pending" | "active" | "suspended";
 export type PartnerOnboardingStatus = "application" | "review" | "approved" | "rejected";
@@ -121,6 +121,51 @@ export interface Activity {
   createdAt?: string;
 }
 
+// ============================================================
+// Activity / Audit Log — tracks who did what and when
+// (maps to SharePoint "ActivityLog" list)
+// ============================================================
+export type AuditAction =
+  | "login"
+  | "logout"
+  | "impersonate_start"
+  | "impersonate_stop"
+  | "user_create"
+  | "user_update"
+  | "user_delete"
+  | "partner_approve"
+  | "partner_reject"
+  | "project_create"
+  | "project_update"
+  | "project_delete"
+  | "project_cv_upload"
+  | "project_cv_delete"
+  | "other";
+
+export interface ActivityLog {
+  id: string;
+  /** The user/actor who performed the action */
+  actorId?: string;
+  actorEmail: string;
+  actorName?: string;
+  /** Primary role of the actor at the time of the action */
+  actorRole?: string;
+  /** What happened */
+  action: AuditAction;
+  /** Human-readable summary of the event */
+  description: string;
+  /** Optional: the user/entity the action targeted */
+  targetId?: string;
+  targetEmail?: string;
+  targetName?: string;
+  /** Console the action originated from (admin/partner/customer/expert/student) */
+  console?: string;
+  /** Request/runtime metadata (IP, user-agent, etc.) */
+  ipAddress?: string;
+  userAgent?: string;
+  createdAt: string;
+}
+
 export interface Financial {
   id: string;
   partnerId: string;
@@ -215,7 +260,7 @@ export interface ProfitLoss {
 }
 
 // NextAuth session extension
-export type ConsoleType = "partner" | "admin" | "student" | "customer" | "expert";
+export type ConsoleType = "partner" | "admin" | "student" | "customer" | "expert" | "project-partner";
 
 export interface SessionUser {
   amountEur?: number;
@@ -678,7 +723,10 @@ export type UserRoleType =
   | "hr"
   | "teacher"
   | "school-manager"
-  | "student";
+  | "student"
+  | "project-partner"
+  | "project-partner-admin"
+  | "project-admin";
 
 export type UserRoleStatus = "active" | "pending" | "suspended" | "revoked";
 
@@ -1341,6 +1389,23 @@ export interface SchoolEnrollment {
   examScore?: number;
   participationCertId?: string;
   completionCertId?: string;
+  // Enrollment source + context
+  enrollmentSource?: "direct" | "partner" | "referral" | "new-student";
+  partnerId?: string;
+  partnerName?: string;
+  referrerId?: string;
+  referrerName?: string;
+  referrerEmail?: string;
+  referrerCommissionPercent?: number;
+  referrerCommissionAmount?: number;
+  referrerCommissionStatus?: "pending" | "paid" | "cancelled";
+  // Batch assignment (can be deferred)
+  batchConfirmed?: boolean;
+  // Login credentials sent to new students
+  loginCredentialsSent?: boolean;
+  // Payment confirmation
+  paymentConfirmedBy?: string;
+  paymentConfirmedAt?: string;
   createdBy: string;
   createdAt: string;
   updatedAt?: string;
@@ -1377,7 +1442,34 @@ export interface SchoolTeacher {
   specialization?: string;
   language?: string;
   bio?: string;
+  revenueSharePercent?: number; // % of course netFee teacher earns after batch completes
   status: "active" | "inactive";
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export type TeacherEarningStatus = "pending" | "eligible" | "requested" | "paid";
+
+export interface TeacherEarning {
+  id: string;
+  sccgId: string;
+  teacherId: string;
+  teacherName: string;
+  teacherEmail: string;
+  batchId: string;
+  batchCode: string;
+  courseName: string;
+  enrollmentId: string;
+  studentName: string;
+  grossAmount: number;
+  revenueSharePercent: number;
+  earningAmount: number;
+  currency: "BDT" | "EUR";
+  status: TeacherEarningStatus;
+  requestedAt?: string;
+  processedAt?: string;
+  processedBy?: string;
+  notes?: string;
   createdAt: string;
   updatedAt?: string;
 }
@@ -1689,3 +1781,285 @@ export interface HelpdeskMessage {
   attachmentUrl?: string;
   createdAt: string;
 }
+
+// ============================================================
+// B2B Companies
+// ============================================================
+export type B2BStatus = "pending" | "active" | "inactive";
+
+export interface B2BCompany {
+  id: string;
+  globalId?: string;       // Unique global ID across the whole network (e.g. SCCG-B2B-XXXXXXXX)
+  partnerId: string;
+  partnerName?: string;
+  companyName: string;
+  entityType?: string;     // Legal entity type (GmbH, UG, Ltd., etc.)
+  registrationNumber?: string; // Company registration / license number
+  contactPerson: string;
+  designation?: string;    // Title / designation of the authorized representative
+  contactNumber: string;
+  email?: string;
+  address?: string;
+  city?: string;           // City extracted from address for public listing
+  website?: string;
+  industry?: string;
+  logoUrl?: string;        // Sub-partner logo URL for certificate
+  status: B2BStatus;
+  agreementUrl?: string;  // Signed B2B agreement file URL
+  certCode?: string;      // Cooperation certificate verification code
+  certIssuedAt?: string;  // ISO date when certificate was issued
+  notes?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+// ============================================================
+// Project Partner Collaboration (e.g. GFA / GIZ Bangladesh TVET4RE)
+// ============================================================
+
+export type ProjectStatus = "active" | "completed" | "on-hold";
+export type ExpertActiveStatus = "active" | "standby" | "unavailable";
+
+/** A collaboration project shared with an external Project Partner. */
+export interface Project {
+  id: string;
+  name: string;                 // e.g. "GIZ Bangladesh TVET4RE"
+  code: string;                 // short code, e.g. "TVET4RE"
+  client: string;               // e.g. "GIZ Bangladesh"
+  partnerName: string;          // project partner org, e.g. "GFA"
+  partnerEmail: string;         // login email of the project partner (access scope)
+  orgId?: string;               // owning ProjectOrg (multi-tenant scope)
+  cvFormTemplateId?: string;    // per-project targeted CV form
+  evaluationTemplateId?: string;// per-project evaluation matrix
+  description?: string;
+  status: ProjectStatus;
+  startDate?: string;
+  endDate?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+/** A row in the Expert Staffing Matrix: maps an expert to a project position. */
+export interface ProjectStaffingEntry {
+  id: string;
+  projectId: string;
+  workPackage?: string;         // WP 1: Curricula Development
+  focusObjective?: string;      // focus & objective of the work package
+  position: string;             // e.g. "Senior TVET Advisor"
+  expertName: string;
+  expertId?: string;            // optional link to Experts list
+  education?: string;           // Edu. qualifications
+  profExperience?: string;      // professional experience
+  specificExperience?: string;  // specific professional experience
+  devCooperation?: string;      // experience in development cooperation
+  expertise?: string;          // suitability / specialization summary (no PII)
+  cvFileName?: string;          // CV stored in document library
+  activeStatus: ExpertActiveStatus;
+  notes?: string;
+  order: number;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+/** A file in the project's SharePoint document library. */
+export interface ProjectDocument {
+  id: string;
+  name: string;
+  folder: string;               // sub-folder: CVs | Proposals | Documents | Matrix
+  sizeBytes: number;
+  modified: string;
+  downloadUrl?: string;         // transient Graph download URL
+  isFolder: boolean;
+}
+
+/** Evaluation matrix template type (one per CV/expert category). */
+export type EvaluationType = "expert-2" | "pool-1" | "pool-2";
+
+/** A single weighted scoring criterion within an evaluation template. */
+export interface EvaluationCriterion {
+  key: string;                  // stable id, e.g. "education"
+  category: string;             // grouping label shown in the matrix header
+  label: string;                // full criterion description
+  maxPoints: number;            // maximum achievable points
+}
+
+/** One expert's scored evaluation against a template. */
+export interface ExpertEvaluation {
+  id: string;
+  projectId: string;
+  expertId: string;             // EXP-001 …
+  expertName: string;
+  position: string;
+  evalType: EvaluationType;
+  scores: { key: string; score: number }[]; // per-criterion awarded points
+  totalScore: number;
+  maxScore: number;
+  percentage: number;           // 0–100
+  passed: boolean;              // percentage >= minPercent
+  minPercent: number;           // pass threshold (85)
+  cvFileName?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+// ── Project Partner Management System (multi-tenant) ──────────────────────
+
+/** A partner organisation (e.g. Educraft) that collaborates on joint-venture projects. */
+export interface ProjectOrg {
+  id: string;
+  name: string;                 // "Educraft"
+  adminEmails: string[];        // project-partner-admin logins for this org
+  logoUrl?: string;
+  primaryColor?: string;        // branding accent
+  status: "active" | "inactive";
+  notes?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+/** A field in a project-specific targeted CV form (drives AI extraction + display). */
+export interface CvFormField {
+  key: string;                  // stable id, e.g. "yearsExperience"
+  label: string;                // display label
+  type: "text" | "textarea" | "number" | "date" | "list"; // input/render type
+  required?: boolean;
+  hint?: string;                // guidance passed to the AI extractor
+}
+
+/** A per-project targeted CV form template. */
+export interface CvFormTemplate {
+  id: string;
+  projectId: string;
+  name: string;
+  fields: CvFormField[];
+  createdAt: string;
+  updatedAt?: string;
+}
+
+/** A per-project, data-driven evaluation matrix template (replaces hardcoded ones). */
+export interface EvaluationTemplate {
+  id: string;
+  projectId: string;
+  evalKey: string;              // stable key, e.g. "expert-2"
+  name: string;                 // "Key Expert 2"
+  minPercent: number;           // pass threshold
+  criteria: EvaluationCriterion[];
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export type CvIntakeStatus = "draft" | "review" | "published";
+
+/** A single CV pushed through the AI extraction + scoring pipeline. */
+export interface ExpertCvIntake {
+  id: string;
+  projectId: string;
+  orgId?: string;
+  expertName: string;
+  position?: string;
+  cvFileName?: string;          // source CV in the project document library
+  rawText?: string;             // extracted CV text
+  form: Record<string, string>; // structured project-targeted form (key → value)
+  profile?: import("@/lib/agents/contracts").CvProfile; // Persona 2 structured extraction
+  evalKey?: string;             // which evaluation template was applied
+  status: CvIntakeStatus;
+  aiProvider?: string;          // gemini | claude | openai | perplexity | mock
+  evaluationId?: string;        // linked ProjectEvaluations row once scored
+  notes?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+// ── Job Portal & Ausbildung Console Types ──────────────────────────────────────
+
+export interface JobPost {
+  id: string;
+  partnerId: string;
+  partnerName: string;
+  title: string;
+  description: string;
+  location: string;
+  salaryRange?: string;
+  type: "Full-time" | "Part-time" | "Contract" | "Apprenticeship";
+  requirements: string[];
+  skills: string[];
+  germanLevel: string; // CEFR A1-C2
+  workPermitRequired: boolean;
+  status: "active" | "inactive";
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CandidateCvVariation {
+  id: string;
+  name: string;
+  title: string;
+  summary: string;
+  experience: { company: string; role: string; period: string; description: string }[];
+  education: { institution: string; degree: string; period: string }[];
+  skills: string[];
+  languages: { language: string; level: string }[];
+  templateColor: string; // Hex or tailwind class
+  templateFont: string;
+  layoutType: "tech" | "trade" | "executive" | "creative";
+  hasPhoto: boolean;
+  photoUrl?: string;
+}
+
+export interface CoverLetter {
+  id: string;
+  seekerId: string;
+  jobId: string;
+  senderAddress: string;
+  recipientAddress: string;
+  date: string;
+  subject: string;
+  salutation: string;
+  body: string;
+  closing: string;
+  templateColor: string;
+}
+
+export interface DiagnosticReport {
+  qualification: "Hauptschulabschluss" | "Realschulabschluss" | "Abitur" | "Other";
+  germanLevel: "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
+  tradeCode: string; // IHK / HWK Trade Code
+  hasPrerequisites: boolean;
+  score: number; // 0 to 100
+  checkedAt: string;
+}
+
+export interface KanbanApplication {
+  id: string;
+  seekerId: string;
+  seekerName: string;
+  partnerId: string;
+  postId: string;
+  postTitle: string;
+  postType: "job" | "ausbildung";
+  stage: "Applied" | "Under Review" | "Interviewing" | "Offered" | "Rejected";
+  cvVariationId: string;
+  coverLetterId?: string;
+  notes: string[];
+  updatedAt: string;
+}
+
+export interface InterviewSlot {
+  id: string;
+  partnerId: string;
+  partnerName: string;
+  seekerId?: string;
+  seekerName?: string;
+  startTime: string;
+  endTime: string;
+  status: "available" | "booked";
+  notes?: string;
+}
+
+export interface UserGdprSettings {
+  consentDataSharing: boolean;
+  consentVisibility: "anonymous" | "full";
+  lastActive: string;
+}
+

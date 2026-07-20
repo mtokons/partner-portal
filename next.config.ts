@@ -6,6 +6,14 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
 
+  experimental: {
+    // Server Actions receive uploaded files (CVs, project docs) as their body.
+    // The default 1MB limit rejects most PDF/DOCX uploads with a 500 before the
+    // action runs, so raise it to comfortably fit real CV/document uploads.
+    serverActions: {
+      bodySizeLimit: '15mb',
+    },
+  },
 
   images: {
     remotePatterns: [

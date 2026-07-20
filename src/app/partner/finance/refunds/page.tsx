@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import type { SessionUser } from "@/types";
 import { getPartnerByEmail, getCandidates, getTransactions } from "@/lib/sharepoint";
 import { getEurToRate } from "@/lib/currency";
@@ -15,7 +15,7 @@ const STATUS_STYLES: Record<string, { icon: typeof Clock; color: string; label: 
 };
 
 export default async function RefundsPage() {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) redirect("/login");
 
   const user = session.user as SessionUser;

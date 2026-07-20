@@ -38,16 +38,19 @@ export async function GET(req: NextRequest) {
   const ua = req.headers.get("user-agent");
   const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || undefined;
 
+  // Resolve a safe public base URL from the actual request, never localhost.
+  const baseUrl = resolveBaseUrl(req);
+
   // 1. Look up the email tracking record by token
   const tracking = await getEmailTrackingByToken(token);
   if (!tracking || !tracking.salesOfferId) {
-    return redirectToResult("invalid", "This link is invalid or has expired.");
+    return redirectToResult(baseUrl, "invalid", "This link is invalid or has expired.");
   }
 
   // 2. Fetch the offer
   const offer = await getSalesOfferById(tracking.salesOfferId);
   if (!offer) {
-    return redirectToResult("error", "Sales offer not found.");
+    return redirectToResult(baseUrl, "error", "Sales offer not found.");
   }
 
   // 3. If link came from a bot/prefetcher, only log as 'viewed' — never mutate.
@@ -71,16 +74,17 @@ export async function GET(req: NextRequest) {
 
   // 4. Idempotency for repeated human clicks
   if (offer.status === "accepted") {
-    return redirectToResult("already", "This offer has already been accepted.");
+    return redirectToResult(baseUrl, "already", "This offer has already been accepted.");
   }
   if (offer.status === "rejected") {
-    return redirectToResult("already", "This offer has already been rejected.");
+    return redirectToResult(baseUrl, "already", "This offer has already been rejected.");
   }
 
   // 5. Offer validity window
   const now = new Date();
   if (offer.validUntil && now > new Date(offer.validUntil)) {
     return redirectToResult(
+      baseUrl,
       "expired",
       `Offer ${offer.offerNumber} expired on ${new Date(offer.validUntil).toLocaleDateString()}. Please contact us for a renewal.`
     );
@@ -125,12 +129,14 @@ export async function GET(req: NextRequest) {
         } catch {}
       }
       return redirectToResult(
+        baseUrl,
         "accepted",
         `Thank you! Offer ${offer.offerNumber} has been accepted. Your order number is ${order.orderNumber}.`
       );
     } catch (e) {
       console.error("offer-accept: convertOfferToOrder failed:", (e as Error).message);
       return redirectToResult(
+        baseUrl,
         "accepted",
         `Thank you! Offer ${offer.offerNumber} has been accepted. Our team will process your order shortly.`
       );
@@ -151,12 +157,33 @@ export async function GET(req: NextRequest) {
         });
       } catch {}
     }
-    return redirectToResult("rejected", `Offer ${offer.offerNumber} has been declined. Thank you for your response.`);
+    return redirectToResult(baseUrl, "rejected", `Offer ${offer.offerNumber} has been declined. Thank you for your response.`);
   }
 }
 
-function redirectToResult(status: string, message: string) {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+/**
+ * Resolve a safe, public-facing base URL for redirects.
+ * Prefers the actual request origin (the domain the client clicked), then env
+ * vars, and never returns a localhost URL in production redirects.
+ */
+function resolveBaseUrl(req: NextRequest): string {
+  const forwardedProto = req.headers.get("x-forwarded-proto");
+  const forwardedHost = req.headers.get("x-forwarded-host") || req.headers.get("host");
+  const candidates = [
+    forwardedHost ? `${forwardedProto || "https"}://${forwardedHost}` : undefined,
+    req.nextUrl?.origin,
+    process.env.NEXT_PUBLIC_APP_URL,
+    process.env.NEXTAUTH_URL,
+  ];
+  for (const c of candidates) {
+    if (c && !c.includes("localhost") && !c.includes("127.0.0.1")) {
+      return c.replace(/\/$/, "");
+    }
+  }
+  return "https://portal.mysccg.de";
+}
+
+function redirectToResult(baseUrl: string, status: string, message: string) {
   const url = new URL("/offer-response", baseUrl);
   url.searchParams.set("status", status);
   url.searchParams.set("message", message);

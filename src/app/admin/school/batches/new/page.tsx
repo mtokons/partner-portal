@@ -1,14 +1,40 @@
-import { fetchCourses, fetchTeachers } from "../../actions";
+import { fetchLanguageProducts, fetchTeachers } from "../../actions";
 import { BatchForm } from "@/components/school/BatchForm";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import type { SchoolCourse } from "@/types";
 
 export default async function NewBatchPage() {
-  const [courses, teachers] = await Promise.all([
-    fetchCourses(),
+  const [products, teachers] = await Promise.all([
+    fetchLanguageProducts(),
     fetchTeachers(),
   ]);
+
+  // Map language products to the SchoolCourse shape that BatchForm expects.
+  // Products from the catalogue are the source of truth for courses.
+  const courses: SchoolCourse[] = products.map((p) => ({
+    id: p.id,
+    sccgId: p.sku || p.id,
+    courseName: p.name,
+    courseCode: p.sku || p.name.slice(0, 8).toUpperCase().replace(/\s+/g, "-"),
+    language: (
+      (p.category || p.tags?.join(" ") || "").toLowerCase().includes("english") ? "english"
+      : (p.category || p.tags?.join(" ") || "").toLowerCase().includes("japanese") ? "japanese"
+      : "german"
+    ) as SchoolCourse["language"],
+    level: "custom" as SchoolCourse["level"],
+    description: p.description || "",
+    totalSessions: p.sessionsCount || 0,
+    sessionDurationMinutes: 60,
+    totalDurationWeeks: 0,
+    courseFee: p.retailPriceBdt || 0,
+    courseFeeCurrency: "BDT" as const,
+    maxStudentsPerBatch: 25,
+    status: (p.isAvailable ? "published" : "draft") as SchoolCourse["status"],
+    createdBy: "",
+    createdAt: new Date().toISOString(),
+  }));
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 py-6">

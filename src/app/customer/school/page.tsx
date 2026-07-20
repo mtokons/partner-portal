@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import type { SessionUser } from "@/types";
 import { fetchMyEnrollments, fetchMyCertificates } from "./actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,7 +7,7 @@ import Link from "next/link";
 import { BookOpen, Award, Calendar } from "lucide-react";
 
 export default async function CustomerSchoolPage() {
-  const session = await auth();
+  const session = await getEffectiveSession();
   const user = session?.user as SessionUser;
 
   void user;
@@ -22,7 +22,7 @@ export default async function CustomerSchoolPage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">My Courses</h1>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
           <CardContent className="pt-4 pb-4 text-center">
             <BookOpen className="h-5 w-5 mx-auto text-blue-500 mb-1" />
@@ -50,7 +50,8 @@ export default async function CustomerSchoolPage() {
       <Card>
         <CardHeader><CardTitle>My Enrollments</CardTitle></CardHeader>
         <CardContent className="p-0">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[500px] text-sm">
             <thead>
               <tr className="border-b bg-muted/50">
                 <th className="text-left py-3 px-4 text-xs text-muted-foreground">Course</th>
@@ -84,6 +85,7 @@ export default async function CustomerSchoolPage() {
               )}
             </tbody>
           </table>
+          </div>
         </CardContent>
       </Card>
 

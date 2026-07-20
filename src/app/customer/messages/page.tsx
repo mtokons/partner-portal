@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { SessionUser } from "@/types";
@@ -16,7 +16,7 @@ const statusColor: Record<string, string> = {
 };
 
 export default async function CustomerMessagesPage() {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) redirect("/customer-login");
 
   const [tickets, candidates] = await Promise.all([

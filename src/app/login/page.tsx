@@ -44,6 +44,8 @@ function LoginContent() {
             const role = result.role;
             if (role === "admin") {
               router.push("/admin/overview");
+            } else if (role === "school-manager") {
+              router.push("/admin/school");
             } else if (role === "expert") {
               router.push("/expert/dashboard");
             } else if (role === "customer") {
@@ -289,6 +291,7 @@ function LoginContent() {
                       }
                       // Role-based redirect
                       if (result.role === "admin") router.push("/admin/overview");
+                      else if (result.role === "school-manager") router.push("/admin/school");
                       else if (result.role === "expert") router.push("/expert/dashboard");
                       else if (result.role === "customer") router.push("/customer/dashboard");
                       else router.push("/dashboard");

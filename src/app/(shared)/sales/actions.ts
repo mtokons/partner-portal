@@ -1,6 +1,6 @@
 "use server";
 
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import type { SessionUser, SalesOfferStatus } from "@/types";
 import {
   getSalesOffers, getSalesOfferById, createSalesOffer, updateSalesOffer, deleteSalesOffer,
@@ -20,7 +20,7 @@ import { revalidatePath } from "next/cache";
 // ── Helpers ──
 
 async function requireUser(): Promise<SessionUser> {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) throw new Error("Unauthorized");
   return session.user as SessionUser;
 }
@@ -295,7 +295,12 @@ export async function sendOfferEmailAction(offerId: string) {
   // Generate a unique accept token for this email
   const { randomBytes } = await import("crypto");
   const acceptToken = randomBytes(32).toString("hex");
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  // Guard against a localhost/unset URL leaking into public email links.
+  const rawBaseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL;
+  const baseUrl =
+    rawBaseUrl && !rawBaseUrl.includes("localhost") && !rawBaseUrl.includes("127.0.0.1")
+      ? rawBaseUrl.replace(/\/$/, "")
+      : "https://portal.mysccg.de";
   const acceptUrl = `${baseUrl}/api/offer-accept?token=${acceptToken}&action=accepted`;
   const rejectUrl = `${baseUrl}/api/offer-accept?token=${acceptToken}&action=rejected`;
 

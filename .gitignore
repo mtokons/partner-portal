@@ -45,3 +45,6 @@ next-env.d.ts
 ssh-key-*
 all_vercel_envs.txt
 .env.production
+ProjectPartner/geminiAPIKey.text
+**/geminiAPIKey.text
+**/*apikey*.text

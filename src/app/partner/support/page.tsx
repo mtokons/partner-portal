@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import type { SessionUser } from "@/types";
 import { getPartnerByEmail, getHelpdeskTickets } from "@/lib/sharepoint";
 import { format, parseISO } from "date-fns";
@@ -21,7 +21,7 @@ const PRIORITY_COLORS = {
 };
 
 export default async function PartnerSupportPage() {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) redirect("/login");
 
   const user = session.user as SessionUser;
@@ -48,7 +48,8 @@ export default async function PartnerSupportPage() {
         </div>
       ) : (
         <div className="bg-card rounded-2xl border overflow-hidden">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[550px] text-sm">
             <thead>
               <tr className="bg-muted/30 border-b">
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Subject</th>
@@ -92,6 +93,7 @@ export default async function PartnerSupportPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>

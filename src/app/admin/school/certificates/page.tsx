@@ -18,12 +18,12 @@ export default async function CertificatesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Certificate Archive</h1>
           <p className="text-muted-foreground text-sm font-medium">{certs.length} official documents in records</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <ManualCertManager />
           <Link href="/admin/school/certificate-generator">
             <Badge variant="outline" className="h-10 px-4 text-sm font-bold cursor-pointer hover:bg-primary/5 transition-colors">

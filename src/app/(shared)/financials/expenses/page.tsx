@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import { redirect } from "next/navigation";
 import type { SessionUser } from "@/types";
 import { getExpenses } from "@/lib/sharepoint";
@@ -12,7 +12,7 @@ import { RowActions } from "@/components/RowActions";
 import { removeExpense, holdExpense } from "@/lib/row-actions";
 
 export default async function ExpensesPage() {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) redirect("/login");
   const user = session.user as SessionUser;
   const [expenses, rate] = await Promise.all([getExpenses(user.role === "admin" ? undefined : user.partnerId), loadRate()]);

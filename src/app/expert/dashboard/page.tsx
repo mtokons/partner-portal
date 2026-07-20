@@ -1,6 +1,6 @@
-import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import type { SessionUser, Expert } from "@/types";
+import type { Expert } from "@/types";
+import { getEffectiveUser } from "@/lib/effective-user";
 import {
   getExpertById,
   getSessionsByExpert,
@@ -11,6 +11,7 @@ import { loadRate, fmtBdt } from "@/lib/serverCurrency";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
+import ExpertCharts from "@/components/expert/ExpertCharts";
 
 function fmt(n: number, rate: number | null): string {
   return fmtBdt(n, rate, { compact: true });
@@ -19,9 +20,8 @@ function fmt(n: number, rate: number | null): string {
 import { getAdminFirestore } from "@/lib/firebase-admin";
 
 export default async function ExpertDashboardPage() {
-  const session = await auth();
-  if (!session?.user) redirect("/expert-login");
-  const user = session.user as SessionUser;
+  const user = await getEffectiveUser();
+  if (!user) redirect("/expert-login");
 
   // 1. Fetch data from SharePoint and Firestore
   let [[expert, sessions, payments], rate, dbProfile] = await Promise.all([
@@ -91,7 +91,7 @@ export default async function ExpertDashboardPage() {
   }
   // Get unique customer packages this expert is assigned to
   const packageIds = [...new Set(sessions.map((s) => s.customerPackageId))];
-  const allPackages = await getCustomerPackages();
+  const allPackages = await getCustomerPackages(undefined, undefined, user.id);
   const myPackages = allPackages.filter((p) => p.expertId === user.id);
 
   // Session stats
@@ -159,6 +159,20 @@ export default async function ExpertDashboardPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Visual analytics */}
+      <ExpertCharts
+        sessions={[
+          { name: "Completed", value: completed },
+          { name: "Scheduled", value: scheduled },
+          { name: "Pending", value: pending },
+        ].filter((d) => d.value > 0)}
+        earnings={[
+          { name: "Awaiting", value: pendingApproval },
+          { name: "Approved", value: approved },
+          { name: "Paid Out", value: totalEarned },
+        ]}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Upcoming Sessions */}

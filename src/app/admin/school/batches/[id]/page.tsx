@@ -146,15 +146,15 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Link href="/admin/school/batches" className="p-2 rounded-lg hover:bg-muted">
+      <div className="flex items-center gap-3 flex-wrap">
+        <Link href="/admin/school/batches" className="p-2 rounded-lg hover:bg-muted shrink-0">
           <ArrowLeft className="h-4 w-4" />
         </Link>
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold">{batch.batchName}</h1>
+        <div className="flex-1 min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold truncate">{batch.batchName}</h1>
           <p className="text-sm text-muted-foreground font-mono">{batch.batchCode} — {batch.courseName}</p>
         </div>
-        <Badge variant={batch.status === "active" ? "default" : "secondary"} className="capitalize">{batch.status}</Badge>
+        <Badge variant={batch.status === "active" ? "default" : "secondary"} className="capitalize shrink-0">{batch.status}</Badge>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -196,10 +196,10 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
       )}
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b">
+      <div className="flex gap-1 border-b overflow-x-auto -mb-px pb-0 scrollbar-none">
         {tabs.map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${tab === t.id ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+            className={`flex items-center gap-2 px-3 sm:px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap shrink-0 ${tab === t.id ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
             {t.icon} {t.label}
           </button>
         ))}
@@ -216,7 +216,8 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
             </Link>
           </CardHeader>
           <CardContent className="p-0">
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[480px] text-sm">
               <thead><tr className="border-b bg-muted/50">
                 <th className="text-left py-2 px-4 text-xs text-muted-foreground">Name</th>
                 <th className="text-left py-2 px-4 text-xs text-muted-foreground">Email</th>
@@ -236,6 +237,7 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
                 ))}
               </tbody>
             </table>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -282,7 +284,8 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
           <Card>
             <CardHeader><CardTitle>Attendance Records ({attendance.length})</CardTitle></CardHeader>
             <CardContent className="p-0">
-              <table className="w-full text-sm">
+              <div className="overflow-x-auto">
+              <table className="w-full min-w-[400px] text-sm">
                 <thead><tr className="border-b bg-muted/50">
                   <th className="text-left py-2 px-4 text-xs text-muted-foreground">Session</th>
                   <th className="text-left py-2 px-4 text-xs text-muted-foreground">Date</th>
@@ -302,6 +305,7 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
                   ))}
                 </tbody>
               </table>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -313,7 +317,7 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
           <Card>
             <CardHeader><CardTitle>Enter Result</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-muted-foreground">Student</label>
                   <Select value={resultStudent || ""} onValueChange={(v) => setResultStudent(v)}>
@@ -361,7 +365,8 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
           <Card>
             <CardHeader><CardTitle>Exam Results ({results.length})</CardTitle></CardHeader>
             <CardContent className="p-0">
-              <table className="w-full text-sm">
+              <div className="overflow-x-auto">
+              <table className="w-full min-w-[480px] text-sm">
                 <thead><tr className="border-b bg-muted/50">
                   <th className="text-left py-2 px-4 text-xs text-muted-foreground">Student</th>
                   <th className="text-left py-2 px-4 text-xs text-muted-foreground">Exam</th>
@@ -385,6 +390,7 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
                   ))}
                 </tbody>
               </table>
+              </div>
             </CardContent>
           </Card>
         </div>

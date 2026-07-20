@@ -1,34 +1,35 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
-import type { SessionUser } from "@/types";
+import { getEffectiveUser } from "@/lib/effective-user";
 import { getInstallments, getInvoices, getPartnerByEmail } from "@/lib/sharepoint";
 import ConsoleShell from "@/components/layout/ConsoleShell";
 import NotificationsLiveBridge from "@/components/providers/NotificationsLiveBridge";
+import ImpersonationBannerServer from "@/components/layout/ImpersonationBannerServer";
 
 export default async function PartnerLayout({ children }: { children: React.ReactNode }) {
-  const session = await auth();
-  if (!session?.user) redirect("/login");
+  const user = await getEffectiveUser();
+  if (!user) redirect("/login");
 
-  const user = session.user as SessionUser;
-  const userRoles = user.roles || [user.role];
+  const userRoles = user.roles?.length ? user.roles : [user.role];
 
   const isPartner = userRoles.some((r) =>
     ["partner", "partner-individual", "partner-institutional"].includes(r.toLowerCase())
   );
   if (!isPartner) redirect("/login");
 
-  // Admin can always access partner console
+  // Real admin (not impersonating) can always access partner console
   const isAdmin = userRoles.some((r) => r.toLowerCase() === "admin");
 
-  // Approval gate: unapproved partners go to pending page (skip for admin)
-  if (!user.partnerId && !isAdmin) redirect("/partner-pending");
-
-  // For admin without partnerId, resolve from SharePoint
+  // Resolve partnerId: session value, else look up by the effective user's email.
+  // Impersonated partner targets have no session partnerId, so resolve via email.
   let effectivePartnerId = user.partnerId;
-  if (!effectivePartnerId && isAdmin && user.email) {
+  if (!effectivePartnerId && user.email) {
     const p = await getPartnerByEmail(user.email);
     effectivePartnerId = p?.id || "";
   }
+
+  // Approval gate: unapproved partners (no partner record) go to pending page.
+  // Skip for real admins and during impersonation (admin is inspecting the account).
+  if (!effectivePartnerId && !isAdmin && !user.isImpersonating) redirect("/partner-pending");
 
   const [installments, invoices, spInfo, partnerData] = await Promise.all([
     getInstallments(effectivePartnerId),
@@ -41,8 +42,10 @@ export default async function PartnerLayout({ children }: { children: React.Reac
   const unpaidInvoicesCount = invoices.filter((i) => i.status === "overdue" || i.status === "sent").length;
 
   return (
-    <ConsoleShell
-      console="partner"
+    <>
+      <ImpersonationBannerServer />
+      <ConsoleShell
+        console="partner"
       roles={userRoles}
       userName={user.name || "Partner"}
       company={user.company}
@@ -54,8 +57,9 @@ export default async function PartnerLayout({ children }: { children: React.Reac
       marginPercentage={partnerData?.marginPercentage}
       partnerLogoUrl={partnerData?.logoUrl}
     >
-      <NotificationsLiveBridge />
-      {children}
-    </ConsoleShell>
+        <NotificationsLiveBridge />
+        {children}
+      </ConsoleShell>
+    </>
   );
 }

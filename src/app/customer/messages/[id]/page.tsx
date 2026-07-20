@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getMyConversation } from "@/app/customer/candidate-actions";
@@ -19,7 +19,7 @@ export default async function ConversationPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) redirect("/customer-login");
 
   const { id } = await params;

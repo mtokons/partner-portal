@@ -21,7 +21,7 @@ export default async function PartnerPendingPage() {
 
       // If this is an Admin user but they don't have a partner record, auto-create one
       // so they can use the Partner Console for testing/management.
-      if (!isApproved && user.role === "admin") {
+      if (!isApproved && (user.role === "admin" || user.role === "project-admin")) {
         const { createPartner, approvePartnerOnboarding, updatePartnerTierAndMargin } = await import("@/lib/sharepoint");
         
         if (!partner) {

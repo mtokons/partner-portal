@@ -9,16 +9,20 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
-  User, Mail, Building, Shield, Activity, ShoppingCart,
-  Users, CheckCircle2, Clock, Edit3, Lock, Camera,
-  BarChart3, TrendingUp, ArrowRight, Fingerprint,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  Building, Shield, CheckCircle2, Edit3, Lock, Camera,
+  Fingerprint, CreditCard, MapPin,
+  PackageCheck, AlertCircle,
 } from "lucide-react";
 import type { UserRole, SccgCard } from "@/types";
 import SCCGCard from "@/components/ui/SCCGCard";
-import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  CartesianGrid, Area, AreaChart,
-} from "recharts";
+import { requestPhysicalCardAction } from "./actions";
 import { cn } from "@/lib/utils";
 
 interface ProfileClientProps {
@@ -29,19 +33,7 @@ interface ProfileClientProps {
     role: UserRole;
     company: string;
     partnerId: string;
-  };
-  activities: Array<{
-    id: string;
-    type: string;
-    description: string;
-    createdAt: string;
-  }>;
-  chartData: Array<{ month: string; count: number }>;
-  stats: {
-    totalOrders: number;
-    totalClients: number;
-    recentActivities: number;
-    deliveredOrders: number;
+    registrationDate?: string;
   };
   card: SccgCard | null;
 }
@@ -53,20 +45,41 @@ const roleColors: Record<string, { bg: string; text: string; gradient: string }>
   expert:   { bg: "bg-violet-500/15", text: "text-violet-400", gradient: "from-violet-500 to-purple-600" },
 };
 
-const activityIcons: Record<string, typeof Activity> = {
-  order: ShoppingCart,
-  client: Users,
-  payment: CheckCircle2,
-  login: User,
-};
-
-export default function ProfileClient({ user, activities, chartData, stats, card }: ProfileClientProps) {
+export default function ProfileClient({ user, card }: ProfileClientProps) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(user.name);
   const [company, setCompany] = useState(user.company);
   const initials = user.name.slice(0, 2).toUpperCase();
   const rc = roleColors[user.role] || roleColors.partner;
+
+  // Physical card request dialog
+  const [cardDialogOpen, setCardDialogOpen] = useState(false);
+  const [cardForm, setCardForm] = useState({
+    fullName: user.name,
+    addressLine1: "",
+    addressLine2: "",
+    city: "",
+    postalCode: "",
+    country: "Germany",
+  });
+  const [cardSubmitting, setCardSubmitting] = useState(false);
+  const [cardSuccess, setCardSuccess] = useState(false);
+  const [cardError, setCardError] = useState<string | null>(null);
+
+  async function handleCardRequest(e: React.FormEvent) {
+    e.preventDefault();
+    setCardSubmitting(true);
+    setCardError(null);
+    try {
+      await requestPhysicalCardAction(cardForm);
+      setCardSuccess(true);
+    } catch (err) {
+      setCardError(err instanceof Error ? err.message : "Request failed. Please try again.");
+    } finally {
+      setCardSubmitting(false);
+    }
+  }
 
   return (
     <div className="space-y-7 page-enter">
@@ -175,10 +188,12 @@ export default function ProfileClient({ user, activities, chartData, stats, card
                  <SCCGCard 
                    cardNumber={card?.cardNumber}
                    cardholder={card?.clientName || user.name}
-                   expiry={card?.expiresAt ? new Date(card.expiresAt).toLocaleDateString("en-GB", { month: "2-digit", year: "2-digit" }) : "IND-LIFE"}
+                   expiry={card?.expiresAt ? new Date(card.expiresAt).toLocaleDateString("en-GB", { month: "2-digit", year: "2-digit" }) : undefined}
                    tier={card?.tier || (user.role === "admin" ? "platinum" : "not-issued")}
                    balance={card?.balance}
                    currency={card?.currency}
+                   userId={user.id}
+                   registrationDate={user.registrationDate}
                  />
                  {card?.cardNumber && (
                    <div className="mt-3 flex items-center gap-2 bg-muted/40 rounded-xl px-4 py-2.5 border border-border/50">
@@ -210,115 +225,136 @@ export default function ProfileClient({ user, activities, chartData, stats, card
                     </ul>
                  </div>
                  {!card && user.role !== "admin" && (
-                   <Button variant="outline" className="w-full rounded-xl border-dashed py-6 text-primary hover:bg-primary/5 font-bold">
-                      Apply for Physical SCCG Card
+                   <Button
+                     variant="outline"
+                     className="w-full rounded-xl border-dashed py-6 text-primary hover:bg-primary/5 font-bold gap-2"
+                     onClick={() => { setCardDialogOpen(true); setCardSuccess(false); setCardError(null); }}
+                   >
+                     <CreditCard className="h-4 w-4" />
+                     Apply for Physical SCCG Card
                    </Button>
                  )}
               </div>
             </CardContent>
           </Card>
 
-          {/* Stats grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {[
-              { label: "Orders", value: stats.totalOrders, icon: ShoppingCart, color: "text-indigo-500", bg: "bg-indigo-50 border-indigo-100" },
-              { label: "Clients", value: stats.totalClients, icon: Users, color: "text-emerald-500", bg: "bg-emerald-50 border-emerald-100" },
-              { label: "Delivered", value: stats.deliveredOrders, icon: CheckCircle2, color: "text-violet-500", bg: "bg-violet-50 border-violet-100" },
-              { label: "Activities", value: stats.recentActivities, icon: Activity, color: "text-amber-500", bg: "bg-amber-50 border-amber-100" },
-            ].map((s) => (
-              <div key={s.label} className={`flex flex-col items-center gap-2 py-4 px-3 rounded-2xl border ${s.bg} card-hover text-center`}>
-                <div className="h-10 w-10 rounded-2xl bg-white flex items-center justify-center shadow-sm">
-                  <s.icon className={`h-5 w-5 ${s.color}`} />
+
+
+
+
+
+
+          {/* Physical Card Request Dialog */}
+          <Dialog open={cardDialogOpen} onOpenChange={setCardDialogOpen}>
+            <DialogContent className="max-w-md rounded-3xl p-0 overflow-hidden">
+              <div className="bg-gradient-to-br from-indigo-600 to-violet-700 px-6 py-5 text-white">
+                <DialogHeader>
+                  <DialogTitle className="text-white text-lg font-black flex items-center gap-2">
+                    <CreditCard className="h-5 w-5" />
+                    Apply for Physical SCCG Card
+                  </DialogTitle>
+                  <DialogDescription className="text-indigo-200 text-sm mt-1">
+                    A premium physical card will be mailed to your address.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="mt-3 inline-flex items-center gap-2 bg-white/15 rounded-xl px-3 py-1.5">
+                  <PackageCheck className="h-4 w-4 text-white" />
+                  <span className="text-sm font-bold text-white">One-time fee: <span className="text-yellow-300">€5.00</span> incl. delivery</span>
                 </div>
-                <p className="text-2xl font-black text-foreground leading-none">{s.value}</p>
-                <p className="text-xs text-muted-foreground">{s.label}</p>
               </div>
-            ))}
-          </div>
 
-          {/* Activity chart */}
-          <Card className="border-0 shadow-lg rounded-3xl">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <BarChart3 className="h-4 w-4 text-primary" />
-                Activity Trend
-              </CardTitle>
-              <Badge variant="outline" className="text-xs">Last 6 months</Badge>
-            </CardHeader>
-            <CardContent>
-              {chartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={220}>
-                  <AreaChart data={chartData}>
-                    <defs>
-                      <linearGradient id="profileGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#6366f1" stopOpacity={0.3} />
-                        <stop offset="100%" stopColor="#6366f1" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke="#94a3b8" />
-                    <YAxis tick={{ fontSize: 11 }} stroke="#94a3b8" />
-                    <Tooltip
-                      contentStyle={{
-                        borderRadius: 12,
-                        border: "1px solid #e2e8f0",
-                        boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
-                        fontSize: 12,
-                      }}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="count"
-                      stroke="#6366f1"
-                      strokeWidth={2.5}
-                      fill="url(#profileGrad)"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              ) : (
-                <p className="text-center text-sm text-muted-foreground py-8">No activity data yet</p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Recent activity */}
-          <Card className="border-0 shadow-lg rounded-3xl">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <TrendingUp className="h-4 w-4 text-primary" />
-                Recent Activity
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {activities.length === 0 ? (
-                <p className="text-center text-sm text-muted-foreground py-6">No recent activity</p>
-              ) : (
-                <div className="space-y-3">
-                  {activities.slice(0, 8).map((a) => {
-                    const Icon = activityIcons[a.type] || Activity;
-                    return (
-                      <div key={a.id} className="flex items-start gap-3 group">
-                        <div className="h-8 w-8 rounded-xl bg-primary/8 flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-primary/15 transition-colors">
-                          <Icon className="h-4 w-4 text-primary" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-foreground truncate">{a.description}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {new Date(a.createdAt).toLocaleDateString("en-GB", {
-                              day: "numeric",
-                              month: "short",
-                              year: "numeric",
-                            })}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })}
+              {cardSuccess ? (
+                <div className="px-6 py-10 text-center space-y-4">
+                  <div className="h-16 w-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto">
+                    <CheckCircle2 className="h-8 w-8 text-emerald-600" />
+                  </div>
+                  <h3 className="text-lg font-black text-foreground">Request Submitted!</h3>
+                  <p className="text-sm text-muted-foreground">Your physical SCCG card request has been received. Our team will process it within 3–5 business days.</p>
+                  <Button className="rounded-xl" onClick={() => setCardDialogOpen(false)}>Close</Button>
                 </div>
+              ) : (
+                <form onSubmit={handleCardRequest} className="px-6 py-5 space-y-4">
+                  {cardError && (
+                    <div className="flex items-start gap-2 p-3 rounded-xl bg-red-50 border border-red-100 text-red-700 text-sm">
+                      <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                      {cardError}
+                    </div>
+                  )}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Full Name *</Label>
+                    <Input
+                      value={cardForm.fullName}
+                      onChange={(e) => setCardForm((f) => ({ ...f, fullName: e.target.value }))}
+                      required
+                      className="rounded-xl"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                      <MapPin className="h-3 w-3" /> Address Line 1 *
+                    </Label>
+                    <Input
+                      placeholder="Street, house number"
+                      value={cardForm.addressLine1}
+                      onChange={(e) => setCardForm((f) => ({ ...f, addressLine1: e.target.value }))}
+                      required
+                      className="rounded-xl"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Address Line 2</Label>
+                    <Input
+                      placeholder="Apartment, floor, etc. (optional)"
+                      value={cardForm.addressLine2}
+                      onChange={(e) => setCardForm((f) => ({ ...f, addressLine2: e.target.value }))}
+                      className="rounded-xl"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">City *</Label>
+                      <Input
+                        placeholder="Berlin"
+                        value={cardForm.city}
+                        onChange={(e) => setCardForm((f) => ({ ...f, city: e.target.value }))}
+                        required
+                        className="rounded-xl"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Postal Code *</Label>
+                      <Input
+                        placeholder="10115"
+                        value={cardForm.postalCode}
+                        onChange={(e) => setCardForm((f) => ({ ...f, postalCode: e.target.value }))}
+                        required
+                        className="rounded-xl"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Country *</Label>
+                    <Input
+                      value={cardForm.country}
+                      onChange={(e) => setCardForm((f) => ({ ...f, country: e.target.value }))}
+                      required
+                      className="rounded-xl"
+                    />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground bg-muted/50 rounded-xl px-3 py-2.5 leading-relaxed">
+                    By submitting, you authorise SCCG to charge <strong>€5.00</strong> from your account for physical card production and standard delivery (3–5 business days).
+                  </p>
+                  <Button
+                    type="submit"
+                    disabled={cardSubmitting}
+                    className="w-full rounded-xl py-5 font-bold text-base bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 shadow-lg shadow-indigo-500/25"
+                  >
+                    {cardSubmitting ? "Submitting..." : "Confirm & Submit Request — €5.00"}
+                  </Button>
+                </form>
               )}
-            </CardContent>
-          </Card>
+            </DialogContent>
+          </Dialog>
 
           {/* Role info card */}
           <Card className="border-0 shadow-lg rounded-3xl overflow-hidden">

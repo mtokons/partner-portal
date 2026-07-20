@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import type { SessionUser, WorkflowCategory } from "@/types";
 import { getPartnerByEmail, getCandidates, getTransactions } from "@/lib/sharepoint";
 import { getEurToRate } from "@/lib/currency";
@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 
 export default async function TargetAchievementPage() {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) redirect("/login");
 
   const user = session.user as SessionUser;

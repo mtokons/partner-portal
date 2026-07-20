@@ -14,7 +14,7 @@ import type {
   SchoolAttendance, SchoolExamResult, SchoolCertificate,
   Payment, PaymentMethodConfig, EnhancedInvoice, EnhancedInstallment,
   InstallmentRule, SccgCard, SccgCardTransaction,
-  AuditLogEntry, RoleChangeRequest, SchoolGradingScale, SchoolTeacher
+  AuditLogEntry, RoleChangeRequest, SchoolGradingScale, SchoolTeacher, TeacherEarning
 } from "@/types";
 
 function db() {
@@ -220,13 +220,20 @@ export async function getSchoolEnrollments(filters?: {
   studentUserId?: string;
   status?: string;
 }): Promise<SchoolEnrollment[]> {
-  let q: FirebaseFirestore.Query = db().collection("schoolEnrollments").orderBy("createdAt", "desc");
+  // Avoid composite index by only applying orderBy when no equality filters are used.
+  const hasFilter = filters?.batchId || filters?.courseId || filters?.studentUserId || filters?.status;
+  let q: FirebaseFirestore.Query = hasFilter
+    ? db().collection("schoolEnrollments")
+    : db().collection("schoolEnrollments").orderBy("createdAt", "desc");
   if (filters?.batchId) q = q.where("batchId", "==", filters.batchId);
   if (filters?.courseId) q = q.where("courseId", "==", filters.courseId);
   if (filters?.studentUserId) q = q.where("studentUserId", "==", filters.studentUserId);
   if (filters?.status) q = q.where("status", "==", filters.status);
   const snap = await q.get();
-  return snap.docs.map((d) => toPlainObject<SchoolEnrollment>({ id: d.id, ...d.data() }));
+  const results = snap.docs.map((d) => toPlainObject<SchoolEnrollment>({ id: d.id, ...d.data() }));
+  // Sort client-side when filters were applied (avoids composite index requirement)
+  if (hasFilter) results.sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1));
+  return results;
 }
 
 export async function getSchoolEnrollmentById(id: string): Promise<SchoolEnrollment | null> {
@@ -248,12 +255,46 @@ export async function createSchoolEnrollment(
   };
   const ref = await db().collection("schoolEnrollments").add(doc);
 
-  // Increment batch enrolled count
-  await db().collection("schoolBatches").doc(data.batchId).update({
+  // Only increment batch enrolled count if a real batch is assigned
+  if (data.batchId && data.batchId !== "" && data.batchId !== "pending") {
+    await db().collection("schoolBatches").doc(data.batchId).update({
+      enrolledStudents: admin.firestore.FieldValue.increment(1),
+    });
+  }
+
+  return { id: ref.id, ...doc } as unknown as SchoolEnrollment;
+}
+
+export async function assignBatchToEnrollment(enrollmentId: string, batchId: string): Promise<void> {
+  const enrollSnap = await db().collection("schoolEnrollments").doc(enrollmentId).get();
+  if (!enrollSnap.exists) throw new Error("Enrollment not found");
+  const enrollment = enrollSnap.data() as SchoolEnrollment;
+
+  const batchSnap = await db().collection("schoolBatches").doc(batchId).get();
+  if (!batchSnap.exists) throw new Error("Batch not found");
+  const batch = batchSnap.data() as SchoolBatch;
+
+  await db().collection("schoolEnrollments").doc(enrollmentId).update({
+    batchId,
+    batchCode: batch.batchCode,
+    courseName: batch.courseName,
+    courseId: batch.courseId,
+    batchConfirmed: true,
+    status: "enrolled",
+    updatedAt: now(),
+  });
+
+  // Increment new batch count
+  await db().collection("schoolBatches").doc(batchId).update({
     enrolledStudents: admin.firestore.FieldValue.increment(1),
   });
 
-  return { id: ref.id, ...doc } as unknown as SchoolEnrollment;
+  // Decrement old batch count if old batch existed
+  if (enrollment.batchId && enrollment.batchId !== "" && enrollment.batchId !== "pending" && enrollment.batchId !== batchId) {
+    await db().collection("schoolBatches").doc(enrollment.batchId).update({
+      enrolledStudents: admin.firestore.FieldValue.increment(-1),
+    });
+  }
 }
 
 export async function updateSchoolEnrollment(id: string, data: Partial<SchoolEnrollment>): Promise<void> {
@@ -283,8 +324,7 @@ interface SchoolStudentRecord {
 }
 
 export async function getSchoolStudents(filters?: { search?: string }): Promise<SchoolStudentRecord[]> {
-  const q = db().collection("users").where("role", "in", ["student", "user"]); // Students and general users who can be enrolled
-  const snap = await q.get();
+  const snap = await db().collection("users").get();
   let students: SchoolStudentRecord[] = snap.docs.map((d) => toPlainObject<SchoolStudentRecord>({ id: d.id, ...d.data() }));
 
   if (filters?.search) {
@@ -292,11 +332,13 @@ export async function getSchoolStudents(filters?: { search?: string }): Promise<
     students = students.filter(
       (st) =>
         (st.name || "").toLowerCase().includes(s) ||
+        (st.fullName || "").toLowerCase().includes(s) ||
         (st.email || "").toLowerCase().includes(s) ||
         (st.sccgId || "").toLowerCase().includes(s)
     );
   }
-  return students;
+  // Limit to 30 results
+  return students.slice(0, 30);
 }
 
 // ── Content ──
@@ -352,12 +394,18 @@ export async function getSchoolExamResults(filters?: {
   studentUserId?: string;
   status?: string;
 }): Promise<SchoolExamResult[]> {
-  let q: FirebaseFirestore.Query = db().collection("schoolExamResults").orderBy("createdAt", "desc");
+  let q: FirebaseFirestore.Query = db().collection("schoolExamResults");
   if (filters?.batchId) q = q.where("batchId", "==", filters.batchId);
   if (filters?.studentUserId) q = q.where("studentUserId", "==", filters.studentUserId);
   if (filters?.status) q = q.where("status", "==", filters.status);
   const snap = await q.get();
-  return snap.docs.map((d) => toPlainObject<SchoolExamResult>({ id: d.id, ...d.data() }));
+  const results = snap.docs.map((d) => toPlainObject<SchoolExamResult>({ id: d.id, ...d.data() }));
+  // Sort by createdAt descending in memory to avoid composite index requirement
+  return results.sort((a, b) => {
+    const aTime = typeof a.createdAt === "string" ? new Date(a.createdAt).getTime() : (a.createdAt as unknown as { seconds: number })?.seconds ?? 0;
+    const bTime = typeof b.createdAt === "string" ? new Date(b.createdAt).getTime() : (b.createdAt as unknown as { seconds: number })?.seconds ?? 0;
+    return bTime - aTime;
+  });
 }
 
 export async function createSchoolExamResult(data: Omit<SchoolExamResult, "id" | "createdAt" | "updatedAt">): Promise<SchoolExamResult> {
@@ -419,7 +467,8 @@ export async function createSchoolCertificate(
   const seq = seqId.split("-").pop() || "00001";
   const certificateNumber = `${prefix}-${year}-${seq}`;
   const verificationCode = generateVerificationCode();
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://portal.sccg.com";
+  const rawUrl = process.env.NEXT_PUBLIC_APP_URL || "";
+  const baseUrl = rawUrl && !rawUrl.includes("localhost") ? rawUrl : "https://portal.mysccg.de";
   const verificationUrl = `${baseUrl}/verify/${verificationCode}`;
 
   const doc = {
@@ -480,6 +529,28 @@ export async function updateSchoolTeacher(id: string, data: Partial<SchoolTeache
 
 export async function deleteSchoolTeacher(id: string): Promise<void> {
   await db().collection("schoolTeachers").doc(id).delete();
+}
+
+// ── Teacher Earnings ──
+
+export async function getTeacherEarnings(filters?: { teacherId?: string; batchId?: string; status?: string }): Promise<TeacherEarning[]> {
+  let q: FirebaseFirestore.Query = db().collection("teacherEarnings").orderBy("createdAt", "desc");
+  if (filters?.teacherId) q = db().collection("teacherEarnings").where("teacherId", "==", filters.teacherId).orderBy("createdAt", "desc");
+  if (filters?.batchId) q = q.where("batchId", "==", filters.batchId);
+  if (filters?.status) q = q.where("status", "==", filters.status);
+  const snap = await q.get();
+  return snap.docs.map((d) => toPlainObject<TeacherEarning>({ id: d.id, ...d.data() }));
+}
+
+export async function createTeacherEarning(data: Omit<TeacherEarning, "id" | "sccgId" | "createdAt" | "updatedAt">): Promise<TeacherEarning> {
+  const sccgId = await generateSccgId("TEA");
+  const doc = { ...data, sccgId, createdAt: now(), updatedAt: now() };
+  const ref = await db().collection("teacherEarnings").add(doc);
+  return { id: ref.id, ...doc } as unknown as TeacherEarning;
+}
+
+export async function updateTeacherEarning(id: string, data: Partial<TeacherEarning>): Promise<void> {
+  await db().collection("teacherEarnings").doc(id).update({ ...data, updatedAt: now() });
 }
 
 // ── Grading Scale ──

@@ -1,6 +1,6 @@
 "use server";
 
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import type { SessionUser } from "@/types";
 import { getPartnerByEmail } from "@/lib/sharepoint";
 import { revalidatePath } from "next/cache";
@@ -11,7 +11,7 @@ export async function updatePartnerProfile(data: {
   preferredCurrency?: string;
   logoUrl?: string;
 }) {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) throw new Error("Unauthorized");
   const user = session.user as SessionUser;
   if (!user.partnerId) throw new Error("Not a partner");
@@ -34,3 +34,76 @@ export async function updatePartnerProfile(data: {
   revalidatePath("/partner/settings");
   return { success: true };
 }
+
+export async function savePartnerPaymentInfo(data: {
+  accountHolderName?: string;
+  bankName?: string;
+  iban?: string;
+  bic?: string;
+  accountNumber?: string;
+  paymentNote?: string;
+  bkashNumber?: string;
+  nagadNumber?: string;
+}) {
+  const session = await getEffectiveSession();
+  if (!session?.user) throw new Error("Unauthorized");
+  const user = session.user as SessionUser;
+  if (!user.partnerId) throw new Error("Not a partner");
+
+  const partner = await getPartnerByEmail(user.email!);
+  if (!partner) throw new Error("Partner not found");
+
+  const { getAdminFirestore } = await import("@/lib/firebase-admin");
+  const db = getAdminFirestore();
+  await db.collection("partnerPaymentInfo").doc(partner.id).set(
+    { ...data, updatedAt: new Date().toISOString() },
+    { merge: true }
+  );
+
+  revalidatePath("/partner/settings");
+  return { success: true };
+}
+
+export interface PartnerPaymentData {
+  accountHolderName?: string;
+  bankName?: string;
+  iban?: string;
+  bic?: string;
+  accountNumber?: string;
+  paymentNote?: string;
+  bkashNumber?: string;
+  nagadNumber?: string;
+}
+
+export async function getPartnerPaymentInfoForSettings(): Promise<PartnerPaymentData | null> {
+  const session = await getEffectiveSession();
+  if (!session?.user) return null;
+  const user = session.user as SessionUser;
+  if (!user.partnerId) return null;
+
+  const partner = await getPartnerByEmail(user.email!);
+  if (!partner) return null;
+
+  try {
+    const { getAdminFirestore } = await import("@/lib/firebase-admin");
+    const db = getAdminFirestore();
+    const doc = await db.collection("partnerPaymentInfo").doc(partner.id).get();
+    if (!doc.exists) return null;
+    return doc.data() as PartnerPaymentData;
+  } catch {
+    return null;
+  }
+}
+
+export async function getPartnerPaymentInfoById(partnerId: string): Promise<PartnerPaymentData | null> {
+  try {
+    const { getAdminFirestore } = await import("@/lib/firebase-admin");
+    const db = getAdminFirestore();
+    const doc = await db.collection("partnerPaymentInfo").doc(partnerId).get();
+    if (!doc.exists) return null;
+    return doc.data() as PartnerPaymentData;
+  } catch {
+    return null;
+  }
+}
+

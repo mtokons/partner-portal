@@ -235,28 +235,28 @@
   }
 
   .ornate-fade {
-    opacity: 0;
+    opacity: 1;
     transform-origin: center;
-    animation: ornate-fade-in 1.8s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+    /* animation removed — was causing blinking */
   }
 
   .ornate-medallion {
     transform-origin: center;
-    animation: ornate-drift 24s ease-in-out infinite alternate;
+    /* animation removed — was causing blinking */
   }
 
   .ornate-medallion-slow {
     transform-origin: center;
-    animation: ornate-rotate 42s linear infinite;
+    /* animation removed — was causing blinking */
   }
 
   .ornate-medallion-reverse {
     transform-origin: center;
-    animation: ornate-rotate-reverse 54s linear infinite;
+    /* animation removed — was causing blinking */
   }
 
   .ornate-shimmer {
-    animation: ornate-shimmer 7.2s ease-in-out infinite;
+    /* animation removed — was causing blinking */
   }
 
   .ornate-petal,
@@ -266,65 +266,21 @@
     vector-effect: non-scaling-stroke;
   }
 
-  @keyframes ornate-fade-in {
-    0% {
-      opacity: 0;
-      transform: scale(0.92) rotate(-4deg);
-    }
-    100% {
-      opacity: 1;
-      transform: scale(1) rotate(0deg);
-    }
+  @keyframes orb-breathe {
+    0%, 100% { opacity: 0.75; transform: scale(1); }
+    33%       { opacity: 1;    transform: scale(1.06) translate(1%, -0.5%); }
+    66%       { opacity: 0.85; transform: scale(0.97) translate(-0.5%, 1%); }
   }
 
-  @keyframes ornate-drift {
-    0% {
-      transform: translate3d(-10px, 6px, 0) scale(1);
-    }
-    50% {
-      transform: translate3d(10px, -10px, 0) scale(1.012);
-    }
-    100% {
-      transform: translate3d(-4px, 12px, 0) scale(0.996);
-    }
-  }
-
-  @keyframes ornate-rotate {
-    from {
-      transform: rotate(0deg);
-    }
-    to {
-      transform: rotate(360deg);
-    }
-  }
-
-  @keyframes ornate-rotate-reverse {
-    from {
-      transform: rotate(360deg);
-    }
-    to {
-      transform: rotate(0deg);
-    }
-  }
-
-  @keyframes ornate-shimmer {
-    0%,
-    100% {
-      opacity: 0.42;
-      filter: drop-shadow(0 0 0 rgba(255, 215, 128, 0));
-    }
-    50% {
-      opacity: 0.72;
-      filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.18));
-    }
-  }
+  /* ornate-fade-in, ornate-drift, ornate-rotate, ornate-rotate-reverse, ornate-shimmer removed — caused blinking */
 
   @media (prefers-reduced-motion: reduce) {
     .ornate-medallion,
     .ornate-medallion-slow,
     .ornate-medallion-reverse,
     .ornate-shimmer,
-    .ornate-fade {
+    .ornate-fade,
+    .portal-orbs {
       animation: none !important;
     }
   }
@@ -593,6 +549,7 @@
       radial-gradient(circle at 84% 12%, var(--portal-orb-b, rgba(244,114,182,0.18)) 0%, transparent 24%),
       radial-gradient(circle at 70% 78%, var(--portal-orb-c, rgba(45,212,191,0.2)) 0%, transparent 28%);
     filter: blur(8px);
+    /* animation removed — was causing blinking */
   }
 
   .portal-content-frame {
@@ -798,6 +755,15 @@
   /* ── Pulse ring for alerts ── */
   .pulse-ring {
     animation: pulse-ring 2s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite;
+  }
+
+  /* ── Hide scrollbar (used for tab strips) ── */
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
   }
 
   /* ── Metric progress bar ── */

@@ -1,11 +1,12 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import type { SessionUser } from "@/types";
-import { getActivities, getOrders, getClients, getGiftCards } from "@/lib/sharepoint";
+import { getGiftCards } from "@/lib/sharepoint";
+import { getAdminFirestore } from "@/lib/firebase-admin";
 import ProfileClient from "./ProfileClient";
 
 export default async function ProfilePage() {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) redirect("/login");
   const user = session.user as SessionUser;
 
@@ -16,32 +17,19 @@ export default async function ProfilePage() {
   if (lowerRoles.some((r) => ["partner", "partner-individual", "partner-institutional"].includes(r)))
     redirect("/partner/settings");
 
-  const partnerId = user.role === "admin" ? undefined : user.partnerId;
-  const [activities, orders, clients, cards] = await Promise.all([
-    getActivities(partnerId).then((a) => a.slice(0, 10)),
-    getOrders(partnerId),
-    getClients(partnerId),
+  const [cards, userDoc] = await Promise.all([
     getGiftCards(user.id),
+    getAdminFirestore().collection("users").doc(user.id).get().catch(() => null),
   ]);
 
-  // Activity chart data — group by month
-  const activityByMonth: Record<string, number> = {};
-  activities.forEach((a) => {
-    const m = (a.createdAt || a.date || new Date().toISOString()).slice(0, 7);
-    activityByMonth[m] = (activityByMonth[m] || 0) + 1;
-  });
-  const chartData = Object.entries(activityByMonth)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .slice(-6)
-    .map(([month, count]) => ({ month, count }));
-
-  // Stats
-  const stats = {
-    totalOrders: orders.length,
-    totalClients: clients.length,
-    recentActivities: activities.length,
-    deliveredOrders: orders.filter((o) => o.status === "delivered").length,
-  };
+  const rawCreatedAt = userDoc?.data()?.createdAt;
+  const registrationDate: string | undefined = rawCreatedAt
+    ? typeof rawCreatedAt === "string"
+      ? rawCreatedAt
+      : typeof rawCreatedAt?.toDate === "function"
+      ? (rawCreatedAt.toDate() as Date).toISOString()
+      : undefined
+    : undefined;
 
   return (
     <ProfileClient
@@ -52,15 +40,8 @@ export default async function ProfilePage() {
         role: user.role,
         company: user.company,
         partnerId: user.partnerId,
+        registrationDate,
       }}
-      activities={activities.map((a) => ({
-        id: a.id,
-        type: a.type,
-        description: a.description,
-        createdAt: a.createdAt || a.date || new Date().toISOString(),
-      }))}
-      chartData={chartData}
-      stats={stats}
       card={cards[0] || null}
     />
   );

@@ -1,6 +1,6 @@
 "use server";
 
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import type { SessionUser } from "@/types";
 import { getCandidates } from "@/lib/sharepoint";
 import type { BookingAppointment } from "@/lib/bookings";
@@ -13,7 +13,7 @@ import type { BookingAppointment } from "@/lib/bookings";
 export async function getConvertToLeadUrlAction(
   appointment: BookingAppointment
 ): Promise<{ url: string } | { error: string }> {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) return { error: "Not authenticated" };
 
   const user = session.user as SessionUser;

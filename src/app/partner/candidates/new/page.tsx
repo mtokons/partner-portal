@@ -1,18 +1,19 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import type { SessionUser } from "@/types";
 import { getPartnerByEmail, getProducts, getCandidateById, getCandidateServices } from "@/lib/sharepoint";
 import { getEurToRate } from "@/lib/currency";
+import { getPartnerPaymentInfoById } from "@/app/partner/settings/actions";
 
 import { WizardShell } from "./WizardShell";
 
 export default async function RegisterCandidatePage({
   searchParams,
 }: {
-  searchParams: Promise<{ candidateId?: string }>;
+  searchParams: Promise<{ candidateId?: string; email?: string; name?: string; offerId?: string }>;
 }) {
-  const { candidateId } = await searchParams;
-  const session = await auth();
+  const { candidateId, email, name } = await searchParams;
+  const session = await getEffectiveSession();
   if (!session?.user) redirect("/login");
 
   const user = session.user as SessionUser;
@@ -21,9 +22,10 @@ export default async function RegisterCandidatePage({
 
   const margin = partner.marginPercentage || 15;
   const secCur = partner.preferredCurrency || "BDT";
-  const [products, rate] = await Promise.all([
+  const [products, rate, partnerPaymentInfo] = await Promise.all([
     getProducts(),
     secCur !== "EUR" ? getEurToRate(secCur) : Promise.resolve(1),
+    getPartnerPaymentInfoById(partner.id),
   ]);
 
   // Load existing candidate if candidateId provided (Register a Service flow)
@@ -62,6 +64,7 @@ export default async function RegisterCandidatePage({
         products={products}
         secondaryCurrency={secCur}
         exchangeRate={rate}
+        partnerPaymentInfo={partnerPaymentInfo ?? undefined}
         existingCandidate={existingCandidate ? {
           id: existingCandidate.id,
           fullName: existingCandidate.fullName,
@@ -74,6 +77,12 @@ export default async function RegisterCandidatePage({
           nationality: existingCandidate.nationality,
           country: existingCandidate.country,
           workflowCategory: existingCandidate.workflowCategory,
+        } : undefined}
+        prefill={!existingCandidate && (email || name) ? {
+          name: name || "",
+          email: email || "",
+          phone: "",
+          notes: "",
         } : undefined}
       />
     </div>

@@ -5,6 +5,8 @@ import { getInstallments, getInvoices, getPartnerByEmail } from "@/lib/sharepoin
 import ConsoleShell from "@/components/layout/ConsoleShell";
 import NotificationsLiveBridge from "@/components/providers/NotificationsLiveBridge";
 import { resolveConsole } from "@/lib/menu-engine";
+import { getImpersonationSession } from "@/lib/impersonation";
+import ImpersonationBanner from "@/components/layout/ImpersonationBanner";
 
 export default async function SharedLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -13,8 +15,16 @@ export default async function SharedLayout({ children }: { children: React.React
   const user = session.user as SessionUser;
   const userRoles = user.roles || [user.role];
 
-  // Determine which console this user primarily belongs to
-  const consoleName = resolveConsole(userRoles);
+  // --- Impersonation: check for active "View As" session ---
+  const impersonation = await getImpersonationSession();
+
+  // When impersonating, render the target user's console instead of admin's
+  const effectiveRoles = impersonation ? impersonation.targetRoles : userRoles;
+  const effectiveName  = impersonation ? impersonation.targetName  : (user.name || "User");
+  const effectiveCompany = user.company; // keep admin's company data
+
+  // Determine which console to show
+  const consoleName = resolveConsole(effectiveRoles);
 
   const isAdmin = userRoles.includes("admin");
 
@@ -29,20 +39,31 @@ export default async function SharedLayout({ children }: { children: React.React
   const unpaidInvoicesCount = invoices.filter((i) => i.status === "overdue" || i.status === "sent").length;
 
   return (
-    <ConsoleShell
-      console={consoleName}
-      roles={userRoles}
-      userName={user.name || "User"}
-      company={user.company}
-      overdueCount={overdueCount}
-      unpaidInvoicesCount={unpaidInvoicesCount}
-      siteUrl={spInfo.siteUrl}
-      listUrls={spInfo.listUrls}
-      tierStatus={partnerData?.tierStatus}
-      marginPercentage={partnerData?.marginPercentage}
-    >
-      <NotificationsLiveBridge />
-      {children}
-    </ConsoleShell>
+    <>
+      {impersonation && (
+        <ImpersonationBanner
+          adminName={impersonation.adminName}
+          targetName={impersonation.targetName}
+          targetEmail={impersonation.targetEmail}
+          targetRoles={impersonation.targetRoles}
+        />
+      )}
+      <ConsoleShell
+        console={consoleName}
+        roles={effectiveRoles}
+        userName={effectiveName}
+        company={effectiveCompany}
+        overdueCount={overdueCount}
+        unpaidInvoicesCount={unpaidInvoicesCount}
+        siteUrl={spInfo.siteUrl}
+        listUrls={spInfo.listUrls}
+        tierStatus={partnerData?.tierStatus}
+        marginPercentage={partnerData?.marginPercentage}
+        impersonating={!!impersonation}
+      >
+        <NotificationsLiveBridge />
+        {children}
+      </ConsoleShell>
+    </>
   );
 }

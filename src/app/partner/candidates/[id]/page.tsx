@@ -1,6 +1,6 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import type { SessionUser } from "@/types";
 import {
   getCandidateById,
@@ -34,7 +34,7 @@ export default async function CandidateDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) redirect("/login");
 
   const user = session.user as SessionUser;
@@ -66,6 +66,15 @@ export default async function CandidateDetailPage({
 
   const docsRes = await getCandidateDocumentsAction(candidate.id, candidate.fullName);
   const initialDocuments = docsRes.success && docsRes.data ? docsRes.data : [];
+
+  // Parse payment history from notes JSON
+  let paidAmountEur = 0;
+  try {
+    if (candidate.notes?.trim().startsWith("{")) {
+      const notesData = JSON.parse(candidate.notes);
+      paidAmountEur = (notesData.paidAmountEur as number) || 0;
+    }
+  } catch { /* ignore */ }
 
   const activeTasks = tasks.filter(
     (t) => t.status === "todo" || t.status === "in-progress"
@@ -113,6 +122,11 @@ export default async function CandidateDetailPage({
         sccgShare={d(candidate.sccgShare)}
         marginPercentage={candidate.marginPercentage}
         paymentStatus={candidate.paymentStatus}
+        totalServiceFeeRaw={candidate.totalServiceFee}
+        depositRequired={candidate.depositAmount}
+        paidAmountEur={paidAmountEur}
+        secondaryCurrency={secCur}
+        exchangeRate={rate}
       />
 
       {/* Register Service */}

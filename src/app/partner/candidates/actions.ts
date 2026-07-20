@@ -13,6 +13,7 @@ import {
   advanceCandidateStatus,
   getCandidateServices,
   updateCandidateServiceStatus,
+  deleteCandidate,
 } from "@/lib/sharepoint";
 import { canTransitionTo, formatStatusLabel } from "@/lib/engine/candidate-workflow";
 import { calculateFinancialSplit } from "@/lib/engine/financial-split";
@@ -22,6 +23,31 @@ import { triggerFlow } from "@/lib/powerautomate";
 import { sendEmailViaGraph } from "@/lib/email";
 import type { Candidate, CandidateService, WorkflowCategory, PartnerMargin, CandidatePaymentStatus } from "@/types";
 import crypto from "crypto";
+
+export async function deleteCandidateAction(
+  candidateId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const user = await requirePermission("candidate.create");
+    const candidate = await getCandidateById(candidateId);
+    if (!candidate) return { success: false, error: "Candidate not found" };
+
+    const roles = (user.roles || [user.role]) as string[];
+    if (!roles.includes("admin")) {
+      const partner = await getPartnerByEmail(user.email!);
+      if (!partner || candidate.partnerId !== partner.id) {
+        return { success: false, error: "Unauthorized" };
+      }
+    }
+
+    await deleteCandidate(candidateId);
+
+    revalidatePath("/partner/candidates");
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : "Failed to delete candidate" };
+  }
+}
 
 export async function getPartnerCandidatesAction(): Promise<Candidate[]> {
   const user = await requirePermission("candidate.view.own");
@@ -354,7 +380,11 @@ export async function finalizeRegistrationAction(
       if (state.email) {
         const { sendEmailViaGraph, buildCandidateLoginEmail } = await import("@/lib/email");
         const partnerDisplayName = isDirectSale ? "SCCG Career Lab Germany" : (partner?.company || partner?.name || "SCCG Partner");
-        const portalUrl = process.env.NEXTAUTH_URL || "https://portal.mysccg.de";
+        const rawPortalUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL;
+        const portalUrl =
+          rawPortalUrl && !rawPortalUrl.includes("localhost") && !rawPortalUrl.includes("127.0.0.1")
+            ? rawPortalUrl.replace(/\/$/, "")
+            : "https://portal.mysccg.de";
         const emailData = buildCandidateLoginEmail({
           candidateName: state.fullName,
           sccgId,
@@ -948,6 +978,41 @@ export async function addServiceOrderAction(
       newServicesCount: input.selectedServices.length,
     });
 
+    // Notify the candidate by email that new service(s) were added
+    try {
+      const candidateEmail = input.personalInfoUpdates?.email || candidate.email;
+      if (candidateEmail) {
+        const { sendEmailViaGraph, buildServiceAddedEmail } = await import("@/lib/email");
+        const rawPortalUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL;
+        const portalUrl =
+          rawPortalUrl && !rawPortalUrl.includes("localhost") && !rawPortalUrl.includes("127.0.0.1")
+            ? rawPortalUrl.replace(/\/$/, "")
+            : "https://portal.mysccg.de";
+        const partnerDisplayName = partner.company || partner.name || "SCCG Partner";
+        const emailData = buildServiceAddedEmail({
+          candidateName: input.personalInfoUpdates?.fullName || candidate.fullName,
+          sccgId: candidate.sccgId,
+          partnerName: partnerDisplayName,
+          services: input.selectedServices.map((s) => ({
+            serviceName: s.serviceName,
+            quantity: s.quantity,
+            totalPrice: s.basePrice * s.quantity,
+          })),
+          addedAmount: split.totalServiceFee,
+          newTotal: (candidate.totalServiceFee || 0) + split.totalServiceFee,
+          loginUrl: `${portalUrl}/login`,
+        });
+        await sendEmailViaGraph({
+          to: candidateEmail,
+          toName: input.personalInfoUpdates?.fullName || candidate.fullName,
+          subject: emailData.subject,
+          htmlBody: emailData.htmlBody,
+        });
+      }
+    } catch {
+      // Email sending is non-blocking — don't fail the service order
+    }
+
     revalidatePath(`/partner/candidates/${candidateId}`);
     revalidatePath("/partner/candidates");
 
@@ -994,4 +1059,89 @@ function buildStatusChangeEmailHtml(data: {
       </div>
     </div>
   `;
+}
+
+/**
+ * Record a payment received for a candidate.
+ * Stores payment history in the candidate's notes JSON and updates paymentStatus.
+ * The depositAmount field on the candidate remains as the REQUIRED deposit (unchanged).
+ * The "paid so far" amount is stored in notes.paidAmountEur.
+ */
+export async function recordPaymentAction(data: {
+  candidateId: string;
+  serviceId?: string;
+  amountEur: number;
+  isInitialPayment: boolean;
+  paymentNote?: string;
+}): Promise<
+  | { newPaidAmount: number; newPaymentStatus: CandidatePaymentStatus }
+  | { error: string }
+> {
+  try {
+    const user = await requirePermission("candidate.create");
+    const candidate = await getCandidateById(data.candidateId);
+    if (!candidate) return { error: "Candidate not found" };
+
+    const roles = (user.roles || [user.role]) as string[];
+    if (!roles.includes("admin")) {
+      const partner = await getPartnerByEmail(user.email!);
+      if (!partner || candidate.partnerId !== partner.id) {
+        return { error: "Unauthorized" };
+      }
+    }
+
+    if (data.amountEur <= 0) return { error: "Amount must be greater than 0" };
+
+    // Parse existing notes to get payment history
+    let notesObj: Record<string, unknown> = {};
+    try {
+      if (candidate.notes?.trim().startsWith("{")) {
+        notesObj = JSON.parse(candidate.notes);
+      } else {
+        notesObj = { customNotes: candidate.notes || "" };
+      }
+    } catch {
+      notesObj = { customNotes: candidate.notes || "" };
+    }
+
+    const existingPaid = (notesObj.paidAmountEur as number) || 0;
+    const newPaidAmount = Math.round((existingPaid + data.amountEur) * 100) / 100;
+
+    const payments = (notesObj.payments as Array<unknown>) || [];
+    payments.push({
+      amount: data.amountEur,
+      date: new Date().toISOString(),
+      note: data.paymentNote || (data.isInitialPayment ? "Initial payment" : "Payment"),
+      recordedBy: user.email || user.id,
+      serviceId: data.serviceId,
+    });
+
+    notesObj.paidAmountEur = newPaidAmount;
+    notesObj.payments = payments;
+
+    // Determine payment status based on cumulative paid vs thresholds
+    let newPaymentStatus: CandidatePaymentStatus;
+    if (newPaidAmount >= candidate.totalServiceFee) {
+      newPaymentStatus = "fully-paid";
+    } else if (newPaidAmount >= candidate.depositAmount) {
+      newPaymentStatus = "deposit-paid";
+    } else if (newPaidAmount > 0) {
+      // Any payment recorded unlocks the workflow (deposit-paid semantics)
+      newPaymentStatus = "deposit-paid";
+    } else {
+      newPaymentStatus = "pending";
+    }
+
+    await updateCandidate(data.candidateId, {
+      paymentStatus: newPaymentStatus,
+      notes: JSON.stringify(notesObj),
+    });
+
+    revalidatePath(`/partner/candidates/${data.candidateId}`);
+    revalidatePath("/partner/candidates");
+
+    return { newPaidAmount, newPaymentStatus };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Payment recording failed" };
+  }
 }

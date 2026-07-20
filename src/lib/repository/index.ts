@@ -35,10 +35,13 @@ import type {
  * the hybrid storage (SharePoint + Firestore) transparently.
  */
 export const Repository = {
-  // --- Partners ---
   partners: {
     async getByEmail(email: string): Promise<Partner | null> {
       return getPartnerByEmail(email);
+    },
+    async getById(id: string): Promise<Partner | null> {
+      const { getPartnerById } = await import("@/lib/sharepoint");
+      return getPartnerById(id);
     },
     async getAll(): Promise<Partner[]> {
       return getPartners();

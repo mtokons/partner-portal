@@ -1,14 +1,14 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import type { SessionUser } from "@/types";
-import { getCandidates, getCandidateServices, getPartnerByEmail, getProducts } from "@/lib/sharepoint";
+import { getCandidates, getCandidateServices, getPartnerByEmail, getProducts, getSalesOffers } from "@/lib/sharepoint";
 import { getEurToRate } from "@/lib/currency";
 import { UserPlus, Users } from "lucide-react";
 import CandidateListClient from "./CandidateListClient";
 
 export default async function CandidatesPage() {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) redirect("/login");
 
   const user = session.user as SessionUser;
@@ -26,10 +26,11 @@ export default async function CandidatesPage() {
     partnerMargin = partner.marginPercentage || 15;
   }
 
-  const [candidates, rate, products] = await Promise.all([
+  const [candidates, rate, products, allOffers] = await Promise.all([
     getCandidates(partnerId),
     secCur !== "EUR" ? getEurToRate(secCur) : Promise.resolve(1),
     getProducts(),
+    getSalesOffers(partnerId),
   ]);
 
   // Fetch services for each candidate
@@ -39,6 +40,33 @@ export default async function CandidatesPage() {
       return { ...c, services };
     })
   );
+
+  // Build "waiting for registration" list: accepted offers whose email
+  // has no matching registered candidate for this partner
+  const registeredEmails = new Set(candidates.map((c) => c.email.toLowerCase().trim()));
+  const acceptedOffers = allOffers.filter((o) => o.status === "accepted");
+  const waitingOffers = acceptedOffers
+    .filter((o) => {
+      const email = (o.clientEmail || "").toLowerCase().trim();
+      return email && !registeredEmails.has(email);
+    })
+    .map((o) => ({
+      offerId: o.id,
+      offerNumber: o.offerNumber,
+      name: o.clientName || o.prospectName || "",
+      email: o.clientEmail || o.prospectEmail || "",
+      totalAmount: o.totalAmount,
+      acceptedAt: o.acceptedAt,
+    }));
+
+  // Deduplicate by email (keep latest accepted offer per email)
+  const seenEmails = new Set<string>();
+  const dedupedWaiting = waitingOffers.filter((w) => {
+    const e = w.email.toLowerCase();
+    if (seenEmails.has(e)) return false;
+    seenEmails.add(e);
+    return true;
+  });
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -59,22 +87,14 @@ export default async function CandidatesPage() {
         </div>
       </div>
 
-      {candidates.length === 0 ? (
-        <div className="bg-card border rounded-2xl p-16 text-center">
-          <Users className="w-12 h-12 mx-auto mb-3 text-muted-foreground/20" />
-          <p className="font-medium text-muted-foreground">No candidates yet</p>
-          <p className="text-sm text-muted-foreground/70 mt-1">Register your first candidate to get started.</p>
-          <Link
-            href="/partner/candidates/new"
-            className="mt-4 inline-flex items-center gap-2 rounded-xl bg-primary text-primary-foreground px-4 py-2.5 text-sm font-medium hover:bg-primary/90 transition-colors"
-          >
-            <UserPlus className="w-4 h-4" />
-            Register a New Candidate
-          </Link>
-        </div>
-      ) : (
-        <CandidateListClient candidates={candidatesWithServices} products={products} partnerMargin={partnerMargin as import("@/types").PartnerMargin} secondaryCurrency={secCur} exchangeRate={rate} />
-      )}
+      <CandidateListClient
+        candidates={candidatesWithServices}
+        products={products}
+        partnerMargin={partnerMargin as import("@/types").PartnerMargin}
+        secondaryCurrency={secCur}
+        exchangeRate={rate}
+        waitingOffers={dedupedWaiting}
+      />
     </div>
   );
 }

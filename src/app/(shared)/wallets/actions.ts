@@ -8,24 +8,24 @@ import {
   createCoinTransaction,
   updateGiftCard,
 } from "@/lib/sharepoint";
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import { verifyPin } from "@/lib/pin";
 
 export async function fetchWalletsForCurrentUser() {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user?.id) return [];
   const wallet = await getCoinWallet(session.user.id);
   return wallet ? [wallet] : [];
 }
 
 export async function fetchUserCardsAction() {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user?.id) return [];
   return await getGiftCards(session.user.id);
 }
 
 export async function redeemGiftCardToCoinsAction(cardNumber: string, pin: string) {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
   const userId = session.user.id;
 

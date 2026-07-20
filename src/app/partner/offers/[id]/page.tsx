@@ -1,5 +1,5 @@
 import { redirect, notFound } from "next/navigation";
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import type { SessionUser } from "@/types";
 import { getSalesOfferById, getSalesOfferItems, getPartnerByEmail, getProducts } from "@/lib/sharepoint";
 import { getEurToRate } from "@/lib/currency";
@@ -19,7 +19,7 @@ const STATUS_ICONS: Record<string, typeof CheckCircle> = {
 
 export default async function PartnerOfferDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) redirect("/login");
 
   const user = session.user as SessionUser;
@@ -44,6 +44,13 @@ export default async function PartnerOfferDetailPage({ params }: { params: Promi
 
   const StatusIcon = STATUS_ICONS[offer.status] || Clock;
 
+  // Build a descriptive headline: e.g. "Student Package – All Inclusive | faria tabassum"
+  const primaryItem = items[0];
+  const primaryProduct = primaryItem ? productMap.get(primaryItem.productId) : undefined;
+  const headlineTitle = primaryItem
+    ? `${primaryItem.productName}${offer.clientName ? ` — ${offer.clientName}` : ""}`
+    : offer.offerNumber;
+
   const discountAmount =
     offer.discount > 0
       ? offer.discountType === "percent"
@@ -59,13 +66,18 @@ export default async function PartnerOfferDetailPage({ params }: { params: Promi
           <ArrowLeft className="w-4 h-4" />
         </Link>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            Offer {offer.offerNumber}
-            <StatusIcon className="w-5 h-5 text-muted-foreground" />
+          <h1 className="text-xl font-bold tracking-tight flex items-center gap-2">
+            {headlineTitle}
+            <StatusIcon className="w-4 h-4 text-muted-foreground shrink-0" />
           </h1>
-          <p className="text-muted-foreground text-sm">
-            Created {offer.createdAt ? format(parseISO(offer.createdAt), "MMM d, yyyy") : "—"}
+          <p className="text-muted-foreground text-sm mt-0.5">
+            Ref: {offer.offerNumber} · Created {offer.createdAt ? format(parseISO(offer.createdAt), "MMM d, yyyy") : "—"}
             {offer.validUntil && ` · Valid until ${format(parseISO(offer.validUntil), "MMM d, yyyy")}`}
+            {primaryProduct?.category && (
+              <span className="ml-2 inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/10 text-primary align-middle">
+                {primaryProduct.category}
+              </span>
+            )}
           </p>
         </div>
         <OfferActionButtons offerId={id} status={offer.status} />

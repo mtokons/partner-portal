@@ -1,0 +1,522 @@
+{
+  "exam_id": "telc_a2_b1_ubungstest_1",
+  "metadata": {
+    "level": "A2-B1",
+    "title": "telc Deutsch A2-B1 Übungstest 1",
+    "version": "1.0.0",
+    "language": "de",
+    "source_licence": "telc gGmbH"
+  },
+  "subtests": {
+    "lesen": {
+      "part1": {
+        "part": 1,
+        "instructions": "Lesen Sie die Aufgaben 1–5 und die Anzeigen a–h. Welche Anzeige passt am besten zu welcher Situation? Für eine Aufgabe gibt es keine Lösung. Wählen Sie dann x.",
+        "advertisements": [
+          {
+            "ref": "a",
+            "text": "www.Happy-Hochzeit.com\nIhr sucht den perfekten Ort für eure Hochzeitsfeier mit bis zu 300 Gästen? Wir vermieten eine schöne Halle am Stadtrand von Kempten, inklusive Tischen und Stühlen."
+          },
+          {
+            "ref": "b",
+            "text": "www.Metzgerei-Mais.de\nWir suchen freundliche Mitarbeiter (m/w/d) für den Verkauf an der Theke, ab September, in Vollzeit, Arbeitszeit auch am Wochenende, faire Bezahlung. Sie sollten gute Deutschkenntnisse haben."
+          },
+          {
+            "ref": "c",
+            "text": "www.FC-Bielefeld.de\nUnser Fußballverein wird 50 Jahre und wir suchen für unsere Feier am 20. Oktober einen Partyservice, der uns kaltes und warmes Essen und Getränke für 200–220 Personen liefert."
+          },
+          {
+            "ref": "d",
+            "text": "www.Pizza-Pasta.com\nNeues italienisches Restaurant in Leipzig-Zentrum mit großer Speisekarte. Hier gibt es mehr als nur Pizza und Nudeln. Bis Ende April supergünstige Eröffnungs-Preise."
+          },
+          {
+            "ref": "e",
+            "text": "www.laguna.com\nFür unser mexikanisches Restaurant in Trier suchen wir ab sofort Kellner (m/w/d) in Voll- oder Teilzeit von Mittwoch bis Sonntag, Bezahlung 17€/Stunde. Bei Interesse bitte melden."
+          },
+          {
+            "ref": "f",
+            "text": "www.Hochzeitsfreude.de\nKeine Hochzeit ohne Musik! Kleine Band mit 3 Musikern spielt den ganzen Abend jede Art von Musik nach Ihren Wünschen, zum Tanzen oder Zuhören."
+          },
+          {
+            "ref": "g",
+            "text": "www.Partyservice-lecker.de\nSie möchten zu Hause feiern oder in Ihrem Garten? Wir kochen für Sie oder liefern: internationale Gerichte, kaltes Buffet oder warme Speisen zu günstigen Preisen."
+          },
+          {
+            "ref": "h",
+            "text": "www.Bäckerei-Born.de\nWir suchen ab sofort Mitarbeiter m/w/d im Verkauf für unsere Bäckerei in Münster, Arbeitszeit Montag bis Samstag vormittags. Bei uns arbeiten Sie in einem netten Team."
+          }
+        ],
+        "items": [
+          {
+            "number": 1,
+            "prompt": "Sie möchten Essen für eine Geburtstagsfeier nach Hause bestellen.",
+            "correct_ref": "g"
+          },
+          {
+            "number": 2,
+            "prompt": "Am Wochenende möchten Sie in einem Gartenlokal essen.",
+            "correct_ref": null
+          },
+          {
+            "number": 3,
+            "prompt": "Sie möchten einen großen Raum für Ihre Hochzeitsfeier mieten.",
+            "correct_ref": "a"
+          },
+          {
+            "number": 4,
+            "prompt": "An Ihrem Geburtstag möchten Sie im Restaurant essen, aber nicht so viel Geld ausgeben.",
+            "correct_ref": "d"
+          },
+          {
+            "number": 5,
+            "prompt": "Sie suchen einen Job als Service-Mitarbeiter:in im Restaurant.",
+            "correct_ref": "e"
+          }
+        ]
+      },
+      "part2": {
+        "part": 2,
+        "instructions": "Lesen Sie den Text und entscheiden Sie: richtig oder falsch?",
+        "passage": "Liebe Mitarbeitende,\nin unserer Firma setzen wir uns für die Umwelt ein. Bitte beachten Sie folgende Hinweise:\nAbfall: Verwenden Sie nicht unnötig viel Papier. Drucken Sie bitte auf beiden Seiten. Benutzen Sie Papier, das nur auf einer Seite bedruckt ist, als Notizzettel. Altpapier kommt in die blaue Tonne auf dem Parkplatz. Verpackungen und Kartons machen Sie bitte klein und bringen sie ins Lager. Die gelben Tonnen für Plastik usw. stehen auch auf dem Parkplatz.\nBüroküche: Um Wasser und Energie zu sparen, haben wir jetzt eine Spülmaschine in der Büroküche. Bitte stellen Sie Ihr benutztes Geschirr gleich in die Spülmaschine. Schalten Sie diese erst ein, wenn sie voll ist, also nicht jeden Abend, aber immer vor dem Wochenende.\nEnergie sparen: Wenn Sie die Temperatur an den Heizungen im Winter etwas reduzieren, sparen wir viel Energie. Im Sommer bitte nicht sofort die Klimaanlage einschalten. Einfach die Fenster öffnen oder unsere elektrischen Ventilatoren benutzen, die weniger Strom als die Klimaanlage verbrauchen. Bevor Sie nach Hause gehen, kontrollieren Sie, ob alle Computer und Lichter ausgeschaltet sind.\nDanke für Ihre Unterstützung.",
+        "items": [
+          {
+            "number": 6,
+            "statement": "In dem Betrieb ist umweltfreundliches Verhalten wichtig.",
+            "answer": true
+          },
+          {
+            "number": 7,
+            "statement": "Altpapier soll man wenn möglich noch verwenden (z. B. als Notizzettel).",
+            "answer": true
+          },
+          {
+            "number": 8,
+            "statement": "Die Spülmaschine in der Büroküche soll vor dem Wochenende angestellt werden.",
+            "answer": true
+          },
+          {
+            "number": 9,
+            "statement": "Zum Energiesparen sollte man im Sommer elektrische Ventilatoren benutzen.",
+            "answer": true
+          },
+          {
+            "number": 10,
+            "statement": "Alle Computer und Lichter müssen vor dem Nachhausegehen kontrolliert werden.",
+            "answer": true
+          }
+        ]
+      },
+      "part3": {
+        "part": 3,
+        "instructions": "Lesen Sie die vier E-Mails 10–13 und die acht Betreffzeilen a–h. Welche Betreffzeile passt zu welcher E-Mail?",
+        "advertisements": [
+          {
+            "ref": "a",
+            "text": "Absage der Schulung"
+          },
+          {
+            "ref": "b",
+            "text": "Anmeldung"
+          },
+          {
+            "ref": "c",
+            "text": "Bestellung"
+          },
+          {
+            "ref": "d",
+            "text": "Geschenk für Kollegin"
+          },
+          {
+            "ref": "e",
+            "text": "Krankmeldung"
+          },
+          {
+            "ref": "f",
+            "text": "Rentenantrag"
+          },
+          {
+            "ref": "g",
+            "text": "Schichtpläne"
+          },
+          {
+            "ref": "h",
+            "text": "Teambesprechung"
+          }
+        ],
+        "items": [
+          {
+            "number": 10,
+            "prompt": "E-Mail 10: Liebe Mitarbeiterinnen und Mitarbeiter, ab sofort finden Sie die aktuellen Dienstpläne für die nächsten drei Monate im Intranet. Ich habe den Plan mit allen Schichten heute eingestellt. Es bleibt alles so, wie wir es gestern im Teammeeting besprochen haben. Falls Sie Schichten tauschen oder etwas ändern möchten, bitte sprechen Sie mich an...",
+            "correct_ref": "g"
+          },
+          {
+            "number": 11,
+            "prompt": "E-Mail 11: Liebe Frau Herzer, mir geht es heute nicht gut, ich bin erkältet und habe Fieber. Leider kann ich also nicht zur Arbeit kommen. Am Nachmittag habe ich einen Termin beim Arzt. Danach sage ich Bescheid, wie lange ich zuhause bleiben muss...",
+            "correct_ref": "e"
+          },
+          {
+            "number": 12,
+            "prompt": "E-Mail 12: Liebe Kolleginnen und Kollegen, wie ihr alle wisst, feiert unsere Mitarbeiterin Irene Engers am 12. Mai ihren Abschied von der Firma, weil sie in Rente geht. Sie arbeitet bereits seit 19 Jahren bei uns. Ich möchte Frau Engers etwas schenken und bitte um eure Hilfe...",
+            "correct_ref": "d"
+          },
+          {
+            "number": 13,
+            "prompt": "E-Mail 13: Liebe Mitarbeiterinnen und Mitarbeiter, die genauen Termine für die Computerschulungen im Mai habe ich Ihnen bereits mitgeteilt. Viele von Ihnen waren sehr interessiert. Leider haben sich bisher erst drei Kollegen angemeldet. Bitte denken Sie daran, sich bis Ende dieser Woche für die Kurse einzutragen...",
+            "correct_ref": "b"
+          }
+        ]
+      },
+      "part4": {
+        "part": 4,
+        "instructions": "Lesen Sie den Text und die Aufgaben 14–18. Welche Lösung ist richtig?",
+        "passage": "Einkaufen im „Supermarkt auf Rädern“\nWas tun, wenn der Kühlschrank leer und der nächste Supermarkt kilometerweit weg ist? Dieses Problem haben viele Menschen in ländlichen Regionen – vor allem die älteren. Immer mehr Läden im Dorf müssen schließen, weil viele Menschen in die Städte ziehen. Besonders ältere Menschen können dadurch nicht mehr selbst einkaufen gehen. Oft haben sie kein Auto, und mit dem Bus wird der Einkauf im nächsten Supermarkt zur großen Tagesreise.\nAlso muss eine Lösung her: Der Laden kommt zu den Menschen.\nUnd so fahren schon mehrere kleine mobile Supermärkte durch die Dörfer der Eifel, um die Menschen mit Lebensmitteln aller Art zu versorgen. Viele der Produkte stammen direkt von Eifeler Bauern, sind also regional und besonders frisch. Und die Waren kosten auch nicht mehr als in großen Supermärkten, denn es gibt keine Liefergebühr.\nDie Dorfbewohner können genau vor der Haustür bequem einkaufen. Zuverlässig und pünktlich, immer am gleichen Wochentag, zweimal in der Woche kommt der Wagen.\nEine der Fahrerinnen ist Marina Nowak. Ihr Arbeitstag beginnt schon sehr früh morgens. Dann füllt sie die Regale ihres mobilen Supermarktes auf, und schon geht es los. In ihrem kleinen Lkw findet man ein komplettes Lebensmittelgeschäft. Damit ist Marina Nowak von Montag bis Samstag unterwegs. Sie fährt nach einem festgelegten Zeitplan in 12 Dörfer. Sie verkauft den Dorfbewohnern frisches Brot, Milch, Obst, Gemüse und alles, was man täglich zum Essen und Trinken braucht. Das ist angenehm für die Kunden und gleichzeitig sehr persönlich. Die Fahrerinnen und Fahrer kennen die meisten Kunden schon seit vielen Jahren und wissen daher, was sie gern kaufen und mögen. Trotzdem haben sie oft neue Produkte im Angebot. Beim Einkauf bleibt oft noch Zeit für ein kleines Gespräch über das Wetter, die Familie oder anderes. Das gefällt den Leuten und den Fahrerinnen und Fahrern. Auch Dirk Hausen, der mit seinem Lebensmittel-Wagen erst seit 6 Monaten durch die Eifel fährt, liebt diese Arbeit besonders wegen des Kontakts mit den Menschen. Natürlich hat er lange Arbeitstage, und er verdient auch nicht viel, aber das stört ihn nicht, weil ihm seine Arbeit Freude macht.",
+        "items": [
+          {
+            "number": 14,
+            "question": "Supermärkte auf Rädern fahren durch die Dörfer, weil",
+            "options": [
+              {
+                "key": "a",
+                "text": "alte Leute nicht mehr zum Geschäft laufen wollen."
+              },
+              {
+                "key": "b",
+                "text": "sie die Geschäfte im Dorf mit Waren beliefern."
+              },
+              {
+                "key": "c",
+                "text": "viele Geschäfte auf dem Land zumachen."
+              }
+            ],
+            "correct_key": "c"
+          },
+          {
+            "number": 15,
+            "question": "Die mobilen Supermärkte",
+            "options": [
+              {
+                "key": "a",
+                "text": "halten direkt am Haus der Kundinnen und Kunden."
+              },
+              {
+                "key": "b",
+                "text": "kommen jeden Tag zu ihren Kundinnen und Kunden."
+              },
+              {
+                "key": "c",
+                "text": "verlangen mehr Geld für ihre Produkte."
+              }
+            ],
+            "correct_key": "a"
+          },
+          {
+            "number": 16,
+            "question": "Marina Nowak",
+            "options": [
+              {
+                "key": "a",
+                "text": "arbeitet auch sonntags."
+              },
+              {
+                "key": "b",
+                "text": "hat keine Getränke in ihrem Lkw."
+              },
+              {
+                "key": "c",
+                "text": "muss früh anfangen zu arbeiten."
+              }
+            ],
+            "correct_key": "c"
+          },
+          {
+            "number": 17,
+            "question": "Die Fahrerinnen und Fahrer",
+            "options": [
+              {
+                "key": "a",
+                "text": "bieten nur selten neue Waren an."
+              },
+              {
+                "key": "b",
+                "text": "haben immer wieder neue Kundinnen und Kunden."
+              },
+              {
+                "key": "c",
+                "text": "unterhalten sich gern mit ihren Kundinnen und Kunden."
+              }
+            ],
+            "correct_key": "c"
+          },
+          {
+            "number": 18,
+            "question": "Dirk Hausen",
+            "options": [
+              {
+                "key": "a",
+                "text": "bekommt wenig Geld für seine Arbeit."
+              },
+              {
+                "key": "b",
+                "text": "ist schon seit vielen Jahren als Fahrer unterwegs."
+              },
+              {
+                "key": "c",
+                "text": "möchte gern weniger arbeiten."
+              }
+            ],
+            "correct_key": "a"
+          }
+        ]
+      }
+    },
+    "sprachbausteine": {
+      "part": 1,
+      "instructions": "Lesen Sie den Text. Welches Wort passt in die jeweilige Lücke?",
+      "text_with_gaps": "Ihre Anzeige Nr. D/2436 auf www.immobila.com\nSehr geehrter Herr Kowalski,\nbei immobila.com habe ich __19__ Anzeige gesehen. Sie vermieten eine 4-Zimmer-Wohnung in Münster und ich interessiere mich sehr __20__.\nIch bin 34 Jahre alt, Nichtraucher, komme aus dem Iran und lebe __21__ 17 Jahren in Deutschland. Zurzeit wohne ich noch in Hamburg und werde ab dem 1. Mai eine unbefristete Vollzeitstelle __22__ Mechatroniker __23__ der Deutsche Bahn AG im Stadtzentrum von Münster antreten. Die zentrale Lage der Wohnung ist __24__ für mich perfekt. Wir sind drei Personen, meine Ehefrau, unser achtjähriger Sohn, der die Grundschule besucht, und ich. Wir haben __25__ Haustier.\nBesonders gefällt uns, __26__ Ihre Wohnung einen Balkon und ein Bad mit Badewanne hat. Wann dürfen wir die Wohnung besichtigen? Es ist für uns auch kurzfristig __27__. Sie können mich ganztägig unter der Telefonnummer 0152/1234567 erreichen.\nIch würde __28__ sehr über eine positive Rückmeldung freuen.\nMit freundlichen Grüßen\nNavid Karimi",
+      "gaps": [
+        {
+          "number": 19,
+          "choices": [
+            {
+              "key": "a",
+              "text": "deine"
+            },
+            {
+              "key": "b",
+              "text": "Ihre"
+            },
+            {
+              "key": "c",
+              "text": "seine"
+            }
+          ],
+          "correct_key": "b"
+        },
+        {
+          "number": 20,
+          "choices": [
+            {
+              "key": "a",
+              "text": "dafür"
+            },
+            {
+              "key": "b",
+              "text": "daher"
+            },
+            {
+              "key": "c",
+              "text": "damit"
+            }
+          ],
+          "correct_key": "a"
+        },
+        {
+          "number": 21,
+          "choices": [
+            {
+              "key": "a",
+              "text": "in"
+            },
+            {
+              "key": "b",
+              "text": "seit"
+            },
+            {
+              "key": "c",
+              "text": "vor"
+            }
+          ],
+          "correct_key": "b"
+        },
+        {
+          "number": 22,
+          "choices": [
+            {
+              "key": "a",
+              "text": "als"
+            },
+            {
+              "key": "b",
+              "text": "um"
+            },
+            {
+              "key": "c",
+              "text": "wie"
+            }
+          ],
+          "correct_key": "a"
+        },
+        {
+          "number": 23,
+          "choices": [
+            {
+              "key": "a",
+              "text": "auf"
+            },
+            {
+              "key": "b",
+              "text": "bei"
+            },
+            {
+              "key": "c",
+              "text": "in"
+            }
+          ],
+          "correct_key": "b"
+        },
+        {
+          "number": 24,
+          "choices": [
+            {
+              "key": "a",
+              "text": "aber"
+            },
+            {
+              "key": "b",
+              "text": "deshalb"
+            },
+            {
+              "key": "c",
+              "text": "sowohl"
+            }
+          ],
+          "correct_key": "b"
+        },
+        {
+          "number": 25,
+          "choices": [
+            {
+              "key": "a",
+              "text": "kein"
+            },
+            {
+              "key": "b",
+              "text": "keine"
+            },
+            {
+              "key": "c",
+              "text": "keinen"
+            }
+          ],
+          "correct_key": "a"
+        },
+        {
+          "number": 26,
+          "choices": [
+            {
+              "key": "a",
+              "text": "dass"
+            },
+            {
+              "key": "b",
+              "text": "ob"
+            },
+            {
+              "key": "c",
+              "text": "weil"
+            }
+          ],
+          "correct_key": "a"
+        },
+        {
+          "number": 27,
+          "choices": [
+            {
+              "key": "a",
+              "text": "möglich"
+            },
+            {
+              "key": "b",
+              "text": "vielleicht"
+            },
+            {
+              "key": "c",
+              "text": "wahrscheinlich"
+            }
+          ],
+          "correct_key": "a"
+        },
+        {
+          "number": 28,
+          "choices": [
+            {
+              "key": "a",
+              "text": "dich"
+            },
+            {
+              "key": "b",
+              "text": "mich"
+            },
+            {
+              "key": "c",
+              "text": "sich"
+            }
+          ],
+          "correct_key": "b"
+        }
+      ]
+    },
+    "hoeren_und_schreiben": {
+      "instructions": "Hören Sie die Nachrichten auf dem Anrufbeantworter und ergänzen Sie das Formular.",
+      "audio_ref": null,
+      "transcript": "Beispiel: Guten Tag, hier ist Sabine. Der Postbote hat bei uns ein Paket für euch abgegeben. Ich möchte es nicht einfach vor eure Tür legen. Aber ich muss jetzt weg. Das Paket liegt bei uns im Gartenhaus. Da könnt ihr es finden, wenn ihr heimkommt.\n52: Ja, hallo Ali. Die Kinder kommen heute zum Essen, deshalb möchte ich Pizza machen. Käse und Salami sind noch genug im Kühlschrank. Aber Tomaten habe ich keine mehr. Kannst du mir bitte ein Kilo mitbringen, wenn du später einkaufen gehst? Danke.\n53: Guten Tag, hier spricht Elisabeth Helmer aus dem dritten Stock. Ich lade alle Nachbarn am Sonntagabend zum Grillen im Hof ein. Da haben die meisten Zeit. Bitte sagen Sie mir doch Bescheid, ob Sie auch kommen. Vielleicht können Sie einen Salat mitbringen.\n54: Praxis Dr. Feldmann, guten Tag. Frau Grell, Sie haben morgen um 17:00 Uhr einen Termin bei uns. Wir müssen leider absagen, Dr. Feldmann ist krank. Bitte rufen Sie uns heute bis 18 Uhr zurück. Dann können wir einen neuen Termin ausmachen. Danke für Ihr Verständnis.\n55: Hallo Elena, ihr seid doch auch am Samstagabend bei Laura und Stefan eingeladen. Wollen wir zusammen etwas schenken? Ich weiß, dass sie sich Pflanzen für den Balkon wünschen. Ich kann in der Gärtnerei etwas besorgen, und ihr gebt mir später Geld dazu. Also, was meint ihr?\n56: Guten Tag, hier spricht Paloma Ferrante von der Schneiderei. Ich habe noch Fragen zu den Kleidern, die Sie hier abgegeben haben. Könnten Sie mich bitte noch heute zurückrufen? Meine Handynummer ist 0174 610293. Ich bin den ganzen Tag zu erreichen.",
+      "items": [
+        {
+          "number": 52,
+          "label": "Ali noch einkaufen. Was?",
+          "expected_value": "Tomaten"
+        },
+        {
+          "number": 53,
+          "label": "Einladung zum Grillen. Wann?",
+          "expected_value": "Sonntagabend"
+        },
+        {
+          "number": 54,
+          "label": "Praxis Dr. Feldmann zurückrufen heute bis",
+          "expected_value": "18:00 Uhr"
+        },
+        {
+          "number": 55,
+          "label": "Einladung bei Laura und Stefan. Was schenken?",
+          "expected_value": "Pflanzen"
+        },
+        {
+          "number": 56,
+          "label": "Schneiderei zurückrufen. Nummer",
+          "expected_value": "0174 610293"
+        }
+      ]
+    },
+    "muendliche_pruefung": {
+      "instructions": "Mündliche Prüfung",
+      "profile_cards": [
+        {
+          "ref": "A1",
+          "topic": "Sich vorstellen",
+          "prompts": [
+            "Name",
+            "Land",
+            "Sprachen",
+            "Wohnort",
+            "Familie",
+            "Beruf",
+            "Hobby"
+          ]
+        }
+      ],
+      "planning_prompts": [
+        {
+          "ref": "P1",
+          "scenario": "Sie und Ihr:e Gesprächspartner:in arbeiten in einer Firma. Sie planen gemeinsam die Weihnachtsfeier für alle Mitarbeiter. Sprechen Sie miteinander über die Einzelheiten. Machen Sie Vorschläge und begründen Sie sie. Gehen Sie auf die Ideen Ihrer Partnerin oder Ihres Partners ein.",
+          "guiding_points": [
+            "Was machen?",
+            "Wo?",
+            "Wer kann noch helfen?",
+            "Wie informieren?"
+          ]
+        }
+      ]
+    }
+  }
+}

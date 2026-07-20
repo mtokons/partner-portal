@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, ArrowLeft, Save } from "lucide-react";
+import { Plus, Trash2, ArrowLeft, Save, CheckCircle2, BookOpen } from "lucide-react";
 import { loadOfferFormData, createPartnerOffer } from "../actions";
 import type { Client, Product } from "@/types";
 
@@ -255,48 +255,84 @@ export default function NewPartnerOfferPage() {
             </div>
 
             <div className="space-y-3">
-              {items.map((item, idx) => (
-                <div key={idx} className="flex items-start gap-3 p-3 rounded-xl bg-muted/30 border">
-                  <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div className="sm:col-span-2">
-                      <label className="text-xs text-muted-foreground mb-1 block">Product</label>
-                      <select
-                        value={item.productId}
-                        onChange={(e) => selectProduct(idx, e.target.value)}
-                        className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-                      >
-                        <option value="">Select product...</option>
-                        {products.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.name} — {d(p.price)}
-                          </option>
-                        ))}
-                      </select>
+              {items.map((item, idx) => {
+                const selectedProduct = products.find((p) => p.id === item.productId);
+                const rawTags = selectedProduct?.tags ?? [];
+                const includes = rawTags
+                  .filter((t) => t.toLowerCase().startsWith("include:") || t.toLowerCase().startsWith("includes:"))
+                  .map((t) => t.replace(/^includes?:/i, "").trim());
+                return (
+                <div key={idx} className="rounded-2xl border bg-card overflow-hidden">
+                  <div className="flex items-start gap-3 p-4">
+                    <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="sm:col-span-2">
+                        <label className="text-xs text-muted-foreground mb-1 block">Product / Service</label>
+                        <select
+                          value={item.productId}
+                          onChange={(e) => selectProduct(idx, e.target.value)}
+                          className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                        >
+                          <option value="">Select product...</option>
+                          {products.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.name} — {d(p.price)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">Qty</label>
+                        <input
+                          type="number"
+                          min={1}
+                          value={item.quantity}
+                          onChange={(e) =>
+                            setItems(items.map((it, i) => (i === idx ? { ...it, quantity: Math.max(1, +e.target.value) } : it)))
+                          }
+                          className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label className="text-xs text-muted-foreground mb-1 block">Qty</label>
-                      <input
-                        type="number"
-                        min={1}
-                        value={item.quantity}
-                        onChange={(e) =>
-                          setItems(items.map((it, i) => (i === idx ? { ...it, quantity: Math.max(1, +e.target.value) } : it)))
-                        }
-                        className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-                      />
+                    <div className="text-right pt-6 min-w-[80px]">
+                      <p className="text-sm font-semibold">{d(item.quantity * item.unitPrice)}</p>
                     </div>
+                    <button
+                      onClick={() => removeItem(idx)}
+                      className="p-2 rounded-lg hover:bg-red-500/10 text-muted-foreground hover:text-red-500 transition-colors mt-5"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
-                  <div className="text-right pt-6 min-w-[80px]">
-                    <p className="text-sm font-semibold">{d(item.quantity * item.unitPrice)}</p>
-                  </div>
-                  <button
-                    onClick={() => removeItem(idx)}
-                    className="p-2 rounded-lg hover:bg-red-500/10 text-muted-foreground hover:text-red-500 transition-colors mt-5"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {/* Package detail preview */}
+                  {selectedProduct && (
+                    <div className="border-t bg-muted/20 px-4 py-3 space-y-2">
+                      {selectedProduct.category && (
+                        <span className="inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                          {selectedProduct.category}
+                        </span>
+                      )}
+                      {selectedProduct.description && (
+                        <p className="text-xs text-muted-foreground leading-relaxed">{selectedProduct.description}</p>
+                      )}
+                      {includes.length > 0 && (
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1 mb-1">
+                            <BookOpen className="w-2.5 h-2.5" /> What&apos;s Included
+                          </p>
+                          <div className="flex flex-wrap gap-x-4 gap-y-0.5">
+                            {includes.map((feat) => (
+                              <span key={feat} className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
+                                <CheckCircle2 className="w-3 h-3 shrink-0" /> {feat}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 

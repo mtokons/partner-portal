@@ -8,7 +8,7 @@
 
 import type { UserRole } from "@/types";
 
-export type ConsoleType = "partner" | "admin" | "student" | "customer" | "expert";
+export type ConsoleType = "partner" | "admin" | "student" | "customer" | "expert" | "school-admin" | "project-partner" | "job-seeker" | "job-partner" | "ausbildung-seeker" | "ausbildung-partner";
 
 export interface MenuItem {
   key: string;           // Unique key: "partner.dashboard"
@@ -49,11 +49,17 @@ export interface MenuConfigRecord {
 // ============================================================
 
 export const CONSOLE_META: Record<ConsoleType, { label: string; subtitle: string }> = {
-  partner:  { label: "Partner Portal",   subtitle: "Partner Console" },
-  admin:    { label: "Admin Portal",     subtitle: "Administration" },
-  student:  { label: "Student Portal",   subtitle: "Learning Center" },
-  customer: { label: "Customer Portal",  subtitle: "My Services" },
-  expert:   { label: "Expert Portal",    subtitle: "Service Delivery" },
+  partner:      { label: "Partner Portal",         subtitle: "Partner Console" },
+  admin:        { label: "Admin Portal",           subtitle: "Administration" },
+  student:      { label: "Student Portal",         subtitle: "Learning Center" },
+  customer:     { label: "Customer Portal",        subtitle: "My Services" },
+  expert:       { label: "Expert Portal",          subtitle: "Service Delivery" },
+  "school-admin": { label: "Language School",     subtitle: "School Administration" },
+  "project-partner": { label: "Project Partner Portal", subtitle: "Collaboration Hub" },
+  "job-seeker": { label: "Job Seeker Console",    subtitle: "Career Hub" },
+  "job-partner": { label: "Job Partner Portal",    subtitle: "Recruitment Dashboard" },
+  "ausbildung-seeker": { label: "Ausbildung Seeker",  subtitle: "Vocational Console" },
+  "ausbildung-partner": { label: "Ausbildung Partner", subtitle: "Training Academy" },
 };
 
 // ============================================================
@@ -67,7 +73,8 @@ const PARTNER_MENU: MenuItem[] = [
   { key: "partner.candidates.new",  label: "Register Candidate", href: "/partner/candidates/new",    icon: "UserPlus",        group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
   { key: "partner.offers",          label: "Create Offer",       href: "/partner/offers",            icon: "Handshake",       group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false },
   { key: "partner.tasks",           label: "My Tasks",           href: "/partner/tasks",             icon: "ClipboardList",   group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 5, isEnabled: true, isDefault: true, isLocked: false },
-  { key: "partner.bookings",        label: "Bookings & Leads",   href: "/sales/bookings",            icon: "CalendarCheck",   group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 6, isEnabled: false, isDefault: false, isLocked: true },
+  { key: "partner.b2b",             label: "My B2B Network",     href: "/partner/b2b",               icon: "Building2",       group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 6, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "partner.bookings",        label: "Bookings & Leads",   href: "/sales/bookings",            icon: "CalendarCheck",   group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 7, isEnabled: false, isDefault: false, isLocked: true },
 
   // Finance
   { key: "partner.finance",         label: "Finance Overview",   href: "/partner/finance",           icon: "DollarSign",      group: "finance",    groupLabel: "Finance",            groupOrder: 2, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
@@ -83,6 +90,7 @@ const PARTNER_MENU: MenuItem[] = [
   // Account & Support
   { key: "partner.settings",        label: "Account Settings",   href: "/partner/settings",          icon: "Settings",        group: "account",    groupLabel: "Account",            groupOrder: 4, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
   { key: "partner.support",         label: "Support / Helpdesk", href: "/partner/support",           icon: "LifeBuoy",        group: "account",    groupLabel: "Account",            groupOrder: 4, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "partner.manual",          label: "User Manual",         href: "/user-manual",               icon: "BookOpen",        group: "account",    groupLabel: "Account",            groupOrder: 4, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
 ];
 
 const ADMIN_MENU: MenuItem[] = [
@@ -91,10 +99,39 @@ const ADMIN_MENU: MenuItem[] = [
   { key: "admin.overview",          label: "System Overview",    href: "/admin/overview",            icon: "BarChart3",       group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
   { key: "admin.tasks",             label: "Task Board",         href: "/admin/tasks",               icon: "ClipboardList",   group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
 
+  // Job & Ausbildung Systems
+  { key: "admin.cv-bank",            label: "CV Master Bank",       href: "/admin/cv-bank",             icon: "Database",        group: "jobs",       groupLabel: "Job & Ausbildung",   groupOrder: 1.5, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.cv-suite",           label: "CV Suite Variations",  href: "/admin/cv-suite",            icon: "Layers",          group: "jobs",       groupLabel: "Job & Ausbildung",   groupOrder: 1.5, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.cover-letters",      label: "Cover Letters",        href: "/admin/cover-letters",       icon: "FileText",        group: "jobs",       groupLabel: "Job & Ausbildung",   groupOrder: 1.5, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.trackers",           label: "Kanban Trackers",      href: "/admin/trackers",            icon: "FolderKanban",    group: "jobs",       groupLabel: "Job & Ausbildung",   groupOrder: 1.5, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.job-partners",       label: "Job Partners",         href: "/admin/job-partners",        icon: "Building2",       group: "jobs",       groupLabel: "Job & Ausbildung",   groupOrder: 1.5, itemOrder: 5, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.ausbildung-partners", label: "Ausbildung Partners",  href: "/admin/ausbildung-partners", icon: "GraduationCap",   group: "jobs",       groupLabel: "Job & Ausbildung",   groupOrder: 1.5, itemOrder: 6, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.gdpr",               label: "GDPR Compliance",      href: "/admin/gdpr",                icon: "ShieldAlert",     group: "jobs",       groupLabel: "Job & Ausbildung",   groupOrder: 1.5, itemOrder: 7, isEnabled: true, isDefault: true, isLocked: false },
+
   // Partner Management
   { key: "admin.approvals",         label: "Approvals",          href: "/admin/approvals",           icon: "ClipboardCheck",  group: "partners",   groupLabel: "Partner Management", groupOrder: 2, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
   { key: "admin.partners",          label: "Manage Partners",    href: "/admin/partners",            icon: "Shield",          group: "partners",   groupLabel: "Partner Management", groupOrder: 2, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
   { key: "admin.candidates",        label: "All Candidates",     href: "/admin/candidates",          icon: "Users",           group: "partners",   groupLabel: "Partner Management", groupOrder: 2, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.projects",          label: "Project Partners",   href: "/admin/projects",            icon: "FolderKanban",    group: "partners",   groupLabel: "Partner Management", groupOrder: 2, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false },
+
+  // Project Partner AI (renders inside the admin console; admin has full cross-org access)
+  { key: "admin.ppms.projects",     label: "PP Projects",        href: "/admin/ppms/projects",   icon: "FolderCog",         group: "ppms", groupLabel: "Project Partner AI", groupOrder: 2.5, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.ppms.evaluation-matrix", label: "Evaluation Matrix", href: "/admin/ppms/evaluation-matrix", icon: "BarChart3", group: "ppms", groupLabel: "Project Partner AI", groupOrder: 2.5, itemOrder: 1.5, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.ppms.tor",          label: "ToR Analyzer (AI)",  href: "/admin/ppms/tor",        icon: "FileSearch",        group: "ppms", groupLabel: "Project Partner AI", groupOrder: 2.5, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.ppms.intake",       label: "CV Intake (AI)",     href: "/admin/ppms/intake",     icon: "Sparkles",          group: "ppms", groupLabel: "Project Partner AI", groupOrder: 2.5, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.ppms.review",       label: "Scoring Review",     href: "/admin/ppms/review",     icon: "ClipboardCheck",    group: "ppms", groupLabel: "Project Partner AI", groupOrder: 2.5, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.ppms.reports",      label: "Report Drafts (AI)", href: "/admin/ppms/reports",    icon: "FileText",          group: "ppms", groupLabel: "Project Partner AI", groupOrder: 2.5, itemOrder: 5, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.ppms.evalsetup",    label: "Evaluation Setup",   href: "/admin/ppms/evaluation", icon: "SlidersHorizontal", group: "ppms", groupLabel: "Project Partner AI", groupOrder: 2.5, itemOrder: 6, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.ppms.activity",     label: "AI Activity",        href: "/admin/ppms/activity",   icon: "Activity",          group: "ppms", groupLabel: "Project Partner AI", groupOrder: 2.5, itemOrder: 7, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.ppms.org",          label: "Organisations",      href: "/admin/ppms/org",        icon: "Building2",         group: "ppms", groupLabel: "Project Partner AI", groupOrder: 2.5, itemOrder: 8, isEnabled: true, isDefault: true, isLocked: false },
+
+  // CV Tailor — separate feature with Python FastAPI backend
+  { key: "admin.tor-library",       label: "ToR Library",        href: "/admin/tor-library",     icon: "ScrollText",        group: "cv-tailor", groupLabel: "CV Tailoring", groupOrder: 2.6, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.cv-tailor",         label: "CV Tailor (AI)",     href: "/admin/cv-tailor",       icon: "FilePen",           group: "cv-tailor", groupLabel: "CV Tailoring", groupOrder: 2.6, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.expert-bank",       label: "Master Expert Bank", href: "/admin/expert-bank",     icon: "Database",          group: "cv-tailor", groupLabel: "CV Tailoring", groupOrder: 2.6, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.eval-wizard",       label: "Evaluation Wizard",  href: "/admin/evaluation-wizard", icon: "ClipboardCheck",  group: "cv-tailor", groupLabel: "CV Tailoring", groupOrder: 2.6, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.cv-wizard",         label: "CV Creation Wizard", href: "/admin/cv-wizard",         icon: "FilePen",         group: "cv-tailor", groupLabel: "CV Tailoring", groupOrder: 2.6, itemOrder: 5, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.word-compressor",   label: "Word Compressor",    href: "/admin/word-compressor",     icon: "FileArchive",     group: "cv-tailor", groupLabel: "CV Tailoring", groupOrder: 2.6, itemOrder: 6, isEnabled: true, isDefault: true, isLocked: false },
 
   // Users
   { key: "admin.users",             label: "Manage Users",       href: "/admin/users",               icon: "Users",           group: "users",      groupLabel: "User Management",    groupOrder: 3, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
@@ -139,6 +176,9 @@ const ADMIN_MENU: MenuItem[] = [
   { key: "admin.school.enrollments",label: "Enrollments",        href: "/admin/school/enrollments",  icon: "ClipboardList",   group: "school",     groupLabel: "Language School",    groupOrder: 9, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false },
   { key: "admin.school.teachers",   label: "Teachers",           href: "/admin/school/teachers",     icon: "UserCheck",       group: "school",     groupLabel: "Language School",    groupOrder: 9, itemOrder: 5, isEnabled: true, isDefault: true, isLocked: false },
   { key: "admin.school.certs",      label: "Certificates",       href: "/admin/school/certificates", icon: "Award",           group: "school",     groupLabel: "Language School",    groupOrder: 9, itemOrder: 6, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.school.students",   label: "All Students",       href: "/admin/school/students",     icon: "Users",           group: "school",     groupLabel: "Language School",    groupOrder: 9, itemOrder: 7, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.school.model-tests", label: "Model Tests",       href: "/admin/school/model-tests",  icon: "ClipboardCheck",  group: "school",     groupLabel: "Language School",    groupOrder: 9, itemOrder: 8, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.school.model-test-builder", label: "Test Builder", href: "/admin/school/model-tests/builder", icon: "Wand2",   group: "school",     groupLabel: "Language School",    groupOrder: 9, itemOrder: 9, isEnabled: true, isDefault: true, isLocked: false },
 
   // Administration
   { key: "admin.send-email",        label: "Send Email",         href: "/admin/send-email",          icon: "Mail",            group: "admin",      groupLabel: "Administration",     groupOrder: 10, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
@@ -146,6 +186,8 @@ const ADMIN_MENU: MenuItem[] = [
   { key: "admin.helpdesk",          label: "Helpdesk",           href: "/admin/helpdesk",            icon: "LifeBuoy",        group: "admin",      groupLabel: "Administration",     groupOrder: 10, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
   { key: "admin.menu-config",       label: "Menu Configuration", href: "/admin/menu-config",         icon: "Settings",        group: "admin",      groupLabel: "Administration",     groupOrder: 10, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: true },
   { key: "admin.data-sources",      label: "Data Sources",       href: "/admin/data-sources",        icon: "Database",        group: "admin",      groupLabel: "Administration",     groupOrder: 10, itemOrder: 5, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.activity-log",      label: "Activity Log",       href: "/admin/activity-log",        icon: "ScrollText",      group: "admin",      groupLabel: "Administration",     groupOrder: 10, itemOrder: 6, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.manual",            label: "User Manual",         href: "/user-manual",               icon: "BookOpen",        group: "admin",      groupLabel: "Administration",     groupOrder: 10, itemOrder: 7, isEnabled: true, isDefault: true, isLocked: false },
 ];
 
 const CUSTOMER_MENU: MenuItem[] = [
@@ -160,6 +202,7 @@ const CUSTOMER_MENU: MenuItem[] = [
   { key: "customer.invoices",       label: "Invoices",           href: "/customer/invoices",         icon: "FileText",        group: "finance",    groupLabel: "Finance",            groupOrder: 3, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
   { key: "customer.notifications",  label: "Notifications",      href: "/customer/notifications",    icon: "Bell",            group: "account",    groupLabel: "Account",            groupOrder: 4, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
   { key: "customer.career",         label: "Career Suggestions", href: "/customer/career",           icon: "Sparkles",        group: "account",    groupLabel: "Account",            groupOrder: 4, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "customer.manual",         label: "User Manual",         href: "/user-manual",               icon: "BookOpen",        group: "account",    groupLabel: "Account",            groupOrder: 4, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
 ];
 
 const EXPERT_MENU: MenuItem[] = [
@@ -168,23 +211,98 @@ const EXPERT_MENU: MenuItem[] = [
   { key: "expert.sessions",         label: "Sessions",           href: "/expert/sessions",           icon: "Calendar",        group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
   { key: "expert.teaching",         label: "My Teaching",        href: "/expert/teaching",           icon: "BookOpen",        group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false },
   { key: "expert.payments",         label: "My Earnings",        href: "/expert/payments",           icon: "CreditCard",      group: "finance",    groupLabel: "Finance",            groupOrder: 2, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
-  { key: "expert.notifications",    label: "Notifications",      href: "/expert/notifications",      icon: "Bell",            group: "account",    groupLabel: "Account",            groupOrder: 3, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
-];
+  { key: "expert.notifications",    label: "Notifications",      href: "/expert/notifications",      icon: "Bell",            group: "account",    groupLabel: "Account",            groupOrder: 3, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },  { key: "expert.manual",           label: "User Manual",         href: "/user-manual",               icon: "BookOpen",        group: "account",    groupLabel: "Account",            groupOrder: 3, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },];
 
 const STUDENT_MENU: MenuItem[] = [
   { key: "student.dashboard",       label: "Dashboard",          href: "/student/dashboard",         icon: "LayoutDashboard", group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: true },
   { key: "student.courses",         label: "My Courses",         href: "/student/courses",           icon: "GraduationCap",   group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
   { key: "student.progress",        label: "Progress",           href: "/student/progress",          icon: "TrendingUp",      group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
   { key: "student.documents",       label: "Documents",          href: "/student/documents",         icon: "FileText",        group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "student.model-tests",     label: "Model Tests",        href: "/student/model-tests",       icon: "ClipboardCheck",  group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 5, isEnabled: true, isDefault: true, isLocked: false },  { key: "student.manual",          label: "User Manual",         href: "/user-manual",               icon: "BookOpen",        group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 6, isEnabled: true, isDefault: true, isLocked: false },];
+
+// School Admin — only school-related pages
+const SCHOOL_ADMIN_MENU: MenuItem[] = [
+  // Overview
+  { key: "school.dashboard",         label: "School Dashboard",   href: "/admin/school",              icon: "GraduationCap",   group: "school",     groupLabel: "Language School",    groupOrder: 1, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: true },
+  // Courses
+  { key: "school.courses",           label: "Courses",            href: "/admin/school/courses",      icon: "BookOpen",        group: "school",     groupLabel: "Language School",    groupOrder: 1, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
+  // Batches
+  { key: "school.batches",           label: "Batches",            href: "/admin/school/batches",      icon: "Layers",          group: "school",     groupLabel: "Language School",    groupOrder: 1, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
+  // Enrollments
+  { key: "school.enrollments",       label: "Enrollments",        href: "/admin/school/enrollments",  icon: "ClipboardList",   group: "school",     groupLabel: "Language School",    groupOrder: 1, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false },
+  // Teachers
+  { key: "school.teachers",          label: "Teachers",           href: "/admin/school/teachers",     icon: "UserCheck",       group: "school",     groupLabel: "Language School",    groupOrder: 1, itemOrder: 5, isEnabled: true, isDefault: true, isLocked: false },
+  // Certificates
+  { key: "school.certificates",      label: "Certificates",       href: "/admin/school/certificates", icon: "Award",           group: "school",     groupLabel: "Language School",    groupOrder: 1, itemOrder: 6, isEnabled: true, isDefault: true, isLocked: false },
+  // Reports
+  { key: "school.reports",           label: "School Reports",     href: "/admin/school/reports",      icon: "BarChart3",       group: "school",     groupLabel: "Language School",    groupOrder: 1, itemOrder: 7, isEnabled: true, isDefault: true, isLocked: false },
+  // Students
+  { key: "school.students",          label: "All Students",       href: "/admin/school/students",     icon: "Users",           group: "school",     groupLabel: "Language School",    groupOrder: 1, itemOrder: 8, isEnabled: true, isDefault: true, isLocked: false },
+  // Model Tests
+  { key: "school.model-tests",       label: "Model Tests",        href: "/admin/school/model-tests",  icon: "ClipboardCheck",  group: "school",     groupLabel: "Language School",    groupOrder: 1, itemOrder: 9, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "school.model-test-builder", label: "Test Builder",     href: "/admin/school/model-tests/builder", icon: "Wand2",   group: "school",     groupLabel: "Language School",    groupOrder: 1, itemOrder: 10, isEnabled: true, isDefault: true, isLocked: false },  { key: "school.manual",           label: "User Manual",         href: "/user-manual",               icon: "BookOpen",        group: "school",     groupLabel: "Language School",    groupOrder: 1, itemOrder: 11, isEnabled: true, isDefault: true, isLocked: false },];
+
+const PROJECT_PARTNER_MENU: MenuItem[] = [
+  { key: "pp.dashboard",  label: "Dashboard",        href: "/project-partner/dashboard", icon: "LayoutDashboard", group: "main", groupLabel: "Main Console", groupOrder: 1, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: true },
+  { key: "pp.matrix",     label: "Staffing Matrix",  href: "/project-partner/matrix",    icon: "Table2",          group: "main", groupLabel: "Main Console", groupOrder: 1, itemOrder: 2, isEnabled: false, isDefault: true, isLocked: false },
+  { key: "pp.evaluation", label: "Evaluation Matrix", href: "/project-partner/evaluation", icon: "BarChart3",       group: "main", groupLabel: "Main Console", groupOrder: 1, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "pp.experts",    label: "Available Experts", href: "/project-partner/experts",   icon: "UsersRound",      group: "main", groupLabel: "Main Console", groupOrder: 1, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "pp.projects",   label: "Projects Files",   href: "/project-partner/projects",  icon: "FolderKanban",    group: "main", groupLabel: "Main Console", groupOrder: 1, itemOrder: 5, isEnabled: true, isDefault: true, isLocked: false },
+
+  // Management group — only visible to project-partner-admin (org admin) + SCCG admin.
+  // ConsoleShell filters "ppa.*" keys out for read-only viewers.
+  { key: "ppa.manage",     label: "Manage Projects",   href: "/project-partner/manage/projects",     icon: "FolderCog",    group: "manage", groupLabel: "Management", groupOrder: 2, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "ppa.tor",        label: "ToR Analyzer (AI)", href: "/project-partner/manage/tor",          icon: "FileSearch",   group: "manage", groupLabel: "Management", groupOrder: 2, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "ppa.intake",     label: "CV Intake (AI)",    href: "/project-partner/manage/intake",       icon: "Sparkles",     group: "manage", groupLabel: "Management", groupOrder: 2, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "ppa.review",     label: "Scoring Review",    href: "/project-partner/manage/review",       icon: "ClipboardCheck", group: "manage", groupLabel: "Management", groupOrder: 2, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "ppa.reports",    label: "Report Drafts (AI)",href: "/project-partner/manage/reports",      icon: "FileText",     group: "manage", groupLabel: "Management", groupOrder: 2, itemOrder: 5, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "ppa.evalsetup",  label: "Evaluation Setup",  href: "/project-partner/manage/evaluation",   icon: "SlidersHorizontal", group: "manage", groupLabel: "Management", groupOrder: 2, itemOrder: 6, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "ppa.activity",   label: "AI Activity",       href: "/project-partner/manage/activity",     icon: "Activity",     group: "manage", groupLabel: "Management", groupOrder: 2, itemOrder: 7, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "ppa.users",      label: "Project Partners",  href: "/project-partner/manage/users",        icon: "UsersRound",   group: "manage", groupLabel: "Management", groupOrder: 2, itemOrder: 8, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "ppa.org",        label: "Organisation",      href: "/project-partner/manage/org",          icon: "Building2",    group: "manage", groupLabel: "Management", groupOrder: 2, itemOrder: 9, isEnabled: true, isDefault: true, isLocked: false },
+];
+
+/** Menu keys that only org admins (project-partner-admin) or SCCG admins may see. */
+export function isManagementMenuKey(key: string): boolean {
+  return key.startsWith("ppa.");
+}
+
+const JOB_SEEKER_MENU: MenuItem[] = [
+  { key: "jobseeker.dashboard",    label: "Dashboard",          href: "/job-seeker/dashboard",      icon: "LayoutDashboard", group: "main", groupLabel: "Main Console", groupOrder: 1, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: true },
+  { key: "jobseeker.cv",           label: "My CV Suite",        href: "/job-seeker/cv-editor",      icon: "FileText",         group: "main", groupLabel: "Main Console", groupOrder: 1, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: true },
+  { key: "jobseeker.coverletter",  label: "Anschreiben",        href: "/job-seeker/cover-letter",   icon: "FilePen",        group: "main", groupLabel: "Main Console", groupOrder: 1, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "jobseeker.tracker",      label: "Kanban Tracker",     href: "/job-seeker/tracker",        icon: "Kanban",          group: "main", groupLabel: "Main Console", groupOrder: 1, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false },
+];
+
+const JOB_PARTNER_MENU: MenuItem[] = [
+  { key: "jobpartner.dashboard",   label: "Dashboard",          href: "/job-partner/dashboard",     icon: "LayoutDashboard", group: "main", groupLabel: "Main Console", groupOrder: 1, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: true },
+  { key: "jobpartner.post",        label: "Post Job",           href: "/job-partner/post-job",      icon: "PlusCircle",      group: "main", groupLabel: "Main Console", groupOrder: 1, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "jobpartner.cvbank",      label: "CV Master Bank",     href: "/job-partner/cv-bank",       icon: "Database",        group: "main", groupLabel: "Main Console", groupOrder: 1, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
+];
+
+const AUSBILDUNG_SEEKER_MENU: MenuItem[] = [
+  { key: "ausseeker.dashboard",    label: "Dashboard",          href: "/ausbildung/seeker/dashboard", icon: "LayoutDashboard", group: "main", groupLabel: "Main Console", groupOrder: 1, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: true },
+  { key: "ausseeker.diagnostic",   label: "Test Status",        href: "/ausbildung/seeker/diagnostic", icon: "ClipboardCheck", group: "main", groupLabel: "Main Console", groupOrder: 1, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: true },
+];
+
+const AUSBILDUNG_PARTNER_MENU: MenuItem[] = [
+  { key: "auspartner.dashboard",   label: "Dashboard",          href: "/ausbildung/partner/dashboard", icon: "LayoutDashboard", group: "main", groupLabel: "Main Console", groupOrder: 1, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: true },
+  { key: "auspartner.applicants",  label: "Applicants",         href: "/ausbildung/partner/applicants", icon: "Users",          group: "main", groupLabel: "Main Console", groupOrder: 1, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
 ];
 
 /** Registry of all default menus by console */
 export const DEFAULT_MENUS: Record<ConsoleType, MenuItem[]> = {
-  partner:  PARTNER_MENU,
-  admin:    ADMIN_MENU,
-  customer: CUSTOMER_MENU,
-  expert:   EXPERT_MENU,
-  student:  STUDENT_MENU,
+  partner:        PARTNER_MENU,
+  admin:          ADMIN_MENU,
+  customer:       CUSTOMER_MENU,
+  expert:         EXPERT_MENU,
+  student:        STUDENT_MENU,
+  "school-admin": SCHOOL_ADMIN_MENU,
+  "project-partner": PROJECT_PARTNER_MENU,
+  "job-seeker":   JOB_SEEKER_MENU,
+  "job-partner":  JOB_PARTNER_MENU,
+  "ausbildung-seeker": AUSBILDUNG_SEEKER_MENU,
+  "ausbildung-partner": AUSBILDUNG_PARTNER_MENU,
 };
 
 /** Flat list of ALL available menu items across all consoles (for admin config UI) */
@@ -199,7 +317,13 @@ export function getAllAvailableMenuItems(): MenuItem[] {
 /** Given a user's roles array, determine their primary console */
 export function resolveConsole(roles: string[]): ConsoleType {
   const lower = roles.map((r) => r.toLowerCase());
-  if (lower.includes("admin")) return "admin";
+  if (lower.includes("admin") || lower.includes("project-admin")) return "admin";
+  if (lower.includes("school-manager")) return "school-admin";
+  if (lower.includes("project-partner") || lower.includes("project-partner-admin")) return "project-partner";
+  if (lower.includes("job-seeker")) return "job-seeker";
+  if (lower.includes("job-partner")) return "job-partner";
+  if (lower.includes("ausbildung-seeker")) return "ausbildung-seeker";
+  if (lower.includes("ausbildung-partner")) return "ausbildung-partner";
   if (lower.some((r) => ["partner", "partner-individual", "partner-institutional"].includes(r))) return "partner";
   if (lower.includes("expert") || lower.includes("teacher")) return "expert";
   if (lower.includes("customer")) return "customer";

@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import { redirect } from "next/navigation";
 import type { SessionUser } from "@/types";
 import { getFinancials, getExpenses } from "@/lib/sharepoint";
@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 
 export default async function FinancialsPage() {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) redirect("/login");
   const user = session.user as SessionUser;
   const pid = user.role === "admin" ? undefined : user.partnerId;

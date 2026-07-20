@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { SessionUser } from "@/types";
@@ -19,7 +19,7 @@ import OrderStatusPieChart from "@/components/charts/OrderStatusPieChart";
 import RevenueBarChart from "@/components/charts/RevenueBarChart";
 
 export default async function DashboardPage() {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) redirect("/login");
   const user = session.user as SessionUser;
 
@@ -27,6 +27,11 @@ export default async function DashboardPage() {
   const roles = (user.roles || [user.role]) as string[];
   if (roles.some((r) => ["partner", "partner-individual", "partner-institutional"].includes(r.toLowerCase()))) {
     redirect("/partner/dashboard");
+  }
+
+  // Redirect project partners to their collaboration console
+  if (roles.some((r) => ["project-partner", "project-partner-admin"].includes(r.toLowerCase()))) {
+    redirect("/project-partner/dashboard");
   }
 
   // Redirect admin to admin overview

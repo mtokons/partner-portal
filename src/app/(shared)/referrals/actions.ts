@@ -1,9 +1,9 @@
 "use server";
 import { getPartners } from "@/lib/sharepoint";
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 
 export async function fetchReferralForCurrentUser() {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user || !session.user.id) return null;
   const partners = await getPartners();
   return partners.find((p) => p.id === session.user!.id) || null;

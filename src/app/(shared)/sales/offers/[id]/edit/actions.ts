@@ -1,6 +1,6 @@
 "use server";
 
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import type { SessionUser } from "@/types";
 import { updateSalesOffer, getSalesOfferById, getSalesOfferItems, createSalesOfferItem, deleteSalesOfferItem, getPartnerByEmail, getCommissionRules, getPromoCodeByCode } from "@/lib/sharepoint";
 import { calculateCommission } from "@/lib/engine/commission";
@@ -21,7 +21,7 @@ export async function updateSalesOfferAction(offerId: string, data: {
   referralPercent?: number;
   promoCodeValue?: string;
 }) {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) throw new Error("Unauthorized");
   const user = session.user as SessionUser;
 

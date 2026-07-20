@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import type { SessionUser } from "@/types";
 import { getSalesOffers, getSalesOrders } from "@/lib/sharepoint";
 import Link from "next/link";
@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 
 export default async function SalesDashboard() {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) redirect("/login");
   const user = session.user as SessionUser;
 

@@ -1,11 +1,21 @@
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { SessionUser } from "@/types";
 import { getMyCandidateRecords, getMyCandidateServices } from "@/app/customer/candidate-actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, CheckCircle, Clock, Circle, CreditCard } from "lucide-react";
+import { ArrowLeft, CheckCircle, Clock, Circle, CreditCard, MessageSquare } from "lucide-react";
+import { WorkflowStepper } from "@/components/candidate/WorkflowStepper";
+import { formatStatusLabel } from "@/lib/engine/candidate-workflow";
+import type { WorkflowCategory } from "@/types";
+
+const paymentStatusLabel: Record<string, string> = {
+  pending: "Payment Pending",
+  "deposit-paid": "Deposit Paid",
+  "fully-paid": "Fully Paid",
+  refunded: "Refunded",
+};
 
 const paymentStatusColor: Record<string, string> = {
   pending: "bg-orange-100 text-orange-800",
@@ -19,7 +29,7 @@ export default async function CustomerTimelinePage({
 }: {
   searchParams: Promise<{ candidateId?: string }>;
 }) {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) redirect("/customer-login");
 
   const { candidateId } = await searchParams;
@@ -45,7 +55,6 @@ export default async function CustomerTimelinePage({
     );
   }
 
-  // If candidateId specified, show that one; otherwise show all
   const selectedCandidate = candidateId
     ? candidates.find((c) => c.id === candidateId) || candidates[0]
     : candidates[0];
@@ -54,6 +63,7 @@ export default async function CustomerTimelinePage({
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center gap-3">
         <Link href="/customer/dashboard" className="text-gray-400 hover:text-gray-600">
           <ArrowLeft className="h-5 w-5" />
@@ -83,47 +93,115 @@ export default async function CustomerTimelinePage({
         </div>
       )}
 
-      {/* Registration Info */}
+      {/* Registration summary */}
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm">Registration: {selectedCandidate.sccgId}</CardTitle>
-            <div className="flex gap-2">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <CardTitle className="text-base">Registration: {selectedCandidate.sccgId}</CardTitle>
+            <div className="flex gap-2 flex-wrap">
               <Badge variant="outline">{selectedCandidate.workflowCategory}</Badge>
               <Badge className={paymentStatusColor[selectedCandidate.paymentStatus] || "bg-gray-100"}>
-                {selectedCandidate.paymentStatus}
+                {paymentStatusLabel[selectedCandidate.paymentStatus] || selectedCandidate.paymentStatus}
               </Badge>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div>
               <p className="text-xs text-gray-500">Current Status</p>
-              <p className="font-medium text-sm">{selectedCandidate.currentStatus}</p>
+              <p className="font-medium">{formatStatusLabel(selectedCandidate.currentStatus)}</p>
             </div>
             <div>
               <p className="text-xs text-gray-500">Total Fee</p>
-              <p className="font-medium text-sm">€{selectedCandidate.totalServiceFee.toFixed(2)}</p>
+              <p className="font-medium">€{selectedCandidate.totalServiceFee.toFixed(2)}</p>
             </div>
             <div>
-              <p className="text-xs text-gray-500">Deposit Paid</p>
-              <p className="font-medium text-sm">€{selectedCandidate.depositAmount.toFixed(2)}</p>
+              <p className="text-xs text-gray-500">Required Deposit</p>
+              <p className="font-medium">€{selectedCandidate.depositAmount.toFixed(2)}</p>
             </div>
             <div>
               <p className="text-xs text-gray-500">Registered</p>
-              <p className="font-medium text-sm">{new Date(selectedCandidate.createdAt).toLocaleDateString("en-GB")}</p>
+              <p className="font-medium">{new Date(selectedCandidate.createdAt).toLocaleDateString("en-GB")}</p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Payment Summary */}
+      {/* ── Main Workflow Progress ── */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center gap-2">
+            Process Timeline — {selectedCandidate.workflowCategory}
+          </CardTitle>
+          <p className="text-xs text-gray-500 mt-0.5">Your overall registration journey</p>
+        </CardHeader>
+        <CardContent>
+          <WorkflowStepper
+            category={selectedCandidate.workflowCategory as WorkflowCategory}
+            currentStatus={selectedCandidate.currentStatus}
+            isAdmin={false}
+          />
+        </CardContent>
+      </Card>
+
+      {/* ── Per-Service Workflows ── */}
+      {services.length > 0 && (
+        <div className="space-y-4">
+          <h2 className="font-semibold text-gray-800 text-sm px-1">Individual Service Progress</h2>
+          {services.map((svc, idx) => {
+            const isCompleted = svc.currentStatus === "COMPLETED";
+            const isActive = svc.currentStatus && svc.currentStatus !== "COMPLETED";
+            const svcCategory = (svc.workflowCategory || selectedCandidate.workflowCategory) as WorkflowCategory;
+            const svcStatus = svc.currentStatus || "REGISTERED";
+            return (
+              <Card key={svc.id}>
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className="flex flex-col items-center mr-1">
+                        {isCompleted ? (
+                          <CheckCircle className="h-5 w-5 text-green-500" />
+                        ) : isActive ? (
+                          <Clock className="h-5 w-5 text-blue-500" />
+                        ) : (
+                          <Circle className="h-5 w-5 text-gray-300" />
+                        )}
+                      </div>
+                      <div>
+                        <CardTitle className="text-sm">{svc.serviceName}</CardTitle>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          {svcCategory} &middot; {svc.packageType.replace(/-/g, " ")}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-sm font-semibold">€{svc.totalPrice.toFixed(2)}</p>
+                      <Badge variant="outline" className="text-xs mt-1">
+                        {formatStatusLabel(svcStatus)}
+                      </Badge>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <WorkflowStepper
+                    category={svcCategory}
+                    currentStatus={svcStatus}
+                    isAdmin={false}
+                  />
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Payment Details */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm flex items-center gap-2">
             <CreditCard className="h-4 w-4 text-gray-400" />
-            Payment Details
+            Payment Summary
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -133,7 +211,7 @@ export default async function CustomerTimelinePage({
               <span className="font-bold">€{selectedCandidate.totalServiceFee.toFixed(2)}</span>
             </div>
             <div className="flex justify-between items-center py-2 border-b">
-              <span className="text-sm text-gray-600">Deposit Amount</span>
+              <span className="text-sm text-gray-600">Required Deposit</span>
               <span className="font-bold text-green-600">€{selectedCandidate.depositAmount.toFixed(2)}</span>
             </div>
             <div className="flex justify-between items-center py-2">
@@ -152,70 +230,18 @@ export default async function CustomerTimelinePage({
         </CardContent>
       </Card>
 
-      {/* Services Timeline */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm">Services & Stages</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {services.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-6">No services registered yet</p>
-          ) : (
-            <div className="space-y-4">
-              {services.map((svc, idx) => {
-                const isCompleted = svc.currentStatus === "COMPLETED";
-                const isActive = !isCompleted && idx === 0;
-                return (
-                  <div key={svc.id} className="flex gap-3">
-                    <div className="flex flex-col items-center">
-                      {isCompleted ? (
-                        <CheckCircle className="h-5 w-5 text-green-500" />
-                      ) : isActive ? (
-                        <Clock className="h-5 w-5 text-blue-500" />
-                      ) : (
-                        <Circle className="h-5 w-5 text-gray-300" />
-                      )}
-                      {idx < services.length - 1 && (
-                        <div className={`w-0.5 flex-1 mt-1 ${isCompleted ? "bg-green-300" : "bg-gray-200"}`} />
-                      )}
-                    </div>
-                    <div className="flex-1 pb-4">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <p className={`font-medium text-sm ${isCompleted ? "text-green-700" : isActive ? "text-blue-700" : "text-gray-500"}`}>
-                            {svc.serviceName}
-                          </p>
-                          <p className="text-xs text-gray-400 mt-0.5">
-                            {svc.workflowCategory || selectedCandidate.workflowCategory} &middot; {svc.packageType}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-medium">€{svc.totalPrice.toFixed(2)}</p>
-                          <Badge variant="outline" className="text-xs mt-1">
-                            {svc.currentStatus || "Pending"}
-                          </Badge>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
       {/* Contact Partner */}
       <Card className="border-purple-200 bg-purple-50">
-        <CardContent className="p-4 flex items-center justify-between">
+        <CardContent className="p-4 flex items-center justify-between gap-4">
           <div>
             <p className="font-medium text-purple-900 text-sm">Need help or have questions?</p>
             <p className="text-xs text-purple-700">Send a message to your partner directly through the portal</p>
           </div>
           <Link
             href="/customer/messages"
-            className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors shrink-0"
           >
+            <MessageSquare className="h-4 w-4" />
             Send Message
           </Link>
         </CardContent>

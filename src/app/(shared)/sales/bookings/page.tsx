@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import type { SessionUser } from "@/types";
 import { Calendar, ExternalLink, Info } from "lucide-react";
 import { getBookingAppointments, BOOKINGS_URL } from "@/lib/bookings";
@@ -7,7 +7,7 @@ import { getCandidates } from "@/lib/sharepoint";
 import { BookingsClient } from "./BookingsClient";
 
 export default async function BookingsPage() {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) redirect("/login");
 
   const user = session.user as SessionUser;

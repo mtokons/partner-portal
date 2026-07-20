@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import { redirect } from "next/navigation";
 import type { SessionUser } from "@/types";
 import { getPayouts } from "@/lib/sharepoint";
@@ -14,7 +14,7 @@ const statusColors: Record<string, string> = {
 };
 
 export default async function MyPayoutsPage() {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) redirect("/login");
   const user = session.user as SessionUser;
 

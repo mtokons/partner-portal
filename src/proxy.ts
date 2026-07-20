@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import type { NextAuthRequest } from "next-auth";
+import { decodeImpersonationToken } from "@/lib/impersonation";
 
 /**
  * Console-to-role mapping.
@@ -8,15 +9,18 @@ import type { NextAuthRequest } from "next-auth";
  */
 const CONSOLE_ROLES: Record<string, string[]> = {
   "/partner":  ["partner", "partner-individual", "partner-institutional"],
-  "/admin":    ["admin"],
+  "/admin":    ["admin", "school-manager"],
   "/student":  ["student"],
   "/customer": ["customer"],
   "/expert":   ["expert", "teacher"],
+  "/project-partner": ["project-partner", "project-partner-admin"],
 };
 
 /** Ordered by priority — first match wins for login redirect */
 const ROLE_CONSOLE: [string[], string][] = [
-  [["admin"],    "/admin/dashboard"],
+  [["admin", "project-admin"],    "/admin/dashboard"],
+  [["school-manager"], "/admin/school"],
+  [["project-partner", "project-partner-admin"], "/project-partner/dashboard"],
   [["partner", "partner-individual", "partner-institutional"], "/partner/dashboard"],
   [["customer"], "/customer/dashboard"],
   [["expert", "teacher"],   "/expert/dashboard"],
@@ -37,8 +41,25 @@ export default auth((req: NextAuthRequest) => {
   const role = (req.auth?.user as { role?: string } | undefined)?.role;
   const roles = ((req.auth?.user as { roles?: string[] } | undefined)?.roles || [role]).filter(Boolean) as string[];
 
+  // --- Read impersonation cookie for active View-As sessions ---
+  const impersonateRaw = req.cookies.get("__sccg_impersonate")?.value;
+  const impersonation = impersonateRaw ? decodeImpersonationToken(impersonateRaw) : null;
+  // When impersonation is active, use target roles for route-access decisions (admin is still logged in)
+  const effectiveRoles = impersonation ? impersonation.targetRoles : roles;
+
+  // --- Dedicated demo flow ---
+  if (pathname === "/demo" || pathname === "/demo/login") {
+    return NextResponse.next();
+  }
+  if (pathname.startsWith("/demo/")) {
+    if (!isLoggedIn) {
+      return NextResponse.redirect(new URL("/demo/login", req.url));
+    }
+    return NextResponse.next();
+  }
+
   // --- Public paths: no auth required ---
-  const publicPaths = ["/login", "/customer-login", "/expert-login", "/register", "/forgot-password"];
+  const publicPaths = ["/login", "/customer-login", "/expert-login", "/register", "/forgot-password", "/erp-experience", "/demo", "/demo/login"];
   const isPublic =
     publicPaths.includes(pathname) ||
     pathname.startsWith("/api/auth") ||
@@ -65,23 +86,23 @@ export default auth((req: NextAuthRequest) => {
   }
 
   // --- Console-based access control ---
-  const lowerRoles = roles.map((r) => r.toLowerCase());
+  const lowerRoles = effectiveRoles.map((r) => r.toLowerCase());
 
   for (const [consolePath, requiredRoles] of Object.entries(CONSOLE_ROLES)) {
     if (pathname.startsWith(consolePath)) {
-      const hasAccess = requiredRoles.some((r) => lowerRoles.includes(r));
+      // Admin always keeps access (they're still admin even during impersonation)
+      const isRealAdmin = roles.map(r => r.toLowerCase()).includes("admin");
+      const hasAccess = requiredRoles.some((r) => lowerRoles.includes(r)) || isRealAdmin;
       if (!hasAccess) {
-        // Redirect to user's own console
-        return NextResponse.redirect(new URL(resolveDefaultConsole(roles), req.url));
+        return NextResponse.redirect(new URL(resolveDefaultConsole(effectiveRoles), req.url));
       }
       return NextResponse.next();
     }
   }
 
   // --- Shared pages (dashboard, shop, profile, etc.) ---
-  // These are accessible by any authenticated user with a portal role
-  const portalRoles = ["partner", "partner-individual", "partner-institutional", "admin", "customer", "expert", "teacher", "student", "finance", "hr", "school-manager"];
-  if (lowerRoles.some((r) => portalRoles.includes(r))) {
+  const portalRoles = ["partner", "partner-individual", "partner-institutional", "admin", "customer", "expert", "teacher", "student", "finance", "hr", "school-manager", "project-partner", "project-partner-admin"];
+  if (effectiveRoles.map(r => r.toLowerCase()).some((r) => portalRoles.includes(r))) {
     return NextResponse.next();
   }
 

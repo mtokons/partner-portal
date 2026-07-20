@@ -1,10 +1,10 @@
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getMyOffers } from "@/app/customer/candidate-actions";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { FileText, ArrowLeft, Calendar, DollarSign, Sparkles, ArrowRight } from "lucide-react";
+import { FileText, ArrowLeft, Calendar, Sparkles, ArrowRight } from "lucide-react";
 
 const statusColor: Record<string, string> = {
   draft: "bg-gray-100 text-gray-800",
@@ -14,7 +14,7 @@ const statusColor: Record<string, string> = {
 };
 
 export default async function CustomerOffersPage() {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) redirect("/customer-login");
 
   const offers = await getMyOffers();
@@ -93,7 +93,6 @@ export default async function CustomerOffersPage() {
                     </div>
                     <div className="text-right space-y-1">
                       <div className="flex items-center gap-1 text-sm font-bold">
-                        <DollarSign className="h-4 w-4 text-gray-400" />
                         €{offer.totalAmount.toFixed(2)}
                       </div>
                       <div className="flex items-center gap-1 text-xs text-gray-400">

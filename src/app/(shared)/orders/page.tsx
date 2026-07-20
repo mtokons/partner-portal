@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import { redirect } from "next/navigation";
 import type { SessionUser } from "@/types";
 import { getOrders } from "@/lib/sharepoint";
@@ -21,7 +21,7 @@ const statusConfig: Record<string, { label: string; css: string }> = {
 };
 
 export default async function OrdersPage() {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) redirect("/login");
   const user = session.user as SessionUser;
   const [orders, rate] = await Promise.all([

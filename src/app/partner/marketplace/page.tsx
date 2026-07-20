@@ -1,15 +1,16 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import type { SessionUser } from "@/types";
 import { getPartnerByEmail, getProducts } from "@/lib/sharepoint";
 import { getEurToRate } from "@/lib/currency";
 import MarketplaceClient from "./MarketplaceClient";
 
 export default async function PartnerMarketplacePage() {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) redirect("/login");
 
   const user = session.user as SessionUser;
+  const isAdmin = (user.roles || [user.role]).includes("admin");
   const partner = await getPartnerByEmail(user.email!);
   if (!partner) redirect("/partner-pending");
 
@@ -36,6 +37,7 @@ export default async function PartnerMarketplacePage() {
       allServices={allServices}
       secCur={secCur}
       rate={rate}
+      isAdmin={isAdmin}
     />
   );
 }

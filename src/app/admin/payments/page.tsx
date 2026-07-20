@@ -52,7 +52,8 @@ export default async function PaymentsPage() {
 
       <Card>
         <CardContent className="p-0">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[600px] text-sm">
             <thead>
               <tr className="border-b bg-muted/50">
                 <th className="text-left py-3 px-4 font-medium text-muted-foreground">Date</th>
@@ -98,6 +99,7 @@ export default async function PaymentsPage() {
               )}
             </tbody>
           </table>
+          </div>
         </CardContent>
       </Card>
     </div>

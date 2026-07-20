@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Package, CreditCard, AlertCircle } from "lucide-react";
+import { Package, CreditCard, AlertCircle, Banknote, LockKeyhole } from "lucide-react";
 import type { WorkflowCategory, CandidateService, CandidatePaymentStatus } from "@/types";
 import { WorkflowStepper } from "@/components/candidate/WorkflowStepper";
 import { CandidateStatusAdvancer } from "./CandidateStatusAdvancer";
 import { ServiceStatusAdvancer } from "./ServiceStatusAdvancer";
+import { PaymentNotificationModal } from "./PaymentNotificationModal";
 import { getAllowedTransitions, formatStatusLabel } from "@/lib/engine/candidate-workflow";
 
 interface ServiceWorkflowViewProps {
@@ -18,13 +19,19 @@ interface ServiceWorkflowViewProps {
   allowedTransitions: string[];
   /** dual-currency formatted amounts keyed by service id */
   formattedPrices: Record<string, string>;
-  /** financial summary */
+  /** financial summary (formatted strings for display) */
   totalServiceFee: string;
   depositAmount: string;
   partnerShare: string;
   sccgShare: string;
   marginPercentage: number;
   paymentStatus: CandidatePaymentStatus;
+  /** raw numbers for payment notification modal */
+  totalServiceFeeRaw: number;
+  depositRequired: number;
+  paidAmountEur: number;
+  secondaryCurrency: string;
+  exchangeRate: number;
 }
 
 export function ServiceWorkflowView({
@@ -42,9 +49,27 @@ export function ServiceWorkflowView({
   sccgShare,
   marginPercentage,
   paymentStatus,
+  totalServiceFeeRaw,
+  depositRequired,
+  paidAmountEur: paidAmountEurProp,
+  secondaryCurrency,
+  exchangeRate,
 }: ServiceWorkflowViewProps) {
   // Selected service index — null means show primary candidate workflow
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+
+  // Local payment state — updated optimistically after recording payment
+  const [localPaymentStatus, setLocalPaymentStatus] = useState<CandidatePaymentStatus>(paymentStatus);
+  const [localPaidAmount, setLocalPaidAmount] = useState<number>(paidAmountEurProp);
+
+  // Payment modal state: which service triggered it
+  const [paymentModal, setPaymentModal] = useState<CandidateService | null>(null);
+
+  function handlePaymentSuccess(newPaidAmount: number, newStatus: CandidatePaymentStatus) {
+    setLocalPaidAmount(newPaidAmount);
+    setLocalPaymentStatus(newStatus);
+    setPaymentModal(null);
+  }
 
   // Determine what workflow to show
   const selectedService = selectedIdx !== null ? services[selectedIdx] : null;
@@ -66,16 +91,32 @@ export function ServiceWorkflowView({
     ? allowedTransitions
     : getAllowedTransitions(activeCategory, activeStatus);
 
-  // Payment status styling
+  // Payment status styling (use local state)
   const paymentStatusStyle =
-    paymentStatus === "fully-paid"
+    localPaymentStatus === "fully-paid"
       ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-      : paymentStatus === "deposit-paid"
+      : localPaymentStatus === "deposit-paid"
       ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
       : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400";
 
+  const isPaymentPending = localPaymentStatus === "pending";
+
   return (
     <div className="space-y-6">
+      {/* Payment gate warning banner */}
+      {isPaymentPending && (
+        <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl px-5 py-4">
+          <LockKeyhole className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <p className="font-semibold text-amber-800 dark:text-amber-300">Service Workflow Locked</p>
+            <p className="text-amber-700 dark:text-amber-400 mt-0.5">
+              Initial payment confirmation required before SCCG can start services. Use the
+              <span className="font-semibold"> Payment Notification</span> button on any service to record the received amount.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Workflow Stepper Card — changes based on selected service */}
       <div className="bg-card rounded-2xl border p-6 space-y-4">
         <div className="flex items-center justify-between">
@@ -112,14 +153,21 @@ export function ServiceWorkflowView({
           isAdmin={isAdmin}
           allowedNext={activeAllowed}
         />
-        {/* Primary workflow advancer */}
+        {/* Primary workflow advancer — blocked if payment pending */}
         {isAdmin && isPrimary && allowedTransitions.length > 0 && (
-          <CandidateStatusAdvancer
-            candidateId={candidateId}
-            candidateName={candidateName}
-            currentStatus={candidateCurrentStatus}
-            allowedNext={allowedTransitions}
-          />
+          isPaymentPending ? (
+            <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-xl px-4 py-3">
+              <LockKeyhole className="w-4 h-4 shrink-0" />
+              Status advancement is locked until initial payment is confirmed.
+            </div>
+          ) : (
+            <CandidateStatusAdvancer
+              candidateId={candidateId}
+              candidateName={candidateName}
+              currentStatus={candidateCurrentStatus}
+              allowedNext={allowedTransitions}
+            />
+          )
         )}
         {/* Per-service workflow advancer */}
         {isAdmin && !isPrimary && isServiceOwnWorkflow && activeAllowed.length > 0 && selectedService && (
@@ -142,13 +190,15 @@ export function ServiceWorkflowView({
             <Package className="w-4 h-4 text-muted-foreground" />
             <h2 className="font-semibold text-foreground">Services ({services.length})</h2>
           </div>
+          <span className="text-xs text-muted-foreground hidden sm:inline">Click row to view workflow · Use Payment Notification to record payments</span>
         </div>
         {services.length === 0 ? (
           <div className="p-6 text-center text-muted-foreground text-sm">
             No services registered yet.
           </div>
         ) : (
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[500px] text-sm">
             <thead>
               <tr className="bg-muted/30">
                 <th className="text-left px-4 py-2 font-medium text-muted-foreground">Service</th>
@@ -156,6 +206,7 @@ export function ServiceWorkflowView({
                 <th className="text-left px-4 py-2 font-medium text-muted-foreground">Status</th>
                 <th className="text-right px-4 py-2 font-medium text-muted-foreground">Qty</th>
                 <th className="text-right px-4 py-2 font-medium text-muted-foreground">Total</th>
+                <th className="text-right px-4 py-2 font-medium text-muted-foreground">Payment</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -195,15 +246,25 @@ export function ServiceWorkflowView({
                     <td className="px-4 py-3 text-right font-medium">
                       {formattedPrices[s.id] ?? `€${s.totalPrice.toFixed(2)}`}
                     </td>
+                    <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => setPaymentModal(s)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50 transition-colors whitespace-nowrap border border-emerald-200 dark:border-emerald-800"
+                      >
+                        <Banknote className="w-3.5 h-3.5" />
+                        Payment
+                      </button>
+                    </td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
+          </div>
         )}
         {services.length > 0 && (
           <div className="px-4 py-2 text-[11px] text-muted-foreground border-t bg-muted/20">
-            Click a service to view its workflow progress
+            Click a service row to view its workflow progress
           </div>
         )}
       </div>
@@ -232,23 +293,66 @@ export function ServiceWorkflowView({
             <p className="font-semibold text-foreground">{sccgShare}</p>
           </div>
         </div>
+        {/* Payment progress bar */}
+        {totalServiceFeeRaw > 0 && (
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">Amount Paid</span>
+              <span className="font-semibold text-foreground">€{localPaidAmount.toFixed(2)} / €{totalServiceFeeRaw.toFixed(2)}</span>
+            </div>
+            <div className="h-2 bg-muted rounded-full overflow-hidden">
+              <div
+                className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                style={{ width: `${Math.min(100, (localPaidAmount / totalServiceFeeRaw) * 100).toFixed(1)}%` }}
+              />
+            </div>
+            {depositRequired > 0 && localPaidAmount < depositRequired && (
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                Required deposit: €{depositRequired.toFixed(2)} · Remaining: €{Math.max(0, depositRequired - localPaidAmount).toFixed(2)}
+              </p>
+            )}
+          </div>
+        )}
         <div className="flex items-center gap-2 pt-1">
           <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${paymentStatusStyle}`}>
-            {paymentStatus.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+            {localPaymentStatus.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
           </span>
-          {paymentStatus === "pending" && (
+          {localPaymentStatus === "pending" && (
             <span className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
               <AlertCircle className="w-3 h-3" />
-              Payment pending — please remind the candidate
+              Awaiting initial payment — use Payment Notification button to record
             </span>
           )}
-          {paymentStatus === "deposit-paid" && (
+          {localPaymentStatus === "deposit-paid" && (
             <span className="text-xs text-muted-foreground">
               Deposit received — remaining balance due before completion
             </span>
           )}
+          {localPaymentStatus === "fully-paid" && (
+            <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+              Full payment received
+            </span>
+          )}
         </div>
       </div>
+
+      {/* Payment Notification Modal */}
+      {paymentModal && (
+        <PaymentNotificationModal
+          candidateId={candidateId}
+          candidateName={candidateName}
+          serviceId={paymentModal.id}
+          serviceName={paymentModal.serviceName}
+          serviceTotal={paymentModal.totalPrice}
+          depositRequired={depositRequired}
+          alreadyPaid={localPaidAmount}
+          totalServiceFee={totalServiceFeeRaw}
+          secondaryCurrency={secondaryCurrency}
+          exchangeRate={exchangeRate}
+          onClose={() => setPaymentModal(null)}
+          onSuccess={handlePaymentSuccess}
+        />
+      )}
     </div>
   );
 }

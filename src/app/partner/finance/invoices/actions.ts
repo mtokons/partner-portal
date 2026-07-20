@@ -1,6 +1,6 @@
 "use server";
 
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import type { SessionUser } from "@/types";
 import { getPartnerByEmail, createInvoice, getInvoiceById, updateInvoice } from "@/lib/sharepoint";
 import { revalidatePath } from "next/cache";
@@ -11,7 +11,7 @@ export async function createPartnerInvoice(data: {
   description?: string;
   dueDate: string;
 }) {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) throw new Error("Not authenticated");
   const user = session.user as SessionUser;
   const partner = await getPartnerByEmail(user.email!);
@@ -39,7 +39,7 @@ export async function createPartnerInvoice(data: {
 }
 
 export async function sendInvoiceToClientAction(invoiceId: string) {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) throw new Error("Not authenticated");
   const user = session.user as SessionUser;
   const partner = await getPartnerByEmail(user.email!);

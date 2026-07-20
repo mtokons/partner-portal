@@ -43,7 +43,7 @@ export default async function AdminPartnersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <h1 className="text-2xl font-bold text-gray-900">Manage Partners</h1>
         <form action={async () => { "use server"; await refreshPartnersAction(); }}>
           <button
@@ -56,7 +56,7 @@ export default async function AdminPartnersPage() {
         </form>
       </div>
 
-      <div className="grid grid-cols-3 gap-4 text-center">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
         <Card>
           <CardContent className="pt-6">
             <div className="text-3xl font-bold text-green-600">{partnerAccounts.filter((p) => p.status === "active").length}</div>
@@ -80,7 +80,8 @@ export default async function AdminPartnersPage() {
       <Card>
         <CardHeader><CardTitle>All Partners ({partnerAccounts.length})</CardTitle></CardHeader>
         <CardContent>
-          <Table>
+          <div className="overflow-x-auto">
+          <Table className="min-w-[900px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
@@ -160,6 +161,7 @@ export default async function AdminPartnersPage() {
               )}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
     </div>

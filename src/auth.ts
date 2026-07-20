@@ -24,20 +24,30 @@ async function buildRolesForEmail(email: string, firebaseProfile?: FirebaseUserP
   let name = firebaseProfile?.displayName || "";
 
   // 1. Check SharePoint Partners (Source of truth for PartnerID and Commission info)
-  const partner = await Repository.partners.getByEmail(email);
+  let partner = await Repository.partners.getByEmail(email);
+  if (!partner && firebaseProfile) {
+    const fId = firebaseProfile.partnerId || (firebaseProfile as any).registeredByPartnerId;
+    if (fId) {
+      partner = await Repository.partners.getById(fId);
+    }
+  }
   if (partner && partner.status !== "suspended") {
     // If not set by Firebase, use SharePoint role
     if (!firebaseProfile) primaryRole = partner.role;
     
-    roles.push(primaryRole === "admin" ? "admin" : "partner");
+    const isAnyAdmin = primaryRole === "admin" || primaryRole === "project-admin";
+    roles.push(isAnyAdmin ? "admin" : "partner");
     if (primaryRole === "partner") {
       const pType = (partner.partnerType || "individual").toLowerCase();
       roles.push(`partner-${pType}`);
     }
-    if (primaryRole === "admin") {
+    if (isAnyAdmin) {
       roles.push("partner");
       roles.push("partner-individual");
       roles.push("partner-institutional");
+      if (primaryRole === "project-admin") {
+        roles.push("project-admin");
+      }
     }
     if (partner.onboardingStatus?.toLowerCase() === "approved" || primaryRole === "admin") {
       partnerId = partner.id;
@@ -76,7 +86,13 @@ async function buildRolesForEmail(email: string, firebaseProfile?: FirebaseUserP
 
   // 4. Final Role Consolidation (Ensure Firebase role is always present)
   if (!roles.includes(primaryRole)) roles.push(primaryRole);
-  if (primaryRole === "admin" && !roles.includes("partner")) roles.push("partner");
+  const isAnyAdmin = primaryRole === "admin" || primaryRole === "project-admin";
+  if (isAnyAdmin) {
+    if (!roles.includes("admin")) roles.push("admin");
+    if (!roles.includes("partner")) roles.push("partner");
+    if (!roles.includes("partner-individual")) roles.push("partner-individual");
+    if (!roles.includes("partner-institutional")) roles.push("partner-institutional");
+  }
 
   return { roles, partnerId, company, customerId, expertId, partnerType, coinBalance, tierStatus, marginPercentage, primaryRole, name };
 }
@@ -110,11 +126,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             const profile = profileDoc.data() as FirebaseUserProfile | undefined;
 
             if (profile) {
-              if (profile.status === "pending") {
-                console.warn(`[auth] User ${decodedToken.email} is pending approval`);
-                const err = new CredentialsSignin("Your account is pending admin approval.");
-                throw err;
-              }
               if (profile.status === "suspended") {
                 console.warn(`[auth] User ${decodedToken.email} is suspended`);
                 const err = new CredentialsSignin("Your account has been suspended.");
@@ -247,6 +258,43 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ],
   session: { strategy: "jwt" },
   pages: { signIn: "/login" },
+  events: {
+    async signIn({ user }) {
+      try {
+        const u = user as SessionUser;
+        const { logActivity } = await import("@/lib/activity-log");
+        await logActivity({
+          actorEmail: u.email || "unknown",
+          actorId: u.id,
+          actorName: u.name || undefined,
+          actorRole: u.role,
+          action: "login",
+          description: `${u.name || u.email} signed in`,
+          console: u.primaryConsole,
+        });
+      } catch (err: any) {
+        console.warn("[auth] signIn audit log failed:", err?.message || err);
+      }
+    },
+    async signOut(message) {
+      try {
+        // JWT strategy → message is { token }
+        const token = (message as { token?: Record<string, unknown> })?.token;
+        const email = (token?.email as string) || "unknown";
+        const { logActivity } = await import("@/lib/activity-log");
+        await logActivity({
+          actorEmail: email,
+          actorId: token?.sub as string | undefined,
+          actorName: (token?.name as string) || undefined,
+          actorRole: (token?.role as string) || undefined,
+          action: "logout",
+          description: `${email} signed out`,
+        });
+      } catch (err: any) {
+        console.warn("[auth] signOut audit log failed:", err?.message || err);
+      }
+    },
+  },
   callbacks: {
     async jwt({ token, user }) {
       if (user) {

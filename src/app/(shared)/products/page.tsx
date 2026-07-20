@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import { redirect } from "next/navigation";
 import type { SessionUser } from "@/types";
 import { getProducts } from "@/lib/sharepoint";
@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import PlaceOrderButton from "./PlaceOrderButton";
 
 export default async function ProductsPage() {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) redirect("/login");
   const user = session.user as SessionUser;
   const [products, rate] = await Promise.all([getProducts(), loadRate()]);

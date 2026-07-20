@@ -2,11 +2,11 @@
 
 import { markInstallmentPaid, createActivity } from "@/lib/sharepoint";
 import { triggerFlow } from "@/lib/powerautomate";
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import type { SessionUser } from "@/types";
 
 export async function markInstallmentPaidAction(installmentId: string) {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) return;
   const user = session.user as SessionUser;
 

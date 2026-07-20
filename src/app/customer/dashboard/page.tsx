@@ -1,13 +1,13 @@
-import { auth } from "@/auth";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import type { SessionUser } from "@/types";
+import { getEffectiveUser } from "@/lib/effective-user";
 import {
   getCustomerPackages, getSessionsByCustomer,
   getNotifications,
 } from "@/lib/sharepoint";
 import { getCandidatePortalContext } from "@/app/customer/candidate-actions";
 import { loadRate, fmtBdt } from "@/lib/serverCurrency";
+import CustomerCharts from "@/components/customer/CustomerCharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -23,9 +23,8 @@ const statusColor: Record<string, string> = {
 };
 
 export default async function CustomerDashboardPage() {
-  const session = await auth();
-  if (!session?.user) redirect("/customer-login");
-  const user = session.user as SessionUser;
+  const user = await getEffectiveUser();
+  if (!user) redirect("/customer-login");
 
   const [[packages, sessions, notifications], rate, candidateCtx] = await Promise.all([
     Promise.all([
@@ -291,6 +290,18 @@ export default async function CustomerDashboardPage() {
         </Card>
         </Link>
       </div>
+
+      {/* Visual analytics */}
+      <CustomerCharts
+        sessions={[
+          { name: "Completed", value: completedSessions },
+          { name: "Upcoming", value: upcomingSessions },
+          { name: "Pending", value: sessions.filter((s) => s.status === "pending").length },
+          { name: "Cancelled", value: sessions.filter((s) => s.status === "cancelled").length },
+        ].filter((d) => d.value > 0)}
+        paid={totalPaid}
+        due={totalOwed}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Package Status */}

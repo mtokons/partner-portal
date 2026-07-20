@@ -95,7 +95,7 @@ const PERMISSION_MAP = {
   "school.results.enter": ["teacher"],
   "school.results.publish": ["teacher", "admin", "school-manager"],
   "school.certificate.issue": ["admin", "school-manager"],
-  "school.certificate.revoke": ["admin"],
+  "school.certificate.revoke": ["admin", "school-manager"],
   "school.report": ["admin", "school-manager", "finance"],
   "school.teacher.manage": ["admin", "school-manager"],
 

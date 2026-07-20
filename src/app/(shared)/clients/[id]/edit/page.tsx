@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import { redirect, notFound } from "next/navigation";
 import { getClientById } from "@/lib/sharepoint";
 import EditClientForm from "./EditClientForm";
@@ -9,7 +9,7 @@ interface PageProps {
 }
 
 export default async function EditClientPage({ params }: PageProps) {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) redirect("/login");
   const user = session.user as SessionUser;
 

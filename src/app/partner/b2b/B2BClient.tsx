@@ -3,7 +3,7 @@
 import { useState, useTransition, useCallback, useRef } from "react";
 import { Building2, Plus, Phone, Mail, Globe, MapPin, User, Briefcase, FileText, X, CheckCircle2, Clock, AlertCircle, Upload, ExternalLink, Download, Hash, CreditCard, PenLine, Award, QrCode, ShieldCheck, ImageIcon, Loader2 } from "lucide-react";
 import type { B2BCompany, Partner } from "@/types";
-import { addB2BCompanyAction, updateB2BStatusAction, generateB2BCertificateAction } from "./actions";
+import { addB2BCompanyAction, updateB2BStatusAction, generateB2BCertificateAction, sendB2BCertificateEmailAction } from "./actions";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { QRCodeSVG, QRCodeCanvas } from "qrcode.react";
@@ -27,8 +27,9 @@ interface Props {
   isAdmin?: boolean;
 }
 
-export default function B2BClient({ myCompanies: initial, allCompanies, partner, isAdmin }: Props) {
+export default function B2BClient({ myCompanies: initial, allCompanies: initialAll, partner, isAdmin }: Props) {
   const [myCompanies, setMyCompanies] = useState<B2BCompany[]>(initial);
+  const [allCompanies, setAllCompanies] = useState<B2BCompany[]>(initialAll);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showAllModal, setShowAllModal] = useState(false);
   const [showCertTemplateModal, setShowCertTemplateModal] = useState(false);
@@ -44,13 +45,15 @@ export default function B2BClient({ myCompanies: initial, allCompanies, partner,
 
   // Certificate modal state
   type CertData = {
-    certCode: string; certIssuedAt: string;
+    certCode: string; certIssuedAt: string; globalId?: string;
     partnerName: string; partnerCity: string; partnerLogoUrl?: string;
     subPartnerName: string; subPartnerCity: string; subPartnerIndustry?: string; subPartnerLogoUrl?: string;
+    subPartnerEmail?: string;
     verifyUrl: string;
   };
   const [certData, setCertData] = useState<CertData | null>(null);
   const [certCompanyId, setCertCompanyId] = useState<string>("");
+  const [certModalCompanyId, setCertModalCompanyId] = useState<string>("");
   const [certLoading, setCertLoading] = useState(false);
 
   async function handleB2bLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -82,6 +85,7 @@ export default function B2BClient({ myCompanies: initial, allCompanies, partner,
       const res = await generateB2BCertificateAction(companyId);
       if (res.success) {
         setCertData(res.data);
+        setCertModalCompanyId(companyId);
         setSuccessMsg("Certificate of Cooperation issued successfully.");
         // Update local state with the new certCode
         setMyCompanies((prev) => prev.map((c) => c.id === companyId
@@ -110,6 +114,7 @@ export default function B2BClient({ myCompanies: initial, allCompanies, partner,
       const res = await addB2BCompanyAction(fd);
       if (res.success) {
         setMyCompanies((prev) => [res.data, ...prev]);
+        setAllCompanies((prev) => [res.data, ...prev]);
         setSuccessMsg(`B2B company "${res.data.companyName}" added successfully!`);
         setShowAddModal(false);
         form.reset();
@@ -124,6 +129,7 @@ export default function B2BClient({ myCompanies: initial, allCompanies, partner,
       const res = await updateB2BStatusAction(id, status);
       if (res.success) {
         setMyCompanies((prev) => prev.map((c) => c.id === id ? { ...c, status } : c));
+        setAllCompanies((prev) => prev.map((c) => c.id === id ? { ...c, status } : c));
       }
     });
   };
@@ -284,16 +290,18 @@ export default function B2BClient({ myCompanies: initial, allCompanies, partner,
           <div className="bg-card rounded-2xl border overflow-hidden">
               <div className="px-5 py-3 border-b bg-muted/20">
                 <p className="text-xs text-muted-foreground">
-                  Showing all associate partner organisations across the SCCG network. Only organisation name and city are shown to protect partner privacy.
+                  Showing all associate partner organisations across the SCCG network. Only basic information (Global ID, organisation name, city and the registering partner) is shown to protect privacy and avoid duplicate registration or conflicts of interest.
                 </p>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[400px] text-sm">
+                <table className="w-full min-w-[560px] text-sm">
                   <thead>
                     <tr className="border-b bg-muted/30">
+                      <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Global ID</th>
                       <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Organisation</th>
                       <th className="text-left px-4 py-3 font-semibold text-muted-foreground">City</th>
                       <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Industry</th>
+                      <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Registered By</th>
                       <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Status</th>
                     </tr>
                   </thead>
@@ -309,6 +317,9 @@ export default function B2BClient({ myCompanies: initial, allCompanies, partner,
                       return (
                         <tr key={c.id} className="hover:bg-muted/20">
                           <td className="px-4 py-3">
+                            <span className="font-mono text-xs text-muted-foreground">{c.globalId || "—"}</span>
+                          </td>
+                          <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
                               <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                                 <Building2 className="w-3.5 h-3.5 text-primary" />
@@ -323,6 +334,13 @@ export default function B2BClient({ myCompanies: initial, allCompanies, partner,
                             </div>
                           </td>
                           <td className="px-4 py-3 text-sm text-muted-foreground">{c.industry || "—"}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">
+                            {c.partnerId === partner.id ? (
+                              <span className="inline-flex items-center gap-1 text-xs font-medium text-primary">You</span>
+                            ) : (
+                              c.partnerName || "—"
+                            )}
+                          </td>
                           <td className="px-4 py-3">
                             <span className={`text-xs px-2 py-0.5 rounded-full font-medium border ${st.bg}`}>
                               {st.text}
@@ -574,6 +592,7 @@ export default function B2BClient({ myCompanies: initial, allCompanies, partner,
       {certData && (
         <CertificateModal
           certData={certData}
+          companyId={certModalCompanyId}
           onClose={() => setCertData(null)}
         />
       )}
@@ -584,40 +603,81 @@ export default function B2BClient({ myCompanies: initial, allCompanies, partner,
 // ─── Certificate of Cooperation Modal ─────────────────────────────────────
 
 type CertModalData = {
-  certCode: string; certIssuedAt: string;
+  certCode: string; certIssuedAt: string; globalId?: string;
   partnerName: string; partnerCity: string; partnerLogoUrl?: string;
   subPartnerName: string; subPartnerCity: string; subPartnerIndustry?: string; subPartnerLogoUrl?: string;
+  subPartnerEmail?: string;
   verifyUrl: string;
 };
 
-function CertificateModal({ certData: d, onClose }: { certData: CertModalData; onClose: () => void }) {
+function CertificateModal({ certData: d, companyId, onClose }: { certData: CertModalData; companyId: string; onClose: () => void }) {
   const [downloading, setDownloading] = useState(false);
+  const [emailTo, setEmailTo] = useState(d.subPartnerEmail || "");
+  const [sending, setSending] = useState(false);
+  const [emailMsg, setEmailMsg] = useState("");
+  const [emailErr, setEmailErr] = useState("");
+
+  // Build the certificate PDF as a Blob (shared by download + email)
+  const buildPdfBlob = async (): Promise<Blob> => {
+    const { generateCooperationCertificate } = await import("@/lib/pdf");
+    let qrDataUrl: string | undefined;
+    const qrCanvas = document.getElementById("cert-qr-canvas") as HTMLCanvasElement | null;
+    if (qrCanvas) qrDataUrl = qrCanvas.toDataURL("image/png");
+    const pdfBytes = generateCooperationCertificate({
+      certCode: d.certCode,
+      issuedAt: d.certIssuedAt,
+      partnerName: d.partnerName,
+      partnerCity: d.partnerCity,
+      subPartnerName: d.subPartnerName,
+      subPartnerCity: d.subPartnerCity,
+      subPartnerIndustry: d.subPartnerIndustry,
+      qrDataUrl,
+    });
+    return pdfBytes instanceof Blob ? pdfBytes : new Blob([pdfBytes as unknown as ArrayBuffer], { type: "application/pdf" });
+  };
+
+  const blobToBase64 = (blob: Blob): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(String(reader.result));
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+
+  const handleSendEmail = async () => {
+    setEmailErr("");
+    setEmailMsg("");
+    const to = emailTo.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
+      setEmailErr("Please enter a valid email address.");
+      return;
+    }
+    setSending(true);
+    try {
+      const dataUrl = await blobToBase64(await buildPdfBlob());
+      const res = await sendB2BCertificateEmailAction({
+        b2bCompanyId: companyId,
+        toEmail: to,
+        pdfBase64: dataUrl,
+        certCode: d.certCode,
+        verifyUrl: d.verifyUrl,
+      });
+      if (res.success) {
+        setEmailMsg(`Certificate sent to ${to}.`);
+      } else {
+        setEmailErr(res.error || "Failed to send the certificate email.");
+      }
+    } catch (err) {
+      setEmailErr(err instanceof Error ? err.message : "Failed to send the certificate email.");
+    } finally {
+      setSending(false);
+    }
+  };
 
   const handleDownloadPDF = async () => {
     setDownloading(true);
     try {
-      const { generateCooperationCertificate } = await import("@/lib/pdf");
-
-      // Get QR code as data URL from the hidden canvas
-      let qrDataUrl: string | undefined;
-      const qrCanvas = document.getElementById("cert-qr-canvas") as HTMLCanvasElement | null;
-      if (qrCanvas) {
-        qrDataUrl = qrCanvas.toDataURL("image/png");
-      }
-
-      const pdfBytes = generateCooperationCertificate({
-        certCode: d.certCode,
-        issuedAt: d.certIssuedAt,
-        partnerName: d.partnerName,
-        partnerCity: d.partnerCity,
-        subPartnerName: d.subPartnerName,
-        subPartnerCity: d.subPartnerCity,
-        subPartnerIndustry: d.subPartnerIndustry,
-        qrDataUrl,
-      });
-
-      // pdfBytes is actually a Blob from doc.output("blob")
-      const blob = pdfBytes instanceof Blob ? pdfBytes : new Blob([pdfBytes as unknown as ArrayBuffer], { type: "application/pdf" });
+      const blob = await buildPdfBlob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -729,6 +789,36 @@ function CertificateModal({ certData: d, onClose }: { certData: CertModalData; o
           {/* Hidden canvas for PDF QR generation */}
           <div className="sr-only" aria-hidden>
             <QRCodeCanvas id="cert-qr-canvas" value={d.verifyUrl} size={200} level="M" />
+          </div>
+
+          {/* Send via email to the business partner */}
+          <div className="bg-muted/30 border rounded-xl p-3 space-y-2">
+            <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+              <Mail className="w-3.5 h-3.5" /> Send certificate to business partner
+            </p>
+            <div className="flex items-center gap-2">
+              <input
+                type="email"
+                value={emailTo}
+                onChange={(e) => { setEmailTo(e.target.value); setEmailMsg(""); setEmailErr(""); }}
+                placeholder="partner@company.com"
+                className="flex-1 px-3 py-2 bg-background border border-border rounded-lg text-sm focus:ring-2 focus:ring-primary/30 outline-none"
+              />
+              <button
+                onClick={handleSendEmail}
+                disabled={sending}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-60 transition-all shrink-0"
+              >
+                {sending ? (
+                  <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Sending...</>
+                ) : (
+                  <><Mail className="w-4 h-4" /> Send</>
+                )}
+              </button>
+            </div>
+            {emailMsg && <p className="text-xs text-emerald-600 flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> {emailMsg}</p>}
+            {emailErr && <p className="text-xs text-red-600 flex items-center gap-1"><AlertCircle className="w-3.5 h-3.5" /> {emailErr}</p>}
+            <p className="text-[10px] text-muted-foreground">The PDF certificate will be attached to the email.</p>
           </div>
 
           {/* Actions */}
@@ -881,6 +971,7 @@ function B2BCard({ company: c, isOwn, onStatusChange, onGenerateCertificate, cer
             <div>
               <p className="font-bold text-foreground leading-tight">{c.companyName}</p>
               {c.industry && <p className="text-xs text-muted-foreground">{c.industry}</p>}
+              {c.globalId && <p className="text-[10px] font-mono text-muted-foreground mt-0.5">{c.globalId}</p>}
             </div>
           </div>
           <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-semibold border shrink-0 ${st.bg}`}>

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import type { SessionUser } from "@/types";
 import { getPartnerByEmail, getCandidates, getInvoices } from "@/lib/sharepoint";
 import { getEurToRate } from "@/lib/currency";
@@ -10,7 +10,7 @@ import { AlertTriangle, CreditCard, Clock } from "lucide-react";
 import Link from "next/link";
 
 export default async function DuePaymentsPage() {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) redirect("/login");
 
   const user = session.user as SessionUser;

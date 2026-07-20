@@ -86,4 +86,13 @@ describe("menu-engine", () => {
     expect(emailTemplates).toBeDefined();
     expect(emailTemplates?.href).toBe("/admin/email-templates");
   });
+
+  it("admin menu has a single Master Expert Bank entry (no duplicate Expert Evaluations link)", () => {
+    const adminMenu = DEFAULT_MENUS.admin;
+    const bankLinks = adminMenu.filter((m) => m.href === "/admin/expert-bank");
+    expect(bankLinks.length).toBe(1);
+    expect(bankLinks[0].key).toBe("admin.expert-bank");
+    // The old redundant evaluations shortcut should no longer exist
+    expect(adminMenu.find((m) => m.key === "admin.project-eval")).toBeUndefined();
+  });
 });

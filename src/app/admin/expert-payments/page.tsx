@@ -50,7 +50,7 @@ export default async function AdminExpertPaymentsPage() {
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm text-gray-500">Awaiting Approval</CardTitle></CardHeader>
           <CardContent><p className="text-2xl font-bold text-yellow-700">{fmt(totalEligible)}</p></CardContent>

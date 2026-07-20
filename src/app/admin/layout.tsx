@@ -4,6 +4,7 @@ import type { SessionUser } from "@/types";
 import { getInstallments, getInvoices } from "@/lib/sharepoint";
 import ConsoleShell from "@/components/layout/ConsoleShell";
 import NotificationsLiveBridge from "@/components/providers/NotificationsLiveBridge";
+import ImpersonationBannerServer from "@/components/layout/ImpersonationBannerServer";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -12,7 +13,25 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const user = session.user as SessionUser;
   const userRoles = user.roles || [user.role];
 
-  if (!userRoles.includes("admin")) redirect("/login");
+  const isAdmin = userRoles.includes("admin");
+  const isSchoolManager = userRoles.includes("school-manager");
+
+  if (!isAdmin && !isSchoolManager) redirect("/login");
+
+  // School managers only get school-admin console (no finance widgets needed)
+  if (!isAdmin && isSchoolManager) {
+    return (
+      <ConsoleShell
+        console="school-admin"
+        roles={userRoles}
+        userName={user.name || "School Admin"}
+        company={user.company}
+      >
+        <NotificationsLiveBridge />
+        {children}
+      </ConsoleShell>
+    );
+  }
 
   const [installments, invoices, spInfo] = await Promise.all([
     getInstallments(),
@@ -24,8 +43,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const unpaidInvoicesCount = invoices.filter((i) => i.status === "overdue" || i.status === "sent").length;
 
   return (
-    <ConsoleShell
-      console="admin"
+    <>
+      <ImpersonationBannerServer />
+      <ConsoleShell
+        console="admin"
       roles={userRoles}
       userName={user.name || "Admin"}
       company={user.company}
@@ -34,8 +55,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       siteUrl={spInfo.siteUrl}
       listUrls={spInfo.listUrls}
     >
-      <NotificationsLiveBridge />
-      {children}
-    </ConsoleShell>
+        <NotificationsLiveBridge />
+        {children}
+      </ConsoleShell>
+    </>
   );
 }
+

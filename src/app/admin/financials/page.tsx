@@ -140,7 +140,8 @@ export default async function AdminFinancialsPage() {
       <Card>
         <CardHeader><CardTitle>Financial Summary by Partner</CardTitle></CardHeader>
         <CardContent>
-          <Table>
+          <div className="overflow-x-auto">
+          <Table className="min-w-[550px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Partner</TableHead>
@@ -170,6 +171,7 @@ export default async function AdminFinancialsPage() {
               ))}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
     </div>

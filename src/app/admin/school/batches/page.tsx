@@ -14,19 +14,20 @@ export default async function BatchesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold">Batches</h1>
           <p className="text-muted-foreground">{batches.length} batches</p>
         </div>
-        <Link href="/admin/school/batches/new" className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-bold shadow-xl shadow-primary/20 hover:scale-[1.02] transition-transform active:scale-95">
+        <Link href="/admin/school/batches/new" className="inline-flex items-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-bold shadow-xl shadow-primary/20 hover:scale-[1.02] transition-transform active:scale-95 shrink-0">
           <Plus className="h-4 w-4" /> New Batch
         </Link>
       </div>
 
       <Card className="border-0 shadow-2xl rounded-[32px] overflow-hidden bg-white/60 backdrop-blur-xl border border-white/20">
         <CardContent className="p-0">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[700px] text-sm">
             <thead>
               <tr className="border-b bg-gray-50/50">
                 <th className="text-left py-4 px-6 font-black uppercase tracking-widest text-[10px] text-gray-400">Batch Code</th>
@@ -100,6 +101,7 @@ export default async function BatchesPage() {
               )}
             </tbody>
           </table>
+          </div>
         </CardContent>
       </Card>
     </div>

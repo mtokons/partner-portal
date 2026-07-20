@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import { redirect } from "next/navigation";
 import type { SessionUser } from "@/types";
 import { getCustomerPackages } from "@/lib/sharepoint";
@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { CreditCard, CheckCircle, AlertTriangle } from "lucide-react";
 
 export default async function CustomerPaymentsPage() {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) redirect("/customer-login");
   const user = session.user as SessionUser;
 
@@ -35,7 +35,7 @@ export default async function CustomerPaymentsPage() {
       <h1 className="text-2xl font-bold text-gray-900">Payments</h1>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xs text-gray-500">Total Invested</CardTitle>
@@ -73,7 +73,8 @@ export default async function CustomerPaymentsPage() {
           <CardTitle>Package Payment Status</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
+          <div className="overflow-x-auto">
+          <Table className="min-w-[600px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Package</TableHead>
@@ -110,6 +111,7 @@ export default async function CustomerPaymentsPage() {
               )}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
 

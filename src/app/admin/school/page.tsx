@@ -3,10 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { GraduationCap, BookOpen, Layers, Users, Award } from "lucide-react";
 import Link from "next/link";
-import { requireAdmin } from "@/lib/admin-guard";
+import { requireSchoolAccess } from "@/lib/admin-guard";
 
 export default async function SchoolDashboardPage() {
-  await requireAdmin();
+  await requireSchoolAccess();
   const [courses, batches, enrollments, certificates] = await Promise.all([
     fetchCourses(),
     fetchBatches(),
@@ -34,7 +34,7 @@ export default async function SchoolDashboardPage() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -164,7 +164,7 @@ export default async function SchoolDashboardPage() {
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[600px] text-sm">
               <thead>
                 <tr className="border-b">
                   <th className="text-left py-2 px-3 font-medium text-muted-foreground">Batch Code</th>
