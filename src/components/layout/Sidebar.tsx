@@ -109,9 +109,7 @@ const allLinks: LinkItem[] = [
   { href: "/admin/orders", label: "All Orders", icon: ShoppingCart, group: "admin", roles: ["admin"] },
   { href: "/admin/send-email", label: "Send Email", icon: Mail, group: "admin", roles: ["admin"] },
   { href: "/activity", label: "Activity Logs", icon: Activity, group: "admin", roles: ["admin"] },
-  
-  { href: "/admin/send-email", label: "Send Email", icon: Mail, group: "admin", roles: ["admin"] },
-  { href: "/activity", label: "Activity Logs", icon: Activity, group: "admin", roles: ["admin"] },
+  { href: "/admin/cv-suite", label: "CV Suite", icon: FileText, group: "admin", roles: ["admin"] },
   { href: "/admin/candidates", label: "All Candidates", icon: Users, group: "admin", roles: ["admin"] },
   { href: "/admin/helpdesk", label: "Helpdesk", icon: LifeBuoy, group: "admin", roles: ["admin"] },
 

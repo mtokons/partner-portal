@@ -85,7 +85,7 @@ export function generateCandidateOfferPdf(
   doc.setTextColor(150);
   doc.text("SCCG — Proud to partner for global opportunities.", 20, 280);
 
-  return doc.output("arraybuffer") as unknown as Uint8Array;
+  return new Uint8Array(doc.output("arraybuffer"));
 }
 
 export function generateCandidateInvoicePdf(
@@ -172,5 +172,5 @@ export function generateCandidateInvoicePdf(
   doc.setTextColor(150);
   doc.text("Payment terms: 30 days from invoice date.", 20, 280);
 
-  return doc.output("arraybuffer") as unknown as Uint8Array;
+  return new Uint8Array(doc.output("arraybuffer"));
 }

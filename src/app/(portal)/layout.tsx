@@ -17,11 +17,26 @@ export default async function PortalLayout({ children }: { children: React.React
   if (!userRoles.some((r) => portalRoles.includes(r))) redirect("/login");
 
   const isAdmin = userRoles.includes("admin");
-  const [installments, invoices, spInfo] = await Promise.all([
-    getInstallments(isAdmin ? undefined : user.partnerId),
-    getInvoices(isAdmin ? undefined : user.partnerId),
-    import("@/lib/sharepoint").then(m => m.getSharePointConnectionInfo()),
-  ]);
+
+  let installments: any[] = [];
+  let invoices: any[] = [];
+  let spInfo = { siteUrl: "", listUrls: {} };
+
+  try {
+    const res = await Promise.all([
+      getInstallments(isAdmin ? undefined : user.partnerId).catch(() => []),
+      getInvoices(isAdmin ? undefined : user.partnerId).catch(() => []),
+      import("@/lib/sharepoint")
+        .then((m) => m.getSharePointConnectionInfo())
+        .catch(() => ({ siteUrl: "", listUrls: {} })),
+    ]);
+    installments = res[0] || [];
+    invoices = res[1] || [];
+    spInfo = res[2] || { siteUrl: "", listUrls: {} };
+  } catch (err) {
+    console.error("PortalLayout SharePoint fetch error:", err);
+  }
+
   const overdueCount = installments.filter((i) => i.status === "overdue").length;
   const unpaidInvoicesCount = invoices.filter((i) => i.status === "overdue" || i.status === "sent").length;
 

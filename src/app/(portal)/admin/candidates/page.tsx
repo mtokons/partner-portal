@@ -17,7 +17,7 @@ export default async function AdminCandidatesPage({
   searchParams: Promise<{ category?: string; status?: string }>;
 }) {
   const { category, status } = await searchParams;
-  const candidates = await getCandidates();
+  const candidates = await getCandidates().catch(() => []);
 
   const filtered = candidates.filter((c) => {
     if (category && c.workflowCategory !== category) return false;
