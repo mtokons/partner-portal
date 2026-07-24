@@ -1,4 +1,24 @@
 import { getGraphClient } from "@/lib/graph";
+import fs from "fs";
+import path from "path";
+
+export interface JobHistoryRecord {
+  id: string;
+  startTime: string;
+  endTime: string | null;
+  status: "completed" | "stopped" | "error";
+  folderPath: string;
+  chatId: string;
+  totalFiles: number;
+  processedFiles: number;
+  successfulFiles: number;
+  failedFiles: number;
+  deletedFiles: number;
+  totalBytes: number;
+  processedBytes: number;
+  cancellationReason?: string;
+  logs: string[];
+}
 
 export interface TransferState {
   status: "idle" | "running" | "stopped" | "completed" | "error";
@@ -18,7 +38,9 @@ export interface TransferState {
   speedBps: number;
   startTime: string | null;
   endTime: string | null;
+  cancellationReason?: string;
   logs: string[];
+  history: JobHistoryRecord[];
 }
 
 interface DriveItem {
@@ -29,6 +51,35 @@ interface DriveItem {
   file?: { mimeType: string };
   webUrl?: string;
   "@microsoft.graph.downloadUrl"?: string;
+}
+
+const HISTORY_FILE = path.join(process.cwd(), "transfer_history.json");
+
+function loadHistory(): JobHistoryRecord[] {
+  try {
+    if (fs.existsSync(HISTORY_FILE)) {
+      const data = fs.readFileSync(HISTORY_FILE, "utf-8");
+      return JSON.parse(data) || [];
+    }
+  } catch (err) {
+    console.error("Failed to load transfer history:", err);
+  }
+  return [];
+}
+
+function saveHistoryRecord(record: JobHistoryRecord) {
+  try {
+    const list = loadHistory();
+    list.unshift(record);
+    const trimmed = list.slice(0, 30);
+    fs.writeFileSync(HISTORY_FILE, JSON.stringify(trimmed, null, 2), "utf-8");
+  } catch (err) {
+    console.error("Failed to save transfer history record:", err);
+  }
+}
+
+export function getTransferHistory(): JobHistoryRecord[] {
+  return loadHistory();
 }
 
 let globalState: TransferState = {
@@ -49,26 +100,33 @@ let globalState: TransferState = {
   speedBps: 0,
   startTime: null,
   endTime: null,
+  cancellationReason: undefined,
   logs: [],
+  history: [],
 };
 
 let shouldStop = false;
 
 export function getTransferStatus(): TransferState {
-  return { ...globalState, logs: [...globalState.logs].slice(-60) };
+  return {
+    ...globalState,
+    logs: [...globalState.logs].slice(-80),
+    history: loadHistory(),
+  };
 }
 
 export function stopTransferJob(): void {
   if (globalState.status === "running") {
     shouldStop = true;
-    addLog("[CONTROL] Stop signal sent. Halting transfer job...");
+    globalState.cancellationReason = "User clicked Stop Transfer Operation button";
+    addLog("[CONTROL] 🛑 Stop signal sent by user. Halting transfer operation...");
   }
 }
 
 function addLog(msg: string) {
   const ts = new Date().toLocaleTimeString();
   globalState.logs.push(`[${ts}] ${msg}`);
-  if (globalState.logs.length > 300) {
+  if (globalState.logs.length > 500) {
     globalState.logs.shift();
   }
 }
@@ -144,8 +202,27 @@ export function sanitizeTelegramChatId(input: string): string {
   return cleaned;
 }
 
-// 50 MB limit for direct HTTP Telegram Bot API uploads
 const TELEGRAM_MAX_FILE_BYTES = 50 * 1024 * 1024;
+
+function recordHistory(status: "completed" | "stopped" | "error", reason?: string) {
+  saveHistoryRecord({
+    id: "job_" + Date.now(),
+    startTime: globalState.startTime || new Date().toISOString(),
+    endTime: new Date().toISOString(),
+    status,
+    folderPath: globalState.folderPath,
+    chatId: globalState.chatId,
+    totalFiles: globalState.totalFiles,
+    processedFiles: globalState.processedFiles,
+    successfulFiles: globalState.successfulFiles,
+    failedFiles: globalState.failedFiles,
+    deletedFiles: globalState.deletedFiles,
+    totalBytes: globalState.totalBytes,
+    processedBytes: globalState.processedBytes,
+    cancellationReason: reason,
+    logs: globalState.logs.slice(-30),
+  });
+}
 
 export async function startTransferJob(options: {
   botToken: string;
@@ -187,7 +264,9 @@ export async function startTransferJob(options: {
     speedBps: 0,
     startTime: new Date().toISOString(),
     endTime: null,
+    cancellationReason: undefined,
     logs: [],
+    history: loadHistory(),
   };
 
   addLog("=== OneDrive to Telegram Transfer Job Initialized ===");
@@ -219,7 +298,9 @@ export async function startTransferJob(options: {
       if (shouldStop) {
         globalState.status = "stopped";
         globalState.endTime = new Date().toISOString();
-        addLog("[STOPPED] Transfer job aborted by user.");
+        globalState.cancellationReason = "User cancelled job during initial folder scan";
+        addLog(`[STOPPED] Transfer job cancelled: ${globalState.cancellationReason}`);
+        recordHistory("stopped", globalState.cancellationReason);
         return;
       }
 
@@ -232,6 +313,7 @@ export async function startTransferJob(options: {
         globalState.endTime = new Date().toISOString();
         globalState.currentFileName = "Done (No files found)";
         addLog("No files found in specified folder.");
+        recordHistory("completed");
         return;
       }
 
@@ -242,7 +324,9 @@ export async function startTransferJob(options: {
         if (shouldStop) {
           globalState.status = "stopped";
           globalState.endTime = new Date().toISOString();
-          addLog("[STOPPED] Transfer halted by user.");
+          globalState.cancellationReason = globalState.cancellationReason || "Manual stop requested by user";
+          addLog(`[STOPPED] Transfer halted: ${globalState.cancellationReason}`);
+          recordHistory("stopped", globalState.cancellationReason);
           return;
         }
 
@@ -254,7 +338,6 @@ export async function startTransferJob(options: {
         let uploadSuccess = false;
 
         try {
-          // Check if file exceeds 50MB Telegram HTTP Bot API limit
           if (file.size > TELEGRAM_MAX_FILE_BYTES) {
             addLog(` Notice: ${file.name} (${fileSizeMb} MB) exceeds Telegram Bot API 50MB HTTP limit. Sending metadata & link...`);
             
@@ -280,12 +363,10 @@ export async function startTransferJob(options: {
             globalState.processedBytes += file.size;
             addLog(`✓ [${i + 1}/${files.length}] Sent metadata link to Telegram for large file: ${file.name}`);
           } else {
-            // Stream/download file content into memory buffer directly from Microsoft Graph
             const downloadApi = options.userId
               ? `/users/${options.userId}/drive/items/${file.id}/content`
               : `/me/drive/items/${file.id}/content`;
 
-            // Download from Microsoft Graph with 10-minute timeout resilience
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 10 * 60 * 1000);
 
@@ -315,7 +396,6 @@ export async function startTransferJob(options: {
               fieldName = "video";
             }
 
-            // Retry loop with 429 rate limit backoff handling (up to 5 retries per file)
             let attempts = 0;
             const maxAttempts = 5;
 
@@ -332,22 +412,28 @@ export async function startTransferJob(options: {
               const blob = new Blob([buffer]);
               formData.append(fieldName, blob, file.name);
 
-              let tgRes = await fetch(`https://api.telegram.org/bot${options.botToken}/${telegramMethod}`, {
-                method: "POST",
-                body: formData,
-              });
+              let tgRes: Response;
+              let tgData: any;
 
-              let tgData = await tgRes.json();
+              try {
+                tgRes = await fetch(`https://api.telegram.org/bot${options.botToken}/${telegramMethod}`, {
+                  method: "POST",
+                  body: formData,
+                });
+                tgData = await tgRes.json();
+              } catch (netErr: any) {
+                addLog(`⚠️ Network glitch uploading ${file.name} (Attempt ${attempts}/${maxAttempts}): ${netErr.message}`);
+                await new Promise((res) => setTimeout(res, 3000));
+                continue;
+              }
 
-              // Check for Telegram 429 Rate Limit (Too Many Requests)
               if (tgRes.status === 429 || tgData.error_code === 429 || tgData.parameters?.retry_after) {
                 const retryAfterSec = (tgData.parameters?.retry_after || 10) + 1;
                 addLog(`⏳ [RATE LIMIT 429] Telegram requested delay. Auto-waiting ${retryAfterSec}s before retry (Attempt ${attempts}/${maxAttempts})...`);
                 await new Promise((res) => setTimeout(res, retryAfterSec * 1000));
-                continue; // Retry this file
+                continue;
               }
 
-              // Fallback: If sendPhoto/sendVideo fails, retry automatically as standard document
               if ((!tgRes.ok || !tgData.ok) && telegramMethod !== "sendDocument" && !tgData.description?.includes("chat not found")) {
                 addLog(`Notice: ${telegramMethod} failed (${tgData.description}), retrying ${file.name} via sendDocument...`);
                 const docFormData = new FormData();
@@ -355,11 +441,17 @@ export async function startTransferJob(options: {
                 docFormData.append("caption", `📁 ${file.name}\nPath: ${file.path}`);
                 docFormData.append("document", new Blob([buffer]), file.name);
 
-                tgRes = await fetch(`https://api.telegram.org/bot${options.botToken}/sendDocument`, {
-                  method: "POST",
-                  body: docFormData,
-                });
-                tgData = await tgRes.json();
+                try {
+                  tgRes = await fetch(`https://api.telegram.org/bot${options.botToken}/sendDocument`, {
+                    method: "POST",
+                    body: docFormData,
+                  });
+                  tgData = await tgRes.json();
+                } catch (netErr: any) {
+                  addLog(`⚠️ Network glitch on document retry for ${file.name}: ${netErr.message}`);
+                  await new Promise((res) => setTimeout(res, 3000));
+                  continue;
+                }
 
                 if (tgRes.status === 429 || tgData.error_code === 429 || tgData.parameters?.retry_after) {
                   const retryAfterSec = (tgData.parameters?.retry_after || 10) + 1;
@@ -390,7 +482,6 @@ export async function startTransferJob(options: {
             }
           }
 
-          // Optional: Delete from OneDrive after successful upload
           if (uploadSuccess && deleteAfter) {
             try {
               const deleteApi = options.userId
@@ -407,25 +498,45 @@ export async function startTransferJob(options: {
 
         } catch (err: any) {
           globalState.failedFiles++;
-          addLog(`❌ [${i + 1}/${files.length}] Failed to upload ${file.name}: ${err.message || String(err)}`);
+          const errMsg = err.message || String(err);
+          addLog(`❌ [${i + 1}/${files.length}] Failed to upload ${file.name}: ${errMsg}`);
+          
+          if (globalState.failedFiles >= 5 && globalState.successfulFiles === 0) {
+            shouldStop = true;
+            globalState.cancellationReason = `Job auto-cancelled: First 5 consecutive files failed (${errMsg})`;
+            addLog(`🚨 [AUTO-CANCEL] ${globalState.cancellationReason}`);
+          }
         } finally {
           globalState.processedFiles++;
           const elapsedSec = (Date.now() - startTimeMs) / 1000;
           globalState.speedBps = elapsedSec > 0 ? Math.round(globalState.processedBytes / elapsedSec) : 0;
         }
 
-        // Base 2-second rate limit safety buffer between files
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+        // Adaptive rate limit pacing buffer between files
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+      }
+
+      if (shouldStop) {
+        globalState.status = "stopped";
+        globalState.endTime = new Date().toISOString();
+        globalState.cancellationReason = globalState.cancellationReason || "Operation stopped during batch processing";
+        addLog(`[STOPPED] Transfer finished with stop signal. Reason: ${globalState.cancellationReason}`);
+        recordHistory("stopped", globalState.cancellationReason);
+        return;
       }
 
       globalState.status = "completed";
       globalState.endTime = new Date().toISOString();
       globalState.currentFileName = "Transfer Complete!";
       addLog(`=== Transfer Completed! ${globalState.successfulFiles} succeeded, ${globalState.failedFiles} failed, ${globalState.deletedFiles} deleted from OneDrive. ===`);
+      recordHistory("completed");
     } catch (err: any) {
       globalState.status = "error";
       globalState.endTime = new Date().toISOString();
-      addLog(`[CRITICAL ERROR] ${err.message || String(err)}`);
+      const fatalErr = err.message || String(err);
+      globalState.cancellationReason = fatalErr;
+      addLog(`[CRITICAL ERROR] ${fatalErr}`);
+      recordHistory("error", fatalErr);
     }
   })();
 }

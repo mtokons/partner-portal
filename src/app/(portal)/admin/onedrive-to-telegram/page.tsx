@@ -4,9 +4,27 @@ import { useState, useEffect, useRef } from "react";
 import {
   Send, Play, Square, CheckCircle2, AlertTriangle, FileText,
   ShieldCheck, Terminal, Eye, EyeOff, FolderOpen,
-  Bookmark, Trash2, Plus, Activity, Gauge, AlertCircle
+  Bookmark, Trash2, Plus, Activity, Gauge, AlertCircle, History, Clock, RefreshCw, ChevronDown, ChevronUp
 } from "lucide-react";
 import { OneDriveFolderModal } from "@/components/onedrive/OneDriveFolderModal";
+
+interface JobHistoryRecord {
+  id: string;
+  startTime: string;
+  endTime: string | null;
+  status: "completed" | "stopped" | "error";
+  folderPath: string;
+  chatId: string;
+  totalFiles: number;
+  processedFiles: number;
+  successfulFiles: number;
+  failedFiles: number;
+  deletedFiles: number;
+  totalBytes: number;
+  processedBytes: number;
+  cancellationReason?: string;
+  logs: string[];
+}
 
 interface TransferState {
   status: "idle" | "running" | "stopped" | "completed" | "error";
@@ -26,7 +44,9 @@ interface TransferState {
   speedBps: number;
   startTime: string | null;
   endTime: string | null;
+  cancellationReason?: string;
   logs: string[];
+  history: JobHistoryRecord[];
 }
 
 interface SavedDestination {
@@ -60,6 +80,8 @@ export default function OneDriveToTelegramPage() {
   const [showSavePresetModal, setShowSavePresetModal] = useState(false);
 
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"live" | "history">("live");
+  const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -83,12 +105,13 @@ export default function OneDriveToTelegramPage() {
     speedBps: 0,
     startTime: null,
     endTime: null,
+    cancellationReason: undefined,
     logs: [],
+    history: [],
   });
 
   const terminalRef = useRef<HTMLDivElement>(null);
 
-  // Load saved credentials from localStorage
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
@@ -239,7 +262,7 @@ export default function OneDriveToTelegramPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-8">
-      {/* Header Banner */}
+      {/* Top Header Banner */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-slate-900 via-blue-950/60 to-purple-950/40 p-6 rounded-3xl border border-blue-500/20 shadow-2xl backdrop-blur-xl">
         <div>
           <div className="flex items-center gap-3">
@@ -250,438 +273,606 @@ export default function OneDriveToTelegramPage() {
               <h1 className="text-xl font-black tracking-tight text-white flex items-center gap-2">
                 OneDrive to Telegram Studio
                 <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                  V2.0 Pro
+                  V2.5 Pro
                 </span>
               </h1>
               <p className="text-xs text-slate-300">
-                Direct stream collections from Microsoft OneDrive to Telegram Channels with rate-limit protection & auto-delete options.
+                Direct stream collections from Microsoft OneDrive to Telegram Channels with rate-limit protection, auto-delete & full transfer history.
               </p>
             </div>
           </div>
         </div>
 
-        {/* Status Indicator */}
-        <div className="flex items-center gap-3 bg-slate-950/80 p-2.5 px-4 rounded-2xl border border-slate-800">
-          <div
-            className={`w-3 h-3 rounded-full ${
-              state.status === "running"
-                ? "bg-emerald-500 animate-ping"
+        {/* Status Indicator & View Switcher */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 bg-slate-950/80 p-1.5 rounded-2xl border border-slate-800 text-xs">
+            <button
+              onClick={() => setActiveTab("live")}
+              className={`px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 ${
+                activeTab === "live"
+                  ? "bg-blue-600 text-white shadow-md"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              <Activity className="w-3.5 h-3.5" />
+              Live Console
+            </button>
+            <button
+              onClick={() => setActiveTab("history")}
+              className={`px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 ${
+                activeTab === "history"
+                  ? "bg-blue-600 text-white shadow-md"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              <History className="w-3.5 h-3.5" />
+              Transfer History ({state.history?.length || 0})
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2.5 bg-slate-950/80 p-2.5 px-4 rounded-2xl border border-slate-800">
+            <div
+              className={`w-3 h-3 rounded-full ${
+                state.status === "running"
+                  ? "bg-emerald-500 animate-ping"
+                  : state.status === "completed"
+                  ? "bg-blue-500"
+                  : state.status === "error"
+                  ? "bg-rose-500"
+                  : state.status === "stopped"
+                  ? "bg-amber-500"
+                  : "bg-slate-500"
+              }`}
+            />
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-200">
+              {state.status === "running"
+                ? "Active Stream"
                 : state.status === "completed"
-                ? "bg-blue-500"
+                ? "Completed"
                 : state.status === "error"
-                ? "bg-rose-500"
-                : "bg-slate-500"
-            }`}
-          />
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-200">
-            {state.status === "running"
-              ? "Transfer Active"
-              : state.status === "completed"
-              ? "Completed"
-              : state.status === "error"
-              ? "Job Failed"
-              : "Ready"}
-          </span>
+                ? "Error Stopped"
+                : state.status === "stopped"
+                ? "Cancelled"
+                : "Idle"}
+            </span>
+          </div>
         </div>
       </div>
 
-      {/* Main Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* Left Column: Controls & Presets */}
-        <div className="lg:col-span-5 space-y-6">
-          <div className="bg-slate-900/90 border border-slate-800/90 rounded-3xl p-6 shadow-xl backdrop-blur-xl space-y-6">
-            <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-blue-400" />
-                <h2 className="text-sm font-bold text-slate-100">Transfer Configuration</h2>
-              </div>
+      {activeTab === "live" ? (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          {/* Left Column: Form Controls & Configuration */}
+          <div className="lg:col-span-5 space-y-6">
+            <div className="bg-slate-900/90 border border-slate-800/90 rounded-3xl p-6 shadow-xl backdrop-blur-xl space-y-6">
+              <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-blue-400" />
+                  <h2 className="text-sm font-bold text-slate-100">Transfer Configuration</h2>
+                </div>
 
-              {savedDestinations.length > 0 && (
-                <span className="text-[11px] text-slate-400">
-                  {savedDestinations.length} Saved Preset{savedDestinations.length > 1 ? "s" : ""}
-                </span>
-              )}
-            </div>
-
-            {/* Saved Destinations Manager Bar */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                  <Bookmark className="w-3.5 h-3.5 text-blue-400" />
-                  Saved Telegram Credentials
-                </label>
-
-                {botToken && chatId && (
-                  <button
-                    onClick={() => setShowSavePresetModal(true)}
-                    className="text-[11px] font-semibold text-blue-400 hover:text-blue-300 flex items-center gap-1 hover:underline"
-                  >
-                    <Plus className="w-3 h-3" /> Save Current
-                  </button>
+                {savedDestinations.length > 0 && (
+                  <span className="text-[11px] text-slate-400">
+                    {savedDestinations.length} Saved Preset{savedDestinations.length > 1 ? "s" : ""}
+                  </span>
                 )}
               </div>
 
-              {savedDestinations.length > 0 ? (
-                <div className="space-y-2">
-                  <select
-                    value={selectedDestinationId}
-                    onChange={(e) => handleSelectDestination(e.target.value)}
-                    className="w-full text-xs p-3 rounded-2xl border border-slate-800 bg-slate-950 text-slate-200 font-medium outline-none focus:ring-2 focus:ring-blue-500/50"
-                  >
-                    <option value="">-- Choose Saved Telegram Destination --</option>
-                    {savedDestinations.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        ⭐ {d.name} ({d.chatId})
-                      </option>
-                    ))}
-                  </select>
+              {/* Saved Destinations Manager Bar */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                    <Bookmark className="w-3.5 h-3.5 text-blue-400" />
+                    Saved Telegram Credentials
+                  </label>
 
-                  {/* List of Saved Destination Badges with Delete Buttons */}
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    {savedDestinations.map((d) => (
-                      <div
-                        key={d.id}
-                        onClick={() => handleSelectDestination(d.id)}
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-medium cursor-pointer transition-all ${
-                          selectedDestinationId === d.id
-                            ? "bg-blue-600/20 border-blue-500/50 text-blue-200 shadow-sm"
-                            : "bg-slate-950/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800"
-                        }`}
-                      >
-                        <span className="truncate max-w-[140px]">{d.name}</span>
-                        <button
-                          onClick={(e) => handleDeleteDestination(d.id, e)}
-                          title="Delete saved credential"
-                          className="p-0.5 rounded text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                  {botToken && chatId && (
+                    <button
+                      onClick={() => setShowSavePresetModal(true)}
+                      className="text-[11px] font-semibold text-blue-400 hover:text-blue-300 flex items-center gap-1 hover:underline"
+                    >
+                      <Plus className="w-3 h-3" /> Save Current
+                    </button>
+                  )}
+                </div>
+
+                {savedDestinations.length > 0 ? (
+                  <div className="space-y-2">
+                    <select
+                      value={selectedDestinationId}
+                      onChange={(e) => handleSelectDestination(e.target.value)}
+                      className="w-full text-xs p-3 rounded-2xl border border-slate-800 bg-slate-950 text-slate-200 font-medium outline-none focus:ring-2 focus:ring-blue-500/50"
+                    >
+                      <option value="">-- Choose Saved Telegram Destination --</option>
+                      {savedDestinations.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          ⭐ {d.name} ({d.chatId})
+                        </option>
+                      ))}
+                    </select>
+
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {savedDestinations.map((d) => (
+                        <div
+                          key={d.id}
+                          onClick={() => handleSelectDestination(d.id)}
+                          className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-medium cursor-pointer transition-all ${
+                            selectedDestinationId === d.id
+                              ? "bg-blue-600/20 border-blue-500/50 text-blue-200 shadow-sm"
+                              : "bg-slate-950/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+                          }`}
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ))}
+                          <span className="truncate max-w-[140px]">{d.name}</span>
+                          <button
+                            onClick={(e) => handleDeleteDestination(d.id, e)}
+                            title="Delete saved credential"
+                            className="p-0.5 rounded text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-500 italic">
+                    No saved credential presets yet. Fill in token & chat ID below to save.
+                  </p>
+                )}
+              </div>
+
+              {/* Form Fields */}
+              <div className="space-y-4">
+                {/* Bot Token */}
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1.5">
+                    Telegram Bot Token <span className="text-rose-400">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showToken ? "text" : "password"}
+                      value={botToken}
+                      onChange={(e) => setBotToken(e.target.value)}
+                      placeholder="e.g. 8852706442:AAHNKFr98..."
+                      disabled={state.status === "running"}
+                      className="w-full text-xs p-3.5 pr-10 rounded-2xl border border-slate-800 bg-slate-950 text-slate-100 placeholder:text-slate-600 outline-none focus:ring-2 focus:ring-blue-500/50 disabled:opacity-50 font-mono"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowToken(!showToken)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                    >
+                      {showToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
                   </div>
                 </div>
-              ) : (
-                <p className="text-[11px] text-slate-500 italic">
-                  No saved credential presets yet. Fill in token & chat ID below to save.
-                </p>
-              )}
-            </div>
 
-            {/* Form Fields */}
-            <div className="space-y-4">
-              {/* Bot Token */}
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1.5">
-                  Telegram Bot Token <span className="text-rose-400">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type={showToken ? "text" : "password"}
-                    value={botToken}
-                    onChange={(e) => setBotToken(e.target.value)}
-                    placeholder="e.g. 8852706442:AAHNKFr98..."
-                    disabled={state.status === "running"}
-                    className="w-full text-xs p-3.5 pr-10 rounded-2xl border border-slate-800 bg-slate-950 text-slate-100 placeholder:text-slate-600 outline-none focus:ring-2 focus:ring-blue-500/50 disabled:opacity-50 font-mono"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowToken(!showToken)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
-                  >
-                    {showToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Target Chat ID */}
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1.5">
-                  Target Telegram Chat / Channel ID <span className="text-rose-400">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={chatId}
-                  onChange={(e) => setChatId(e.target.value)}
-                  placeholder="e.g. -1004343470080 or @mychannel"
-                  disabled={state.status === "running"}
-                  className="w-full text-xs p-3.5 rounded-2xl border border-slate-800 bg-slate-950 text-slate-100 placeholder:text-slate-600 outline-none focus:ring-2 focus:ring-blue-500/50 disabled:opacity-50 font-mono"
-                />
-                <p className="text-[11px] text-slate-500 mt-1">
-                  Private Channel ID starts with <code className="text-blue-400">-100...</code>
-                </p>
-              </div>
-
-              {/* OneDrive User ID (Optional) */}
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1.5">
-                  OneDrive User Account / Email <span className="text-slate-500">(Optional)</span>
-                </label>
-                <input
-                  type="text"
-                  value={userId}
-                  onChange={(e) => setUserId(e.target.value)}
-                  placeholder="e.g. user@mysccg.de (Leave blank for default /me drive)"
-                  disabled={state.status === "running"}
-                  className="w-full text-xs p-3.5 rounded-2xl border border-slate-800 bg-slate-950 text-slate-100 placeholder:text-slate-600 outline-none focus:ring-2 focus:ring-blue-500/50 disabled:opacity-50"
-                />
-              </div>
-
-              {/* OneDrive Folder Path */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                    <FolderOpen className="w-3.5 h-3.5 text-blue-400" />
-                    OneDrive Folder Path
+                {/* Target Chat ID */}
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1.5">
+                    Target Telegram Chat / Channel ID <span className="text-rose-400">*</span>
                   </label>
-                  <button
-                    type="button"
-                    onClick={() => setIsFolderModalOpen(true)}
-                    disabled={state.status === "running"}
-                    className="text-[11px] font-semibold text-blue-400 hover:text-blue-300 flex items-center gap-1 hover:underline disabled:opacity-50"
-                  >
-                    <FolderOpen className="w-3.5 h-3.5" />
-                    Browse Folders
-                  </button>
-                </div>
-                <div className="flex gap-2">
                   <input
                     type="text"
-                    value={folderPath}
-                    onChange={(e) => setFolderPath(e.target.value)}
-                    placeholder="e.g. / or /Pictures"
+                    value={chatId}
+                    onChange={(e) => setChatId(e.target.value)}
+                    placeholder="e.g. -1004343470080 or @mychannel"
                     disabled={state.status === "running"}
                     className="w-full text-xs p-3.5 rounded-2xl border border-slate-800 bg-slate-950 text-slate-100 placeholder:text-slate-600 outline-none focus:ring-2 focus:ring-blue-500/50 disabled:opacity-50 font-mono"
                   />
-                  <button
-                    type="button"
-                    onClick={() => setIsFolderModalOpen(true)}
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Private Channel ID starts with <code className="text-blue-400">-100...</code>
+                  </p>
+                </div>
+
+                {/* OneDrive User ID (Optional) */}
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1.5">
+                    OneDrive User Account / Email <span className="text-slate-500">(Optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={userId}
+                    onChange={(e) => setUserId(e.target.value)}
+                    placeholder="e.g. user@mysccg.de (Leave blank for default /me drive)"
                     disabled={state.status === "running"}
-                    className="px-4 bg-slate-800 border border-slate-700 rounded-2xl hover:bg-slate-700 text-xs font-semibold text-slate-200 transition-colors disabled:opacity-50 shrink-0"
+                    className="w-full text-xs p-3.5 rounded-2xl border border-slate-800 bg-slate-950 text-slate-100 placeholder:text-slate-600 outline-none focus:ring-2 focus:ring-blue-500/50 disabled:opacity-50"
+                  />
+                </div>
+
+                {/* OneDrive Folder Path with Visual Folder Browser Button */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                      <FolderOpen className="w-3.5 h-3.5 text-blue-400" />
+                      OneDrive Folder Path
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setIsFolderModalOpen(true)}
+                      disabled={state.status === "running"}
+                      className="text-[11px] font-semibold text-blue-400 hover:text-blue-300 flex items-center gap-1 hover:underline disabled:opacity-50"
+                    >
+                      <FolderOpen className="w-3.5 h-3.5" />
+                      Browse Folders
+                    </button>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={folderPath}
+                      onChange={(e) => setFolderPath(e.target.value)}
+                      placeholder="e.g. / or /Pictures"
+                      disabled={state.status === "running"}
+                      className="w-full text-xs p-3.5 rounded-2xl border border-slate-800 bg-slate-950 text-slate-100 placeholder:text-slate-600 outline-none focus:ring-2 focus:ring-blue-500/50 disabled:opacity-50 font-mono"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setIsFolderModalOpen(true)}
+                      disabled={state.status === "running"}
+                      className="px-4 bg-slate-800 border border-slate-700 rounded-2xl hover:bg-slate-700 text-xs font-semibold text-slate-200 transition-colors disabled:opacity-50 shrink-0"
+                    >
+                      Select
+                    </button>
+                  </div>
+                </div>
+
+                {/* Delete From OneDrive Feature Toggle */}
+                <div className="pt-2">
+                  <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-2xl flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      id="deleteAfterToggle"
+                      checked={deleteAfterTransfer}
+                      onChange={(e) => setDeleteAfterTransfer(e.target.checked)}
+                      disabled={state.status === "running"}
+                      className="mt-1 w-4 h-4 accent-blue-600 rounded cursor-pointer"
+                    />
+                    <div>
+                      <label
+                        htmlFor="deleteAfterToggle"
+                        className="text-xs font-bold text-slate-200 cursor-pointer block"
+                      >
+                        Delete file from OneDrive after successful Telegram transfer
+                      </label>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        When enabled, files will be permanently deleted from OneDrive immediately after Telegram confirms receipt.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Error Message */}
+              {errorMsg && (
+                <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl text-rose-400 text-xs flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  <span>{errorMsg}</span>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="pt-2">
+                {state.status === "running" ? (
+                  <button
+                    onClick={handleStop}
+                    className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold text-xs shadow-xl shadow-rose-950/40 transition-all active:scale-[0.98]"
                   >
-                    Select
+                    <Square className="w-4 h-4 fill-white" />
+                    Stop Transfer Operation
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleStart}
+                    disabled={loading}
+                    className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs shadow-xl shadow-blue-950/40 transition-all disabled:opacity-50 active:scale-[0.98]"
+                  >
+                    <Play className="w-4 h-4 fill-white" />
+                    {loading ? "Starting Transfer..." : "Start Direct Transfer Stream"}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column: Live Metrics & Console */}
+          <div className="lg:col-span-7 space-y-6">
+            {/* Progress Overview Card */}
+            <div className="bg-slate-900/90 border border-slate-800/90 rounded-3xl p-6 shadow-xl backdrop-blur-xl space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Activity className="w-5 h-5 text-emerald-400" />
+                  <h2 className="text-sm font-bold text-slate-100">Live Transfer Metrics</h2>
+                </div>
+                <span className="text-xs font-mono font-bold text-blue-400 bg-blue-500/10 px-3 py-1 rounded-full border border-blue-500/20">
+                  {percentage}% Progress
+                </span>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="space-y-2">
+                <div className="w-full bg-slate-950 h-3 rounded-full overflow-hidden p-0.5 border border-slate-800">
+                  <div
+                    className="bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 h-full rounded-full transition-all duration-500"
+                    style={{ width: `${percentage}%` }}
+                  />
+                </div>
+
+                <div className="flex justify-between text-[11px] text-slate-400 font-mono">
+                  <span>
+                    {state.processedFiles} / {state.totalFiles} Files Processed
+                  </span>
+                  <span>
+                    {formatBytes(state.processedBytes)} / {formatBytes(state.totalBytes)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Metric Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="p-3.5 bg-slate-950/60 border border-slate-800/80 rounded-2xl">
+                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
+                    Speed
+                  </span>
+                  <span className="text-sm font-bold text-slate-100 font-mono flex items-center gap-1">
+                    <Gauge className="w-3.5 h-3.5 text-blue-400" />
+                    {formatBytes(state.speedBps)}/s
+                  </span>
+                </div>
+
+                <div className="p-3.5 bg-emerald-950/20 border border-emerald-500/20 rounded-2xl">
+                  <span className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider block mb-1">
+                    Succeeded
+                  </span>
+                  <span className="text-sm font-bold text-emerald-300 font-mono flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    {state.successfulFiles}
+                  </span>
+                </div>
+
+                <div className="p-3.5 bg-rose-950/20 border border-rose-500/20 rounded-2xl">
+                  <span className="text-[10px] font-semibold text-rose-400 uppercase tracking-wider block mb-1">
+                    Failed
+                  </span>
+                  <span className="text-sm font-bold text-rose-300 font-mono flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    {state.failedFiles}
+                  </span>
+                </div>
+
+                <div className="p-3.5 bg-amber-950/20 border border-amber-500/20 rounded-2xl">
+                  <span className="text-[10px] font-semibold text-amber-400 uppercase tracking-wider block mb-1">
+                    Deleted
+                  </span>
+                  <span className="text-sm font-bold text-amber-300 font-mono flex items-center gap-1">
+                    <Trash2 className="w-3.5 h-3.5" />
+                    {state.deletedFiles}
+                  </span>
+                </div>
+              </div>
+
+              {/* Cancellation Reason Notice */}
+              {state.cancellationReason && (
+                <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-amber-300 text-xs flex items-start gap-2.5">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
+                  <div>
+                    <span className="font-bold block">Operation Stop Details:</span>
+                    <span>{state.cancellationReason}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Current File */}
+              {state.currentFileName && (
+                <div className="p-3 bg-slate-950 border border-slate-800 rounded-2xl flex items-center gap-3 text-xs">
+                  <FileText className="w-4 h-4 text-blue-400 shrink-0" />
+                  <span className="text-slate-400">Current:</span>
+                  <span className="text-slate-200 font-mono truncate font-medium">
+                    {state.currentFileName}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Execution Logs Terminal */}
+            <div className="bg-slate-950 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[420px]">
+              <div className="px-5 py-3.5 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Terminal className="w-4 h-4 text-emerald-400" />
+                  <span className="text-xs font-bold text-slate-200">Execution Console Logs</span>
+                </div>
+
+                <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-[11px]">
+                  <button
+                    onClick={() => setLogFilter("all")}
+                    className={`px-2 py-0.5 rounded-lg font-medium transition-colors ${
+                      logFilter === "all" ? "bg-blue-600 text-white" : "text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    All ({state.logs.length})
+                  </button>
+                  <button
+                    onClick={() => setLogFilter("errors")}
+                    className={`px-2 py-0.5 rounded-lg font-medium transition-colors ${
+                      logFilter === "errors" ? "bg-rose-600 text-white" : "text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    Errors
+                  </button>
+                  <button
+                    onClick={() => setLogFilter("success")}
+                    className={`px-2 py-0.5 rounded-lg font-medium transition-colors ${
+                      logFilter === "success" ? "bg-emerald-600 text-white" : "text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    Success
                   </button>
                 </div>
               </div>
 
-              {/* Delete From OneDrive Feature Toggle */}
-              <div className="pt-2">
-                <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-2xl flex items-start gap-3">
-                  <input
-                    type="checkbox"
-                    id="deleteAfterToggle"
-                    checked={deleteAfterTransfer}
-                    onChange={(e) => setDeleteAfterTransfer(e.target.checked)}
-                    disabled={state.status === "running"}
-                    className="mt-1 w-4 h-4 accent-blue-600 rounded cursor-pointer"
-                  />
-                  <div>
-                    <label
-                      htmlFor="deleteAfterToggle"
-                      className="text-xs font-bold text-slate-200 cursor-pointer block"
-                    >
-                      Delete file from OneDrive after successful Telegram transfer
-                    </label>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
-                      When enabled, files will be permanently deleted from OneDrive immediately after Telegram confirms receipt.
-                    </p>
+              <div
+                ref={terminalRef}
+                className="p-5 flex-1 overflow-y-auto font-mono text-[11.5px] leading-relaxed space-y-1.5 bg-slate-950 text-slate-300 select-text"
+              >
+                {filteredLogs.length === 0 ? (
+                  <div className="text-slate-600 text-center py-20 italic">
+                    Console ready. Logs will stream in real-time when transfer starts.
                   </div>
-                </div>
-              </div>
-            </div>
+                ) : (
+                  filteredLogs.map((log, index) => {
+                    const isError = log.includes("❌") || log.includes("ERROR");
+                    const isSuccess = log.includes("✓") || log.includes("DELETED");
+                    const isNotice = log.includes("Notice") || log.includes("RATE LIMIT") || log.includes("STOPPED");
 
-            {/* Error Message */}
-            {errorMsg && (
-              <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl text-rose-400 text-xs flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 shrink-0" />
-                <span>{errorMsg}</span>
+                    return (
+                      <div
+                        key={index}
+                        className={`break-all ${
+                          isError
+                            ? "text-rose-400 font-semibold"
+                            : isSuccess
+                            ? "text-emerald-400 font-semibold"
+                            : isNotice
+                            ? "text-amber-300"
+                            : "text-slate-300"
+                        }`}
+                      >
+                        {log}
+                      </div>
+                    );
+                  })
+                )}
               </div>
-            )}
-
-            {/* Action Buttons */}
-            <div className="pt-2">
-              {state.status === "running" ? (
-                <button
-                  onClick={handleStop}
-                  className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold text-xs shadow-xl shadow-rose-950/40 transition-all active:scale-[0.98]"
-                >
-                  <Square className="w-4 h-4 fill-white" />
-                  Stop Transfer Operation
-                </button>
-              ) : (
-                <button
-                  onClick={handleStart}
-                  disabled={loading}
-                  className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs shadow-xl shadow-blue-950/40 transition-all disabled:opacity-50 active:scale-[0.98]"
-                >
-                  <Play className="w-4 h-4 fill-white" />
-                  {loading ? "Starting Transfer..." : "Start Direct Transfer Stream"}
-                </button>
-              )}
             </div>
           </div>
         </div>
-
-        {/* Right Column: Live Stream Metrics & Console Logs */}
-        <div className="lg:col-span-7 space-y-6">
-          {/* Progress Overview Card */}
-          <div className="bg-slate-900/90 border border-slate-800/90 rounded-3xl p-6 shadow-xl backdrop-blur-xl space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Activity className="w-5 h-5 text-emerald-400" />
-                <h2 className="text-sm font-bold text-slate-100">Live Transfer Metrics</h2>
-              </div>
-              <span className="text-xs font-mono font-bold text-blue-400 bg-blue-500/10 px-3 py-1 rounded-full border border-blue-500/20">
-                {percentage}% Progress
-              </span>
+      ) : (
+        /* Transfer History Tab */
+        <div className="bg-slate-900/90 border border-slate-800/90 rounded-3xl p-6 shadow-xl backdrop-blur-xl space-y-6">
+          <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
+            <div className="flex items-center gap-2">
+              <History className="w-5 h-5 text-blue-400" />
+              <h2 className="text-sm font-bold text-slate-100">Past Transfer Jobs & Cancellation Diagnostics</h2>
             </div>
-
-            {/* Big Progress Bar */}
-            <div className="space-y-2">
-              <div className="w-full bg-slate-950 h-3 rounded-full overflow-hidden p-0.5 border border-slate-800">
-                <div
-                  className="bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 h-full rounded-full transition-all duration-500"
-                  style={{ width: `${percentage}%` }}
-                />
-              </div>
-
-              <div className="flex justify-between text-[11px] text-slate-400 font-mono">
-                <span>
-                  {state.processedFiles} / {state.totalFiles} Files Processed
-                </span>
-                <span>
-                  {formatBytes(state.processedBytes)} / {formatBytes(state.totalBytes)}
-                </span>
-              </div>
-            </div>
-
-            {/* Metric Cards Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="p-3.5 bg-slate-950/60 border border-slate-800/80 rounded-2xl">
-                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
-                  Speed
-                </span>
-                <span className="text-sm font-bold text-slate-100 font-mono flex items-center gap-1">
-                  <Gauge className="w-3.5 h-3.5 text-blue-400" />
-                  {formatBytes(state.speedBps)}/s
-                </span>
-              </div>
-
-              <div className="p-3.5 bg-emerald-950/20 border border-emerald-500/20 rounded-2xl">
-                <span className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider block mb-1">
-                  Succeeded
-                </span>
-                <span className="text-sm font-bold text-emerald-300 font-mono flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  {state.successfulFiles}
-                </span>
-              </div>
-
-              <div className="p-3.5 bg-rose-950/20 border border-rose-500/20 rounded-2xl">
-                <span className="text-[10px] font-semibold text-rose-400 uppercase tracking-wider block mb-1">
-                  Failed
-                </span>
-                <span className="text-sm font-bold text-rose-300 font-mono flex items-center gap-1">
-                  <AlertCircle className="w-3.5 h-3.5" />
-                  {state.failedFiles}
-                </span>
-              </div>
-
-              <div className="p-3.5 bg-amber-950/20 border border-amber-500/20 rounded-2xl">
-                <span className="text-[10px] font-semibold text-amber-400 uppercase tracking-wider block mb-1">
-                  Deleted
-                </span>
-                <span className="text-sm font-bold text-amber-300 font-mono flex items-center gap-1">
-                  <Trash2 className="w-3.5 h-3.5" />
-                  {state.deletedFiles}
-                </span>
-              </div>
-            </div>
-
-            {/* Currently Processing File Banner */}
-            {state.currentFileName && (
-              <div className="p-3 bg-slate-950 border border-slate-800 rounded-2xl flex items-center gap-3 text-xs">
-                <FileText className="w-4 h-4 text-blue-400 shrink-0" />
-                <span className="text-slate-400">Current:</span>
-                <span className="text-slate-200 font-mono truncate font-medium">
-                  {state.currentFileName}
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Terminal Logs Window */}
-          <div className="bg-slate-950 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[420px]">
-            <div className="px-5 py-3.5 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Terminal className="w-4 h-4 text-emerald-400" />
-                <span className="text-xs font-bold text-slate-200">Execution Console Logs</span>
-              </div>
-
-              {/* Log Filters */}
-              <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-[11px]">
-                <button
-                  onClick={() => setLogFilter("all")}
-                  className={`px-2 py-0.5 rounded-lg font-medium transition-colors ${
-                    logFilter === "all" ? "bg-blue-600 text-white" : "text-slate-400 hover:text-slate-200"
-                  }`}
-                >
-                  All ({state.logs.length})
-                </button>
-                <button
-                  onClick={() => setLogFilter("errors")}
-                  className={`px-2 py-0.5 rounded-lg font-medium transition-colors ${
-                    logFilter === "errors" ? "bg-rose-600 text-white" : "text-slate-400 hover:text-slate-200"
-                  }`}
-                >
-                  Errors
-                </button>
-                <button
-                  onClick={() => setLogFilter("success")}
-                  className={`px-2 py-0.5 rounded-lg font-medium transition-colors ${
-                    logFilter === "success" ? "bg-emerald-600 text-white" : "text-slate-400 hover:text-slate-200"
-                  }`}
-                >
-                  Success
-                </button>
-              </div>
-            </div>
-
-            <div
-              ref={terminalRef}
-              className="p-5 flex-1 overflow-y-auto font-mono text-[11.5px] leading-relaxed space-y-1.5 bg-slate-950 text-slate-300 select-text"
+            <button
+              onClick={fetchStatus}
+              className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 font-semibold hover:underline"
             >
-              {filteredLogs.length === 0 ? (
-                <div className="text-slate-600 text-center py-20 italic">
-                  Console ready. Logs will stream in real-time when transfer starts.
-                </div>
-              ) : (
-                filteredLogs.map((log, index) => {
-                  const isError = log.includes("❌") || log.includes("ERROR");
-                  const isSuccess = log.includes("✓") || log.includes("DELETED");
-                  const isNotice = log.includes("Notice") || log.includes("RATE LIMIT");
-
-                  return (
-                    <div
-                      key={index}
-                      className={`break-all ${
-                        isError
-                          ? "text-rose-400 font-semibold"
-                          : isSuccess
-                          ? "text-emerald-400 font-semibold"
-                          : isNotice
-                          ? "text-amber-300"
-                          : "text-slate-300"
-                      }`}
-                    >
-                      {log}
-                    </div>
-                  );
-                })
-              )}
-            </div>
+              <RefreshCw className="w-3.5 h-3.5" />
+              Refresh History
+            </button>
           </div>
+
+          {!state.history || state.history.length === 0 ? (
+            <div className="text-center py-16 text-slate-500 text-xs italic">
+              No previous transfer jobs recorded yet. Run a job from the Live Console to view complete historical logs.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {state.history.map((record) => {
+                const isExpanded = expandedHistoryId === record.id;
+                const dateStr = new Date(record.startTime).toLocaleString();
+
+                return (
+                  <div
+                    key={record.id}
+                    className="border border-slate-800/80 rounded-2xl bg-slate-950/60 overflow-hidden transition-all hover:border-slate-700"
+                  >
+                    {/* Header */}
+                    <div
+                      onClick={() => setExpandedHistoryId(isExpanded ? null : record.id)}
+                      className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer hover:bg-slate-900/40"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full border ${
+                              record.status === "completed"
+                                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                : record.status === "stopped"
+                                ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                                : "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                            }`}
+                          >
+                            {record.status}
+                          </span>
+                          <span className="text-xs font-bold text-slate-200">
+                            Folder: <code className="text-blue-300 font-mono">{record.folderPath}</code>
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 flex items-center gap-2">
+                          <Clock className="w-3 h-3 text-slate-500" />
+                          <span>Started: {dateStr}</span>
+                          <span>•</span>
+                          <span>Target: <code className="text-slate-300 font-mono">{record.chatId}</code></span>
+                        </p>
+                      </div>
+
+                      {/* Stats & Expand */}
+                      <div className="flex items-center gap-4">
+                        <div className="text-right text-xs font-mono">
+                          <div className="font-bold text-slate-200">
+                            {record.successfulFiles} / {record.totalFiles} Files
+                          </div>
+                          <div className="text-[11px] text-slate-400">
+                            {formatBytes(record.processedBytes)} transferred
+                          </div>
+                        </div>
+
+                        <button className="p-1 text-slate-400 hover:text-slate-200">
+                          {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Detailed Body */}
+                    {isExpanded && (
+                      <div className="p-4 border-t border-slate-800/80 bg-slate-900/60 space-y-4 text-xs">
+                        {record.cancellationReason && (
+                          <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-300">
+                            <span className="font-bold block text-[11px]">Cancellation / Stop Reason:</span>
+                            <span>{record.cancellationReason}</span>
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                          <div className="p-2.5 bg-slate-950 rounded-xl border border-slate-800">
+                            <span className="text-[10px] text-slate-400 uppercase font-semibold">Total</span>
+                            <div className="font-bold text-slate-200 font-mono text-sm">{record.totalFiles}</div>
+                          </div>
+                          <div className="p-2.5 bg-emerald-950/20 rounded-xl border border-emerald-500/20">
+                            <span className="text-[10px] text-emerald-400 uppercase font-semibold">Successful</span>
+                            <div className="font-bold text-emerald-300 font-mono text-sm">{record.successfulFiles}</div>
+                          </div>
+                          <div className="p-2.5 bg-rose-950/20 rounded-xl border border-rose-500/20">
+                            <span className="text-[10px] text-rose-400 uppercase font-semibold">Failed</span>
+                            <div className="font-bold text-rose-300 font-mono text-sm">{record.failedFiles}</div>
+                          </div>
+                          <div className="p-2.5 bg-amber-950/20 rounded-xl border border-amber-500/20">
+                            <span className="text-[10px] text-amber-400 uppercase font-semibold">Deleted</span>
+                            <div className="font-bold text-amber-300 font-mono text-sm">{record.deletedFiles}</div>
+                          </div>
+                        </div>
+
+                        {/* Recent Logs Snippet */}
+                        {record.logs && record.logs.length > 0 && (
+                          <div className="space-y-1.5">
+                            <span className="text-[11px] font-bold text-slate-300">Job Execution Logs Snapshot:</span>
+                            <div className="p-3 bg-slate-950 rounded-xl font-mono text-[11px] space-y-1 max-h-48 overflow-y-auto text-slate-300 border border-slate-800">
+                              {record.logs.map((log, idx) => (
+                                <div key={idx} className="break-all">{log}</div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
-      </div>
+      )}
 
       {/* Save Preset Modal */}
       {showSavePresetModal && (
