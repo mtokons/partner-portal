@@ -102,6 +102,7 @@ const ADMIN_MENU: MenuItem[] = [
   // Job & Ausbildung Systems
   { key: "admin.cv-bank",            label: "CV Master Bank",       href: "/admin/cv-bank",             icon: "Database",        group: "jobs",       groupLabel: "Job & Ausbildung",   groupOrder: 1.5, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
   { key: "admin.cv-suite",           label: "CV Suite Variations",  href: "/admin/cv-suite",            icon: "Layers",          group: "jobs",       groupLabel: "Job & Ausbildung",   groupOrder: 1.5, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.cv-maker",           label: "CV Maker",             href: "/admin/cv-maker",            icon: "FileEdit",        group: "jobs",       groupLabel: "Job & Ausbildung",   groupOrder: 1.5, itemOrder: 2.5, isEnabled: true, isDefault: true, isLocked: false },
   { key: "admin.cover-letters",      label: "Cover Letters",        href: "/admin/cover-letters",       icon: "FileText",        group: "jobs",       groupLabel: "Job & Ausbildung",   groupOrder: 1.5, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
   { key: "admin.trackers",           label: "Kanban Trackers",      href: "/admin/trackers",            icon: "FolderKanban",    group: "jobs",       groupLabel: "Job & Ausbildung",   groupOrder: 1.5, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false },
   { key: "admin.job-partners",       label: "Job Partners",         href: "/admin/job-partners",        icon: "Building2",       group: "jobs",       groupLabel: "Job & Ausbildung",   groupOrder: 1.5, itemOrder: 5, isEnabled: true, isDefault: true, isLocked: false },
@@ -182,6 +183,7 @@ const ADMIN_MENU: MenuItem[] = [
 
   // Administration
   { key: "admin.send-email",        label: "Send Email",         href: "/admin/send-email",          icon: "Mail",            group: "admin",      groupLabel: "Administration",     groupOrder: 10, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.onedrive-to-telegram", label: "OneDrive to Telegram", href: "/admin/onedrive-to-telegram", icon: "Send", group: "admin", groupLabel: "Administration", groupOrder: 10, itemOrder: 1.5, isEnabled: true, isDefault: true, isLocked: false },
   { key: "admin.email-templates",   label: "Email Templates",    href: "/admin/email-templates",     icon: "FileText",        group: "admin",      groupLabel: "Administration",     groupOrder: 10, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
   { key: "admin.helpdesk",          label: "Helpdesk",           href: "/admin/helpdesk",            icon: "LifeBuoy",        group: "admin",      groupLabel: "Administration",     groupOrder: 10, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
   { key: "admin.menu-config",       label: "Menu Configuration", href: "/admin/menu-config",         icon: "Settings",        group: "admin",      groupLabel: "Administration",     groupOrder: 10, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: true },

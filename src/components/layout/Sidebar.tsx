@@ -9,7 +9,7 @@ import {
   UserCheck, Calendar, CreditCard, Zap, Mail, ChevronRight, ChevronDown,
   FlaskConical, ClipboardList, Store, Tag, Share2, Wallet, User, X, ClipboardCheck,
   Building2, UserPlus, GraduationCap, BookOpen, Layers, Award, ShoppingBag, Search, Megaphone, Database,
-  LifeBuoy, TrendingUp, ArrowUpRight, Target
+  LifeBuoy, TrendingUp, ArrowUpRight, Target, Send
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect } from "react";
@@ -117,6 +117,7 @@ const allLinks: LinkItem[] = [
   { href: "/activity", label: "Activity Logs", icon: Activity, group: "admin", roles: ["admin"] },
   
   { href: "/admin/send-email", label: "Send Email", icon: Mail, group: "admin", roles: ["admin"] },
+  { href: "/admin/onedrive-to-telegram", label: "OneDrive to Telegram", icon: Send, group: "admin", roles: ["admin"] },
   { href: "/activity", label: "Activity Logs", icon: Activity, group: "admin", roles: ["admin"] },
   { href: "/admin/candidates", label: "All Candidates", icon: Users, group: "admin", roles: ["admin"] },
   { href: "/admin/helpdesk", label: "Helpdesk", icon: LifeBuoy, group: "admin", roles: ["admin"] },

@@ -10,7 +10,7 @@ import {
   ClipboardList, Store, Tag, Share2, Wallet, User, X, ClipboardCheck,
   Building2, UserPlus, GraduationCap, BookOpen, Layers, Award, ShoppingBag, Search, Megaphone, Database,
   LifeBuoy, Settings, Bell, Sparkles, TrendingUp, AlertCircle, RotateCcw, Gift, Mail, ScrollText,
-  FolderKanban, Table2, Briefcase, FolderCog, SlidersHorizontal, UsersRound, FileSearch, FilePen, FileArchive, Wand2, ShieldAlert,
+  FolderKanban, Table2, Briefcase, FolderCog, SlidersHorizontal, UsersRound, FileSearch, FilePen, FileArchive, Wand2, ShieldAlert, Send, FileEdit,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { MenuItem, ConsoleType } from "@/lib/menu-engine";
@@ -25,7 +25,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   ClipboardList, Store, Tag, Share2, Wallet, User, ClipboardCheck,
   Building2, UserPlus, GraduationCap, BookOpen, Layers, Award, ShoppingBag, Search, Megaphone, Database,
   LifeBuoy, Settings, Bell, Sparkles, TrendingUp, AlertCircle, RotateCcw, Gift, Mail, ScrollText,
-  FolderKanban, Table2, Briefcase, FolderCog, SlidersHorizontal, UsersRound, FileSearch, FilePen, FileArchive, Wand2, ShieldAlert,
+  FolderKanban, Table2, Briefcase, FolderCog, SlidersHorizontal, UsersRound, FileSearch, FilePen, FileArchive, Wand2, ShieldAlert, Send, FileEdit,
 };
 
 function getIcon(name: string): LucideIcon {

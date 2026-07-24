@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  @page { size: A4; margin: 15mm 15mm 18mm 15mm; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Liberation Sans', 'DejaVu Sans', Arial, Helvetica, sans-serif;
+    font-size: 10pt;
+    line-height: 1.5;
+    color: #222;
+    background: #fff;
+  }
+  .page-wrap { display: flex; min-height: 100%; }
+  .sidebar {
+    width: 30%;
+    background: #1b2a4a;
+    color: #e0e6ef;
+    padding: 28px 16px 20px 16px;
+  }
+  .sidebar h1 {
+    font-size: 18pt;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 4px;
+    line-height: 1.2;
+  }
+  .sidebar .subtitle {
+    font-size: 9pt;
+    color: #8fa4c8;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 20px;
+  }
+  .sidebar h2 {
+    font-size: 9pt;
+    font-weight: 700;
+    color: #8bb8f0;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    border-bottom: 1px solid #2e4066;
+    padding-bottom: 3px;
+    margin-top: 18px;
+    margin-bottom: 8px;
+  }
+  .sidebar p, .sidebar li {
+    font-size: 9pt;
+    color: #c8d4e6;
+    margin-bottom: 3px;
+  }
+  .sidebar ul { list-style: none; padding: 0; }
+  .sidebar li::before {
+    content: "▸ ";
+    color: #6b9bd2;
+  }
+  .main-content {
+    width: 70%;
+    padding: 28px 22px 20px 22px;
+  }
+  .main-content h2 {
+    font-size: 12pt;
+    font-weight: 700;
+    color: #1b2a4a;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 2px solid #1b2a4a;
+    padding-bottom: 4px;
+    margin-top: 18px;
+    margin-bottom: 10px;
+  }
+  .main-content h2:first-child { margin-top: 0; }
+  .main-content h3 {
+    font-size: 10.5pt;
+    font-weight: 600;
+    color: #1b2a4a;
+    margin-top: 10px;
+    margin-bottom: 2px;
+  }
+  p { margin-bottom: 6px; }
+  ul, ol { margin-left: 16px; margin-bottom: 8px; }
+  li { margin-bottom: 2px; }
+  strong { font-weight: 600; }
+  em { font-style: italic; color: #555; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 10px;
+  }
+  th, td {
+    border: 1px solid #d0d8e4;
+    padding: 4px 8px;
+    text-align: left;
+    font-size: 9.5pt;
+  }
+  th { background: #e8edf5; font-weight: 600; color: #1b2a4a; }
+  a { color: #1b2a4a; text-decoration: underline; }
+  hr { border: none; border-top: 1px solid #ddd; margin: 14px 0; }
+</style>
+</head>
+<body>
+  <div class="page-wrap">
+    <div class="sidebar">
+      <h1>{{ title }}</h1>
+      <p class="subtitle">Curriculum Vitae</p>
+      {{ sidebar_content }}
+    </div>
+    <div class="main-content">
+      {{ content }}
+    </div>
+  </div>
+</body>
+</html>

@@ -1051,3 +1051,248 @@ async def compress_docx(file: UploadFile = File(...)):
         logger.error(f"DOCX max compression failed: {e}")
         raise HTTPException(500, f"Failed to compress document: {str(e)}")
 
+
+# ══════════════════════════════════════════════════════════════════════════════
+# CV MAKER — Upload → Markdown → Template Preview → Export (PDF / DOCX)
+# ══════════════════════════════════════════════════════════════════════════════
+
+CV_MAKER_TEMPLATES = {
+    "minimal":   {"label": "Clean Minimal",      "file": "cv_maker_minimal.html"},
+    "corporate": {"label": "Classic Corporate",   "file": "cv_maker_corporate.html"},
+    "modern":    {"label": "Modern Grid",         "file": "cv_maker_modern.html"},
+}
+
+
+def _md_to_html(md_text: str) -> str:
+    """Convert Markdown string to HTML using the markdown library."""
+    import markdown as md_lib
+    return md_lib.markdown(
+        md_text,
+        extensions=["tables", "fenced_code", "nl2br", "sane_lists"],
+    )
+
+
+def _extract_title_from_md(md_text: str) -> str:
+    """Extract the first heading as the CV title, or return a default."""
+    for line in md_text.strip().splitlines():
+        stripped = line.strip()
+        if stripped.startswith("# "):
+            return stripped.lstrip("# ").strip()
+    return "Curriculum Vitae"
+
+
+def _render_template_html(md_text: str, template_id: str) -> str:
+    """Render Markdown content into a styled HTML document using a template."""
+    if template_id not in CV_MAKER_TEMPLATES:
+        template_id = "minimal"
+
+    template_file = CV_MAKER_TEMPLATES[template_id]["file"]
+    template_path = TEMPLATES_DIR / template_file
+
+    if not template_path.exists():
+        raise HTTPException(500, f"Template file not found: {template_file}")
+
+    html_content = _md_to_html(md_text)
+    title = _extract_title_from_md(md_text)
+
+    template_str = template_path.read_text(encoding="utf-8")
+
+    # For corporate template, split first section into sidebar
+    sidebar_html = ""
+    main_html = html_content
+    if template_id == "corporate":
+        parts = html_content.split("<h2>", 1)
+        if len(parts) > 1:
+            sidebar_html = parts[0]
+            main_html = "<h2>" + parts[1]
+        else:
+            sidebar_html = html_content
+            main_html = ""
+
+    rendered = template_str.replace("{{ title }}", title)
+    rendered = rendered.replace("{{ content }}", main_html)
+    rendered = rendered.replace("{{ sidebar_content }}", sidebar_html)
+
+    return rendered
+
+
+@app.post("/cv-maker/parse")
+async def cv_maker_parse(file: UploadFile = File(...)):
+    """
+    Phase 1: Upload a CV file (PDF, DOCX, TXT, etc.) and extract content
+    as clean Markdown using MarkItDown.
+    """
+    content = await file.read()
+    filename = file.filename or "document.txt"
+
+    try:
+        from markitdown import MarkItDown
+
+        mid = MarkItDown()
+        # MarkItDown works with file paths, so write to a temp file
+        with tempfile.NamedTemporaryFile(
+            suffix=os.path.splitext(filename)[1] or ".txt",
+            delete=False,
+        ) as tmp:
+            tmp.write(content)
+            tmp_path = tmp.name
+
+        try:
+            result = mid.convert(tmp_path)
+            markdown_text = result.text_content
+        finally:
+            os.unlink(tmp_path)
+
+    except ImportError:
+        logger.warning("markitdown not installed, falling back to basic extraction")
+        raw = _extract_text(content, filename)
+        markdown_text = raw
+    except Exception as e:
+        logger.error(f"MarkItDown conversion failed: {e}")
+        # Fallback to basic extraction
+        try:
+            raw = _extract_text(content, filename)
+            markdown_text = raw
+        except Exception:
+            raise HTTPException(400, f"Could not parse file: {e}")
+
+    if not markdown_text.strip():
+        raise HTTPException(400, "Could not extract any content from the uploaded file.")
+
+    return JSONResponse({
+        "markdown": markdown_text,
+        "filename": filename,
+        "chars": len(markdown_text),
+    })
+
+
+class CvMakerRenderRequest(BaseModel):
+    markdown: str
+    template_id: str = "minimal"
+
+
+@app.post("/cv-maker/render")
+async def cv_maker_render(body: CvMakerRenderRequest):
+    """
+    Phase 3: Convert Markdown to styled HTML using the selected template.
+    Returns the full HTML document for iframe preview.
+    """
+    html = _render_template_html(body.markdown, body.template_id)
+    return JSONResponse({"html": html, "template_id": body.template_id})
+
+
+class CvMakerExportRequest(BaseModel):
+    markdown: str
+    template_id: str = "minimal"
+    format: str = "pdf"  # "pdf" or "docx"
+
+
+@app.post("/cv-maker/export")
+async def cv_maker_export(body: CvMakerExportRequest):
+    """
+    Phase 4: Export the styled CV as PDF (via WeasyPrint) or DOCX (via python-docx).
+    """
+    fmt = body.format.lower().strip()
+
+    if fmt == "pdf":
+        html = _render_template_html(body.markdown, body.template_id)
+        try:
+            from weasyprint import HTML as WeasyHTML
+            pdf_bytes = WeasyHTML(string=html).write_pdf()
+        except ImportError:
+            raise HTTPException(500, "WeasyPrint is not installed on the server.")
+        except Exception as e:
+            logger.error(f"WeasyPrint PDF generation failed: {e}")
+            raise HTTPException(500, f"PDF generation failed: {e}")
+
+        return StreamingResponse(
+            io.BytesIO(pdf_bytes),
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": 'attachment; filename="cv_export.pdf"',
+                "Access-Control-Expose-Headers": "Content-Disposition",
+            },
+        )
+
+    elif fmt == "docx":
+        # Build a simple DOCX from markdown content using python-docx
+        try:
+            from docx import Document
+            from docx.shared import Pt, Inches, RGBColor
+            from docx.enum.text import WD_ALIGN_PARAGRAPH
+
+            doc = Document()
+
+            # Set default font
+            style = doc.styles["Normal"]
+            font = style.font
+            font.name = "Arial"
+            font.size = Pt(10)
+
+            title = _extract_title_from_md(body.markdown)
+            heading = doc.add_heading(title, level=0)
+            heading.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            for run in heading.runs:
+                run.font.color.rgb = RGBColor(0x0D, 0x47, 0xA1)
+
+            # Parse markdown line-by-line into DOCX elements
+            lines = body.markdown.strip().splitlines()
+            i = 0
+            while i < len(lines):
+                line = lines[i]
+                stripped = line.strip()
+
+                if not stripped:
+                    i += 1
+                    continue
+
+                if stripped.startswith("### "):
+                    h = doc.add_heading(stripped.lstrip("# ").strip(), level=3)
+                    for run in h.runs:
+                        run.font.color.rgb = RGBColor(0x33, 0x33, 0x33)
+                elif stripped.startswith("## "):
+                    h = doc.add_heading(stripped.lstrip("# ").strip(), level=2)
+                    for run in h.runs:
+                        run.font.color.rgb = RGBColor(0x0D, 0x47, 0xA1)
+                elif stripped.startswith("# "):
+                    pass  # Skip title, already added above
+                elif stripped.startswith("- ") or stripped.startswith("* "):
+                    text = stripped.lstrip("-* ").strip()
+                    p = doc.add_paragraph(text, style="List Bullet")
+                    p.paragraph_format.space_after = Pt(2)
+                elif stripped.startswith("---") or stripped.startswith("***"):
+                    doc.add_paragraph("").paragraph_format.space_after = Pt(0)
+                else:
+                    # Bold handling: **text**
+                    p = doc.add_paragraph()
+                    p.paragraph_format.space_after = Pt(4)
+                    import re as re_mod
+                    parts = re_mod.split(r'(\*\*[^*]+\*\*)', stripped)
+                    for part in parts:
+                        if part.startswith("**") and part.endswith("**"):
+                            run = p.add_run(part[2:-2])
+                            run.bold = True
+                        else:
+                            p.add_run(part)
+
+                i += 1
+
+            buf = io.BytesIO()
+            doc.save(buf)
+            buf.seek(0)
+
+            return StreamingResponse(
+                buf,
+                media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                headers={
+                    "Content-Disposition": 'attachment; filename="cv_export.docx"',
+                    "Access-Control-Expose-Headers": "Content-Disposition",
+                },
+            )
+
+        except Exception as e:
+            logger.error(f"DOCX generation failed: {e}")
+            raise HTTPException(500, f"DOCX generation failed: {e}")
+
+    else:
+        raise HTTPException(400, f"Unsupported format: {fmt}. Use 'pdf' or 'docx'.")

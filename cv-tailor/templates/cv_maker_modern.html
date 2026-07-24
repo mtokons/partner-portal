@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  @page { size: A4; margin: 15mm 15mm 18mm 15mm; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Liberation Sans', 'DejaVu Sans', Arial, Helvetica, sans-serif;
+    font-size: 10pt;
+    line-height: 1.55;
+    color: #1a1a2e;
+    background: #fff;
+  }
+  .header-banner {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    padding: 28px 24px;
+    margin: -15mm -15mm 18px -15mm;
+    padding-top: 30px;
+  }
+  .header-banner h1 {
+    font-size: 24pt;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+  }
+  .header-banner p {
+    font-size: 10pt;
+    color: rgba(255,255,255,0.85);
+    letter-spacing: 0.5px;
+  }
+  h2 {
+    font-size: 12pt;
+    font-weight: 700;
+    color: #fff;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+    padding: 6px 14px;
+    border-radius: 4px;
+    margin-top: 18px;
+    margin-bottom: 10px;
+    letter-spacing: 0.5px;
+  }
+  h3 {
+    font-size: 10.5pt;
+    font-weight: 600;
+    color: #4a3f8a;
+    margin-top: 10px;
+    margin-bottom: 3px;
+  }
+  p { margin-bottom: 6px; }
+  ul, ol { margin-left: 18px; margin-bottom: 8px; }
+  li { margin-bottom: 3px; }
+  strong { font-weight: 600; }
+  em { font-style: italic; color: #555; }
+  .section-card {
+    background: #f8f7ff;
+    border: 1px solid #e6e0f3;
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin-bottom: 12px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 10px;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  th, td {
+    border: 1px solid #e0daf0;
+    padding: 5px 10px;
+    text-align: left;
+    font-size: 9.5pt;
+  }
+  th {
+    background: linear-gradient(90deg, #667eea22, #764ba222);
+    font-weight: 600;
+    color: #4a3f8a;
+  }
+  a { color: #667eea; text-decoration: none; }
+  hr { border: none; border-top: 1px solid #e0daf0; margin: 14px 0; }
+</style>
+</head>
+<body>
+  <div class="header-banner">
+    <h1>{{ title }}</h1>
+    <p>Curriculum Vitae</p>
+  </div>
+  {{ content }}
+</body>
+</html>

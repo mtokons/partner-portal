@@ -36,15 +36,14 @@ async function runSafe<T>(liveFn: () => Promise<T>, fallback?: () => T): Promise
 
     // Missing list / 404 → warn-once style log; not actionable, just empty.
     if (code === 404 || code === "itemNotFound" || /does not exist/i.test(msg)) {
-       
       console.warn(`[SharePoint] list missing (returning empty): ${msg.split("\n")[0]}`);
+    } else if (code === 403 || code === "accessDenied" || /access denied/i.test(msg)) {
+      console.warn(`[SharePoint] access denied (returning fallback/empty): ${msg.split("\n")[0]}`);
     } else if (/field name is not recognized|cannot be referenced in filter or orderby/i.test(msg)) {
       // List exists but our code references a column that's missing on this tenant.
       // Non-fatal: feature degrades to empty until the list schema is updated.
-       
       console.warn(`[SharePoint] schema mismatch (returning empty): ${msg.split("\n")[0]}`);
     } else {
-       
       console.error(`[SharePoint] failed: ${msg}\n  caller:\n${stack}`);
     }
     if (fallback) return fallback();

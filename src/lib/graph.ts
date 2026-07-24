@@ -72,6 +72,13 @@ export async function graphGet<T>(url: string): Promise<T> {
     return await client.api(url).header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly").get();
   } catch (err: any) {
     if (isGraphDebugEnabled()) debugLog("GET_ERROR", url, summarizeGraphError(err));
+    if (
+      err.statusCode === 404 || err.code === "itemNotFound" ||
+      err.statusCode === 403 || err.code === "accessDenied" ||
+      /access denied/i.test(err.message || "")
+    ) {
+      return { value: [], fields: {} } as unknown as T;
+    }
     throw err;
   }
 }
@@ -86,7 +93,11 @@ export async function graphGetSafe<T>(url: string): Promise<T | null> {
     if (isGraphDebugEnabled()) debugLog("GET_SAFE", url);
     return await client.api(url).header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly").get();
   } catch (err: any) {
-    if (err.statusCode === 404 || err.code === "itemNotFound") {
+    if (
+      err.statusCode === 404 || err.code === "itemNotFound" ||
+      err.statusCode === 403 || err.code === "accessDenied" ||
+      /access denied/i.test(err.message || "")
+    ) {
       return null;
     }
     if (isGraphDebugEnabled()) debugLog("GET_SAFE_ERROR", url, summarizeGraphError(err));
@@ -234,46 +245,58 @@ export async function uploadDriveFileById(itemId: string, content: Buffer, conte
 
 /** List files in a drive folder. Returns [] if the folder does not exist. */
 export async function listDriveChildren(folderPath: string): Promise<DriveItem[]> {
-  const client = await getGraphClient();
-  const siteId = await resolveSiteId();
-  const clean = sanitizeDrivePath(folderPath);
-  const api = clean
-    ? `/sites/${siteId}/drive/root:/${clean}:/children`
-    : `/sites/${siteId}/drive/root/children`;
   try {
+    const client = await getGraphClient();
+    const siteId = await resolveSiteId();
+    const clean = sanitizeDrivePath(folderPath);
+    const api = clean
+      ? `/sites/${siteId}/drive/root:/${clean}:/children`
+      : `/sites/${siteId}/drive/root/children`;
     const res = await client.api(api).get();
     return (res?.value || []) as DriveItem[];
   } catch (err: any) {
-    if (err.statusCode === 404 || err.code === "itemNotFound") return [];
+    if (
+      err.statusCode === 404 || err.code === "itemNotFound" ||
+      err.statusCode === 403 || err.code === "accessDenied" ||
+      /access denied/i.test(err.message || "")
+    ) return [];
     throw err;
   }
 }
 
 /** Get the binary content + mime type of a drive file by path. */
 export async function getDriveFile(path: string): Promise<{ buffer: Buffer; contentType: string; name: string } | null> {
-  const client = await getGraphClient();
-  const siteId = await resolveSiteId();
-  const clean = sanitizeDrivePath(path);
   try {
+    const client = await getGraphClient();
+    const siteId = await resolveSiteId();
+    const clean = sanitizeDrivePath(path);
     const meta = (await client.api(`/sites/${siteId}/drive/root:/${clean}`).get()) as DriveItem;
     const stream: ArrayBuffer = await client.api(`/sites/${siteId}/drive/root:/${clean}:/content`).responseType("arraybuffer" as any).get();
     return { buffer: Buffer.from(stream), contentType: meta.file?.mimeType || "application/octet-stream", name: meta.name };
   } catch (err: any) {
-    if (err.statusCode === 404 || err.code === "itemNotFound") return null;
+    if (
+      err.statusCode === 404 || err.code === "itemNotFound" ||
+      err.statusCode === 403 || err.code === "accessDenied" ||
+      /access denied/i.test(err.message || "")
+    ) return null;
     throw err;
   }
 }
 
 /** Delete a drive file/folder by path. Returns true if deleted. */
 export async function deleteDriveItem(path: string): Promise<boolean> {
-  const client = await getGraphClient();
-  const siteId = await resolveSiteId();
-  const clean = sanitizeDrivePath(path);
   try {
+    const client = await getGraphClient();
+    const siteId = await resolveSiteId();
+    const clean = sanitizeDrivePath(path);
     await client.api(`/sites/${siteId}/drive/root:/${clean}`).delete();
     return true;
   } catch (err: any) {
-    if (err.statusCode === 404 || err.code === "itemNotFound") return false;
+    if (
+      err.statusCode === 404 || err.code === "itemNotFound" ||
+      err.statusCode === 403 || err.code === "accessDenied" ||
+      /access denied/i.test(err.message || "")
+    ) return false;
     throw err;
   }
 }
