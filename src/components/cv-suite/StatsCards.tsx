@@ -1,13 +1,12 @@
 "use client";
 
-import { TrendingUp, TrendingDown, Minus } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Users, DollarSign, PauseCircle, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface StatCardData {
   label: string;
   value: number | string;
-  icon: LucideIcon;
+  iconName: "users" | "dollar" | "pause" | "alert";
   trend?: "up" | "down" | "neutral";
   trendValue?: string;
   color?: "blue" | "emerald" | "violet" | "amber" | "rose" | "cyan";
@@ -46,11 +45,19 @@ const COLOR_MAP = {
   },
 };
 
+const ICON_MAP = {
+  users: Users,
+  dollar: DollarSign,
+  pause: PauseCircle,
+  alert: AlertCircle,
+};
+
 export function StatsCards({ stats }: { stats: StatCardData[] }) {
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       {stats.map((stat) => {
         const colors = COLOR_MAP[stat.color ?? "blue"];
+        const IconComponent = ICON_MAP[stat.iconName] || Users;
         const TrendIcon =
           stat.trend === "up"
             ? TrendingUp
@@ -102,7 +109,7 @@ export function StatsCards({ stats }: { stats: StatCardData[] }) {
                   colors.icon
                 )}
               >
-                <stat.icon className="w-5 h-5" />
+                <IconComponent className="w-5 h-5" />
               </div>
             </div>
           </div>

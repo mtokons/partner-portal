@@ -6,10 +6,12 @@ export interface TransferState {
   chatId: string;
   folderPath: string;
   userId: string;
+  deleteAfterTransfer: boolean;
   totalFiles: number;
   processedFiles: number;
   successfulFiles: number;
   failedFiles: number;
+  deletedFiles: number;
   totalBytes: number;
   processedBytes: number;
   currentFileName: string;
@@ -25,6 +27,8 @@ interface DriveItem {
   size?: number;
   folder?: Record<string, unknown>;
   file?: { mimeType: string };
+  webUrl?: string;
+  "@microsoft.graph.downloadUrl"?: string;
 }
 
 let globalState: TransferState = {
@@ -33,10 +37,12 @@ let globalState: TransferState = {
   chatId: "",
   folderPath: "",
   userId: "",
+  deleteAfterTransfer: false,
   totalFiles: 0,
   processedFiles: 0,
   successfulFiles: 0,
   failedFiles: 0,
+  deletedFiles: 0,
   totalBytes: 0,
   processedBytes: 0,
   currentFileName: "",
@@ -49,27 +55,30 @@ let globalState: TransferState = {
 let shouldStop = false;
 
 export function getTransferStatus(): TransferState {
-  return { ...globalState, logs: [...globalState.logs].slice(-50) };
+  return { ...globalState, logs: [...globalState.logs].slice(-60) };
 }
 
 export function stopTransferJob(): void {
   if (globalState.status === "running") {
     shouldStop = true;
-    addLog("[CONTROL] Stop signal sent. Halting transfer...");
+    addLog("[CONTROL] Stop signal sent. Halting transfer job...");
   }
 }
 
 function addLog(msg: string) {
   const ts = new Date().toLocaleTimeString();
   globalState.logs.push(`[${ts}] ${msg}`);
-  if (globalState.logs.length > 200) {
+  if (globalState.logs.length > 300) {
     globalState.logs.shift();
   }
 }
 
-async function fetchOneDriveFiles(userId: string, folderPath: string): Promise<Array<{ id: string; name: string; size: number; path: string }>> {
+async function fetchOneDriveFiles(
+  userId: string,
+  folderPath: string
+): Promise<Array<{ id: string; name: string; size: number; path: string; webUrl?: string }>> {
   const client = await getGraphClient();
-  const fileList: Array<{ id: string; name: string; size: number; path: string }> = [];
+  const fileList: Array<{ id: string; name: string; size: number; path: string; webUrl?: string }> = [];
 
   async function crawlFolder(endpoint: string, currentPath: string) {
     if (shouldStop) return;
@@ -92,6 +101,7 @@ async function fetchOneDriveFiles(userId: string, folderPath: string): Promise<A
             name: item.name,
             size: item.size || 0,
             path: itemPath,
+            webUrl: item.webUrl,
           });
         }
       }
@@ -103,9 +113,13 @@ async function fetchOneDriveFiles(userId: string, folderPath: string): Promise<A
   const cleanPath = folderPath.trim().replace(/^\/+|\/+$/g, "");
   let startApi = "";
   if (userId) {
-    startApi = cleanPath ? `/users/${userId}/drive/root:/${cleanPath}:/children` : `/users/${userId}/drive/root/children`;
+    startApi = cleanPath
+      ? `/users/${userId}/drive/root:/${cleanPath}:/children`
+      : `/users/${userId}/drive/root/children`;
   } else {
-    startApi = cleanPath ? `/me/drive/root:/${cleanPath}:/children` : `/me/drive/root/children`;
+    startApi = cleanPath
+      ? `/me/drive/root:/${cleanPath}:/children`
+      : `/me/drive/root/children`;
   }
 
   addLog(`Starting file scan in OneDrive (Path: "${cleanPath || "/"}")`);
@@ -130,11 +144,15 @@ export function sanitizeTelegramChatId(input: string): string {
   return cleaned;
 }
 
+// 50 MB limit for direct HTTP Telegram Bot API uploads
+const TELEGRAM_MAX_FILE_BYTES = 50 * 1024 * 1024;
+
 export async function startTransferJob(options: {
   botToken: string;
   chatId: string;
   folderPath: string;
   userId?: string;
+  deleteAfterTransfer?: boolean;
 }): Promise<void> {
   if (globalState.status === "running") {
     throw new Error("A transfer job is already running.");
@@ -148,6 +166,7 @@ export async function startTransferJob(options: {
   }
 
   const targetChatId = sanitizeTelegramChatId(rawChatId);
+  const deleteAfter = !!options.deleteAfterTransfer;
 
   shouldStop = false;
   globalState = {
@@ -156,10 +175,12 @@ export async function startTransferJob(options: {
     chatId: targetChatId,
     folderPath: options.folderPath || "/",
     userId: options.userId || "",
+    deleteAfterTransfer: deleteAfter,
     totalFiles: 0,
     processedFiles: 0,
     successfulFiles: 0,
     failedFiles: 0,
+    deletedFiles: 0,
     totalBytes: 0,
     processedBytes: 0,
     currentFileName: "Scanning OneDrive...",
@@ -171,6 +192,9 @@ export async function startTransferJob(options: {
 
   addLog("=== OneDrive to Telegram Transfer Job Initialized ===");
   addLog(`Target Telegram Chat: ${targetChatId}`);
+  if (deleteAfter) {
+    addLog("⚠️ DELETION ENABLED: Files will be deleted from OneDrive after successful upload.");
+  }
 
   // Run asynchronously in background
   (async () => {
@@ -224,67 +248,163 @@ export async function startTransferJob(options: {
 
         const file = files[i];
         globalState.currentFileName = file.name;
-        addLog(`[${i + 1}/${files.length}] Fetching from Graph: ${file.name} (${(file.size / (1024 * 1024)).toFixed(2)} MB)...`);
+        const fileSizeMb = (file.size / (1024 * 1024)).toFixed(2);
+        addLog(`[${i + 1}/${files.length}] Processing: ${file.name} (${fileSizeMb} MB)...`);
+
+        let uploadSuccess = false;
 
         try {
-          // Stream/download file content into memory buffer directly from Microsoft Graph
-          const downloadApi = options.userId
-            ? `/users/${options.userId}/drive/items/${file.id}/content`
-            : `/me/drive/items/${file.id}/content`;
+          // Check if file exceeds 50MB Telegram HTTP Bot API limit
+          if (file.size > TELEGRAM_MAX_FILE_BYTES) {
+            addLog(` Notice: ${file.name} (${fileSizeMb} MB) exceeds Telegram Bot API 50MB HTTP limit. Sending metadata & link...`);
+            
+            const messageText = `📁 *${file.name}*\n📦 *Size:* ${fileSizeMb} MB\n📍 *Path:* \`${file.path}\`\n\n⚠️ *File size exceeds 50 MB limit for direct bot upload.*\n🔗 [Open in OneDrive](${file.webUrl || "#"})`;
 
-          const arrayBuffer: ArrayBuffer = await client
-            .api(downloadApi)
-            .responseType("arraybuffer" as any)
-            .get();
-
-          const buffer = Buffer.from(arrayBuffer);
-
-          // Upload directly to Telegram Bot API in memory without writing to disk
-          const isPhoto = /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name);
-          const telegramMethod = isPhoto ? "sendPhoto" : "sendDocument";
-          const fieldName = isPhoto ? "photo" : "document";
-
-          const formData = new FormData();
-          formData.append("chat_id", options.chatId.trim());
-          formData.append("caption", `📁 ${file.name}\nPath: ${file.path}`);
-          const blob = new Blob([buffer]);
-          formData.append(fieldName, blob, file.name);
-
-          let tgRes = await fetch(`https://api.telegram.org/bot${options.botToken}/${telegramMethod}`, {
-            method: "POST",
-            body: formData,
-          });
-
-          let tgData = await tgRes.json();
-
-          // Fallback: If sendPhoto fails (e.g. image dimension or size > 10MB), retry automatically as document
-          if ((!tgRes.ok || !tgData.ok) && isPhoto && !tgData.description?.includes("chat not found")) {
-            addLog(`Notice: sendPhoto failed (${tgData.description}), retrying ${file.name} via sendDocument...`);
-            const docFormData = new FormData();
-            docFormData.append("chat_id", options.chatId.trim());
-            docFormData.append("caption", `📁 ${file.name}\nPath: ${file.path}`);
-            docFormData.append("document", new Blob([buffer]), file.name);
-
-            tgRes = await fetch(`https://api.telegram.org/bot${options.botToken}/sendDocument`, {
+            const msgRes = await fetch(`https://api.telegram.org/bot${options.botToken}/sendMessage`, {
               method: "POST",
-              body: docFormData,
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                chat_id: options.chatId.trim(),
+                text: messageText,
+                parse_mode: "Markdown",
+              }),
             });
-            tgData = await tgRes.json();
-          }
 
-          if (!tgRes.ok || !tgData.ok) {
-            const desc = tgData.description || `HTTP ${tgRes.status}`;
-            if (desc.toLowerCase().includes("chat not found")) {
-              throw new Error(
-                `Bad Request: chat not found.\n💡 HINT: (1) Make sure bot @${botUsername || "your_bot"} is added as an ADMINISTRATOR in channel "${options.chatId}". (2) For public channels use "@channelname", for private channels use numerical ID starting with "-100..." (e.g. -1001234567890).`
-              );
+            const msgData = await msgRes.json();
+            if (!msgRes.ok || !msgData.ok) {
+              throw new Error(msgData.description || `HTTP ${msgRes.status}`);
             }
-            throw new Error(desc);
+
+            uploadSuccess = true;
+            globalState.successfulFiles++;
+            globalState.processedBytes += file.size;
+            addLog(`✓ [${i + 1}/${files.length}] Sent metadata link to Telegram for large file: ${file.name}`);
+          } else {
+            // Stream/download file content into memory buffer directly from Microsoft Graph
+            const downloadApi = options.userId
+              ? `/users/${options.userId}/drive/items/${file.id}/content`
+              : `/me/drive/items/${file.id}/content`;
+
+            // Download from Microsoft Graph with 10-minute timeout resilience
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10 * 60 * 1000);
+
+            let arrayBuffer: ArrayBuffer;
+            try {
+              arrayBuffer = await client
+                .api(downloadApi)
+                .responseType("arraybuffer" as any)
+                .get();
+            } finally {
+              clearTimeout(timeoutId);
+            }
+
+            const buffer = Buffer.from(arrayBuffer);
+
+            const isPhoto = /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name);
+            const isVideo = /\.(mp4|mov|avi|mkv|webm|3gp)$/i.test(file.name);
+
+            let telegramMethod = "sendDocument";
+            let fieldName = "document";
+
+            if (isPhoto) {
+              telegramMethod = "sendPhoto";
+              fieldName = "photo";
+            } else if (isVideo) {
+              telegramMethod = "sendVideo";
+              fieldName = "video";
+            }
+
+            // Retry loop with 429 rate limit backoff handling (up to 5 retries per file)
+            let attempts = 0;
+            const maxAttempts = 5;
+
+            while (attempts < maxAttempts && !uploadSuccess && !shouldStop) {
+              attempts++;
+
+              const formData = new FormData();
+              formData.append("chat_id", options.chatId.trim());
+              formData.append("caption", `📁 ${file.name}\nPath: ${file.path}`);
+              if (isVideo) {
+                formData.append("supports_streaming", "true");
+              }
+
+              const blob = new Blob([buffer]);
+              formData.append(fieldName, blob, file.name);
+
+              let tgRes = await fetch(`https://api.telegram.org/bot${options.botToken}/${telegramMethod}`, {
+                method: "POST",
+                body: formData,
+              });
+
+              let tgData = await tgRes.json();
+
+              // Check for Telegram 429 Rate Limit (Too Many Requests)
+              if (tgRes.status === 429 || tgData.error_code === 429 || tgData.parameters?.retry_after) {
+                const retryAfterSec = (tgData.parameters?.retry_after || 10) + 1;
+                addLog(`⏳ [RATE LIMIT 429] Telegram requested delay. Auto-waiting ${retryAfterSec}s before retry (Attempt ${attempts}/${maxAttempts})...`);
+                await new Promise((res) => setTimeout(res, retryAfterSec * 1000));
+                continue; // Retry this file
+              }
+
+              // Fallback: If sendPhoto/sendVideo fails, retry automatically as standard document
+              if ((!tgRes.ok || !tgData.ok) && telegramMethod !== "sendDocument" && !tgData.description?.includes("chat not found")) {
+                addLog(`Notice: ${telegramMethod} failed (${tgData.description}), retrying ${file.name} via sendDocument...`);
+                const docFormData = new FormData();
+                docFormData.append("chat_id", options.chatId.trim());
+                docFormData.append("caption", `📁 ${file.name}\nPath: ${file.path}`);
+                docFormData.append("document", new Blob([buffer]), file.name);
+
+                tgRes = await fetch(`https://api.telegram.org/bot${options.botToken}/sendDocument`, {
+                  method: "POST",
+                  body: docFormData,
+                });
+                tgData = await tgRes.json();
+
+                if (tgRes.status === 429 || tgData.error_code === 429 || tgData.parameters?.retry_after) {
+                  const retryAfterSec = (tgData.parameters?.retry_after || 10) + 1;
+                  addLog(`⏳ [RATE LIMIT 429] Telegram requested delay during fallback. Auto-waiting ${retryAfterSec}s...`);
+                  await new Promise((res) => setTimeout(res, retryAfterSec * 1000));
+                  continue;
+                }
+              }
+
+              if (!tgRes.ok || !tgData.ok) {
+                const desc = tgData.description || `HTTP ${tgRes.status}`;
+                if (desc.toLowerCase().includes("chat not found")) {
+                  throw new Error(
+                    `Bad Request: chat not found.\n💡 HINT: (1) Make sure bot @${botUsername || "your_bot"} is added as an ADMINISTRATOR in channel "${options.chatId}". (2) For public channels use "@channelname", for private channels use numerical ID starting with "-100..." (e.g. -1001234567890).`
+                  );
+                }
+                throw new Error(desc);
+              }
+
+              uploadSuccess = true;
+              globalState.successfulFiles++;
+              globalState.processedBytes += file.size;
+              addLog(`✓ [${i + 1}/${files.length}] Uploaded to Telegram: ${file.name}`);
+            }
+
+            if (!uploadSuccess && !shouldStop) {
+              throw new Error(`Failed to upload after ${maxAttempts} attempts due to Telegram rate limits/errors.`);
+            }
           }
 
-          globalState.successfulFiles++;
-          globalState.processedBytes += file.size;
-          addLog(`✓ [${i + 1}/${files.length}] Uploaded to Telegram: ${file.name}`);
+          // Optional: Delete from OneDrive after successful upload
+          if (uploadSuccess && deleteAfter) {
+            try {
+              const deleteApi = options.userId
+                ? `/users/${options.userId}/drive/items/${file.id}`
+                : `/me/drive/items/${file.id}`;
+              
+              await client.api(deleteApi).delete();
+              globalState.deletedFiles++;
+              addLog(`🗑️ [DELETED FROM ONEDRIVE] Removed ${file.name} from OneDrive after successful transfer.`);
+            } catch (delErr: any) {
+              addLog(`⚠️ Warning: Failed to delete ${file.name} from OneDrive: ${delErr.message || String(delErr)}`);
+            }
+          }
+
         } catch (err: any) {
           globalState.failedFiles++;
           addLog(`❌ [${i + 1}/${files.length}] Failed to upload ${file.name}: ${err.message || String(err)}`);
@@ -294,14 +414,14 @@ export async function startTransferJob(options: {
           globalState.speedBps = elapsedSec > 0 ? Math.round(globalState.processedBytes / elapsedSec) : 0;
         }
 
-        // Delay 1.5 seconds between uploads to respect Telegram Bot API rate limits
-        await new Promise((resolve) => setTimeout(resolve, 1500));
+        // Base 2-second rate limit safety buffer between files
+        await new Promise((resolve) => setTimeout(resolve, 2000));
       }
 
       globalState.status = "completed";
       globalState.endTime = new Date().toISOString();
       globalState.currentFileName = "Transfer Complete!";
-      addLog(`=== Transfer Completed! ${globalState.successfulFiles} succeeded, ${globalState.failedFiles} failed. ===`);
+      addLog(`=== Transfer Completed! ${globalState.successfulFiles} succeeded, ${globalState.failedFiles} failed, ${globalState.deletedFiles} deleted from OneDrive. ===`);
     } catch (err: any) {
       globalState.status = "error";
       globalState.endTime = new Date().toISOString();

@@ -7,7 +7,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import { Plus, BookOpen, Loader2 } from "lucide-react";
-import { createLanguageCourseAction } from "@/app/admin/school/actions";
+import { createLanguageCourseAction } from "@/app/(portal)/admin/school/actions";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 

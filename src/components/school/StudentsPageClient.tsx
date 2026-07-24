@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Bell, CheckCircle, Users, Search, Filter, Mail } from "lucide-react";
-import { sendPaymentReminderAction } from "@/app/admin/school/actions";
+import { sendPaymentReminderAction } from "@/app/(portal)/admin/school/actions";
 import type { SchoolEnrollment, SchoolBatch } from "@/types";
 
 interface StudentsPageClientProps {

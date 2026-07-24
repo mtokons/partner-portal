@@ -6,7 +6,7 @@ import { Edit2, Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { TeacherForm } from "./TeacherForm";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
-import { deleteTeacher } from "@/app/admin/school/actions";
+import { deleteTeacher } from "@/app/(portal)/admin/school/actions";
 import type { SchoolTeacher } from "@/types";
 
 interface TeacherActionsProps {

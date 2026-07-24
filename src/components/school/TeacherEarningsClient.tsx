@@ -13,7 +13,7 @@ import {
 import {
   requestTeacherWithdrawalAction,
   updateTeacherEarningPaymentAction,
-} from "@/app/admin/school/actions";
+} from "@/app/(portal)/admin/school/actions";
 import type { TeacherEarning, TeacherEarningStatus } from "@/types";
 
 interface Props { earnings: TeacherEarning[]; }

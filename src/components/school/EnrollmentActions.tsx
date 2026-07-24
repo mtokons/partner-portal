@@ -9,7 +9,7 @@ import {
   deleteEnrollment, updateEnrollment,
   assignBatchToEnrollmentAction, confirmEnrollmentPaymentAction,
   fetchAvailableBatches,
-} from "@/app/admin/school/actions";
+} from "@/app/(portal)/admin/school/actions";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";

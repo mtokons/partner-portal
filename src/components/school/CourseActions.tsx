@@ -12,7 +12,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CourseForm } from "./CourseForm";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
-import { deleteCourse } from "@/app/admin/school/actions";
+import { deleteCourse } from "@/app/(portal)/admin/school/actions";
 import type { SchoolCourse } from "@/types";
 
 interface CourseActionsProps {

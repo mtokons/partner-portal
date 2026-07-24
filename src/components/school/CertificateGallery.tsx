@@ -9,7 +9,7 @@ import {
   LayoutGrid, List, Search, ExternalLink, Copy, CheckCircle
 } from "lucide-react";
 import { CertificateDownloadButton } from "@/components/CertificateDownloadButton";
-import { deleteCertificateAction, revokeCertificateAction } from "@/app/admin/school/actions";
+import { deleteCertificateAction, revokeCertificateAction } from "@/app/(portal)/admin/school/actions";
 import type { SchoolCertificate } from "@/types";
 import Link from "next/link";
 import {

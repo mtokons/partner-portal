@@ -4,7 +4,7 @@ import { startTransferJob } from "@/lib/telegram-transfer";
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { botToken, chatId, folderPath, userId } = body;
+    const { botToken, chatId, folderPath, userId, deleteAfterTransfer } = body;
 
     if (!botToken || !chatId) {
       return NextResponse.json(
@@ -18,6 +18,7 @@ export async function POST(req: Request) {
       chatId: chatId.trim(),
       folderPath: folderPath ? folderPath.trim() : "/",
       userId: userId ? userId.trim() : undefined,
+      deleteAfterTransfer: !!deleteAfterTransfer,
     });
 
     return NextResponse.json({ success: true, message: "Transfer job started." });

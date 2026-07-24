@@ -1,10 +1,6 @@
 import Link from "next/link";
-import { format, parseISO } from "date-fns";
 import {
   Users,
-  DollarSign,
-  AlertCircle,
-  PauseCircle,
   ArrowUpRight,
   Download,
   FolderOpen,
@@ -14,6 +10,8 @@ import {
 import { getCvSuiteStats } from "./actions";
 import { StatsCards } from "@/components/cv-suite/StatsCards";
 import { formatStatusLabel } from "@/lib/engine/candidate-workflow";
+
+export const dynamic = "force-dynamic";
 
 const CATEGORY_BADGES: Record<string, string> = {
   Training: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
@@ -33,7 +31,7 @@ export default async function CvSuiteDashboardPage() {
           {
             label: "Total Candidates",
             value: stats.totalCandidates,
-            icon: Users,
+            iconName: "users",
             color: "blue",
             trend: "up",
             trendValue: "Active pipeline",
@@ -41,7 +39,7 @@ export default async function CvSuiteDashboardPage() {
           {
             label: "Total Revenue",
             value: `€${stats.totalRevenue.toLocaleString("en-US", { minimumFractionDigits: 0 })}`,
-            icon: DollarSign,
+            iconName: "dollar",
             color: "emerald",
             trend: "up",
             trendValue: `Avg €${stats.avgServiceFee}`,
@@ -49,7 +47,7 @@ export default async function CvSuiteDashboardPage() {
           {
             label: "On Hold",
             value: stats.onHold,
-            icon: PauseCircle,
+            iconName: "pause",
             color: stats.onHold > 0 ? "amber" : "emerald",
             trend: stats.onHold > 0 ? "down" : "neutral",
             trendValue: stats.onHold > 0 ? "Needs attention" : "All clear",
@@ -57,7 +55,7 @@ export default async function CvSuiteDashboardPage() {
           {
             label: "Pending Payment",
             value: stats.byPayment["pending"] ?? 0,
-            icon: AlertCircle,
+            iconName: "alert",
             color: (stats.byPayment["pending"] ?? 0) > 0 ? "rose" : "emerald",
             trend: (stats.byPayment["pending"] ?? 0) > 0 ? "down" : "neutral",
             trendValue: `${stats.byPayment["fully-paid"] ?? 0} fully paid`,
