@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import {
   Send, Play, Square, CheckCircle2, AlertTriangle, FileText,
   ShieldCheck, Terminal, Eye, EyeOff, FolderOpen,
-  Bookmark, Trash2, Plus, Activity, Gauge, AlertCircle, History, Clock, RefreshCw, ChevronDown, ChevronUp
+  Bookmark, Trash2, Plus, Activity, Gauge, AlertCircle, History, Clock, RefreshCw, ChevronDown, ChevronUp, Zap, Smartphone, Key, Lock
 } from "lucide-react";
 import { OneDriveFolderModal } from "@/components/onedrive/OneDriveFolderModal";
 
@@ -15,6 +15,7 @@ interface JobHistoryRecord {
   status: "completed" | "stopped" | "error";
   folderPath: string;
   chatId: string;
+  mode: "bot" | "user_mtproto";
   totalFiles: number;
   processedFiles: number;
   successfulFiles: number;
@@ -28,7 +29,11 @@ interface JobHistoryRecord {
 
 interface TransferState {
   status: "idle" | "running" | "stopped" | "completed" | "error";
+  mode: "bot" | "user_mtproto";
   botToken: string;
+  apiId?: string;
+  apiHash?: string;
+  sessionString?: string;
   chatId: string;
   folderPath: string;
   userId: string;
@@ -52,7 +57,11 @@ interface TransferState {
 interface SavedDestination {
   id: string;
   name: string;
-  botToken: string;
+  mode: "bot" | "user_mtproto";
+  botToken?: string;
+  apiId?: string;
+  apiHash?: string;
+  sessionString?: string;
   chatId: string;
 }
 
@@ -64,11 +73,26 @@ function formatBytes(bytes: number): string {
   return (bytes / Math.pow(k, i)).toFixed(2) + " " + sizes[i];
 }
 
-const STORAGE_KEY = "sccg_telegram_destinations_v2";
+const STORAGE_KEY = "sccg_telegram_destinations_v3";
 
 export default function OneDriveToTelegramPage() {
+  const [transferMode, setTransferMode] = useState<"bot" | "user_mtproto">("user_mtproto");
+
+  // Bot Credentials
   const [botToken, setBotToken] = useState("");
   const [showToken, setShowToken] = useState(false);
+
+  // MTProto Credentials (your credentials prefilled!)
+  const [apiId, setApiId] = useState("33690110");
+  const [apiHash, setApiHash] = useState("829e2bcf0fbb355750471d4f099d8277");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [phoneCodeHash, setPhoneCodeHash] = useState("");
+  const [authCode, setAuthCode] = useState("");
+  const [twoFaPassword, setTwoFaPassword] = useState("");
+  const [sessionString, setSessionString] = useState("");
+  const [authStep, setAuthStep] = useState<"credentials" | "code_sent" | "authenticated">("credentials");
+
+  // Destination & Settings
   const [chatId, setChatId] = useState("");
   const [folderPath, setFolderPath] = useState("/");
   const [userId, setUserId] = useState("");
@@ -84,12 +108,17 @@ export default function OneDriveToTelegramPage() {
   const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
+  const [authLoading, setAuthLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [logFilter, setLogFilter] = useState<string>("all");
 
   const [state, setState] = useState<TransferState>({
     status: "idle",
+    mode: "user_mtproto",
     botToken: "",
+    apiId: "33690110",
+    apiHash: "829e2bcf0fbb355750471d4f099d8277",
+    sessionString: "",
     chatId: "",
     folderPath: "/",
     userId: "",
@@ -118,6 +147,11 @@ export default function OneDriveToTelegramPage() {
       if (stored) {
         setSavedDestinations(JSON.parse(stored));
       }
+      const savedSession = localStorage.getItem("sccg_mtproto_session_v3");
+      if (savedSession) {
+        setSessionString(savedSession);
+        setAuthStep("authenticated");
+      }
     } catch (e) {
       console.error("Failed to load saved Telegram destinations:", e);
     }
@@ -137,15 +171,19 @@ export default function OneDriveToTelegramPage() {
       alert("Please enter a name for this Telegram destination.");
       return;
     }
-    if (!botToken.trim() || !chatId.trim()) {
-      alert("Please fill in both Bot Token and Chat ID before saving.");
+    if (!chatId.trim()) {
+      alert("Please fill in Target Chat ID before saving.");
       return;
     }
 
     const newItem: SavedDestination = {
       id: "dest_" + Date.now(),
       name: newPresetName.trim(),
-      botToken: botToken.trim(),
+      mode: transferMode,
+      botToken: botToken.trim() || undefined,
+      apiId: apiId.trim() || undefined,
+      apiHash: apiHash.trim() || undefined,
+      sessionString: sessionString.trim() || undefined,
       chatId: chatId.trim(),
     };
 
@@ -172,8 +210,91 @@ export default function OneDriveToTelegramPage() {
     if (!destId) return;
     const match = savedDestinations.find((d) => d.id === destId);
     if (match) {
-      setBotToken(match.botToken);
+      setTransferMode(match.mode || "user_mtproto");
+      if (match.botToken) setBotToken(match.botToken);
+      if (match.apiId) setApiId(match.apiId);
+      if (match.apiHash) setApiHash(match.apiHash);
+      if (match.sessionString) {
+        setSessionString(match.sessionString);
+        setAuthStep("authenticated");
+      }
       setChatId(match.chatId);
+    }
+  }
+
+  // MTProto Step 1: Send Telegram SMS/App Code
+  async function handleSendAuthCode() {
+    if (!apiId.trim() || !apiHash.trim() || !phoneNumber.trim()) {
+      setErrorMsg("Please provide API ID, API Hash, and Phone Number.");
+      return;
+    }
+
+    setErrorMsg(null);
+    setAuthLoading(true);
+
+    try {
+      const res = await fetch("/api/admin/onedrive-to-telegram/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "send_code",
+          apiId: apiId.trim(),
+          apiHash: apiHash.trim(),
+          phoneNumber: phoneNumber.trim(),
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to send verification code.");
+
+      setPhoneCodeHash(data.phoneCodeHash);
+      setAuthStep("code_sent");
+    } catch (err: any) {
+      setErrorMsg(err.message || "Could not send login code.");
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
+  // MTProto Step 2: Verify 5-Digit Code
+  async function handleVerifyAuthCode() {
+    if (!authCode.trim()) {
+      setErrorMsg("Please enter the 5-digit verification code sent to your Telegram app.");
+      return;
+    }
+
+    setErrorMsg(null);
+    setAuthLoading(true);
+
+    try {
+      const res = await fetch("/api/admin/onedrive-to-telegram/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "verify_code",
+          apiId: apiId.trim(),
+          apiHash: apiHash.trim(),
+          phoneNumber: phoneNumber.trim(),
+          phoneCodeHash,
+          code: authCode.trim(),
+          password: twoFaPassword.trim() || undefined,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to verify code.");
+
+      setSessionString(data.sessionString);
+      localStorage.setItem("sccg_mtproto_session_v3", data.sessionString);
+      setAuthStep("authenticated");
+    } catch (err: any) {
+      if (err.message === "2FA_REQUIRED") {
+        setErrorMsg("Your Telegram account requires a Two-Factor Authentication (2FA) Password. Please enter it below.");
+      } else {
+        setErrorMsg(err.message || "Failed to authenticate session.");
+      }
+    } finally {
+      setAuthLoading(false);
     }
   }
 
@@ -202,8 +323,12 @@ export default function OneDriveToTelegramPage() {
   }, [state.logs]);
 
   async function handleStart() {
-    if (!botToken.trim()) {
+    if (transferMode === "bot" && !botToken.trim()) {
       setErrorMsg("Please enter a valid Telegram Bot Token.");
+      return;
+    }
+    if (transferMode === "user_mtproto" && !sessionString) {
+      setErrorMsg("Please complete Telegram Account Authentication below before starting MTProto transfer.");
       return;
     }
     if (!chatId.trim()) {
@@ -219,7 +344,11 @@ export default function OneDriveToTelegramPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          botToken,
+          mode: transferMode,
+          botToken: transferMode === "bot" ? botToken : undefined,
+          apiId: transferMode === "user_mtproto" ? apiId : undefined,
+          apiHash: transferMode === "user_mtproto" ? apiHash : undefined,
+          sessionString: transferMode === "user_mtproto" ? sessionString : undefined,
           chatId,
           folderPath,
           userId: userId.trim() || undefined,
@@ -262,7 +391,7 @@ export default function OneDriveToTelegramPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-8">
-      {/* Top Header Banner */}
+      {/* Top Banner */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-slate-900 via-blue-950/60 to-purple-950/40 p-6 rounded-3xl border border-blue-500/20 shadow-2xl backdrop-blur-xl">
         <div>
           <div className="flex items-center gap-3">
@@ -272,18 +401,19 @@ export default function OneDriveToTelegramPage() {
             <div>
               <h1 className="text-xl font-black tracking-tight text-white flex items-center gap-2">
                 OneDrive to Telegram Studio
-                <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                  V2.5 Pro
+                <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                  <Zap className="w-3 h-3 text-emerald-400" />
+                  Direct MTProto 2GB Active
                 </span>
               </h1>
               <p className="text-xs text-slate-300">
-                Direct stream collections from Microsoft OneDrive to Telegram Channels with rate-limit protection, auto-delete & full transfer history.
+                Direct stream high-res videos & media collections from Microsoft OneDrive up to 2GB per file using native Telegram MTProto socket connection.
               </p>
             </div>
           </div>
         </div>
 
-        {/* Status Indicator & View Switcher */}
+        {/* View Switcher & Status */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1 bg-slate-950/80 p-1.5 rounded-2xl border border-slate-800 text-xs">
             <button
@@ -341,31 +471,186 @@ export default function OneDriveToTelegramPage() {
 
       {activeTab === "live" ? (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Left Column: Form Controls & Configuration */}
+          {/* Left Column: Transfer Controls */}
           <div className="lg:col-span-5 space-y-6">
             <div className="bg-slate-900/90 border border-slate-800/90 rounded-3xl p-6 shadow-xl backdrop-blur-xl space-y-6">
-              <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-5 h-5 text-blue-400" />
-                  <h2 className="text-sm font-bold text-slate-100">Transfer Configuration</h2>
+              {/* Transfer Mode Switcher */}
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-300 block">
+                  Select Telegram Protocol Mode
+                </label>
+                <div className="grid grid-cols-2 gap-2 bg-slate-950 p-1.5 rounded-2xl border border-slate-800 text-xs font-bold">
+                  <button
+                    type="button"
+                    onClick={() => setTransferMode("user_mtproto")}
+                    className={`py-2.5 px-3 rounded-xl flex items-center justify-center gap-1.5 transition-all ${
+                      transferMode === "user_mtproto"
+                        ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md"
+                        : "text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    <Zap className="w-4 h-4 text-emerald-400" />
+                    Direct MTProto (2GB)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTransferMode("bot")}
+                    className={`py-2.5 px-3 rounded-xl flex items-center justify-center gap-1.5 transition-all ${
+                      transferMode === "bot"
+                        ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md"
+                        : "text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    <Send className="w-4 h-4" />
+                    Bot API (50MB)
+                  </button>
                 </div>
-
-                {savedDestinations.length > 0 && (
-                  <span className="text-[11px] text-slate-400">
-                    {savedDestinations.length} Saved Preset{savedDestinations.length > 1 ? "s" : ""}
-                  </span>
-                )}
               </div>
 
-              {/* Saved Destinations Manager Bar */}
+              {/* MODE A: MTProto Authentication Panel */}
+              {transferMode === "user_mtproto" ? (
+                <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-2xl space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                    <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                      <Zap className="w-4 h-4 text-emerald-400" />
+                      MTProto User Authentication
+                    </span>
+                    {authStep === "authenticated" && (
+                      <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" /> Ready
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[11px] text-slate-400 block mb-1">API ID</label>
+                        <input
+                          type="text"
+                          value={apiId}
+                          onChange={(e) => setApiId(e.target.value)}
+                          placeholder="e.g. 33690110"
+                          className="w-full text-xs p-2.5 rounded-xl border border-slate-800 bg-slate-900 text-slate-100 font-mono"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[11px] text-slate-400 block mb-1">API Hash</label>
+                        <input
+                          type="password"
+                          value={apiHash}
+                          onChange={(e) => setApiHash(e.target.value)}
+                          placeholder="e.g. 829e2bcf..."
+                          className="w-full text-xs p-2.5 rounded-xl border border-slate-800 bg-slate-900 text-slate-100 font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    {authStep === "credentials" && (
+                      <div className="space-y-2">
+                        <label className="text-[11px] text-slate-300 block">
+                          Telegram Phone Number (International format)
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={phoneNumber}
+                            onChange={(e) => setPhoneNumber(e.target.value)}
+                            placeholder="e.g. +8801712345678 or +4915123456"
+                            className="w-full text-xs p-2.5 rounded-xl border border-slate-800 bg-slate-900 text-slate-100 font-mono"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleSendAuthCode}
+                            disabled={authLoading}
+                            className="px-4 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl transition-all disabled:opacity-50 shrink-0"
+                          >
+                            {authLoading ? "Sending..." : "Send Code"}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {authStep === "code_sent" && (
+                      <div className="space-y-2 pt-1 border-t border-slate-800">
+                        <label className="text-[11px] font-bold text-amber-300 block">
+                          Enter 5-Digit Code sent to Telegram App:
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={authCode}
+                            onChange={(e) => setAuthCode(e.target.value)}
+                            placeholder="e.g. 54321"
+                            className="w-full text-xs p-2.5 rounded-xl border border-amber-500/40 bg-slate-900 text-amber-200 font-mono font-bold tracking-widest text-center"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleVerifyAuthCode}
+                            disabled={authLoading}
+                            className="px-4 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition-all disabled:opacity-50 shrink-0"
+                          >
+                            {authLoading ? "Verifying..." : "Verify Code"}
+                          </button>
+                        </div>
+                        <input
+                          type="password"
+                          value={twoFaPassword}
+                          onChange={(e) => setTwoFaPassword(e.target.value)}
+                          placeholder="2FA Password (if enabled on account)"
+                          className="w-full text-xs p-2.5 mt-2 rounded-xl border border-slate-800 bg-slate-900 text-slate-100"
+                        />
+                      </div>
+                    )}
+
+                    {authStep === "authenticated" && (
+                      <div className="flex items-center justify-between p-2.5 bg-emerald-950/30 border border-emerald-500/20 rounded-xl text-xs text-emerald-300">
+                        <span className="font-semibold">✓ Telegram Account Connected</span>
+                        <button
+                          type="button"
+                          onClick={() => setAuthStep("credentials")}
+                          className="text-[10px] text-slate-400 hover:text-slate-200 underline"
+                        >
+                          Re-authenticate
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                /* MODE B: Telegram Bot Token Input */
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1.5">
+                    Telegram Bot Token <span className="text-rose-400">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showToken ? "text" : "password"}
+                      value={botToken}
+                      onChange={(e) => setBotToken(e.target.value)}
+                      placeholder="e.g. 8852706442:AAHNKFr98..."
+                      disabled={state.status === "running"}
+                      className="w-full text-xs p-3.5 pr-10 rounded-2xl border border-slate-800 bg-slate-950 text-slate-100 placeholder:text-slate-600 outline-none focus:ring-2 focus:ring-blue-500/50 disabled:opacity-50 font-mono"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowToken(!showToken)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                    >
+                      {showToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Destination Preset Selector */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
                     <Bookmark className="w-3.5 h-3.5 text-blue-400" />
                     Saved Telegram Credentials
                   </label>
-
-                  {botToken && chatId && (
+                  {chatId && (
                     <button
                       onClick={() => setShowSavePresetModal(true)}
                       className="text-[11px] font-semibold text-blue-400 hover:text-blue-300 flex items-center gap-1 hover:underline"
@@ -415,37 +700,13 @@ export default function OneDriveToTelegramPage() {
                   </div>
                 ) : (
                   <p className="text-[11px] text-slate-500 italic">
-                    No saved credential presets yet. Fill in token & chat ID below to save.
+                    No saved credential presets yet. Save your channel IDs for quick access.
                   </p>
                 )}
               </div>
 
-              {/* Form Fields */}
+              {/* Form Controls */}
               <div className="space-y-4">
-                {/* Bot Token */}
-                <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1.5">
-                    Telegram Bot Token <span className="text-rose-400">*</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showToken ? "text" : "password"}
-                      value={botToken}
-                      onChange={(e) => setBotToken(e.target.value)}
-                      placeholder="e.g. 8852706442:AAHNKFr98..."
-                      disabled={state.status === "running"}
-                      className="w-full text-xs p-3.5 pr-10 rounded-2xl border border-slate-800 bg-slate-950 text-slate-100 placeholder:text-slate-600 outline-none focus:ring-2 focus:ring-blue-500/50 disabled:opacity-50 font-mono"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowToken(!showToken)}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
-                    >
-                      {showToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-
                 {/* Target Chat ID */}
                 <div>
                   <label className="text-xs font-semibold text-slate-300 block mb-1.5">
@@ -459,9 +720,6 @@ export default function OneDriveToTelegramPage() {
                     disabled={state.status === "running"}
                     className="w-full text-xs p-3.5 rounded-2xl border border-slate-800 bg-slate-950 text-slate-100 placeholder:text-slate-600 outline-none focus:ring-2 focus:ring-blue-500/50 disabled:opacity-50 font-mono"
                   />
-                  <p className="text-[11px] text-slate-500 mt-1">
-                    Private Channel ID starts with <code className="text-blue-400">-100...</code>
-                  </p>
                 </div>
 
                 {/* OneDrive User ID (Optional) */}
@@ -479,7 +737,7 @@ export default function OneDriveToTelegramPage() {
                   />
                 </div>
 
-                {/* OneDrive Folder Path with Visual Folder Browser Button */}
+                {/* OneDrive Folder Path */}
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
@@ -550,7 +808,7 @@ export default function OneDriveToTelegramPage() {
                 </div>
               )}
 
-              {/* Action Buttons */}
+              {/* Start Button */}
               <div className="pt-2">
                 {state.status === "running" ? (
                   <button
@@ -567,14 +825,14 @@ export default function OneDriveToTelegramPage() {
                     className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs shadow-xl shadow-blue-950/40 transition-all disabled:opacity-50 active:scale-[0.98]"
                   >
                     <Play className="w-4 h-4 fill-white" />
-                    {loading ? "Starting Transfer..." : "Start Direct Transfer Stream"}
+                    {loading ? "Starting Stream..." : `Start Direct ${transferMode === "user_mtproto" ? "MTProto 2GB" : "Bot API"} Stream`}
                   </button>
                 )}
               </div>
             </div>
           </div>
 
-          {/* Right Column: Live Metrics & Console */}
+          {/* Right Column: Live Stream Metrics & Console Logs */}
           <div className="lg:col-span-7 space-y-6">
             {/* Progress Overview Card */}
             <div className="bg-slate-900/90 border border-slate-800/90 rounded-3xl p-6 shadow-xl backdrop-blur-xl space-y-6">
@@ -607,7 +865,7 @@ export default function OneDriveToTelegramPage() {
                 </div>
               </div>
 
-              {/* Metric Cards */}
+              {/* Metric Cards Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="p-3.5 bg-slate-950/60 border border-slate-800/80 rounded-2xl">
                   <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
@@ -661,7 +919,7 @@ export default function OneDriveToTelegramPage() {
                 </div>
               )}
 
-              {/* Current File */}
+              {/* Currently Processing File */}
               {state.currentFileName && (
                 <div className="p-3 bg-slate-950 border border-slate-800 rounded-2xl flex items-center gap-3 text-xs">
                   <FileText className="w-4 h-4 text-blue-400 shrink-0" />
@@ -673,7 +931,7 @@ export default function OneDriveToTelegramPage() {
               )}
             </div>
 
-            {/* Execution Logs Terminal */}
+            {/* Terminal Console */}
             <div className="bg-slate-950 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[420px]">
               <div className="px-5 py-3.5 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -746,7 +1004,7 @@ export default function OneDriveToTelegramPage() {
           </div>
         </div>
       ) : (
-        /* Transfer History Tab */
+        /* History Tab */
         <div className="bg-slate-900/90 border border-slate-800/90 rounded-3xl p-6 shadow-xl backdrop-blur-xl space-y-6">
           <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
             <div className="flex items-center gap-2">
@@ -777,7 +1035,6 @@ export default function OneDriveToTelegramPage() {
                     key={record.id}
                     className="border border-slate-800/80 rounded-2xl bg-slate-950/60 overflow-hidden transition-all hover:border-slate-700"
                   >
-                    {/* Header */}
                     <div
                       onClick={() => setExpandedHistoryId(isExpanded ? null : record.id)}
                       className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer hover:bg-slate-900/40"
@@ -795,6 +1052,9 @@ export default function OneDriveToTelegramPage() {
                           >
                             {record.status}
                           </span>
+                          <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-300 border border-blue-500/20">
+                            {record.mode === "user_mtproto" ? "⚡ MTProto 2GB" : "🤖 Bot API"}
+                          </span>
                           <span className="text-xs font-bold text-slate-200">
                             Folder: <code className="text-blue-300 font-mono">{record.folderPath}</code>
                           </span>
@@ -807,7 +1067,6 @@ export default function OneDriveToTelegramPage() {
                         </p>
                       </div>
 
-                      {/* Stats & Expand */}
                       <div className="flex items-center gap-4">
                         <div className="text-right text-xs font-mono">
                           <div className="font-bold text-slate-200">
@@ -824,7 +1083,6 @@ export default function OneDriveToTelegramPage() {
                       </div>
                     </div>
 
-                    {/* Detailed Body */}
                     {isExpanded && (
                       <div className="p-4 border-t border-slate-800/80 bg-slate-900/60 space-y-4 text-xs">
                         {record.cancellationReason && (
@@ -853,7 +1111,6 @@ export default function OneDriveToTelegramPage() {
                           </div>
                         </div>
 
-                        {/* Recent Logs Snippet */}
                         {record.logs && record.logs.length > 0 && (
                           <div className="space-y-1.5">
                             <span className="text-[11px] font-bold text-slate-300">Job Execution Logs Snapshot:</span>
