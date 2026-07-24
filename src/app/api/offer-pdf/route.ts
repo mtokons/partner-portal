@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSalesOfferById, getSalesOfferItems } from "@/lib/sharepoint";
+import { getSalesOfferById, getSalesOfferItems, getProducts, getPartners } from "@/lib/sharepoint";
 import { generateSalesOfferPdf } from "@/lib/pdf";
 import { requireSessionUser, canAccess } from "@/lib/api-auth";
 
@@ -24,7 +24,6 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Offer not found" }, { status: 404 });
   }
 
-  // Ownership: partners see own; admin/finance see all; clients see by clientId
   if (!canAccess(user, { partnerId: offer.partnerId, customerId: offer.clientId })) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
@@ -42,17 +41,43 @@ export async function GET(request: Request) {
     const { loadRate } = await import("@/lib/serverCurrency");
     rate = (await loadRate()) ?? undefined;
   } catch {
-    // rate stays undefined — BDT-only PDF
+    // rate stays undefined
+  }
+
+  // Fetch products for descriptions and partner for logo
+  let productMap: Record<string, { description?: string; sessionsCount?: number }> = {};
+  try {
+    const products = await getProducts();
+    productMap = Object.fromEntries(products.map((p) => [p.id, p]));
+  } catch {
+    // Non-blocking
+  }
+
+  let partnerLogo: { base64: string; mime: string } | undefined;
+  try {
+    const partners = await getPartners();
+    const partner = partners.find((p) => p.id === offer.partnerId);
+    const logoUrl = partner?.logoUrl;
+    if (logoUrl) {
+      const res = await fetch(logoUrl, { signal: AbortSignal.timeout(5000) });
+      if (res.ok) {
+        const mime = res.headers.get("content-type") || "image/png";
+        const base64 = Buffer.from(await res.arrayBuffer()).toString("base64");
+        partnerLogo = { base64, mime };
+      }
+    }
+  } catch {
+    // Non-blocking
   }
 
   const pdfItems = items.map((i) => ({
     name: i.productName,
     quantity: i.quantity,
     price: i.unitPrice,
+    description: productMap[i.productId]?.description,
+    sessions: productMap[i.productId]?.sessionsCount,
   }));
 
-  // Use authoritative offer totals — never recompute from line items, which
-  // would silently ignore offer-level discounts and promo applications.
   const pdfBytes = generateSalesOfferPdf(
     offer.partnerName || "SCCG",
     offer.clientName || "Client",
@@ -65,6 +90,9 @@ export async function GET(request: Request) {
       discountType: offer.discountType,
       totalAmount: offer.totalAmount,
     },
+    "BDT",
+    rate,
+    partnerLogo,
   );
 
   const filename = `offer-${offer.offerNumber || offer.id}.pdf`;

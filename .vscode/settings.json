@@ -1,3 +1,7 @@
 {
-    "sarif-viewer.connectToGithubCodeScanning": "off"
+    "sarif-viewer.connectToGithubCodeScanning": "off",
+    "python.defaultInterpreterPath": "/Users/mtokons/Desktop/CodeProject/partner-portal/cv-tailor/.venv/bin/python",
+    "python.analysis.extraPaths": [
+        "/Users/mtokons/Desktop/CodeProject/partner-portal/cv-tailor"
+    ]
 }

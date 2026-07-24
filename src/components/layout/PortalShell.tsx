@@ -13,6 +13,8 @@ interface PortalShellProps {
   unpaidInvoicesCount: number;
   siteUrl?: string | null;
   listUrls?: Record<string, string>;
+  tierStatus?: string;
+  partnerLogoUrl?: string;
 }
 
 export default function PortalShell({
@@ -24,6 +26,8 @@ export default function PortalShell({
   unpaidInvoicesCount,
   siteUrl,
   listUrls,
+  tierStatus,
+  partnerLogoUrl,
 }: PortalShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -35,6 +39,7 @@ export default function PortalShell({
         onClose={() => setSidebarOpen(false)} 
         siteUrl={siteUrl || undefined}
         listUrls={listUrls}
+        partnerLogoUrl={partnerLogoUrl}
       />
       <Header
         userName={userName}
@@ -44,6 +49,7 @@ export default function PortalShell({
         onMenuToggle={() => setSidebarOpen(!sidebarOpen)}
         siteUrl={siteUrl || undefined}
         listUrls={listUrls}
+        tierStatus={tierStatus}
       />
       <main className="lg:ml-64 mt-14 lg:mt-16 min-h-[calc(100vh-3.5rem)] lg:min-h-[calc(100vh-4rem)]">
         <div className="p-4 sm:p-5 lg:p-7 max-w-[1600px]">

@@ -7,12 +7,16 @@ import type {
   Promotion, Referral, Payout,
   EmailTracking, OfferAcceptanceLog,
   PromoCode, PromoCodeUsage, CommissionRule, CommissionLedgerEntry,
+  PromoCodeType, PromoCodeStatus,
   CoinWallet, CoinTransaction, GiftCard, GiftCardTransaction, UserRoleEntry,
   SccgCard, SccgCardTransaction,
   KanbanTask,
   SchoolCertificate,
   Candidate, CandidateService, CandidateTask,
   HelpdeskTicket, HelpdeskMessage,
+  B2BCompany,
+  TierStatus, PartnerMargin,
+  ActivityLog,
 } from "@/types";
 
 const isProduction = process.env.VERCEL_ENV === "production" || process.env.NODE_ENV === "production";
@@ -32,15 +36,14 @@ async function runSafe<T>(liveFn: () => Promise<T>, fallback?: () => T): Promise
 
     // Missing list / 404 → warn-once style log; not actionable, just empty.
     if (code === 404 || code === "itemNotFound" || /does not exist/i.test(msg)) {
-       
       console.warn(`[SharePoint] list missing (returning empty): ${msg.split("\n")[0]}`);
+    } else if (code === 403 || code === "accessDenied" || /access denied/i.test(msg)) {
+      console.warn(`[SharePoint] access denied (returning fallback/empty): ${msg.split("\n")[0]}`);
     } else if (/field name is not recognized|cannot be referenced in filter or orderby/i.test(msg)) {
       // List exists but our code references a column that's missing on this tenant.
       // Non-fatal: feature degrades to empty until the list schema is updated.
-       
       console.warn(`[SharePoint] schema mismatch (returning empty): ${msg.split("\n")[0]}`);
     } else {
-       
       console.error(`[SharePoint] failed: ${msg}\n  caller:\n${stack}`);
     }
     if (fallback) return fallback();
@@ -225,6 +228,7 @@ const PR_COL = { // SCCG Products
   sessionsCount: "SessionsCount",
   retailPriceEur: "RetailPriceEur",
   retailPriceBdt: "RetailPriceBdt",
+  initialPayment: "InitialPayment",
   category: "Category",
   price: "Price",
   description: "Description",
@@ -284,6 +288,22 @@ const ACT_COL = { // SCCG Activities
   createdAt: "CreatedAt",
 };
 
+const ACTLOG_COL = { // SCCG ActivityLog (audit trail)
+  actorEmail: "Title",
+  actorId: "ActorId",
+  actorName: "ActorName",
+  actorRole: "ActorRole",
+  action: "Action",
+  description: "Description",
+  targetId: "TargetId",
+  targetEmail: "TargetEmail",
+  targetName: "TargetName",
+  console: "Console",
+  ipAddress: "IpAddress",
+  userAgent: "UserAgent",
+  createdAt: "CreatedAt",
+};
+
 const PAY_COL = { // SCCG Payouts
   recipientId: "RecipientId",
   recipientName: "RecipientName",
@@ -340,7 +360,9 @@ const UR_COL = { // User Roles list
 const CW_COL = { // Coin Wallets
   userId: "UserId",
   userName: "UserName",
+  userEmail: "UserEmail",
   balance: "Balance",
+  currency: "Currency",
   totalEarned: "TotalEarned",
   totalSpent: "TotalSpent",
   status: "Status",
@@ -370,8 +392,13 @@ const PART_COL = { // SCCG Partners
   company: "Company",
   phone: "Phone",
   partnerType: "PartnerType",
+  partnerCode: "PartnerCode",
   commissionTier: "CommissionTier",
+  tierStatus: "TierStatus",
+  marginPercentage: "MarginPercentage",
   onboardingStatus: "OnboardingStatus",
+  salesTarget: "SalesTarget",
+  preferredCurrency: "PreferredCurrency",
   createdAt: "CreatedAt",
 };
 
@@ -470,8 +497,14 @@ export async function getPartnerByEmail(email: string): Promise<Partner | null> 
       status: String(f[PART_COL.status] || "active") as Partner["status"], 
       company: String(f[PART_COL.company] || ""), 
       partnerType: (f[PART_COL.partnerType] as any) || "individual",
+      partnerCode: String(f[PART_COL.partnerCode] || ""),
       commissionTier: (f[PART_COL.commissionTier] as any) || "standard",
+      tierStatus: f[PART_COL.tierStatus] ? (String(f[PART_COL.tierStatus]) as TierStatus) : undefined,
+      marginPercentage: f[PART_COL.marginPercentage] ? (Number(f[PART_COL.marginPercentage]) as PartnerMargin) : undefined,
       onboardingStatus: (String(f[PART_COL.onboardingStatus] || "approved").toLowerCase() as any),
+      salesTarget: f[PART_COL.salesTarget] ? Number(f[PART_COL.salesTarget]) : undefined,
+      preferredCurrency: f[PART_COL.preferredCurrency] ? String(f[PART_COL.preferredCurrency]) : undefined,
+      logoUrl: f.LogoUrl ? String(f.LogoUrl) : undefined,
       createdAt: String(f[PART_COL.createdAt] || new Date().toISOString()) 
     } as Partner;
   }, () => null);
@@ -496,8 +529,13 @@ export async function getPartners(): Promise<Partner[]> {
           company: String(f[PART_COL.company] || ""),
           phone: String(f[PART_COL.phone] || ""),
           partnerType: (f[PART_COL.partnerType] as any) || "individual",
+          partnerCode: String(f[PART_COL.partnerCode] || ""),
           commissionTier: (f[PART_COL.commissionTier] as any) || "standard",
+          tierStatus: f[PART_COL.tierStatus] ? (String(f[PART_COL.tierStatus]) as TierStatus) : undefined,
+          marginPercentage: f[PART_COL.marginPercentage] ? (Number(f[PART_COL.marginPercentage]) as PartnerMargin) : undefined,
           onboardingStatus: (String(f[PART_COL.onboardingStatus] || "approved").toLowerCase() as any),
+          salesTarget: f[PART_COL.salesTarget] ? Number(f[PART_COL.salesTarget]) : undefined,
+          preferredCurrency: f[PART_COL.preferredCurrency] ? String(f[PART_COL.preferredCurrency]) : undefined,
           createdAt: String(f[PART_COL.createdAt] || ""),
         } as Partner;
       });
@@ -517,7 +555,10 @@ export async function createPartner(data: Omit<Partner, "id" | "createdAt">): Pr
       [PART_COL.company]: data.company,
       [PART_COL.phone]: data.phone,
       [PART_COL.partnerType]: data.partnerType,
+      [PART_COL.partnerCode]: data.partnerCode || `PRT-${crypto.randomUUID().split("-")[0].toUpperCase()}`,
       [PART_COL.commissionTier]: data.commissionTier,
+      [PART_COL.tierStatus]: data.tierStatus,
+      [PART_COL.marginPercentage]: data.marginPercentage,
       [PART_COL.onboardingStatus]: data.onboardingStatus,
       [PART_COL.createdAt]: new Date().toISOString(),
     };
@@ -543,6 +584,89 @@ export async function approvePartnerOnboarding(id: string): Promise<void> {
   });
 }
 
+export async function updatePartnerTierAndMargin(
+  id: string,
+  tierStatus: TierStatus,
+  marginPercentage: PartnerMargin
+): Promise<void> {
+  return runSafe(async () => {
+    const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
+    await graphPatch(`${await getSiteListUrlAsync("Partners")}/${id}/fields`, {
+      [PART_COL.tierStatus]: tierStatus,
+      [PART_COL.marginPercentage]: marginPercentage,
+    });
+  });
+}
+
+export async function updatePartnerSalesTarget(id: string, salesTarget: number): Promise<void> {
+  return runSafe(async () => {
+    const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
+    await graphPatch(`${await getSiteListUrlAsync("Partners")}/${id}/fields`, {
+      [PART_COL.salesTarget]: salesTarget,
+    });
+  });
+}
+
+export async function getPartnerById(id: string): Promise<Partner | null> {
+  return runSafe(async () => {
+    const { graphGetSafe, getSiteListUrlAsync } = await import("@/lib/graph");
+    const item = await graphGetSafe<{ id: string; fields: Record<string, any> }>(
+      `${await getSiteListUrlAsync("Partners")}/${id}?$expand=fields`
+    );
+    if (!item) return null;
+    const f = item.fields;
+    return {
+      id: String(item.id),
+      name: String(f[PART_COL.name] || ""),
+      email: String(f[PART_COL.email] || ""),
+      passwordHash: String(f[PART_COL.passwordHash] || ""),
+      role: (f[PART_COL.role] as any) || "partner",
+      status: (f[PART_COL.status] as any) || "active",
+      company: String(f[PART_COL.company] || ""),
+      phone: String(f[PART_COL.phone] || ""),
+      partnerType: (f[PART_COL.partnerType] as any) || "individual",
+      partnerCode: String(f[PART_COL.partnerCode] || ""),
+      commissionTier: (f[PART_COL.commissionTier] as any) || "standard",
+      tierStatus: f[PART_COL.tierStatus] ? (String(f[PART_COL.tierStatus]) as TierStatus) : undefined,
+      marginPercentage: f[PART_COL.marginPercentage] ? (Number(f[PART_COL.marginPercentage]) as PartnerMargin) : undefined,
+      onboardingStatus: (String(f[PART_COL.onboardingStatus] || "approved").toLowerCase() as any),
+      salesTarget: f[PART_COL.salesTarget] ? Number(f[PART_COL.salesTarget]) : undefined,
+      preferredCurrency: f[PART_COL.preferredCurrency] ? String(f[PART_COL.preferredCurrency]) : undefined,
+      createdAt: String(f[PART_COL.createdAt] || ""),
+    } as Partner;
+  });
+}
+
+export async function updatePartner(id: string, data: Partial<Omit<Partner, "id" | "createdAt">>): Promise<void> {
+  return runSafe(async () => {
+    const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
+    const fields: Record<string, unknown> = {};
+    if (data.name !== undefined)              fields[PART_COL.name]             = data.name;
+    if (data.email !== undefined)             fields[PART_COL.email]            = data.email;
+    if (data.company !== undefined)           fields[PART_COL.company]          = data.company;
+    if (data.phone !== undefined)             fields[PART_COL.phone]            = data.phone;
+    if (data.partnerType !== undefined)       fields[PART_COL.partnerType]      = data.partnerType;
+    if (data.tierStatus !== undefined)        fields[PART_COL.tierStatus]       = data.tierStatus;
+    if (data.marginPercentage !== undefined)  fields[PART_COL.marginPercentage] = data.marginPercentage;
+    if (data.onboardingStatus !== undefined)  fields[PART_COL.onboardingStatus] = data.onboardingStatus;
+    if (data.status !== undefined)            fields[PART_COL.status]           = data.status;
+    if (data.preferredCurrency !== undefined) fields[PART_COL.preferredCurrency]= data.preferredCurrency;
+    if (data.salesTarget !== undefined)       fields[PART_COL.salesTarget]      = data.salesTarget;
+    if (Object.keys(fields).length) {
+      await graphPatch(`${await getSiteListUrlAsync("Partners")}/${id}/fields`, fields);
+    }
+  });
+}
+
+export async function updatePartnerCurrency(id: string, preferredCurrency: string): Promise<void> {
+  return runSafe(async () => {
+    const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
+    await graphPatch(`${await getSiteListUrlAsync("Partners")}/${id}/fields`, {
+      [PART_COL.preferredCurrency]: preferredCurrency,
+    });
+  });
+}
+
 // ============================================================
 // Products
 // ============================================================
@@ -564,7 +688,8 @@ export async function getProducts(): Promise<Product[]> {
           sessionsCount: Number(f[PR_COL.sessionsCount] || 0),
           retailPriceEur: Number(f[PR_COL.retailPriceEur] || 0),
           retailPriceBdt: Number(f[PR_COL.retailPriceBdt] || 0),
-          price: Number(f[PR_COL.price] || f[PR_COL.retailPriceBdt] || 0),
+          initialPayment: f[PR_COL.initialPayment] !== undefined ? Number(f[PR_COL.initialPayment]) : undefined,
+          price: Number(f[PR_COL.retailPriceEur] || f[PR_COL.price] || 0),
           stock: Number(f[PR_COL.stock] || 0),
           category: String(f[PR_COL.category] || ""),
           imageUrl: f[PR_COL.imageUrl] ? String(f[PR_COL.imageUrl]) : undefined,
@@ -582,20 +707,26 @@ export async function getProducts(): Promise<Product[]> {
 
 export async function createProduct(data: Omit<Product, "id">): Promise<Product> {
   const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
-  const body = {
+  const body: Record<string, unknown> = {
     [PR_COL.name]: data.name,
     [PR_COL.category]: data.category,
-    [PR_COL.price]: data.price,
-    [PR_COL.description]: data.description,
-    [PR_COL.stock]: data.stock,
-    [PR_COL.imageUrl]: data.imageUrl,
-    [PR_COL.discount]: data.discount,
-    [PR_COL.discountType]: data.discountType,
-    [PR_COL.discountExpiry]: data.discountExpiry,
     [PR_COL.isAvailable]: data.isAvailable,
-    [PR_COL.tags]: data.tags?.join(","),
-    [PR_COL.sortOrder]: data.sortOrder,
   };
+  if (data.price !== undefined && data.price !== null) body[PR_COL.price] = data.price;
+  if (data.description) body[PR_COL.description] = data.description;
+  if (data.stock !== undefined) body[PR_COL.stock] = data.stock;
+  if (data.imageUrl) body[PR_COL.imageUrl] = data.imageUrl;
+  if (data.discount !== undefined) body[PR_COL.discount] = data.discount;
+  if (data.discountType) body[PR_COL.discountType] = data.discountType;
+  if (data.discountExpiry) body[PR_COL.discountExpiry] = data.discountExpiry;
+  if (data.tags?.length) body[PR_COL.tags] = data.tags.join(",");
+  if (data.sortOrder !== undefined) body[PR_COL.sortOrder] = data.sortOrder;
+  if (data.retailPriceEur !== undefined) body[PR_COL.retailPriceEur] = data.retailPriceEur;
+  if (data.retailPriceBdt !== undefined) body[PR_COL.retailPriceBdt] = data.retailPriceBdt;
+  if (data.sessionsCount !== undefined) body[PR_COL.sessionsCount] = data.sessionsCount;
+  if (data.unit) body[PR_COL.unit] = data.unit;
+  if (data.sku) body[PR_COL.sku] = data.sku;
+  if (data.initialPayment !== undefined) body[PR_COL.initialPayment] = data.initialPayment;
   const res = await graphPost<{ id: string }>(`${await getSiteListUrlAsync("Products")}`, { fields: body });
   return { ...data, id: res.id };
 }
@@ -972,8 +1103,28 @@ export async function createInvoice(invoice: Omit<Invoice, "id">): Promise<Invoi
   const amountEur = Math.round((invoice.amount * rate + Number.EPSILON) * 100) / 100;
   
   const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
-  const res = await graphPost<{ id: string }>(await getSiteListUrlAsync("Invoices"), { fields: { PartnerId: invoice.partnerId, ClientId: invoice.clientId, ClientName: invoice.clientName, OrderId: invoice.orderId, Amount: invoice.amount, AmountEUR: amountEur, ConversionRate: rate, Status: invoice.status, DueDate: invoice.dueDate, CreatedAt: invoice.createdAt } });
+  const res = await graphPost<{ id: string }>(await getSiteListUrlAsync("Invoices"), { fields: { PartnerId: invoice.partnerId, ClientId: invoice.clientId, ClientName: invoice.clientName, OrderId: invoice.orderId, Amount: invoice.amount, AmountEUR: amountEur, ConversionRate: rate, Status: invoice.status, DueDate: invoice.dueDate, CreatedAt: invoice.createdAt, InvoiceNumber: (invoice as any).invoiceNumber || "" } });
   return { ...invoice, id: String(res.id) } as Invoice;
+}
+
+export async function getInvoiceById(invoiceId: string): Promise<Invoice | null> {
+  return runSafe(async () => {
+    const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
+    const url = `${await getSiteListUrlAsync("Invoices")}/${invoiceId}?$expand=fields`;
+    const item = await graphGet<{ id: string; fields: Record<string, unknown> }>(url);
+    if (!item) return null;
+    const f = item.fields;
+    return { id: String(item.id), partnerId: String(f.PartnerId), clientId: String(f.ClientId), clientName: String(f.ClientName || ""), orderId: f.OrderId ? String(f.OrderId) : undefined, invoiceNumber: f.InvoiceNumber ? String(f.InvoiceNumber) : undefined, amount: Number(f.Amount), amountEur: f.AmountEUR ? Number(f.AmountEUR) : undefined, conversionRate: f.ConversionRate ? Number(f.ConversionRate) : undefined, status: String(f.Status), dueDate: String(f.DueDate), createdAt: String(f.CreatedAt) } as Invoice;
+  }, () => null);
+}
+
+export async function updateInvoice(invoiceId: string, updates: Partial<Record<string, unknown>>): Promise<void> {
+  const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
+  const fields: Record<string, unknown> = {};
+  if (updates.status) fields.Status = updates.status;
+  if (updates.updatedAt) fields.UpdatedAt = updates.updatedAt;
+  if (updates.pdfUrl) fields.PdfUrl = updates.pdfUrl;
+  await graphPatch(`${await getSiteListUrlAsync("Invoices")}/${invoiceId}`, { fields });
 }
 
 // ============================================================
@@ -1231,12 +1382,14 @@ export async function getServicePackages(): Promise<ServicePackage[]> {
 // ============================================================
 // Customer Packages
 // ============================================================
-export async function getCustomerPackages(customerId?: string, partnerId?: string): Promise<CustomerPackage[]> {
+export async function getCustomerPackages(customerId?: string, partnerId?: string, expertId?: string): Promise<CustomerPackage[]> {
   return runSafe(async () => {
-    const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
+    const { graphGet, getSiteListUrlAsync, escapeOData } = await import("@/lib/graph");
     let url = `${await getSiteListUrlAsync("CustomerPackages")}?$expand=fields`;
     const filters: string[] = [];
-    if (customerId) filters.push(`fields/${CP_COL.customerId} eq '${customerId}'`);
+    if (customerId) filters.push(`fields/${CP_COL.customerId} eq '${escapeOData(customerId)}'`);
+    if (partnerId) filters.push(`fields/${CP_COL.partnerId} eq '${escapeOData(partnerId)}'`);
+    if (expertId) filters.push(`fields/${CP_COL.expertId} eq '${escapeOData(expertId)}'`);
     if (filters.length > 0) url += `&$filter=${filters.join(" and ")}`;
     
     const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, any> }> }>(url);
@@ -1245,14 +1398,14 @@ export async function getCustomerPackages(customerId?: string, partnerId?: strin
       return {
         id: String(item.id),
         customerId: String(f[CP_COL.customerId] || ""),
-        clientName: String(f[CP_COL.clientName] || ""),
+        customerName: String(f[CP_COL.customerName] || ""),
         partnerId: String(f[CP_COL.partnerId] || ""),
         servicePackageId: String(f[CP_COL.packageId] || ""),
         packageName: String(f[CP_COL.packageName] || ""),
         expertId: f[CP_COL.expertId] ? String(f[CP_COL.expertId]) : undefined,
         expertName: f[CP_COL.expertName] ? String(f[CP_COL.expertName]) : undefined,
         status: String(f[CP_COL.status] || "active") as any,
-        completedSessions: Number(f[CP_COL.totalSessions] || 0) - Number(f[CP_COL.sessionsRemaining] || 0),
+        completedSessions: Number(f[CP_COL.completedSessions] || 0),
         totalSessions: Number(f[CP_COL.totalSessions] || 0),
         totalAmount: Number(f[CP_COL.totalAmount] || 0),
         amountPaid: Number(f[CP_COL.amountPaid] || 0),
@@ -1273,14 +1426,14 @@ export async function getCustomerPackageById(id: string): Promise<CustomerPackag
     return {
       id: String(res.id),
       customerId: String(f[CP_COL.customerId] || ""),
-      clientName: String(f[CP_COL.clientName] || ""),
+      customerName: String(f[CP_COL.customerName] || ""),
       partnerId: String(f[CP_COL.partnerId] || ""),
       servicePackageId: String(f[CP_COL.packageId] || ""),
       packageName: String(f[CP_COL.packageName] || ""),
       expertId: f[CP_COL.expertId] ? String(f[CP_COL.expertId]) : undefined,
       expertName: f[CP_COL.expertName] ? String(f[CP_COL.expertName]) : undefined,
       status: String(f[CP_COL.status] || "active") as any,
-      completedSessions: Number(f[CP_COL.totalSessions] || 0) - Number(f[CP_COL.sessionsRemaining] || 0),
+      completedSessions: Number(f[CP_COL.completedSessions] || 0),
       totalSessions: Number(f[CP_COL.totalSessions] || 0),
       totalAmount: Number(f[CP_COL.totalAmount] || 0),
       amountPaid: Number(f[CP_COL.amountPaid] || 0),
@@ -2719,6 +2872,67 @@ export async function deleteUser(email: string): Promise<void> {
 }
 
 // ============================================================
+// Generic cascade-delete helpers (super-admin destructive ops)
+// ============================================================
+
+/**
+ * Return the SharePoint item IDs of a list whose `fieldName` equals `value`.
+ * Pages up to 500 items. Returns [] on error so callers can continue cascading.
+ */
+export async function getListItemIdsByField(
+  listName: string,
+  fieldName: string,
+  value: string
+): Promise<string[]> {
+  try {
+    const { graphGetSafe, getSiteListUrlAsync, escapeOData } = await import("@/lib/graph");
+    const base = await getSiteListUrlAsync(listName);
+    const res = await graphGetSafe<{ value: Array<{ id: string }> }>(
+      `${base}?$select=id&$expand=fields($select=id)&$filter=fields/${fieldName} eq '${escapeOData(value)}'&$top=500`
+    );
+    return (res?.value || []).map((it) => String(it.id));
+  } catch (e) {
+    console.error(`getListItemIdsByField(${listName}, ${fieldName}) failed:`, (e as Error).message);
+    return [];
+  }
+}
+
+/** Hard-delete a single list item. Swallows errors (logs) so cascades continue. */
+export async function deleteListItemById(listName: string, id: string): Promise<boolean> {
+  try {
+    const { graphDelete, getSiteListUrlAsync } = await import("@/lib/graph");
+    const base = await getSiteListUrlAsync(listName);
+    await graphDelete(`${base}/${id}`);
+    return true;
+  } catch (e) {
+    console.error(`deleteListItemById(${listName}, ${id}) failed:`, (e as Error).message);
+    return false;
+  }
+}
+
+/** Hard-delete every item in `listName` whose `fieldName` equals `value`. Returns count deleted. */
+export async function deleteListItemsByField(
+  listName: string,
+  fieldName: string,
+  value: string
+): Promise<number> {
+  const ids = await getListItemIdsByField(listName, fieldName, value);
+  let deleted = 0;
+  for (const id of ids) {
+    if (await deleteListItemById(listName, id)) deleted++;
+  }
+  return deleted;
+}
+
+/** Hard-delete the SharePoint UserProfiles + UserRoles records for an email. */
+export async function hardDeleteUserAccount(email: string): Promise<{ profiles: number; roles: number }> {
+  const profiles = await deleteListItemsByField("UserProfiles", UP_COL.email, email);
+  const roles = await deleteListItemsByField("UserRoles", UR_COL.userAccountId, email);
+  return { profiles, roles };
+}
+
+
+// ============================================================
 // Offer Acceptance Logs
 // ============================================================
 
@@ -2837,91 +3051,115 @@ export async function deleteKanbanTask(id: string): Promise<void> {
 
 export async function getPromoCodes(ownerId?: string): Promise<PromoCode[]> {
   return runSafe(async () => {
-    const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
+    const { graphGet, getSiteListUrlAsync, escapeOData } = await import("@/lib/graph");
     let url = `${await getSiteListUrlAsync("PromoCodes")}?$expand=fields`;
-    if (ownerId) url += `&$filter=fields/OwnerId eq '${ownerId}'`;
+    if (ownerId) url += `&$filter=fields/OwnerId eq '${escapeOData(ownerId)}'`;
     const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, any> }> }>(url);
-    return res.value.map(item => {
-      const f = item.fields;
-      return {
-        id: String(item.id),
-        code: String(f.Code || ""),
-        codeType: String(f.Type || "referral") as any,
-        ownerId: String(f.OwnerId || ""),
-        ownerName: String(f.OwnerName || ""),
-        discountType: String(f.DiscountType || "percent") as any,
-        discountValue: Number(f.Value || 0),
-        maxUses: Number(f.MaxUsages || 0),
-        currentUses: Number(f.CurrentUsages || 0),
-        maxUsesPerUser: 1,
-        minOrderAmount: 0,
-        validFrom: String(f.CreatedAt || ""),
-        status: Boolean(f.IsActive) ? "active" : "revoked",
-        shareableLink: "",
-        createdAt: String(f.CreatedAt || ""),
-        createdBy: "system",
-      } as PromoCode;
-    });
+    return res.value.map(item => mapPromoCode(item.id, item.fields));
   }, () => []);
+}
+
+function mapPromoCode(id: string | number, f: Record<string, any>): PromoCode {
+  return {
+    id: String(id),
+    code: String(f.Code || ""),
+    codeType: String(f.CodeType || "promo-general") as PromoCodeType,
+    ownerId: String(f.OwnerId || ""),
+    ownerName: String(f.OwnerName || ""),
+    partnerProfileId: f.PartnerProfileId ? String(f.PartnerProfileId) : undefined,
+    discountType: String(f.DiscountType || "percent") as PromoCode["discountType"],
+    discountValue: Number(f.DiscountValue || 0),
+    commissionRuleId: f.CommissionRuleId ? String(f.CommissionRuleId) : undefined,
+    maxUses: Number(f.MaxUses || 0),
+    currentUses: Number(f.CurrentUses || 0),
+    maxUsesPerUser: Number(f.MaxUsesPerUser ?? 1),
+    minOrderAmount: Number(f.MinOrderAmount || 0),
+    applicableProducts: f.ApplicableProducts ? String(f.ApplicableProducts) : undefined,
+    applicableCategories: f.ApplicableCategories ? String(f.ApplicableCategories) : undefined,
+    validFrom: String(f.ValidFrom || f.CreatedAt || ""),
+    validUntil: f.ValidUntil ? String(f.ValidUntil) : undefined,
+    status: String(f.Status || "active") as PromoCodeStatus,
+    shareableLink: String(f.ShareableLink || ""),
+    qrCodeData: f.QrCodeData ? String(f.QrCodeData) : undefined,
+    createdAt: String(f.CreatedAt || ""),
+    createdBy: String(f.CreatedBy || "system"),
+  };
 }
 
 export async function getPromoCodeByCode(code: string): Promise<PromoCode | null> {
   return runSafe(async () => {
     const { graphGet, getSiteListUrlAsync, escapeOData } = await import("@/lib/graph");
-    const url = `${await getSiteListUrlAsync("PromoCodes")}?$expand=fields&$filter=fields/Code eq '${escapeOData(code)}' and fields/IsActive eq true`;
+    const url = `${await getSiteListUrlAsync("PromoCodes")}?$expand=fields&$filter=fields/Code eq '${escapeOData(code)}' and fields/Status eq 'active'`;
     const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, any> }> }>(url);
     if (!res.value.length) return null;
-    const f = res.value[0].fields;
-    return {
-      id: String(res.value[0].id),
-      code: String(f.Code || ""),
-      codeType: String(f.Type || "referral") as any,
-      ownerId: String(f.OwnerId || ""),
-      ownerName: String(f.OwnerName || ""),
-      discountType: String(f.DiscountType || "percent") as any,
-      discountValue: Number(f.Value || 0),
-      maxUses: Number(f.MaxUsages || 0),
-      currentUses: Number(f.CurrentUsages || 0),
-      maxUsesPerUser: 1,
-      minOrderAmount: 0,
-      validFrom: String(f.CreatedAt || ""),
-      status: Boolean(f.IsActive) ? "active" : "revoked",
-      shareableLink: "",
-      createdAt: String(f.CreatedAt || ""),
-      createdBy: "system",
-    } as PromoCode;
+    return mapPromoCode(res.value[0].id, res.value[0].fields);
   }, () => null);
 }
 
 export async function createPromoCode(data: Omit<PromoCode, "id">): Promise<PromoCode> {
   const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
-  try {
-    const res = await graphPost<{ id: string }>(await getSiteListUrlAsync("PromoCodes"), {
-      fields: {
-        Code: data.code,
-        Type: data.codeType,
-        Value: data.discountValue,
-        DiscountType: data.discountType,
-        OwnerId: data.ownerId,
-        OwnerName: data.ownerName,
-        IsActive: data.status === "active",
-        MaxUsages: data.maxUses,
-        CurrentUsages: data.currentUses,
-        CreatedAt: data.createdAt,
-      },
-    });
-    return { ...data, id: String(res.id) } as PromoCode;
-  } catch (err) {
-    console.error("createPromoCode failed:", err);
-    return { ...data, id: "failed" } as PromoCode;
-  }
+  const fields: Record<string, unknown> = {
+    Title: data.code,
+    Code: data.code,
+    CodeType: data.codeType,
+    OwnerId: data.ownerId,
+    OwnerName: data.ownerName,
+    DiscountType: data.discountType,
+    DiscountValue: data.discountValue,
+    MaxUses: data.maxUses,
+    CurrentUses: data.currentUses,
+    MaxUsesPerUser: data.maxUsesPerUser,
+    MinOrderAmount: data.minOrderAmount,
+    ValidFrom: data.validFrom,
+    Status: data.status,
+    ShareableLink: data.shareableLink,
+    CreatedAt: data.createdAt,
+    CreatedBy: data.createdBy,
+  };
+  // Only include optional fields when present (empty dateTime/text can error)
+  if (data.validUntil) fields.ValidUntil = data.validUntil;
+  if (data.partnerProfileId) fields.PartnerProfileId = data.partnerProfileId;
+  if (data.commissionRuleId) fields.CommissionRuleId = data.commissionRuleId;
+  if (data.applicableProducts) fields.ApplicableProducts = data.applicableProducts;
+  if (data.applicableCategories) fields.ApplicableCategories = data.applicableCategories;
+  if (data.qrCodeData) fields.QrCodeData = data.qrCodeData;
+
+  const res = await graphPost<{ id: string }>(await getSiteListUrlAsync("PromoCodes"), { fields });
+  return { ...data, id: String(res.id) } as PromoCode;
 }
 
 export async function updatePromoCode(id: string, data: Partial<PromoCode>): Promise<void> {
+  const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
+  const fieldMap: Record<string, string> = {
+    code: "Code",
+    codeType: "CodeType",
+    ownerId: "OwnerId",
+    ownerName: "OwnerName",
+    discountType: "DiscountType",
+    discountValue: "DiscountValue",
+    maxUses: "MaxUses",
+    currentUses: "CurrentUses",
+    maxUsesPerUser: "MaxUsesPerUser",
+    minOrderAmount: "MinOrderAmount",
+    validFrom: "ValidFrom",
+    validUntil: "ValidUntil",
+    status: "Status",
+    shareableLink: "ShareableLink",
+  };
+  const fields: Record<string, unknown> = {};
+  for (const [key, col] of Object.entries(fieldMap)) {
+    const val = (data as Record<string, unknown>)[key];
+    if (val !== undefined) fields[col] = val;
+  }
+  if (Object.keys(fields).length === 0) return;
+  await graphPatch(`${await getSiteListUrlAsync("PromoCodes")}/${id}/fields`, fields);
 }
 
 export async function deletePromoCode(id: string): Promise<void> {
+  const { graphDelete, getSiteListUrlAsync } = await import("@/lib/graph");
+  await graphDelete(`${await getSiteListUrlAsync("PromoCodes")}/${id}`);
 }
+
 
 export async function getPromoCodeUsages(promoCodeId?: string): Promise<PromoCodeUsage[]> {
   return [];
@@ -3697,7 +3935,7 @@ function mapCandidate(item: { id: string; fields: Record<string, unknown> }): Ca
     submissionId: f[CAND_COL.submissionId] ? String(f[CAND_COL.submissionId]) : undefined,
     partnerId: String(f[CAND_COL.partnerId] || ""),
     partnerName: f[CAND_COL.partnerName] ? String(f[CAND_COL.partnerName]) : undefined,
-    workflowCategory: String(f[CAND_COL.workflowCategory] || "Training") as Candidate["workflowCategory"],
+    workflowCategory: String(f[CAND_COL.workflowCategory] || "Training & Language") as Candidate["workflowCategory"],
     currentStatus: String(f[CAND_COL.currentStatus] || "REGISTERED") as Candidate["currentStatus"],
     fullName: String(f[CAND_COL.fullName] || ""),
     dateOfBirth: String(f[CAND_COL.dateOfBirth] || ""),
@@ -3723,6 +3961,11 @@ function mapCandidate(item: { id: string; fields: Record<string, unknown> }): Ca
     updatedAt: f[CAND_COL.updatedAt] ? String(f[CAND_COL.updatedAt]) : undefined,
     submittedAt: f[CAND_COL.submittedAt] ? String(f[CAND_COL.submittedAt]) : undefined,
   };
+}
+
+export async function deleteCandidate(id: string): Promise<void> {
+  const { graphDelete, getSiteListUrlAsync } = await import("@/lib/graph");
+  await graphDelete(`${await getSiteListUrlAsync("Candidates")}/${id}`);
 }
 
 export async function getCandidates(partnerId?: string): Promise<Candidate[]> {
@@ -3832,6 +4075,8 @@ const CANDS_COL = {
   servicePricingId: "ServicePricingId",
   serviceName: "Title",
   packageType: "PackageType",
+  workflowCategory: "WorkflowCategory",
+  currentStatus: "CurrentStatus",
   basePrice: "BasePrice",
   quantity: "Quantity",
   totalPrice: "TotalPrice",
@@ -3846,6 +4091,8 @@ function mapCandidateService(item: { id: string; fields: Record<string, unknown>
     servicePricingId: String(f[CANDS_COL.servicePricingId] || ""),
     serviceName: String(f[CANDS_COL.serviceName] || ""),
     packageType: String(f[CANDS_COL.packageType] || "all-inclusive") as CandidateService["packageType"],
+    workflowCategory: (f[CANDS_COL.workflowCategory] as CandidateService["workflowCategory"]) || undefined,
+    currentStatus: (f[CANDS_COL.currentStatus] as string) || "REGISTERED",
     basePrice: Number(f[CANDS_COL.basePrice] || 0),
     quantity: Number(f[CANDS_COL.quantity] || 1),
     totalPrice: Number(f[CANDS_COL.totalPrice] || 0),
@@ -3877,7 +4124,24 @@ export async function createCandidateService(data: Omit<CandidateService, "id">)
     [CANDS_COL.totalPrice]: data.totalPrice,
     [CANDS_COL.createdAt]: data.createdAt,
   };
-  const res = await graphPost<{ id: string; fields: Record<string, unknown> }>(listUrl, { fields });
+  // Write WorkflowCategory if provided
+  if (data.workflowCategory) fields[CANDS_COL.workflowCategory] = data.workflowCategory;
+  // Write CurrentStatus — default to REGISTERED
+  fields[CANDS_COL.currentStatus] = data.currentStatus || "REGISTERED";
+
+  let res: { id: string; fields: Record<string, unknown> };
+  try {
+    res = await graphPost<{ id: string; fields: Record<string, unknown> }>(listUrl, { fields });
+  } catch (err) {
+    // If SP WorkflowCategory column doesn't exist yet, retry without it
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("WorkflowCategory") || msg.includes("not recognized")) {
+      const { [CANDS_COL.workflowCategory]: _drop, ...safeFields } = fields;
+      res = await graphPost<{ id: string; fields: Record<string, unknown> }>(listUrl, { fields: safeFields });
+    } else {
+      throw err;
+    }
+  }
   return mapCandidateService(res);
 }
 
@@ -3889,6 +4153,17 @@ export async function deleteCandidateServices(candidateId: string): Promise<void
       `${listUrl}?$select=id&$filter=fields/${CANDS_COL.candidateId} eq '${escapeOData(candidateId)}'&$top=500`
     );
     await Promise.all(res.value.map((item) => graphDelete(`${listUrl}/${item.id}`)));
+  });
+}
+
+export async function updateCandidateServiceStatus(
+  serviceId: string,
+  nextStatus: string
+): Promise<void> {
+  const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
+  const listUrl = await getSiteListUrlAsync("CandidateServices");
+  await graphPatch(`${listUrl}/${serviceId}/fields`, {
+    [CANDS_COL.currentStatus]: nextStatus,
   });
 }
 
@@ -3911,6 +4186,7 @@ const CANDTASK_COL = {
   candidateName: "CandidateName",
   taskCategory: "TaskCategory",
   workflowCategory: "WorkflowCategory",
+  tags: "Tags",
 } as const;
 
 function mapCandidateTask(item: { id: string; fields: Record<string, unknown> }): CandidateTask {
@@ -3933,7 +4209,7 @@ function mapCandidateTask(item: { id: string; fields: Record<string, unknown> })
     candidateId: String(f[CANDTASK_COL.candidateId] || ""),
     candidateName: f[CANDTASK_COL.candidateName] ? String(f[CANDTASK_COL.candidateName]) : undefined,
     taskCategory: String(f[CANDTASK_COL.taskCategory] || "General Task") as CandidateTask["taskCategory"],
-    workflowCategory: String(f[CANDTASK_COL.workflowCategory] || "Training") as CandidateTask["workflowCategory"],
+    workflowCategory: String(f[CANDTASK_COL.workflowCategory] || "Training & Language") as CandidateTask["workflowCategory"],
   };
 }
 
@@ -3969,6 +4245,8 @@ export async function createCandidateTask(data: Omit<CandidateTask, "id">): Prom
     [CANDTASK_COL.priority]: data.priority,
     [CANDTASK_COL.dueDate]: data.dueDate,
     [CANDTASK_COL.assignedTo]: data.assignedTo,
+    [CANDTASK_COL.assignedToName]: data.assignedToName,
+    [CANDTASK_COL.assignedToEmail]: data.assignedToEmail,
     [CANDTASK_COL.partnerId]: data.partnerId,
     [CANDTASK_COL.createdBy]: data.createdBy,
     [CANDTASK_COL.createdAt]: data.createdAt,
@@ -3977,13 +4255,24 @@ export async function createCandidateTask(data: Omit<CandidateTask, "id">): Prom
     [CANDTASK_COL.taskCategory]: data.taskCategory,
     [CANDTASK_COL.workflowCategory]: data.workflowCategory,
   };
-  const res = await graphPost<{ id: string; fields: Record<string, unknown> }>(listUrl, { fields });
+  let res: { id: string; fields: Record<string, unknown> };
+  try {
+    res = await graphPost<{ id: string; fields: Record<string, unknown> }>(listUrl, { fields });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("WorkflowCategory") || msg.includes("not recognized")) {
+      const { [CANDTASK_COL.workflowCategory]: _drop, ...safeFields } = fields;
+      res = await graphPost<{ id: string; fields: Record<string, unknown> }>(listUrl, { fields: safeFields });
+    } else {
+      throw err;
+    }
+  }
   return mapCandidateTask(res);
 }
 
 export async function updateCandidateTask(
   id: string,
-  data: Partial<Pick<CandidateTask, "status" | "assignedTo" | "dueDate">>
+  data: Partial<CandidateTask>
 ): Promise<void> {
   return runSafe(async () => {
     const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
@@ -3991,11 +4280,37 @@ export async function updateCandidateTask(
     const fields: Record<string, unknown> = {};
     if (data.status !== undefined) fields[CANDTASK_COL.status] = data.status;
     if (data.assignedTo !== undefined) fields[CANDTASK_COL.assignedTo] = data.assignedTo;
+    if (data.assignedToName !== undefined) fields[CANDTASK_COL.assignedToName] = data.assignedToName;
+    if (data.assignedToEmail !== undefined) fields[CANDTASK_COL.assignedToEmail] = data.assignedToEmail;
     if (data.dueDate !== undefined) fields[CANDTASK_COL.dueDate] = data.dueDate;
+    if (data.title !== undefined) fields[CANDTASK_COL.title] = data.title;
+    if (data.description !== undefined) fields[CANDTASK_COL.description] = data.description;
+    if (data.priority !== undefined) fields[CANDTASK_COL.priority] = data.priority;
+    if (data.taskCategory !== undefined) fields[CANDTASK_COL.taskCategory] = data.taskCategory;
+    if (data.workflowCategory !== undefined) fields[CANDTASK_COL.workflowCategory] = data.workflowCategory;
     fields[CANDTASK_COL.updatedAt] = new Date().toISOString();
-    await graphPatch(`${listUrl}/${id}/fields`, fields);
+    try {
+      await graphPatch(`${listUrl}/${id}/fields`, fields);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("WorkflowCategory") || msg.includes("not recognized")) {
+        delete fields[CANDTASK_COL.workflowCategory];
+        await graphPatch(`${listUrl}/${id}/fields`, fields);
+      } else {
+        throw err;
+      }
+    }
   });
 }
+
+export async function deleteCandidateTask(id: string): Promise<void> {
+  return runSafe(async () => {
+    const { graphDelete, getSiteListUrlAsync } = await import("@/lib/graph");
+    const listUrl = await getSiteListUrlAsync("CandidateTasks");
+    await graphDelete(`${listUrl}/${id}`);
+  });
+}
+
 
 // ─── Helpdesk Tickets ─────────────────────────────────────────────────────────
 
@@ -4145,3 +4460,282 @@ export async function createHelpdeskMessage(data: Omit<HelpdeskMessage, "id">): 
   const res = await graphPost<{ id: string; fields: Record<string, unknown> }>(listUrl, { fields });
   return mapHelpdeskMessage(res);
 }
+
+// ============================================================
+// B2B Companies
+// ============================================================
+const B2B_COL = {
+  globalId:      "GlobalId",
+  partnerId:     "PartnerId",
+  partnerName:   "PartnerName",
+  companyName:   "CompanyName",
+  entityType:    "EntityType",
+  registrationNumber: "RegistrationNumber",
+  contactPerson: "ContactPerson",
+  designation:   "Designation",
+  contactNumber: "ContactNumber",
+  email:         "Email",
+  address:       "Address",
+  city:          "City",
+  website:       "Website",
+  industry:      "Industry",
+  logoUrl:       "LogoUrl",
+  status:        "Status",
+  agreementUrl:  "AgreementUrl",
+  certCode:      "CertCode",
+  certIssuedAt:  "CertIssuedAt",
+  notes:         "Notes",
+  createdAt:     "CreatedAt",
+  updatedAt:     "UpdatedAt",
+};
+
+function mapB2BCompany(item: { id: string; fields: Record<string, any> }): B2BCompany {
+  const f = item.fields;
+  return {
+    id: String(item.id),
+    globalId: f[B2B_COL.globalId] ? String(f[B2B_COL.globalId]) : undefined,
+    partnerId: String(f[B2B_COL.partnerId] || ""),
+    partnerName: String(f[B2B_COL.partnerName] || ""),
+    companyName: String(f[B2B_COL.companyName] || ""),
+    entityType: f[B2B_COL.entityType] ? String(f[B2B_COL.entityType]) : undefined,
+    registrationNumber: f[B2B_COL.registrationNumber] ? String(f[B2B_COL.registrationNumber]) : undefined,
+    contactPerson: String(f[B2B_COL.contactPerson] || ""),
+    designation: f[B2B_COL.designation] ? String(f[B2B_COL.designation]) : undefined,
+    contactNumber: String(f[B2B_COL.contactNumber] || ""),
+    email: f[B2B_COL.email] ? String(f[B2B_COL.email]) : undefined,
+    address: f[B2B_COL.address] ? String(f[B2B_COL.address]) : undefined,
+    city: f[B2B_COL.city] ? String(f[B2B_COL.city]) : undefined,
+    website: f[B2B_COL.website] ? String(f[B2B_COL.website]) : undefined,
+    industry: f[B2B_COL.industry] ? String(f[B2B_COL.industry]) : undefined,
+    logoUrl: f[B2B_COL.logoUrl] ? String(f[B2B_COL.logoUrl]) : undefined,
+    status: (f[B2B_COL.status] || "pending") as B2BCompany["status"],
+    agreementUrl: f[B2B_COL.agreementUrl] ? String(f[B2B_COL.agreementUrl]) : undefined,
+    certCode: f[B2B_COL.certCode] ? String(f[B2B_COL.certCode]) : undefined,
+    certIssuedAt: f[B2B_COL.certIssuedAt] ? String(f[B2B_COL.certIssuedAt]) : undefined,
+    notes: f[B2B_COL.notes] ? String(f[B2B_COL.notes]) : undefined,
+    createdAt: String(f[B2B_COL.createdAt] || f.Created || new Date().toISOString()),
+    updatedAt: f[B2B_COL.updatedAt] ? String(f[B2B_COL.updatedAt]) : undefined,
+  };
+}
+
+// In-memory fallback store for environments without SharePoint
+const MOCK_B2B_COMPANIES: B2BCompany[] = [
+  {
+    id: "b2b-demo-1",
+    partnerId: "demo-partner",
+    partnerName: "Demo Partner",
+    companyName: "Tech Solutions GmbH",
+    contactPerson: "Hans Müller",
+    contactNumber: "+49 30 123456",
+    email: "hans@techsolutions.de",
+    address: "Berlin, Germany",
+    industry: "Technology",
+    status: "active",
+    createdAt: new Date(Date.now() - 30 * 86400000).toISOString(),
+  },
+  {
+    id: "b2b-demo-2",
+    partnerId: "demo-partner",
+    partnerName: "Demo Partner",
+    companyName: "Bildung Plus e.V.",
+    contactPerson: "Anna Schmidt",
+    contactNumber: "+49 89 654321",
+    email: "anna@bildungplus.de",
+    address: "Munich, Germany",
+    industry: "Education",
+    status: "pending",
+    createdAt: new Date(Date.now() - 7 * 86400000).toISOString(),
+  },
+];
+
+export async function getB2BCompanies(partnerId?: string): Promise<B2BCompany[]> {
+  return runSafe(
+    async () => {
+      const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
+      const listUrl = await getSiteListUrlAsync("B2BCompanies");
+      let url = `${listUrl}?$expand=fields&$orderby=fields/Created desc`;
+      if (partnerId) url = `${listUrl}?$expand=fields&$filter=fields/PartnerId eq '${partnerId}'&$orderby=fields/Created desc`;
+      const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, any> }> }>(url);
+      return res.value.map(mapB2BCompany);
+    },
+    () => partnerId
+      ? MOCK_B2B_COMPANIES.filter((b) => b.partnerId === partnerId)
+      : [...MOCK_B2B_COMPANIES],
+  );
+}
+
+export async function createB2BCompany(data: Omit<B2BCompany, "id">): Promise<B2BCompany> {
+  return runSafe(
+    async () => {
+      const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
+      const listUrl = await getSiteListUrlAsync("B2BCompanies");
+      const fields: Record<string, string> = {
+        Title:                   data.companyName,
+        [B2B_COL.globalId]:      data.globalId || "",
+        [B2B_COL.partnerId]:     data.partnerId,
+        [B2B_COL.partnerName]:   data.partnerName || "",
+        [B2B_COL.companyName]:   data.companyName,
+        [B2B_COL.entityType]:    data.entityType || "",
+        [B2B_COL.registrationNumber]: data.registrationNumber || "",
+        [B2B_COL.contactPerson]: data.contactPerson,
+        [B2B_COL.designation]:   data.designation || "",
+        [B2B_COL.contactNumber]: data.contactNumber,
+        [B2B_COL.email]:         data.email || "",
+        [B2B_COL.address]:       data.address || "",
+        [B2B_COL.city]:          data.city || "",
+        [B2B_COL.website]:       data.website || "",
+        [B2B_COL.industry]:      data.industry || "",
+        [B2B_COL.logoUrl]:       data.logoUrl || "",
+        [B2B_COL.status]:        data.status,
+        [B2B_COL.agreementUrl]:  data.agreementUrl || "",
+        [B2B_COL.certCode]:      data.certCode || "",
+        [B2B_COL.certIssuedAt]:  data.certIssuedAt || "",
+        [B2B_COL.notes]:         data.notes || "",
+        [B2B_COL.createdAt]:     data.createdAt,
+      };
+      const res = await graphPost<{ id: string; fields: Record<string, any> }>(listUrl, { fields });
+      return mapB2BCompany(res);
+    },
+    () => {
+      const newEntry: B2BCompany = { ...data, id: `b2b-${Date.now()}` };
+      MOCK_B2B_COMPANIES.unshift(newEntry);
+      return newEntry;
+    },
+  );
+}
+
+export async function updateB2BCompanyStatus(id: string, status: B2BCompany["status"], agreementUrl?: string): Promise<void> {
+  return runSafe(async () => {
+    const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
+    const listUrl = await getSiteListUrlAsync("B2BCompanies");
+    const fields: Record<string, string> = { [B2B_COL.status]: status };
+    if (agreementUrl) fields[B2B_COL.agreementUrl] = agreementUrl;
+    await graphPatch(`${listUrl}/${id}`, { fields });
+  });
+}
+
+export async function updateB2BCertificate(id: string, certCode: string, certIssuedAt: string): Promise<void> {
+  return runSafe(async () => {
+    const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
+    const listUrl = await getSiteListUrlAsync("B2BCompanies");
+    await graphPatch(`${listUrl}/${id}`, {
+      fields: {
+        [B2B_COL.certCode]:     certCode,
+        [B2B_COL.certIssuedAt]: certIssuedAt,
+        [B2B_COL.status]:       "active",
+      },
+    });
+  });
+}
+
+export async function getB2BCompanyByCertCode(certCode: string): Promise<B2BCompany | null> {
+  return runSafe(async () => {
+    const { graphGetSafe, getSiteListUrlAsync, escapeOData } = await import("@/lib/graph");
+    // Try indexed filter first; if column not indexed SP returns 400 — catch and fall back to full scan
+    const listUrl = await getSiteListUrlAsync("B2BCompanies");
+    type B2BItem = { id: string; fields: Record<string, any> };
+    let items: B2BItem[] | null = null;
+    try {
+      const filtered = await graphGetSafe<{ value: B2BItem[] }>(
+        `${listUrl}?$expand=fields&$filter=fields/CertCode eq '${escapeOData(certCode)}'&$top=1`
+      );
+      items = filtered?.value ?? null;
+    } catch {
+      // Column not indexed — fall back to full scan (max 200 items)
+    }
+    if (!items?.length) {
+      const all = await graphGetSafe<{ value: B2BItem[] }>(
+        `${listUrl}?$expand=fields&$top=200`
+      );
+      items = (all?.value ?? []).filter(
+        (i) => i.fields?.[B2B_COL.certCode] === certCode
+      );
+    }
+    if (!items?.length) return null;
+    return mapB2BCompany(items[0]);
+  }, () => {
+    // Mock fallback
+    return MOCK_B2B_COMPANIES.find((c) => c.certCode === certCode) ?? null;
+  });
+}
+
+// ============================================================
+// Activity / Audit Log — "ActivityLog" SharePoint list
+// ============================================================
+
+function mapActivityLog(id: string, f: Record<string, any>): ActivityLog {
+  return {
+    id: String(id),
+    actorEmail: f[ACTLOG_COL.actorEmail] || "",
+    actorId: f[ACTLOG_COL.actorId] || undefined,
+    actorName: f[ACTLOG_COL.actorName] || undefined,
+    actorRole: f[ACTLOG_COL.actorRole] || undefined,
+    action: (f[ACTLOG_COL.action] || "other") as ActivityLog["action"],
+    description: f[ACTLOG_COL.description] || "",
+    targetId: f[ACTLOG_COL.targetId] || undefined,
+    targetEmail: f[ACTLOG_COL.targetEmail] || undefined,
+    targetName: f[ACTLOG_COL.targetName] || undefined,
+    console: f[ACTLOG_COL.console] || undefined,
+    ipAddress: f[ACTLOG_COL.ipAddress] || undefined,
+    userAgent: f[ACTLOG_COL.userAgent] || undefined,
+    createdAt: f[ACTLOG_COL.createdAt] || "",
+  };
+}
+
+/**
+ * Persist a single audit-log entry. Never throws — logging must not break the
+ * action it records.
+ */
+export async function createActivityLog(entry: Omit<ActivityLog, "id">): Promise<void> {
+  try {
+    const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
+    await graphPost(await getSiteListUrlAsync("ActivityLog"), {
+      fields: {
+        [ACTLOG_COL.actorEmail]: entry.actorEmail || "unknown",
+        [ACTLOG_COL.actorId]: entry.actorId || "",
+        [ACTLOG_COL.actorName]: entry.actorName || "",
+        [ACTLOG_COL.actorRole]: entry.actorRole || "",
+        [ACTLOG_COL.action]: entry.action,
+        [ACTLOG_COL.description]: entry.description || "",
+        [ACTLOG_COL.targetId]: entry.targetId || "",
+        [ACTLOG_COL.targetEmail]: entry.targetEmail || "",
+        [ACTLOG_COL.targetName]: entry.targetName || "",
+        [ACTLOG_COL.console]: entry.console || "",
+        [ACTLOG_COL.ipAddress]: entry.ipAddress || "",
+        [ACTLOG_COL.userAgent]: (entry.userAgent || "").slice(0, 255),
+        [ACTLOG_COL.createdAt]: entry.createdAt || new Date().toISOString(),
+      },
+    });
+  } catch (err: any) {
+    console.warn("[ActivityLog] failed to write entry:", err?.message || err);
+  }
+}
+
+/**
+ * Read audit-log entries, most-recent first. Optionally filter by a single
+ * actor email and/or action type.
+ */
+export async function getActivityLogs(opts?: {
+  actorEmail?: string;
+  action?: string;
+  limit?: number;
+}): Promise<ActivityLog[]> {
+  return runSafe(async () => {
+    const { graphGet, getSiteListUrlAsync, escapeOData } = await import("@/lib/graph");
+    const top = Math.min(Math.max(opts?.limit ?? 500, 1), 2000);
+    let url = `${await getSiteListUrlAsync("ActivityLog")}?$expand=fields&$orderby=fields/${ACTLOG_COL.createdAt} desc&$top=${top}`;
+
+    const filters: string[] = [];
+    if (opts?.actorEmail) {
+      filters.push(`fields/${ACTLOG_COL.actorEmail} eq '${escapeOData(opts.actorEmail)}'`);
+    }
+    if (opts?.action) {
+      filters.push(`fields/${ACTLOG_COL.action} eq '${escapeOData(opts.action)}'`);
+    }
+    if (filters.length > 0) url += `&$filter=${filters.join(" and ")}`;
+
+    const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, any> }> }>(url);
+    return res.value.map((it) => mapActivityLog(it.id, it.fields));
+  }, () => []);
+}
+

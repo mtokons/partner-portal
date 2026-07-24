@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createBatch, updateBatch } from "@/app/(portal)/admin/school/actions";
+import { createBatch, updateBatch } from "@/app/admin/school/actions";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Loader2, Calendar, BookOpen, User } from "lucide-react";
+import { Loader2, Calendar, BookOpen, User, Wand2 } from "lucide-react";
 import type { SchoolBatch, SchoolCourse, SchoolTeacher } from "@/types";
 
 interface BatchFormProps {
@@ -22,8 +22,22 @@ export function BatchForm({ initialData, courses, teachers, onSuccess }: BatchFo
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [batchCode, setBatchCode] = useState(initialData?.batchCode || "");
+  const [batchName, setBatchName] = useState(initialData?.batchName || "");
 
   const isEdit = !!initialData;
+
+  function handleCourseChange(courseId: string) {
+    if (isEdit) return; // Don't auto-fill in edit mode
+    const course = courses.find((c) => c.id === courseId);
+    if (!course) return;
+    const year = new Date().getFullYear();
+    const month = new Date().toLocaleString("en-US", { month: "short" }).toUpperCase();
+    const autoCode = `${course.courseCode}-${year}-01`;
+    const autoName = `${course.courseName} — ${month} ${year}`;
+    setBatchCode(autoCode);
+    setBatchName(autoName);
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -98,13 +112,15 @@ export function BatchForm({ initialData, courses, teachers, onSuccess }: BatchFo
             <BookOpen className="h-4 w-4 text-primary" />
             Select Course *
           </Label>
-          <Select name="courseId" required defaultValue={initialData?.courseId}>
+          <Select name="courseId" required defaultValue={initialData?.courseId} onValueChange={handleCourseChange}>
             <SelectTrigger className="rounded-xl h-12 shadow-sm border-gray-200">
-              <SelectValue placeholder="Chose a course..." />
+              <SelectValue placeholder="Choose a course..." />
             </SelectTrigger>
             <SelectContent className="rounded-xl">
               {courses.map(c => (
-                <SelectItem key={c.id} value={c.id}>{c.courseName} ({c.level})</SelectItem>
+                <SelectItem key={c.id} value={c.id}>
+                  {c.courseName}{c.level && c.level !== "custom" ? ` (${c.level})` : ""}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -128,12 +144,42 @@ export function BatchForm({ initialData, courses, teachers, onSuccess }: BatchFo
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="batchCode" className="font-bold">Batch Code *</Label>
-          <Input id="batchCode" name="batchCode" required defaultValue={initialData?.batchCode} placeholder="GER-A1-2025-01" className="rounded-xl h-12" />
+          <Label htmlFor="batchCode" className="font-bold flex items-center gap-2">
+            Batch Code *
+            {!isEdit && batchCode && (
+              <span className="text-[10px] font-medium text-primary/60 bg-primary/5 px-2 py-0.5 rounded-full flex items-center gap-1">
+                <Wand2 className="h-3 w-3" /> Auto-generated
+              </span>
+            )}
+          </Label>
+          <Input
+            id="batchCode"
+            name="batchCode"
+            required
+            value={batchCode}
+            onChange={(e) => setBatchCode(e.target.value)}
+            placeholder="GER-A1-2025-01"
+            className="rounded-xl h-12"
+          />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="batchName" className="font-bold">Batch Name *</Label>
-          <Input id="batchName" name="batchName" required defaultValue={initialData?.batchName} placeholder="January Morning Batch" className="rounded-xl h-12" />
+          <Label htmlFor="batchName" className="font-bold flex items-center gap-2">
+            Batch Name *
+            {!isEdit && batchName && (
+              <span className="text-[10px] font-medium text-primary/60 bg-primary/5 px-2 py-0.5 rounded-full flex items-center gap-1">
+                <Wand2 className="h-3 w-3" /> Auto-generated
+              </span>
+            )}
+          </Label>
+          <Input
+            id="batchName"
+            name="batchName"
+            required
+            value={batchName}
+            onChange={(e) => setBatchName(e.target.value)}
+            placeholder="January Morning Batch"
+            className="rounded-xl h-12"
+          />
         </div>
 
         <div className="space-y-2">
@@ -189,3 +235,5 @@ export function BatchForm({ initialData, courses, teachers, onSuccess }: BatchFo
     </form>
   );
 }
+
+

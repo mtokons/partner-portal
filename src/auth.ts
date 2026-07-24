@@ -7,6 +7,7 @@ import type { SessionUser, PartnerType } from "@/types";
 import type { FirebaseUserProfile } from "@/lib/firebase-auth";
 import { getFirestoreDb } from "@/lib/firebase-auth";
 import { doc, getDoc } from "firebase/firestore";
+import { resolveConsole } from "@/lib/menu-engine";
 
 /** Build a roles[] array by checking all stores for a given email */
 async function buildRolesForEmail(email: string, firebaseProfile?: FirebaseUserProfile) {
@@ -17,31 +18,45 @@ async function buildRolesForEmail(email: string, firebaseProfile?: FirebaseUserP
   let expertId: string | undefined;
   let partnerType: PartnerType | undefined;
   let coinBalance: number | undefined;
+  let tierStatus: string | undefined;
+  let marginPercentage: number | undefined;
   let primaryRole: SessionUser["role"] = firebaseProfile?.role || "customer";
   let name = firebaseProfile?.displayName || "";
 
   // 1. Check SharePoint Partners (Source of truth for PartnerID and Commission info)
-  const partner = await Repository.partners.getByEmail(email);
+  let partner = await Repository.partners.getByEmail(email);
+  if (!partner && firebaseProfile) {
+    const fId = firebaseProfile.partnerId || (firebaseProfile as any).registeredByPartnerId;
+    if (fId) {
+      partner = await Repository.partners.getById(fId);
+    }
+  }
   if (partner && partner.status !== "suspended") {
     // If not set by Firebase, use SharePoint role
     if (!firebaseProfile) primaryRole = partner.role;
     
-    roles.push(primaryRole === "admin" ? "admin" : "partner");
+    const isAnyAdmin = primaryRole === "admin" || primaryRole === "project-admin";
+    roles.push(isAnyAdmin ? "admin" : "partner");
     if (primaryRole === "partner") {
       const pType = (partner.partnerType || "individual").toLowerCase();
       roles.push(`partner-${pType}`);
     }
-    if (primaryRole === "admin") {
+    if (isAnyAdmin) {
       roles.push("partner");
       roles.push("partner-individual");
       roles.push("partner-institutional");
+      if (primaryRole === "project-admin") {
+        roles.push("project-admin");
+      }
     }
-    if (partner.onboardingStatus?.toLowerCase() === "approved") {
+    if (partner.onboardingStatus?.toLowerCase() === "approved" || primaryRole === "admin") {
       partnerId = partner.id;
     }
     company = partner.company || firebaseProfile?.company || "";
     if (!name) name = partner.name;
     partnerType = (partner.partnerType || "individual").toLowerCase() as PartnerType;
+    tierStatus = partner.tierStatus;
+    marginPercentage = partner.marginPercentage;
 
     const { getCoinWallet } = await import("@/lib/sharepoint");
     const wallet = await getCoinWallet(partner.id);
@@ -71,9 +86,15 @@ async function buildRolesForEmail(email: string, firebaseProfile?: FirebaseUserP
 
   // 4. Final Role Consolidation (Ensure Firebase role is always present)
   if (!roles.includes(primaryRole)) roles.push(primaryRole);
-  if (primaryRole === "admin" && !roles.includes("partner")) roles.push("partner");
+  const isAnyAdmin = primaryRole === "admin" || primaryRole === "project-admin";
+  if (isAnyAdmin) {
+    if (!roles.includes("admin")) roles.push("admin");
+    if (!roles.includes("partner")) roles.push("partner");
+    if (!roles.includes("partner-individual")) roles.push("partner-individual");
+    if (!roles.includes("partner-institutional")) roles.push("partner-institutional");
+  }
 
-  return { roles, partnerId, company, customerId, expertId, partnerType, coinBalance, primaryRole, name };
+  return { roles, partnerId, company, customerId, expertId, partnerType, coinBalance, tierStatus, marginPercentage, primaryRole, name };
 }
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
@@ -105,11 +126,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             const profile = profileDoc.data() as FirebaseUserProfile | undefined;
 
             if (profile) {
-              if (profile.status === "pending") {
-                console.warn(`[auth] User ${decodedToken.email} is pending approval`);
-                const err = new CredentialsSignin("Your account is pending admin approval.");
-                throw err;
-              }
               if (profile.status === "suspended") {
                 console.warn(`[auth] User ${decodedToken.email} is suspended`);
                 const err = new CredentialsSignin("Your account has been suspended.");
@@ -129,12 +145,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               email,
               role: rolesInfo.primaryRole,
               roles: rolesInfo.roles,
+              primaryConsole: resolveConsole(rolesInfo.roles),
               partnerId: rolesInfo.partnerId,
               company: rolesInfo.company,
               customerId: rolesInfo.customerId,
               expertId: rolesInfo.expertId,
               partnerType: rolesInfo.partnerType,
               coinBalance: rolesInfo.coinBalance,
+              tierStatus: rolesInfo.tierStatus,
+              marginPercentage: rolesInfo.marginPercentage,
             } as SessionUser;
           } catch (error) {
             console.error("[auth] Firebase token login failed:", error instanceof Error ? error.message : error);
@@ -159,9 +178,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           return {
             id: customer.id, name: customer.name, email: customer.email,
             role: "customer", roles: ri.roles.length > 0 ? ri.roles : ["customer"],
+            primaryConsole: resolveConsole(ri.roles.length > 0 ? ri.roles : ["customer"]),
             partnerId: ri.partnerId || customer.partnerId,
             company: customer.company || "", customerId: customer.id,
             expertId: ri.expertId, partnerType: ri.partnerType, coinBalance: ri.coinBalance,
+            tierStatus: ri.tierStatus, marginPercentage: ri.marginPercentage,
           } as SessionUser;
         }
 
@@ -174,8 +195,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           return {
             id: expert.id, name: expert.name, email: expert.email,
             role: "expert", roles: ri.roles.length > 0 ? ri.roles : ["expert"],
+            primaryConsole: resolveConsole(ri.roles.length > 0 ? ri.roles : ["expert"]),
             partnerId: ri.partnerId || "", company: expert.specialization,
             expertId: expert.id, partnerType: ri.partnerType, coinBalance: ri.coinBalance,
+            tierStatus: ri.tierStatus, marginPercentage: ri.marginPercentage,
           } as SessionUser;
         }
 
@@ -190,10 +213,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           return {
             id: partner.id, name: partner.name, email: partner.email,
             role: rolesInfo.primaryRole, roles: rolesInfo.roles,
+            primaryConsole: resolveConsole(rolesInfo.roles),
             partnerId: partner.onboardingStatus?.toLowerCase() === "approved" ? partner.id : undefined,
             company: partner.company,
             customerId: rolesInfo.customerId, expertId: rolesInfo.expertId,
             partnerType: rolesInfo.partnerType, coinBalance: rolesInfo.coinBalance,
+            tierStatus: rolesInfo.tierStatus, marginPercentage: rolesInfo.marginPercentage,
           } as SessionUser;
         }
 
@@ -204,9 +229,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           return {
             id: customer.id, name: customer.name, email: customer.email,
             role: rolesInfo.primaryRole, roles: rolesInfo.roles,
+            primaryConsole: resolveConsole(rolesInfo.roles),
             partnerId: customer.partnerId, company: customer.company || "",
             customerId: customer.id, expertId: rolesInfo.expertId,
             partnerType: rolesInfo.partnerType, coinBalance: rolesInfo.coinBalance,
+            tierStatus: rolesInfo.tierStatus, marginPercentage: rolesInfo.marginPercentage,
           } as SessionUser;
         }
 
@@ -217,9 +244,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           return {
             id: expert.id, name: expert.name, email: expert.email,
             role: rolesInfo.primaryRole, roles: rolesInfo.roles,
+            primaryConsole: resolveConsole(rolesInfo.roles),
             partnerId: rolesInfo.partnerId || "", company: expert.specialization,
             expertId: expert.id, partnerType: rolesInfo.partnerType,
             coinBalance: rolesInfo.coinBalance,
+            tierStatus: rolesInfo.tierStatus, marginPercentage: rolesInfo.marginPercentage,
           } as SessionUser;
         }
 
@@ -229,18 +258,58 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ],
   session: { strategy: "jwt" },
   pages: { signIn: "/login" },
+  events: {
+    async signIn({ user }) {
+      try {
+        const u = user as SessionUser;
+        const { logActivity } = await import("@/lib/activity-log");
+        await logActivity({
+          actorEmail: u.email || "unknown",
+          actorId: u.id,
+          actorName: u.name || undefined,
+          actorRole: u.role,
+          action: "login",
+          description: `${u.name || u.email} signed in`,
+          console: u.primaryConsole,
+        });
+      } catch (err: any) {
+        console.warn("[auth] signIn audit log failed:", err?.message || err);
+      }
+    },
+    async signOut(message) {
+      try {
+        // JWT strategy → message is { token }
+        const token = (message as { token?: Record<string, unknown> })?.token;
+        const email = (token?.email as string) || "unknown";
+        const { logActivity } = await import("@/lib/activity-log");
+        await logActivity({
+          actorEmail: email,
+          actorId: token?.sub as string | undefined,
+          actorName: (token?.name as string) || undefined,
+          actorRole: (token?.role as string) || undefined,
+          action: "logout",
+          description: `${email} signed out`,
+        });
+      } catch (err: any) {
+        console.warn("[auth] signOut audit log failed:", err?.message || err);
+      }
+    },
+  },
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
         const u = user as SessionUser;
         token.role = u.role;
         token.roles = u.roles;
+        token.primaryConsole = u.primaryConsole;
         token.partnerId = u.partnerId;
         token.company = u.company;
         token.customerId = u.customerId;
         token.expertId = u.expertId;
         token.partnerType = u.partnerType;
         token.coinBalance = u.coinBalance;
+        token.tierStatus = u.tierStatus;
+        token.marginPercentage = u.marginPercentage;
       }
       return token;
     },
@@ -249,6 +318,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const u = session.user as unknown as SessionUser;
         u.role = token.role as SessionUser["role"];
         u.roles = (token.roles as string[]) || [token.role as string];
+        u.primaryConsole = (token.primaryConsole as SessionUser["primaryConsole"]) || "partner";
         u.partnerId = token.partnerId as string;
         u.company = token.company as string;
         u.id = token.sub as string;
@@ -256,6 +326,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         u.expertId = token.expertId as string | undefined;
         u.partnerType = token.partnerType as SessionUser["partnerType"];
         u.coinBalance = token.coinBalance as number | undefined;
+        u.tierStatus = token.tierStatus as SessionUser["tierStatus"];
+        u.marginPercentage = token.marginPercentage as SessionUser["marginPercentage"];
       }
       return session;
     },

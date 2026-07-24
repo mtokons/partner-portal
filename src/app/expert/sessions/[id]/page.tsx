@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import { redirect, notFound } from "next/navigation";
 import type { SessionUser } from "@/types";
 import { getSessionById, getCustomerPackageById } from "@/lib/sharepoint";
@@ -9,7 +9,7 @@ import CompleteSessionButton from "./CompleteSessionButton";
 export default async function SessionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const authSession = await auth();
+  const authSession = await getEffectiveSession();
   if (!authSession?.user) redirect("/expert-login");
   const user = authSession.user as SessionUser;
 

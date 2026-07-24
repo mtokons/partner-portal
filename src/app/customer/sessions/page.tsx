@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import { redirect } from "next/navigation";
 import type { SessionUser } from "@/types";
 import { getSessionsByCustomer } from "@/lib/sharepoint";
@@ -17,7 +17,7 @@ const statusColor: Record<string, string> = {
 };
 
 export default async function CustomerSessionsPage() {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) redirect("/customer-login");
   const user = session.user as SessionUser;
 
@@ -30,7 +30,8 @@ export default async function CustomerSessionsPage() {
   const avgRating = completed.filter((s) => s.customerRating).reduce((acc, s, _, arr) => acc + (s.customerRating || 0) / arr.length, 0);
 
   const SessionTable = ({ rows }: { rows: typeof sessions }) => (
-    <Table>
+    <div className="overflow-x-auto">
+    <Table className="min-w-[700px]">
       <TableHeader>
         <TableRow>
           <TableHead>#</TableHead>
@@ -71,6 +72,7 @@ export default async function CustomerSessionsPage() {
         )}
       </TableBody>
     </Table>
+    </div>
   );
 
   return (
@@ -78,7 +80,7 @@ export default async function CustomerSessionsPage() {
       <h1 className="text-2xl font-bold text-gray-900">Sessions</h1>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xs text-gray-500">Completed</CardTitle>

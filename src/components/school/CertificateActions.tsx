@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
 import { CertificateDownloadButton } from "@/components/CertificateDownloadButton";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
-import { revokeCertificateAction } from "@/app/(portal)/admin/school/actions";
+import { revokeCertificateAction } from "@/app/admin/school/actions";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Loader2, AlertTriangle } from "lucide-react";

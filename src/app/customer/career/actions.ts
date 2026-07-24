@@ -1,19 +1,19 @@
 "use server";
 
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import type { SessionUser } from "@/types";
 import { getProducts, getCareerProfile, upsertCareerProfile } from "@/lib/sharepoint";
 import { generateSuggestions, type CareerSurveyInput } from "@/lib/ai-career";
 import { revalidatePath } from "next/cache";
 
 export async function fetchMyCareerProfile() {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
   return getCareerProfile(session.user.id);
 }
 
 export async function submitCareerSurveyAction(input: CareerSurveyInput) {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
   const user = session.user as SessionUser;
 

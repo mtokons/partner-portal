@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import { redirect } from "next/navigation";
 import type { SessionUser, AppNotification } from "@/types";
 import { getNotifications } from "@/lib/sharepoint";
@@ -23,7 +23,7 @@ const notifIcon: Record<AppNotification["type"], React.FC<{ className?: string }
 };
 
 export default async function ExpertNotificationsPage() {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) redirect("/expert-login");
   const user = session.user as SessionUser;
 

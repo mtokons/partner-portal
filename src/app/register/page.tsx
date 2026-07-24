@@ -70,20 +70,22 @@ export default function RegisterPage() {
       );
 
       if (result.success) {
-        // For customers (auto-active): create NextAuth session and redirect
-        if (form.role === "customer") {
-          const fbAuth = getFirebaseAuth();
-          const idToken = await fbAuth.currentUser?.getIdToken();
-          if (idToken) {
-            const sessionResult = await firebaseAuthAction(idToken);
-            if (sessionResult.success) {
-              router.push("/customer/dashboard");
-              router.refresh();
-              return;
-            }
+        // Automatically create session and redirect for all roles
+        const fbAuth = getFirebaseAuth();
+        const idToken = await fbAuth.currentUser?.getIdToken();
+        if (idToken) {
+          const sessionResult = await firebaseAuthAction(idToken);
+          if (sessionResult.success) {
+            const redirectPath = 
+              form.role === "customer" ? "/customer/dashboard" :
+              form.role === "expert" ? "/expert/dashboard" :
+              form.role === "project-partner" || form.role === "project-partner-admin" ? "/project-partner/dashboard" :
+              "/partner/dashboard";
+            router.push(redirectPath);
+            router.refresh();
+            return;
           }
         }
-        // For partners/experts (pending approval): just show success, no session
         setSuccess(true);
       } else {
         setError(result.error || "Registration failed. Please try again.");
@@ -414,14 +416,30 @@ export default function RegisterPage() {
                 onClick={async () => {
                   setError("");
                   setLoading(true);
-                  const result = await firebaseGoogleSignup(form.role, form.company, form.specialization);
-                  if (result.success) {
-                    const idToken = await getFirebaseAuth().currentUser?.getIdToken();
-                    if (idToken) await firebaseAuthAction(idToken);
-                    router.push("/dashboard");
-                    router.refresh();
-                  } else {
-                    setError(result.error || "Google registration failed");
+                  try {
+                    const result = await firebaseGoogleSignup(form.role, form.company, form.specialization);
+                    if (result.success) {
+                      try {
+                        const idToken = await getFirebaseAuth().currentUser?.getIdToken();
+                        if (idToken) await firebaseAuthAction(idToken);
+                      } catch { /* session creation may fail, but account exists */ }
+                      setSuccess(true);
+                      setLoading(false);
+                      router.push("/dashboard");
+                      router.refresh();
+                    } else {
+                      setError(result.error || "Google registration failed");
+                      setLoading(false);
+                    }
+                  } catch (err: unknown) {
+                    const msg = err instanceof Error ? err.message : "Google popup was blocked or closed";
+                    if (msg.includes("popup-closed") || msg.includes("cancelled")) {
+                      setError("Google sign-in popup was closed. Please try again.");
+                    } else if (msg.includes("popup-blocked")) {
+                      setError("Popup was blocked by your browser. Please allow popups for this site and try again.");
+                    } else {
+                      setError(msg);
+                    }
                     setLoading(false);
                   }
                 }}

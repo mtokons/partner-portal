@@ -91,8 +91,9 @@ export async function POST(req: NextRequest) {
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const user = session.user as SessionUser;
-    if (user.role !== "admin") return NextResponse.json({ error: "Admin only" }, { status: 403 });
+    const roles = user.roles || [user.role];
+    const isAdmin = roles.some(r => r.toLowerCase() === "admin" || r.toLowerCase() === "project-admin");
+    if (!isAdmin) return NextResponse.json({ error: "Admin only" }, { status: 403 });
   } catch {
     return NextResponse.json({ error: "Auth check failed" }, { status: 401 });
   }

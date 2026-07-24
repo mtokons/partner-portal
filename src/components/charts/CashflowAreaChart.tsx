@@ -21,7 +21,7 @@ function CustomTooltip({ active, payload, label }: any) {
               <div className="h-2 w-2 rounded-full shadow-[0_0_8px_currentcolor]" style={{ backgroundColor: p.color }} />
               <span className="text-xs font-medium text-muted-foreground">{p.name}</span>
             </div>
-            <span className="text-xs font-black text-foreground">BDT {Number(p.value).toLocaleString()}</span>
+            <span className="text-xs font-black text-foreground">€{Number(p.value).toLocaleString()}</span>
           </div>
         ))}
       </div>

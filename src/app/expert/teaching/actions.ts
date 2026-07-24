@@ -1,6 +1,6 @@
 "use server";
 
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import type { SessionUser } from "@/types";
 import {
   getSchoolBatches,
@@ -20,7 +20,7 @@ import { writeAuditLog } from "@/lib/audit-log";
 import type { ContentType, ExamType } from "@/types";
 
 async function getTeacher() {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) throw new Error("Unauthorized");
   const user = session.user as SessionUser;
   const roles = user.roles || [user.role];

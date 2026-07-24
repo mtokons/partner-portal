@@ -19,7 +19,7 @@ export const STATUS_TASK_TEMPLATES: Record<
   WorkflowCategory,
   Partial<Record<string, TaskTemplate[]>>
 > = {
-  Training: {
+  "Training & Language": {
     REGISTERED: [
       {
         title: "Collect passport copy from candidate",
@@ -107,7 +107,7 @@ export const STATUS_TASK_TEMPLATES: Record<
       },
     ],
   },
-  "Student Visa": {
+  "Student": {
     REGISTERED: [
       {
         title: "Collect passport and academic documents",
@@ -116,7 +116,7 @@ export const STATUS_TASK_TEMPLATES: Record<
         dueDaysFromNow: 3,
       },
       {
-        title: "Confirm student visa program deposit payment",
+        title: "Confirm student program deposit payment",
         taskCategory: "Payment Due",
         priority: "high",
         dueDaysFromNow: 7,
@@ -195,6 +195,16 @@ export const STATUS_TASK_TEMPLATES: Record<
       },
     ],
   },
+  "Others": {
+    REGISTERED: [
+      {
+        title: "Confirm service requirements with candidate",
+        taskCategory: "General Task",
+        priority: "medium",
+        dueDaysFromNow: 3,
+      },
+    ],
+  },
 };
 
 export function getTaskTemplatesForStatus(
@@ -223,7 +233,7 @@ export async function autoInsertCandidateTasks(
     await createTaskFn({
       title: t.title,
       description: `Auto-generated for ${candidate.fullName} — ${candidate.workflowCategory}`,
-      status: "todo",
+      status: "backlog",
       priority: t.priority,
       dueDate,
       candidateId: candidate.id,

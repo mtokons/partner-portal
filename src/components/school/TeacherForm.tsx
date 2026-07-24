@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createTeacher, updateTeacher } from "@/app/(portal)/admin/school/actions";
+import { createTeacher, updateTeacher } from "@/app/admin/school/actions";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, Percent } from "lucide-react";
 import type { SchoolTeacher } from "@/types";
 
 interface TeacherFormProps {
@@ -36,6 +36,7 @@ export function TeacherForm({ initialData, onSuccess }: TeacherFormProps) {
       specialization: form.get("specialization") as string,
       language: form.get("language") as string,
       bio: form.get("bio") as string,
+      revenueSharePercent: parseFloat(form.get("revenueSharePercent") as string) || 0,
     };
 
     try {
@@ -93,6 +94,23 @@ export function TeacherForm({ initialData, onSuccess }: TeacherFormProps) {
               <SelectItem value="japanese">Japanese</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="revenueSharePercent" className="font-bold flex items-center gap-1">
+            <Percent className="h-3.5 w-3.5 text-primary" /> Revenue Share %
+          </Label>
+          <Input
+            id="revenueSharePercent"
+            name="revenueSharePercent"
+            type="number"
+            min={0}
+            max={100}
+            step={0.5}
+            defaultValue={initialData?.revenueSharePercent ?? 0}
+            placeholder="e.g. 30"
+            className="rounded-xl h-12"
+          />
+          <p className="text-[10px] text-muted-foreground">% of each student&apos;s net fee paid to teacher after course completion</p>
         </div>
         <div className="md:col-span-2 space-y-2">
           <Label htmlFor="bio" className="font-bold">Brief Bio</Label>

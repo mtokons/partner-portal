@@ -6,7 +6,7 @@ import { Search, Loader2, Award, CheckCircle2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
-import { fetchEnrollments } from "@/app/(portal)/admin/school/actions";
+import { fetchEnrollments } from "@/app/admin/school/actions";
 import { IssueCertificateButton } from "@/components/IssueCertificateButton";
 import type { SchoolEnrollment } from "@/types";
 

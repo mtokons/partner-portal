@@ -72,6 +72,13 @@ export async function graphGet<T>(url: string): Promise<T> {
     return await client.api(url).header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly").get();
   } catch (err: any) {
     if (isGraphDebugEnabled()) debugLog("GET_ERROR", url, summarizeGraphError(err));
+    if (
+      err.statusCode === 404 || err.code === "itemNotFound" ||
+      err.statusCode === 403 || err.code === "accessDenied" ||
+      /access denied/i.test(err.message || "")
+    ) {
+      return { value: [], fields: {} } as unknown as T;
+    }
     throw err;
   }
 }
@@ -86,7 +93,11 @@ export async function graphGetSafe<T>(url: string): Promise<T | null> {
     if (isGraphDebugEnabled()) debugLog("GET_SAFE", url);
     return await client.api(url).header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly").get();
   } catch (err: any) {
-    if (err.statusCode === 404 || err.code === "itemNotFound") {
+    if (
+      err.statusCode === 404 || err.code === "itemNotFound" ||
+      err.statusCode === 403 || err.code === "accessDenied" ||
+      /access denied/i.test(err.message || "")
+    ) {
       return null;
     }
     if (isGraphDebugEnabled()) debugLog("GET_SAFE_ERROR", url, summarizeGraphError(err));
@@ -180,4 +191,112 @@ export async function getSiteListUrlAsync(listName: string): Promise<string> {
  */
 export function escapeOData(value: string): string {
   return String(value).replace(/[\x00-\x1f\x7f]/g, "").replace(/'/g, "''");
+}
+
+// ============================================================
+// Document library (drive) helpers — used for Project Partner CVs/docs
+// ============================================================
+
+/** Sanitize a folder/file path segment to a safe drive path (no traversal). */
+export function sanitizeDrivePath(p: string): string {
+  return String(p)
+    .replace(/\\/g, "/")
+    .split("/")
+    .map((seg) => seg.replace(/[<>:"|?*\x00-\x1f]/g, "").replace(/\.{2,}/g, "").trim())
+    .filter(Boolean)
+    .join("/");
+}
+
+interface DriveItem {
+  id: string;
+  name: string;
+  size?: number;
+  lastModifiedDateTime?: string;
+  folder?: { childCount: number };
+  file?: { mimeType: string };
+  "@microsoft.graph.downloadUrl"?: string;
+}
+
+/** Upload (create/replace) a file in the site's default document library. */
+export async function uploadDriveFile(path: string, content: Buffer, contentType: string): Promise<DriveItem> {
+  const client = await getGraphClient();
+  const siteId = await resolveSiteId();
+  const clean = sanitizeDrivePath(path);
+  return await client
+    .api(`/sites/${siteId}/drive/root:/${clean}:/content`)
+    .header("Content-Type", contentType || "application/octet-stream")
+    .put(content);
+}
+
+/**
+ * Overwrite an existing drive file's content addressed by its item ID.
+ * Addressing by ID (instead of by path) is immune to filename encoding issues
+ * (spaces, &, #, +, commas, …) so "replace in place" reliably hits the exact
+ * existing file regardless of its name.
+ */
+export async function uploadDriveFileById(itemId: string, content: Buffer, contentType: string): Promise<DriveItem> {
+  const client = await getGraphClient();
+  const siteId = await resolveSiteId();
+  return await client
+    .api(`/sites/${siteId}/drive/items/${itemId}/content`)
+    .header("Content-Type", contentType || "application/octet-stream")
+    .put(content);
+}
+
+/** List files in a drive folder. Returns [] if the folder does not exist. */
+export async function listDriveChildren(folderPath: string): Promise<DriveItem[]> {
+  try {
+    const client = await getGraphClient();
+    const siteId = await resolveSiteId();
+    const clean = sanitizeDrivePath(folderPath);
+    const api = clean
+      ? `/sites/${siteId}/drive/root:/${clean}:/children`
+      : `/sites/${siteId}/drive/root/children`;
+    const res = await client.api(api).get();
+    return (res?.value || []) as DriveItem[];
+  } catch (err: any) {
+    if (
+      err.statusCode === 404 || err.code === "itemNotFound" ||
+      err.statusCode === 403 || err.code === "accessDenied" ||
+      /access denied/i.test(err.message || "")
+    ) return [];
+    throw err;
+  }
+}
+
+/** Get the binary content + mime type of a drive file by path. */
+export async function getDriveFile(path: string): Promise<{ buffer: Buffer; contentType: string; name: string } | null> {
+  try {
+    const client = await getGraphClient();
+    const siteId = await resolveSiteId();
+    const clean = sanitizeDrivePath(path);
+    const meta = (await client.api(`/sites/${siteId}/drive/root:/${clean}`).get()) as DriveItem;
+    const stream: ArrayBuffer = await client.api(`/sites/${siteId}/drive/root:/${clean}:/content`).responseType("arraybuffer" as any).get();
+    return { buffer: Buffer.from(stream), contentType: meta.file?.mimeType || "application/octet-stream", name: meta.name };
+  } catch (err: any) {
+    if (
+      err.statusCode === 404 || err.code === "itemNotFound" ||
+      err.statusCode === 403 || err.code === "accessDenied" ||
+      /access denied/i.test(err.message || "")
+    ) return null;
+    throw err;
+  }
+}
+
+/** Delete a drive file/folder by path. Returns true if deleted. */
+export async function deleteDriveItem(path: string): Promise<boolean> {
+  try {
+    const client = await getGraphClient();
+    const siteId = await resolveSiteId();
+    const clean = sanitizeDrivePath(path);
+    await client.api(`/sites/${siteId}/drive/root:/${clean}`).delete();
+    return true;
+  } catch (err: any) {
+    if (
+      err.statusCode === 404 || err.code === "itemNotFound" ||
+      err.statusCode === 403 || err.code === "accessDenied" ||
+      /access denied/i.test(err.message || "")
+    ) return false;
+    throw err;
+  }
 }

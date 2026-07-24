@@ -18,7 +18,7 @@ export default function ExpertRate({ rateEur }: { rateEur: number }) {
     })();
   }, []);
 
-  if (rate == null) return <span className="text-gray-500">BDT —/session (loading…)</span>;
+  if (rate == null) return <span className="text-gray-500">€{rateEur}/session (loading…)</span>;
   const bdt = Math.round((rateEur / rate + Number.EPSILON) * 100) / 100;
-  return <span className="text-gray-500">BDT {bdt} (≈ €{rateEur})/session</span>;
+  return <span className="text-gray-500">€{rateEur} (৳{bdt})/session</span>;
 }

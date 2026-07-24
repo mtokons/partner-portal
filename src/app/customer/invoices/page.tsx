@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import { redirect } from "next/navigation";
 import type { SessionUser } from "@/types";
 import { getCustomerPackages } from "@/lib/sharepoint";
@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { FileText } from "lucide-react";
 
 export default async function CustomerInvoicesPage() {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) redirect("/customer-login");
   const user = session.user as SessionUser;
 
@@ -42,7 +42,8 @@ export default async function CustomerInvoicesPage() {
           <CardTitle>Invoice History</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
+          <div className="overflow-x-auto">
+          <Table className="min-w-[650px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Invoice #</TableHead>
@@ -89,6 +90,7 @@ export default async function CustomerInvoicesPage() {
               )}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
     </div>

@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import { redirect } from "next/navigation";
 import type { SessionUser } from "@/types";
 import { getNotifications } from "@/lib/sharepoint";
@@ -30,7 +30,7 @@ const typeColor: Record<string, string> = {
 };
 
 export default async function CustomerNotificationsPage() {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) redirect("/customer-login");
   const user = session.user as SessionUser;
 

@@ -7,7 +7,7 @@
 
 import { graphPost } from "./graph";
 
-const DEFAULT_SENDER = process.env.O365_SENDER_USER_ID || "portal@sccg.com";
+const DEFAULT_SENDER = process.env.O365_SENDER_USER_ID || "portal@mysccg.de";
 
 export interface SendEmailParams {
   to: string;
@@ -79,7 +79,7 @@ export function buildWelcomeCustomerEmail(data: {
   partnerName: string;
 }): { subject: string; htmlBody: string } {
   return {
-    subject: "Welcome to SCCG Portal — Your Account is Ready",
+    subject: "Welcome to SCCG Career Lab Germany — Your Account is Ready",
     htmlBody: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: linear-gradient(135deg, #0a1628, #1a2a4a); padding: 32px; border-radius: 12px 12px 0 0;">
@@ -111,7 +111,7 @@ export function buildWelcomeEmployeeEmail(data: {
   managerName?: string;
 }): { subject: string; htmlBody: string } {
   return {
-    subject: `Welcome to SCCG — ${data.designation}`,
+    subject: `Welcome to SCCG Career Lab Germany — ${data.designation}`,
     htmlBody: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: linear-gradient(135deg, #0a1628, #1a2a4a); padding: 32px; border-radius: 12px 12px 0 0;">
@@ -145,7 +145,7 @@ export function buildEnrollmentConfirmationEmail(data: {
   totalFee: number;
 }): { subject: string; htmlBody: string } {
   return {
-    subject: `Enrollment Confirmed — ${data.courseName} (${data.batchCode})`,
+    subject: `Enrollment Confirmed — SCCG Career Lab Germany (${data.courseName}, ${data.batchCode})`,
     htmlBody: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: linear-gradient(135deg, #0a1628, #1a2a4a); padding: 32px; border-radius: 12px 12px 0 0;">
@@ -178,7 +178,7 @@ export function buildCertificateEmail(data: {
   verificationUrl: string;
 }): { subject: string; htmlBody: string } {
   return {
-    subject: `Your SCCG Certificate — ${data.courseName}`,
+    subject: `Your Certificate is Ready — SCCG Career Lab Germany (${data.courseName})`,
     htmlBody: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: linear-gradient(135deg, #0a1628, #1a2a4a); padding: 32px; border-radius: 12px 12px 0 0;">
@@ -208,7 +208,7 @@ export function buildResultsPublishedEmail(data: {
   examName: string;
 }): { subject: string; htmlBody: string } {
   return {
-    subject: `Exam Results Published — ${data.courseName}`,
+    subject: `Exam Results Published — SCCG Career Lab Germany (${data.courseName})`,
     htmlBody: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: linear-gradient(135deg, #0a1628, #1a2a4a); padding: 32px; border-radius: 12px 12px 0 0;">
@@ -223,5 +223,366 @@ export function buildResultsPublishedEmail(data: {
         </div>
       </div>
     `,
+  };
+}
+
+export function buildPaymentConfirmationEmail(data: {
+  clientName: string;
+  partnerName: string;
+  paymentDate: string;
+  amount: number;
+  method: string;
+  plan: string;
+  secondaryCurrency?: string;
+  exchangeRate?: number;
+}): { subject: string; htmlBody: string } {
+  const { dualHtml } = require("@/lib/formatCurrency");
+  const amountDisplay = data.secondaryCurrency && data.exchangeRate
+    ? dualHtml(data.amount, data.secondaryCurrency, data.exchangeRate)
+    : `€${data.amount.toFixed(2)}`;
+  return {
+    subject: `Payment Confirmation — SCCG Career Lab Germany (${data.plan})`,
+    htmlBody: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #0a1628, #1a2a4a); padding: 32px; border-radius: 12px 12px 0 0; color: #ffffff;">
+          <h1 style="margin: 0; font-size: 24px;">Payment Confirmation</h1>
+          <p style="margin: 8px 0 0; opacity: 0.9;">SCCG Partner Portal</p>
+        </div>
+        <div style="background: #ffffff; padding: 32px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 12px 12px;">
+          <p>Dear <strong>\${data.clientName}</strong>,</p>
+          <p>Thank you for choosing SCCG: Study and Career Coach Germany! We are pleased to confirm that we have received your payment for the (\${data.plan}) on \${data.paymentDate}.</p>
+          <h3 style="margin-top: 24px; color: #334155;">Payment Details:</h3>
+          <table style="width: 100%; margin: 12px 0 24px; border-collapse: collapse;">
+            <tr><td style="padding: 8px 0; color: #64748b;">Paid Amount:</td><td style="padding: 8px 0; font-weight: bold;">${amountDisplay}</td></tr>
+            <tr><td style="padding: 8px 0; color: #64748b;">Payment Method:</td><td style="padding: 8px 0;">\${data.method}</td></tr>
+            <tr><td style="padding: 8px 0; color: #64748b;">SCCG Plan:</td><td style="padding: 8px 0;">\${data.plan}</td></tr>
+          </table>
+          <p>We are currently organizing a professional session with one of our experts tailored to your needs. You will receive a meeting invitation within the next 10 days.</p>
+          <p>In the meantime, if you have any questions, please feel free to reach out by email or WhatsApp at +4915905840718.</p>
+          <p>Thank you again for your payment and trust in SCCG. We look forward to supporting your career journey!</p>
+          <p style="color: #64748b; font-size: 13px; margin-top: 24px;">
+            Best Regards,<br/>
+            <strong>\${data.partnerName}</strong><br/>
+            Study and Career Coach Germany<br/>
+            Website: <a href="https://www.mysccg.de/" style="color: #2563eb;">https://www.mysccg.de/</a>
+          </p>
+        </div>
+      </div>
+    `,
+  };
+}
+
+export function buildCandidateLoginEmail(data: {
+  candidateName: string;
+  sccgId: string;
+  email: string;
+  tempPassword?: string;
+  partnerName: string;
+  workflowCategory: string;
+  loginUrl: string;
+  totalServiceFee?: number;
+}): { subject: string; htmlBody: string } {
+  const passwordSection = data.tempPassword
+    ? `
+      <div style="background: #fffbeb; border: 1px solid #f59e0b; border-radius: 8px; padding: 20px; margin: 20px 0;">
+        <h3 style="margin: 0 0 12px; font-size: 14px; color: #b45309;">🔐 Your Login Credentials</h3>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr><td style="padding: 6px 0; color: #64748b; width: 140px;">Email</td><td style="padding: 6px 0; font-weight: bold;">${data.email}</td></tr>
+          <tr><td style="padding: 6px 0; color: #64748b;">Temporary Password</td><td style="padding: 6px 0; font-family: monospace; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 15px; letter-spacing: 1px;">${data.tempPassword}</td></tr>
+        </table>
+        <p style="color: #dc2626; font-size: 13px; margin: 12px 0 0;">⚠️ Please change your password after your first login for security.</p>
+      </div>`
+    : `
+      <div style="background: #f0fdf4; border: 1px solid #22c55e; border-radius: 8px; padding: 16px; margin: 20px 0;">
+        <h3 style="margin: 0 0 12px; font-size: 14px; color: #166534;">🔐 Your Login Details</h3>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr><td style="padding: 6px 0; color: #64748b; width: 140px;">Username (Email)</td><td style="padding: 6px 0; font-weight: bold;">${data.email}</td></tr>
+        </table>
+        <p style="margin: 12px 0 0; color: #166534; font-size: 13px;">✓ You already have an account. Please log in with your existing password. If you have forgotten it, use the “Forgot password” link on the login page.</p>
+      </div>`;
+
+  const feeSection = data.totalServiceFee
+    ? `<tr><td style="padding: 8px 0; color: #64748b;">Total Service Fee</td><td style="padding: 8px 0; font-weight: bold;">€${data.totalServiceFee.toFixed(2)}</td></tr>`
+    : "";
+
+  return {
+    subject: `Welcome to SCCG Career Lab Germany — Your Portal Login Details`,
+    htmlBody: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #0a1628, #1a2a4a); padding: 32px; border-radius: 12px 12px 0 0;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 24px;">Welcome to SCCG Career Lab Germany</h1>
+          <p style="color: #94a3b8; margin: 8px 0 0;">Your Portal Account is Ready</p>
+        </div>
+        <div style="background: #ffffff; padding: 32px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 12px 12px;">
+          <p>Dear <strong>${data.candidateName}</strong>,</p>
+          <p>You have been registered by <strong>${data.partnerName}</strong> for the <strong>${data.workflowCategory}</strong> program.</p>
+          
+          <table style="width: 100%; margin: 16px 0; border-collapse: collapse;">
+            <tr><td style="padding: 8px 0; color: #64748b;">Registration ID</td><td style="padding: 8px 0; font-weight: bold;">${data.sccgId}</td></tr>
+            <tr><td style="padding: 8px 0; color: #64748b;">Program</td><td style="padding: 8px 0;">${data.workflowCategory}</td></tr>
+            ${feeSection}
+          </table>
+
+          ${passwordSection}
+
+          <div style="text-align: center; margin: 24px 0;">
+            <a href="${data.loginUrl}" style="display: inline-block; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #ffffff; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px;">Log In to Your Portal</a>
+          </div>
+
+          <p>After logging in, you can:</p>
+          <ul style="color: #334155; line-height: 1.8;">
+            <li>✓ View your service offers and details</li>
+            <li>✓ Track your application timeline</li>
+            <li>✓ View payment history</li>
+            <li>✓ Send messages to your partner</li>
+            <li>✓ Upload required documents</li>
+          </ul>
+          
+          <p style="color: #64748b; font-size: 13px; margin-top: 24px;">
+            Best regards,<br/>
+            <strong>SCCG Career Lab Germany</strong><br/>
+            Website: <a href="https://www.mysccg.de/" style="color: #2563eb;">www.mysccg.de</a>
+          </p>
+        </div>
+      </div>
+    `,
+  };
+}
+
+/**
+ * Certificate of Cooperation email sent to a B2B partner with the PDF attached.
+ */
+export function buildB2BCertificateEmail(data: {
+  partnerName: string;
+  subPartnerName: string;
+  certCode: string;
+  verifyUrl: string;
+}): { subject: string; htmlBody: string } {
+  return {
+    subject: `Certificate of Cooperation — ${data.partnerName} & ${data.subPartnerName}`,
+    htmlBody: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #0a1628, #1a2a4a); padding: 32px; border-radius: 12px 12px 0 0;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 24px;">Certificate of Cooperation</h1>
+          <p style="color: #94a3b8; margin: 8px 0 0;">SCCG Career Lab Germany</p>
+        </div>
+        <div style="background: #ffffff; padding: 32px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 12px 12px;">
+          <p>Dear <strong>${data.subPartnerName}</strong> Team,</p>
+          <p>We are pleased to share the official <strong>Certificate of Cooperation</strong> confirming the partnership between <strong>${data.partnerName}</strong> (Regional Partner of SCCG Career Lab Germany) and <strong>${data.subPartnerName}</strong>.</p>
+          <p>The certificate is attached to this email as a PDF document.</p>
+          <div style="background: #f0fdf4; border: 1px solid #22c55e; border-radius: 8px; padding: 16px; margin: 20px 0;">
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr><td style="padding: 6px 0; color: #64748b; width: 150px;">Certificate Code</td><td style="padding: 6px 0; font-family: monospace; font-weight: bold;">${data.certCode}</td></tr>
+            </table>
+            <p style="margin: 12px 0 0; font-size: 13px;">Verify online: <a href="${data.verifyUrl}" style="color: #2563eb;">${data.verifyUrl}</a></p>
+          </div>
+          <p>This cooperation reflects our joint commitment to supporting candidate identification, preparation, and participation in international career development programs. This partnership is non-commercial in nature.</p>
+          <p style="color: #64748b; font-size: 13px; margin-top: 24px;">
+            Best regards,<br/>
+            <strong>${data.partnerName}</strong><br/>
+            SCCG Career Lab Germany<br/>
+            Website: <a href="https://www.mysccg.de/" style="color: #2563eb;">www.mysccg.de</a>
+          </p>
+        </div>
+      </div>
+    `,
+  };
+}
+
+/**
+ * Confirmation email sent to a candidate when a partner adds new service(s)
+ * to their existing registration.
+ */
+export function buildServiceAddedEmail(data: {
+  candidateName: string;
+  sccgId: string;
+  partnerName: string;
+  services: { serviceName: string; quantity: number; totalPrice: number }[];
+  addedAmount: number;
+  newTotal: number;
+  loginUrl: string;
+}): { subject: string; htmlBody: string } {
+  const rows = data.services
+    .map(
+      (s) =>
+        `<tr><td style="padding: 8px 0; color: #334155;">${s.serviceName}${s.quantity > 1 ? ` × ${s.quantity}` : ""}</td><td style="padding: 8px 0; text-align: right; font-weight: bold;">€${s.totalPrice.toFixed(2)}</td></tr>`,
+    )
+    .join("");
+  return {
+    subject: `New Service Added to Your SCCG Registration — ${data.sccgId}`,
+    htmlBody: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #0a1628, #1a2a4a); padding: 32px; border-radius: 12px 12px 0 0;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 24px;">New Service Added</h1>
+          <p style="color: #94a3b8; margin: 8px 0 0;">SCCG Career Lab Germany</p>
+        </div>
+        <div style="background: #ffffff; padding: 32px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 12px 12px;">
+          <p>Dear <strong>${data.candidateName}</strong>,</p>
+          <p><strong>${data.partnerName}</strong> has added the following service(s) to your registration (<strong>${data.sccgId}</strong>):</p>
+          <table style="width: 100%; margin: 16px 0; border-collapse: collapse;">
+            ${rows}
+            <tr><td style="padding: 10px 0 0; border-top: 1px solid #e2e8f0; color: #64748b;">Added Amount</td><td style="padding: 10px 0 0; border-top: 1px solid #e2e8f0; text-align: right; font-weight: bold;">€${data.addedAmount.toFixed(2)}</td></tr>
+            <tr><td style="padding: 6px 0; color: #64748b;">New Total Service Fee</td><td style="padding: 6px 0; text-align: right; font-weight: bold;">€${data.newTotal.toFixed(2)}</td></tr>
+          </table>
+          <div style="text-align: center; margin: 24px 0;">
+            <a href="${data.loginUrl}" style="display: inline-block; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #ffffff; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px;">View in Your Portal</a>
+          </div>
+          <p>Log in to your portal to review the updated details, payment information, and your application timeline.</p>
+          <p style="color: #64748b; font-size: 13px; margin-top: 24px;">
+            Best regards,<br/>
+            <strong>SCCG Career Lab Germany</strong><br/>
+            Website: <a href="https://www.mysccg.de/" style="color: #2563eb;">www.mysccg.de</a>
+          </p>
+        </div>
+      </div>
+    `,
+  };
+}
+
+export function buildPartnerOfferEmail(data: {
+  candidateName: string;
+  candidateEmail: string;
+  offerNumber: string;
+  partnerName: string;
+  partnerLogoUrl?: string;
+  services: Array<{
+    name: string;
+    quantity: number;
+    unitPrice: number;
+    totalPrice: number;
+    description?: string;
+    sessions?: number;
+    category?: string;
+    includes?: string[];
+  }>;
+  totalAmount: number;
+  currency: string;
+  rate: number;
+  validUntil: string;
+  notes?: string;
+  loginUrl: string;
+  loginPassword?: string;
+  isNewUser?: boolean;
+  acceptUrl?: string;
+  rejectUrl?: string;
+  serviceCategory?: string;
+}): { subject: string; htmlBody: string } {
+  const logoHtml = data.partnerLogoUrl
+    ? `<img src="${data.partnerLogoUrl}" alt="${data.partnerName} logo" style="max-height:60px;max-width:180px;object-fit:contain;margin-bottom:12px;display:block;" />`
+    : "";
+
+  const serviceRows = data.services
+    .map(
+      (s) => `
+      <tr>
+        <td style="padding:14px 12px;border-bottom:1px solid #f1f5f9;vertical-align:top;">
+          <div style="font-weight:600;color:#0f172a;font-size:14px;">${s.name}</div>
+          ${s.category ? `<div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-top:2px;">${s.category}</div>` : ""}
+          ${s.description ? `<div style="font-size:13px;color:#475569;margin-top:6px;line-height:1.5;">${s.description}</div>` : ""}
+          ${
+            s.includes && s.includes.length > 0
+              ? `<ul style="margin:8px 0 0 0;padding:0;list-style:none;">${s.includes.map((f) => `<li style="font-size:12px;color:#2563eb;margin-top:3px;">✓ ${f}</li>`).join("")}</ul>`
+              : s.sessions
+              ? `<div style="font-size:12px;color:#2563eb;margin-top:4px;">✓ Includes ${s.sessions} expert session${s.sessions !== 1 ? "s" : ""}</div>`
+              : ""
+          }
+        </td>
+        <td style="padding:14px 12px;border-bottom:1px solid #f1f5f9;text-align:center;color:#475569;vertical-align:top;font-size:14px;">${s.quantity}</td>
+      </tr>`
+    )
+    .join("");
+
+  const credentialsHtml = data.loginPassword
+    ? `
+    <div style="background:#fffbeb;border:1px solid #f59e0b;border-radius:12px;padding:24px;margin:28px 0;">
+      <div style="font-size:15px;font-weight:700;color:#92400e;margin-bottom:14px;">🔐 Your Portal Login Credentials</div>
+      <table style="width:100%;border-collapse:collapse;">
+        <tr><td style="padding:6px 0;color:#64748b;width:160px;font-size:13px;">Email</td><td style="padding:6px 0;font-weight:600;font-size:13px;">${data.candidateEmail}</td></tr>
+        <tr><td style="padding:6px 0;color:#64748b;font-size:13px;">Password</td><td style="padding:6px 0;"><span style="font-family:monospace;background:#fff;border:1px solid #fbbf24;padding:5px 12px;border-radius:6px;font-weight:700;font-size:15px;letter-spacing:1px;">${data.loginPassword}</span></td></tr>
+      </table>
+      <p style="color:#dc2626;font-size:12px;margin:12px 0 0;">⚠️ Please change your password after your first login.</p>
+    </div>`
+    : `
+    <div style="background:#f0fdf4;border:1px solid #22c55e;border-radius:12px;padding:16px;margin:28px 0;">
+      <p style="margin:0;color:#166534;font-size:14px;">✓ Log in with your existing SCCG Portal credentials to view and accept this offer.</p>
+    </div>`;
+
+  const category = data.serviceCategory || "Germany Career Services";
+
+  const acceptRejectHtml = data.acceptUrl && data.rejectUrl
+    ? `
+    <div style="text-align:center;margin:28px 0;">
+      <a href="${data.acceptUrl}" style="display:inline-block;background:linear-gradient(135deg,#059669,#047857);color:#fff;padding:14px 36px;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px;margin:0 8px 12px;">
+        ✓ Accept Offer
+      </a>
+      <a href="${data.rejectUrl}" style="display:inline-block;background:#f1f5f9;color:#64748b;padding:14px 36px;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px;margin:0 8px 12px;border:1px solid #e2e8f0;">
+        ✗ Decline
+      </a>
+    </div>`
+    : `
+    <div style="text-align:center;margin:28px 0;">
+      <a href="${data.loginUrl}" style="display:inline-block;background:linear-gradient(135deg,#0891b2,#0e7490);color:#fff;padding:15px 40px;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px;letter-spacing:.3px;">
+        View &amp; Accept Offer →
+      </a>
+    </div>`;
+
+  return {
+    subject: `New Service Offer from SCCG Germany — ${category} (Ref: ${data.offerNumber})`,
+    htmlBody: `
+<div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;background:#f8fafc;padding:20px;">
+
+  <!-- Header card -->
+  <div style="background:linear-gradient(135deg,#0a1628,#1a2a4a);border-radius:14px 14px 0 0;padding:28px 32px;">
+    ${logoHtml}
+    <h1 style="color:#fff;margin:0;font-size:22px;font-weight:700;">New Service Offer — SCCG Career Lab Germany</h1>
+    <p style="color:#94a3b8;margin:6px 0 0;font-size:13px;">Ref: <strong style="color:#e2e8f0;">${data.offerNumber}</strong> &nbsp;·&nbsp; Valid until ${new Date(data.validUntil).toLocaleDateString("en-GB")}</p>
+  </div>
+
+  <!-- Body -->
+  <div style="background:#fff;padding:32px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 14px 14px;">
+    <p style="font-size:15px;color:#0f172a;">Dear <strong>${data.candidateName}</strong>,</p>
+    <p style="color:#475569;font-size:14px;line-height:1.6;">
+      You have received a new offer from <strong>SCCG Career Lab Germany</strong> for 
+      <strong>${category}</strong> through our partner <strong>${data.partnerName}</strong>.
+    </p>
+    <p style="color:#475569;font-size:14px;line-height:1.6;">
+      Please review the services included below and click <strong>Accept Offer</strong> to confirm — or <strong>Decline</strong> if you'd like to discuss further.
+    </p>
+
+    <!-- Services table (no price columns) -->
+    <table style="width:100%;border-collapse:collapse;margin:24px 0;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;">
+      <thead>
+        <tr style="background:#f1f5f9;">
+          <th style="padding:12px;text-align:left;font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;">Service / Package</th>
+          <th style="padding:12px;text-align:center;font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;width:60px;">Qty</th>
+        </tr>
+      </thead>
+      <tbody>${serviceRows}</tbody>
+    </table>
+
+    ${data.notes ? `<div style="background:#f8fafc;border-left:3px solid #cbd5e1;padding:12px 16px;border-radius:6px;margin:16px 0;"><p style="margin:0;font-size:13px;color:#475569;"><strong>Notes:</strong> ${data.notes}</p></div>` : ""}
+
+    <!-- Credentials -->
+    ${credentialsHtml}
+
+    <!-- Accept/Reject CTA -->
+    ${acceptRejectHtml}
+
+    <p style="font-size:13px;color:#64748b;line-height:1.6;">
+      After accepting you can:<br/>
+      ✓ Track your application and service timeline<br/>
+      ✓ Upload required documents<br/>
+      ✓ Communicate with your consultant<br/>
+      ✓ View payment schedule
+    </p>
+
+    <hr style="border:none;border-top:1px solid #e2e8f0;margin:28px 0;"/>
+    <p style="font-size:12px;color:#94a3b8;margin:0;">
+      This offer was sent via <strong>SCCG Partner Portal</strong>. 
+      Questions? Contact us at <a href="mailto:info@mysccg.de" style="color:#2563eb;">info@mysccg.de</a> 
+      or visit <a href="https://www.mysccg.de/" style="color:#2563eb;">www.mysccg.de</a>.
+    </p>
+  </div>
+</div>`,
   };
 }

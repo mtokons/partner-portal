@@ -9,7 +9,7 @@ import {
   LayoutGrid, List, Search, ExternalLink, Copy, CheckCircle
 } from "lucide-react";
 import { CertificateDownloadButton } from "@/components/CertificateDownloadButton";
-import { deleteCertificateAction, revokeCertificateAction } from "@/app/(portal)/admin/school/actions";
+import { deleteCertificateAction, revokeCertificateAction } from "@/app/admin/school/actions";
 import type { SchoolCertificate } from "@/types";
 import Link from "next/link";
 import {
@@ -78,7 +78,10 @@ export function CertificateGallery({ certificates }: { certificates: SchoolCerti
   };
 
   const copyVerifyLink = async (cert: SchoolCertificate) => {
-    const url = cert.verificationUrl || `https://portal.mysccg.de/verify/${cert.verificationCode}`;
+    // Always build from verificationCode — stored verificationUrl may have old/wrong domain
+    const url = cert.verificationCode
+      ? `https://portal.mysccg.de/verify/${cert.verificationCode}`
+      : cert.verificationUrl || "";
     try {
       await navigator.clipboard.writeText(url);
     } catch {

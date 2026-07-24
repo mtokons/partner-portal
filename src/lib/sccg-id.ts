@@ -102,3 +102,35 @@ export function generateVerificationCode(): string {
     .map((b) => chars[b % chars.length])
     .join("");
 }
+
+/**
+ * Generate a unique candidate ID using partner code and candidate type sequence.
+ * Format: [PartnerCode]-[CandidateType]-[Sequence]
+ * Example: KIS-AUS-0001
+ */
+export async function generatePartnerCandidateId(
+  partnerCode: string,
+  workflowCategory: string
+): Promise<string> {
+  const db = getAdminFirestore();
+  const rawCode = (partnerCode || "PART").trim().toUpperCase();
+  const categoryMap: Record<string, string> = {
+    "Training & Language": "TRN",
+    "Ausbildung": "AUS",
+    "Student": "STU",
+    "Opportunity Card": "OPP",
+    "Others": "OTH",
+  };
+  const categoryAbbr = (categoryMap[workflowCategory] || workflowCategory.slice(0, 3)).toUpperCase();
+  const seqKey = `${rawCode}-${categoryAbbr}`;
+  
+  const docRef = db.collection("sccgSequences").doc(seqKey);
+  const sequenceNum = await db.runTransaction(async (tx) => {
+    const docSnap = await tx.get(docRef);
+    const next = (docSnap.exists ? (docSnap.data()?.lastSequence ?? 0) : 0) + 1;
+    tx.set(docRef, { lastSequence: next, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+    return next;
+  });
+
+  return `${rawCode}-${categoryAbbr}-${String(sequenceNum).padStart(4, "0")}`;
+}

@@ -33,8 +33,19 @@ export async function setCustomUserClaims(uid: string, claims: object) {
   await admin.auth(app).setCustomUserClaims(uid, claims);
 }
 
+let _firestoreSettingsApplied = false;
+
 export function getAdminFirestore() {
   const app = getAdminApp();
   if (!app) throw new Error("Firebase Admin not initialized");
-  return admin.firestore(app);
+  const fs = admin.firestore(app);
+  if (!_firestoreSettingsApplied) {
+    try {
+      fs.settings({ ignoreUndefinedProperties: true });
+    } catch {
+      // Settings already applied — safe to ignore
+    }
+    _firestoreSettingsApplied = true;
+  }
+  return fs;
 }

@@ -1,6 +1,6 @@
 "use server";
 
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import type { SessionUser } from "@/types";
 import {
   getSchoolEnrollments,
@@ -13,7 +13,7 @@ import {
 } from "@/lib/firestore-services";
 
 async function getStudent() {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) throw new Error("Unauthorized");
   return session.user as SessionUser;
 }

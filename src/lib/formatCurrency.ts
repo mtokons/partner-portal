@@ -1,14 +1,31 @@
-export function formatBdtEur(bdt: number, eur?: number, decimals = 2) {
-  const bd = bdt.toFixed(decimals);
-  return typeof eur === "number"
-    ? `BDT ${bd} · €${eur.toFixed(decimals)}`
-    : `BDT ${bd}`;
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  EUR: "€", BDT: "৳", INR: "₹", USD: "$", GBP: "£",
+  AED: "د.إ", SAR: "﷼", MYR: "RM", PKR: "₨", LKR: "Rs",
+  NPR: "₨", TRY: "₺",
+};
+
+/**
+ * Format EUR amount — single currency display (EUR only).
+ * Secondary currency params kept for backward-compat but ignored.
+ */
+export function dual(eurAmount: number, _currency?: string, _rate?: number, _compact?: boolean): string {
+  return `€${eurAmount.toLocaleString("en", { minimumFractionDigits: 0 })}`;
 }
 
-export function formatEurWithRate(eur: number, rate?: number, decimals = 2) {
-  if (rate && rate > 0) {
-    const bdt = Math.round((eur / rate + Number.EPSILON) * Math.pow(10, decimals)) / Math.pow(10, decimals);
-    return `BDT ${bdt.toFixed(decimals)} · €${eur.toFixed(decimals)}`;
-  }
+/**
+ * Format EUR amount for emails (HTML) — EUR only.
+ */
+export function dualHtml(eurAmount: number, _currency?: string, _rate?: number): string {
+  return `<strong>€${eurAmount.toLocaleString("en", { minimumFractionDigits: 2 })}</strong>`;
+}
+
+// Legacy compat — EUR only
+export function formatBdtEur(_bdt: number, eur?: number, decimals = 2) {
+  return typeof eur === "number"
+    ? `€${eur.toFixed(decimals)}`
+    : `€${_bdt.toFixed(decimals)}`;
+}
+
+export function formatEurWithRate(eur: number, _rate?: number, decimals = 2) {
   return `€${eur.toFixed(decimals)}`;
 }

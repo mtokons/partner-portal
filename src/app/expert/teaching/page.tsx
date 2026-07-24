@@ -14,7 +14,7 @@ export default async function TeachingDashboardPage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">My Teaching</h1>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
           <CardContent className="pt-4 pb-4 text-center">
             <BookOpen className="h-5 w-5 mx-auto text-blue-500 mb-1" />
@@ -41,7 +41,8 @@ export default async function TeachingDashboardPage() {
       <Card>
         <CardHeader><CardTitle>My Batches</CardTitle></CardHeader>
         <CardContent className="p-0">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[550px] text-sm">
             <thead>
               <tr className="border-b bg-muted/50">
                 <th className="text-left py-3 px-4 text-xs text-muted-foreground">Batch</th>
@@ -74,6 +75,7 @@ export default async function TeachingDashboardPage() {
               )}
             </tbody>
           </table>
+          </div>
         </CardContent>
       </Card>
     </div>

@@ -6,7 +6,7 @@ import { Edit2, Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { BatchForm } from "./BatchForm";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
-import { deleteBatch } from "@/app/(portal)/admin/school/actions";
+import { deleteBatch } from "@/app/admin/school/actions";
 import type { SchoolBatch, SchoolCourse, SchoolTeacher } from "@/types";
 
 interface BatchActionsProps {

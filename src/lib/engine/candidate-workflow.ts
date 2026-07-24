@@ -6,7 +6,7 @@ export const WORKFLOW_TRANSITIONS: Record<
   WorkflowCategory,
   Record<string, string[]>
 > = {
-  Training: {
+  "Training & Language": {
     REGISTERED: ["DOCUMENTS_UNDER_REVIEW"],
     DOCUMENTS_UNDER_REVIEW: ["TRAINING_STARTED"],
     TRAINING_STARTED: ["TRAINING_FINISHED"],
@@ -23,7 +23,7 @@ export const WORKFLOW_TRANSITIONS: Record<
     VISA_PROCESS: ["COMPLETED"],
     COMPLETED: [],
   },
-  "Student Visa": {
+  "Student": {
     REGISTERED: ["DOCUMENTS_UNDER_REVIEW"],
     // Optional professional training step — allow skipping directly to APPLICATION_STARTED
     DOCUMENTS_UNDER_REVIEW: [
@@ -57,11 +57,16 @@ export const WORKFLOW_TRANSITIONS: Record<
     VISA_PROCESS_STARTED: ["COMPLETED"],
     COMPLETED: [],
   },
+  "Others": {
+    REGISTERED: ["IN_PROGRESS"],
+    IN_PROGRESS: ["COMPLETED"],
+    COMPLETED: [],
+  },
 };
 
 // Display-ordered list of all statuses in a category's workflow (for stepper UI)
 export const WORKFLOW_ORDERED_STATUSES: Record<WorkflowCategory, string[]> = {
-  Training: [
+  "Training & Language": [
     "REGISTERED",
     "DOCUMENTS_UNDER_REVIEW",
     "TRAINING_STARTED",
@@ -78,7 +83,7 @@ export const WORKFLOW_ORDERED_STATUSES: Record<WorkflowCategory, string[]> = {
     "VISA_PROCESS",
     "COMPLETED",
   ],
-  "Student Visa": [
+  "Student": [
     "REGISTERED",
     "DOCUMENTS_UNDER_REVIEW",
     "PROFESSIONAL_TRAINING_GOING_ON",
@@ -100,14 +105,20 @@ export const WORKFLOW_ORDERED_STATUSES: Record<WorkflowCategory, string[]> = {
     "VISA_PROCESS_STARTED",
     "COMPLETED",
   ],
+  "Others": [
+    "REGISTERED",
+    "IN_PROGRESS",
+    "COMPLETED",
+  ],
 };
 
 // Optional steps that can be skipped — shown differently in the stepper
 export const OPTIONAL_STATUSES: Record<WorkflowCategory, string[]> = {
-  Training: [],
+  "Training & Language": [],
   Ausbildung: [],
-  "Student Visa": ["PROFESSIONAL_TRAINING_GOING_ON"],
+  "Student": ["PROFESSIONAL_TRAINING_GOING_ON"],
   "Opportunity Card": ["GERMAN_COURSE_ASSIGNED", "PROFESSIONAL_TRAINING_GOING_ON"],
+  "Others": [],
 };
 
 export function getAllowedTransitions(

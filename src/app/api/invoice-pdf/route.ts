@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getInvoices, getOrders, getClientById, getSalesOrderById, getSalesOrderItems } from "@/lib/sharepoint";
+import { getInvoiceById, getClientById, getSalesOrderById, getSalesOrderItems } from "@/lib/sharepoint";
 import { generateInvoicePdf } from "@/lib/pdf";
 import { requireSessionUser, canAccess } from "@/lib/api-auth";
 import type { Order } from "@/types";
@@ -12,15 +12,14 @@ export async function GET(request: Request) {
   const id = searchParams.get("id");
   if (!id) return NextResponse.json({ error: "Missing invoice id" }, { status: 400 });
 
-  // Fetch invoices scoped to current partner first; admin can see all
-  let invoices;
+  // Fetch the specific invoice by ID — much faster than scanning all invoices
+  let invoice;
   try {
-    invoices = await getInvoices();
+    invoice = await getInvoiceById(id);
   } catch (e) {
-    console.error("invoice-pdf: getInvoices failed", (e as Error).message);
+    console.error("invoice-pdf: getInvoiceById failed", (e as Error).message);
     return NextResponse.json({ error: "Lookup failed" }, { status: 502 });
   }
-  const invoice = invoices.find((inv) => inv.id === id || inv.orderId === id);
   if (!invoice) return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
 
   if (!canAccess(user, { partnerId: invoice.partnerId, customerId: invoice.clientId })) {
@@ -32,7 +31,6 @@ export async function GET(request: Request) {
 
   try {
     if (invoice.orderId) {
-      // Try SalesOrder first (current canonical order list)
       const salesOrder = await getSalesOrderById(invoice.orderId).catch(() => null);
       if (salesOrder) {
         const items = await getSalesOrderItems(salesOrder.id).catch(() => []);
@@ -52,10 +50,6 @@ export async function GET(request: Request) {
           notes: salesOrder.notes,
           createdAt: salesOrder.createdAt,
         };
-      } else {
-        // Fall back to legacy Orders list
-        const orders = await getOrders(invoice.partnerId);
-        order = orders.find((o) => o.id === invoice.orderId);
       }
     }
     if (invoice.clientId) {
@@ -65,14 +59,23 @@ export async function GET(request: Request) {
     // Non-fatal: PDF will render without order/client details
   }
 
-  const pdfBytes = generateInvoicePdf(invoice, order, client);
+  let pdfBytes: Uint8Array;
+  try {
+    pdfBytes = generateInvoicePdf(invoice, order, client);
+  } catch (e) {
+    console.error("invoice-pdf: generateInvoicePdf failed", (e as Error).message);
+    return NextResponse.json({ error: "PDF generation failed" }, { status: 500 });
+  }
 
-  return new NextResponse(Buffer.from(pdfBytes), {
+  const filename = `invoice-${invoice.invoiceNumber || invoice.id}.pdf`;
+
+  return new NextResponse(Buffer.from(pdfBytes as unknown as ArrayBuffer), {
     status: 200,
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="invoice-${invoice.id}.pdf"`,
+      "Content-Disposition": `attachment; filename="${filename}"`,
       "Cache-Control": "private, no-store",
     },
   });
 }
+

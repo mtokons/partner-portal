@@ -21,7 +21,7 @@ function BarTooltip({ active, payload, label }: any) {
               <div className="h-2.5 w-2.5 rounded shadow-[0_0_8px_currentcolor]" style={{ backgroundColor: p.fill }} />
               <span className="text-xs font-medium text-muted-foreground capitalize">{p.name}</span>
             </div>
-            <span className="text-xs font-black text-foreground">BDT {(Number(p.value) / 1000).toFixed(1)}K</span>
+            <span className="text-xs font-black text-foreground">€{(Number(p.value) / 1000).toFixed(1)}K</span>
           </div>
         ))}
       </div>

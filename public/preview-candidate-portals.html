@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Candidate Portal Preview — SCCG</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --ink: #0f172a;
+      --muted: #64748b;
+      --line: rgba(255,255,255,0.6);
+      --glass: rgba(255,255,255,0.72);
+    }
+    body {
+      position: relative;
+      min-height: 100vh;
+      overflow-x: hidden;
+      background:
+        radial-gradient(circle at 10% 10%, rgba(13, 148, 136, 0.16) 0%, transparent 25%),
+        radial-gradient(circle at 88% 12%, rgba(251, 113, 133, 0.16) 0%, transparent 26%),
+        linear-gradient(160deg, #ebfbff 0%, #fff5ee 48%, #f4f7ff 100%);
+      color: var(--ink);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    /* ─── Ornate arabesque medallion artwork ─── */
+    .orn-fade {
+      opacity: 0;
+      transform-origin: center;
+      animation: ornate-fade 1.8s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+    }
+    .orn-medallion {
+      transform-origin: center;
+      animation: ornate-drift 24s ease-in-out infinite alternate;
+    }
+    .orn-slow {
+      transform-origin: center;
+      animation: ornate-rotate 42s linear infinite;
+    }
+    .orn-reverse {
+      transform-origin: center;
+      animation: ornate-rotate-reverse 54s linear infinite;
+    }
+    .orn-shimmer {
+      animation: ornate-shimmer 7.2s ease-in-out infinite;
+    }
+    @keyframes ornate-fade {
+      0% { opacity: 0; transform: scale(0.92) rotate(-4deg); }
+      100% { opacity: 1; transform: scale(1) rotate(0deg); }
+    }
+    @keyframes ornate-drift {
+      0% { transform: translate3d(-10px, 6px, 0) scale(1); }
+      50% { transform: translate3d(10px, -10px, 0) scale(1.012); }
+      100% { transform: translate3d(-4px, 12px, 0) scale(0.996); }
+    }
+    @keyframes ornate-rotate {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    @keyframes ornate-rotate-reverse {
+      from { transform: rotate(360deg); }
+      to { transform: rotate(0deg); }
+    }
+    @keyframes ornate-shimmer {
+      0%, 100% { opacity: 0.42; filter: drop-shadow(0 0 0 rgba(255, 215, 128, 0)); }
+      50% { opacity: 0.72; filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.18)); }
+    }
+    .page-content { position: relative; z-index: 1; }
+    h1, h2, h3, h4, h5, h6 { font-family: 'Outfit', sans-serif; letter-spacing: -0.02em; }
+    .portal-frame {
+      border: 1px solid rgba(255,255,255,0.58);
+      border-radius: 32px;
+      overflow: hidden;
+      background: linear-gradient(180deg, rgba(255,255,255,0.85), rgba(255,255,255,0.74));
+      box-shadow: 0 30px 80px -50px rgba(15, 23, 42, 0.35);
+      backdrop-filter: blur(18px) saturate(160%);
+    }
+    .sidebar-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 16px;
+      border-radius: 16px;
+      font-size: 13px;
+      color: #64748b;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .sidebar-item:hover { background: rgba(255,255,255,0.72); color: #0f172a; transform: translateY(-1px); }
+    .sidebar-item.active {
+      background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(224,242,254,0.8));
+      color: #0f766e;
+      font-weight: 600;
+      box-shadow: 0 18px 40px -30px rgba(14, 165, 233, 0.65);
+    }
+    .badge { display: inline-block; padding: 4px 11px; border-radius: 99px; font-size: 11px; font-weight: 600; }
+    .card {
+      border: 1px solid rgba(226,232,240,0.85);
+      border-radius: 24px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.84), rgba(255,255,255,0.74));
+      box-shadow: 0 24px 55px -40px rgba(15, 23, 42, 0.28);
+      backdrop-filter: blur(16px);
+    }
+    .hero {
+      position: relative;
+      overflow: hidden;
+      border-radius: 32px;
+      padding: 28px;
+      background: linear-gradient(135deg, rgba(6,78,101,0.96) 0%, rgba(15,118,110,0.92) 44%, rgba(251,113,133,0.82) 100%);
+      box-shadow: 0 34px 90px -52px rgba(15, 23, 42, 0.66);
+    }
+    .hero:before, .hero:after {
+      content: "";
+      position: absolute;
+      border-radius: 999px;
+      pointer-events: none;
+    }
+    .hero:before {
+      top: -90px;
+      right: -40px;
+      width: 280px;
+      height: 280px;
+      background: radial-gradient(circle, rgba(255,255,255,0.24) 0%, transparent 70%);
+    }
+    .hero:after {
+      left: -50px;
+      bottom: -80px;
+      width: 240px;
+      height: 240px;
+      background: radial-gradient(circle, rgba(255,255,255,0.18) 0%, transparent 68%);
+    }
+    .hero-stat {
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.1);
+      padding: 16px;
+      color: white;
+      backdrop-filter: blur(14px);
+    }
+    .spotlight {
+      border-radius: 28px;
+      border: 1px solid rgba(255,255,255,0.64);
+      background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(245,252,252,0.8));
+      padding: 20px;
+      box-shadow: 0 26px 70px -44px rgba(8, 47, 73, 0.72);
+    }
+    .link-card {
+      border-radius: 22px;
+      border: 1px solid rgba(255,255,255,0.7);
+      box-shadow: 0 22px 50px -38px rgba(15, 23, 42, 0.4);
+    }
+  </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <!-- Ornate arabesque medallion artwork (no text) -->
+    <svg style="position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:0;overflow:hidden"
+     viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice"
+     xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="presentation">
+      <defs>
+    <radialGradient id="previewGlow" cx="50%" cy="50%" r="58%">
+      <stop offset="0%" stop-color="rgba(20,184,166,0.24)" />
+      <stop offset="58%" stop-color="rgba(20,184,166,0.10)" />
+      <stop offset="100%" stop-color="rgba(20,184,166,0)" />
+    </radialGradient>
+    <linearGradient id="previewGold" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="rgba(253,230,138,0.62)" />
+      <stop offset="45%" stop-color="rgba(245,158,11,0.60)" />
+      <stop offset="100%" stop-color="rgba(180,83,9,0.52)" />
+    </linearGradient>
+    <linearGradient id="previewTeal" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="rgba(45,212,191,0.42)" />
+      <stop offset="100%" stop-color="rgba(15,118,110,0.38)" />
+    </linearGradient>
+      </defs>
+
+      <g transform="translate(1040 380) scale(1.18)" opacity="0.78" class="orn-medallion">
+    <circle r="320" fill="url(#previewGlow)" class="orn-fade" style="animation-delay:0.05s" />
+
+        <g class="orn-slow">
+          <g class="orn-fade" style="animation-delay:0.18s"><g transform="rotate(0)"><path d="M 0 -46 C 62 -78 122 -162 138 -254 C 152 -336 118 -400 0 -438 C -118 -400 -152 -336 -138 -254 C -122 -162 -62 -78 0 -46 Z" fill="url(#previewTeal)" fill-opacity="0.28" stroke="url(#previewGold)" stroke-width="6" class="orn-shimmer"/><path d="M 0 -80 C 42 -108 88 -170 94 -238 C 100 -304 72 -346 0 -378 C -72 -346 -100 -304 -94 -238 C -88 -170 -42 -108 0 -80 Z" fill="none" stroke="url(#previewGold)" stroke-width="2.2" stroke-opacity="0.75"/></g></g>
+          <g class="orn-fade" style="animation-delay:0.24s"><g transform="rotate(30)"><path d="M 0 -46 C 62 -78 122 -162 138 -254 C 152 -336 118 -400 0 -438 C -118 -400 -152 -336 -138 -254 C -122 -162 -62 -78 0 -46 Z" fill="url(#previewTeal)" fill-opacity="0.28" stroke="url(#previewGold)" stroke-width="6" class="orn-shimmer"/><path d="M 0 -80 C 42 -108 88 -170 94 -238 C 100 -304 72 -346 0 -378 C -72 -346 -100 -304 -94 -238 C -88 -170 -42 -108 0 -80 Z" fill="none" stroke="url(#previewGold)" stroke-width="2.2" stroke-opacity="0.75"/></g></g>
+          <g class="orn-fade" style="animation-delay:0.30s"><g transform="rotate(60)"><path d="M 0 -46 C 62 -78 122 -162 138 -254 C 152 -336 118 -400 0 -438 C -118 -400 -152 -336 -138 -254 C -122 -162 -62 -78 0 -46 Z" fill="url(#previewTeal)" fill-opacity="0.28" stroke="url(#previewGold)" stroke-width="6" class="orn-shimmer"/><path d="M 0 -80 C 42 -108 88 -170 94 -238 C 100 -304 72 -346 0 -378 C -72 -346 -100 -304 -94 -238 C -88 -170 -42 -108 0 -80 Z" fill="none" stroke="url(#previewGold)" stroke-width="2.2" stroke-opacity="0.75"/></g></g>
+          <g class="orn-fade" style="animation-delay:0.36s"><g transform="rotate(90)"><path d="M 0 -46 C 62 -78 122 -162 138 -254 C 152 -336 118 -400 0 -438 C -118 -400 -152 -336 -138 -254 C -122 -162 -62 -78 0 -46 Z" fill="url(#previewTeal)" fill-opacity="0.28" stroke="url(#previewGold)" stroke-width="6" class="orn-shimmer"/><path d="M 0 -80 C 42 -108 88 -170 94 -238 C 100 -304 72 -346 0 -378 C -72 -346 -100 -304 -94 -238 C -88 -170 -42 -108 0 -80 Z" fill="none" stroke="url(#previewGold)" stroke-width="2.2" stroke-opacity="0.75"/></g></g>
+          <g class="orn-fade" style="animation-delay:0.42s"><g transform="rotate(120)"><path d="M 0 -46 C 62 -78 122 -162 138 -254 C 152 -336 118 -400 0 -438 C -118 -400 -152 -336 -138 -254 C -122 -162 -62 -78 0 -46 Z" fill="url(#previewTeal)" fill-opacity="0.28" stroke="url(#previewGold)" stroke-width="6" class="orn-shimmer"/><path d="M 0 -80 C 42 -108 88 -170 94 -238 C 100 -304 72 -346 0 -378 C -72 -346 -100 -304 -94 -238 C -88 -170 -42 -108 0 -80 Z" fill="none" stroke="url(#previewGold)" stroke-width="2.2" stroke-opacity="0.75"/></g></g>
+          <g class="orn-fade" style="animation-delay:0.48s"><g transform="rotate(150)"><path d="M 0 -46 C 62 -78 122 -162 138 -254 C 152 -336 118 -400 0 -438 C -118 -400 -152 -336 -138 -254 C -122 -162 -62 -78 0 -46 Z" fill="url(#previewTeal)" fill-opacity="0.28" stroke="url(#previewGold)" stroke-width="6" class="orn-shimmer"/><path d="M 0 -80 C 42 -108 88 -170 94 -238 C 100 -304 72 -346 0 -378 C -72 -346 -100 -304 -94 -238 C -88 -170 -42 -108 0 -80 Z" fill="none" stroke="url(#previewGold)" stroke-width="2.2" stroke-opacity="0.75"/></g></g>
+          <g class="orn-fade" style="animation-delay:0.54s"><g transform="rotate(180)"><path d="M 0 -46 C 62 -78 122 -162 138 -254 C 152 -336 118 -400 0 -438 C -118 -400 -152 -336 -138 -254 C -122 -162 -62 -78 0 -46 Z" fill="url(#previewTeal)" fill-opacity="0.28" stroke="url(#previewGold)" stroke-width="6" class="orn-shimmer"/><path d="M 0 -80 C 42 -108 88 -170 94 -238 C 100 -304 72 -346 0 -378 C -72 -346 -100 -304 -94 -238 C -88 -170 -42 -108 0 -80 Z" fill="none" stroke="url(#previewGold)" stroke-width="2.2" stroke-opacity="0.75"/></g></g>
+          <g class="orn-fade" style="animation-delay:0.60s"><g transform="rotate(210)"><path d="M 0 -46 C 62 -78 122 -162 138 -254 C 152 -336 118 -400 0 -438 C -118 -400 -152 -336 -138 -254 C -122 -162 -62 -78 0 -46 Z" fill="url(#previewTeal)" fill-opacity="0.28" stroke="url(#previewGold)" stroke-width="6" class="orn-shimmer"/><path d="M 0 -80 C 42 -108 88 -170 94 -238 C 100 -304 72 -346 0 -378 C -72 -346 -100 -304 -94 -238 C -88 -170 -42 -108 0 -80 Z" fill="none" stroke="url(#previewGold)" stroke-width="2.2" stroke-opacity="0.75"/></g></g>
+          <g class="orn-fade" style="animation-delay:0.66s"><g transform="rotate(240)"><path d="M 0 -46 C 62 -78 122 -162 138 -254 C 152 -336 118 -400 0 -438 C -118 -400 -152 -336 -138 -254 C -122 -162 -62 -78 0 -46 Z" fill="url(#previewTeal)" fill-opacity="0.28" stroke="url(#previewGold)" stroke-width="6" class="orn-shimmer"/><path d="M 0 -80 C 42 -108 88 -170 94 -238 C 100 -304 72 -346 0 -378 C -72 -346 -100 -304 -94 -238 C -88 -170 -42 -108 0 -80 Z" fill="none" stroke="url(#previewGold)" stroke-width="2.2" stroke-opacity="0.75"/></g></g>
+          <g class="orn-fade" style="animation-delay:0.72s"><g transform="rotate(270)"><path d="M 0 -46 C 62 -78 122 -162 138 -254 C 152 -336 118 -400 0 -438 C -118 -400 -152 -336 -138 -254 C -122 -162 -62 -78 0 -46 Z" fill="url(#previewTeal)" fill-opacity="0.28" stroke="url(#previewGold)" stroke-width="6" class="orn-shimmer"/><path d="M 0 -80 C 42 -108 88 -170 94 -238 C 100 -304 72 -346 0 -378 C -72 -346 -100 -304 -94 -238 C -88 -170 -42 -108 0 -80 Z" fill="none" stroke="url(#previewGold)" stroke-width="2.2" stroke-opacity="0.75"/></g></g>
+          <g class="orn-fade" style="animation-delay:0.78s"><g transform="rotate(300)"><path d="M 0 -46 C 62 -78 122 -162 138 -254 C 152 -336 118 -400 0 -438 C -118 -400 -152 -336 -138 -254 C -122 -162 -62 -78 0 -46 Z" fill="url(#previewTeal)" fill-opacity="0.28" stroke="url(#previewGold)" stroke-width="6" class="orn-shimmer"/><path d="M 0 -80 C 42 -108 88 -170 94 -238 C 100 -304 72 -346 0 -378 C -72 -346 -100 -304 -94 -238 C -88 -170 -42 -108 0 -80 Z" fill="none" stroke="url(#previewGold)" stroke-width="2.2" stroke-opacity="0.75"/></g></g>
+          <g class="orn-fade" style="animation-delay:0.84s"><g transform="rotate(330)"><path d="M 0 -46 C 62 -78 122 -162 138 -254 C 152 -336 118 -400 0 -438 C -118 -400 -152 -336 -138 -254 C -122 -162 -62 -78 0 -46 Z" fill="url(#previewTeal)" fill-opacity="0.28" stroke="url(#previewGold)" stroke-width="6" class="orn-shimmer"/><path d="M 0 -80 C 42 -108 88 -170 94 -238 C 100 -304 72 -346 0 -378 C -72 -346 -100 -304 -94 -238 C -88 -170 -42 -108 0 -80 Z" fill="none" stroke="url(#previewGold)" stroke-width="2.2" stroke-opacity="0.75"/></g></g>
+        </g>
+
+    <g class="orn-fade" style="animation-delay:0.22s">
+      <circle r="182" fill="rgba(8,47,73,0.18)" stroke="url(#previewGold)" stroke-width="10"/>
+          <circle r="154" fill="none" stroke="url(#previewGold)" stroke-width="3" stroke-dasharray="10 8" stroke-opacity="0.78" class="orn-shimmer"/>
+      <circle r="124" fill="rgba(15,118,110,0.14)" stroke="url(#previewGold)" stroke-width="6"/>
+      <circle r="98" fill="none" stroke="url(#previewGold)" stroke-width="2.6" stroke-opacity="0.72"/>
+          <path d="M 0 -80 C 18 -62 28 -42 28 -10 C 28 34 10 56 0 72 C -10 56 -28 34 -28 -10 C -28 -42 -18 -62 0 -80 Z" fill="rgba(45,212,191,0.16)" stroke="url(#previewGold)" stroke-width="3.4" class="orn-shimmer"/>
+          <path d="M -80 0 C -62 18 -42 28 -10 28 C 34 28 56 10 72 0 C 56 -10 34 -28 -10 -28 C -42 -28 -62 -18 -80 0 Z" fill="rgba(45,212,191,0.12)" stroke="url(#previewGold)" stroke-width="3" class="orn-shimmer"/>
+    </g>
+
+    <g opacity="0.82">
+      <path d="M -360 -74 C -334 -102 -296 -104 -272 -82" fill="none" stroke="url(#previewGold)" stroke-width="3.8" stroke-opacity="0.45" class="orn-fade" style="animation-delay:0.96s" />
+      <path d="M -302 -18 C -252 -52 -216 -48 -182 -6" fill="none" stroke="url(#previewGold)" stroke-width="2.8" stroke-opacity="0.34" class="orn-fade" style="animation-delay:1.08s" />
+      <path d="M 236 246 C 278 224 316 228 344 260" fill="none" stroke="url(#previewGold)" stroke-width="3.8" stroke-opacity="0.44" class="orn-fade" style="animation-delay:1.18s" />
+      <path d="M 286 -262 C 324 -284 366 -278 394 -244" fill="none" stroke="url(#previewGold)" stroke-width="2.8" stroke-opacity="0.32" class="orn-fade" style="animation-delay:1.28s" />
+    </g>
+      </g>
+  </svg>
+
+  <!-- Page wrapper keeps content above calligraphy -->
+  <div class="page-content max-w-7xl mx-auto">
+
+  <!-- Header -->
+  <div class="text-center mb-8">
+    <h1 class="text-3xl font-bold text-slate-900">Candidate Portal — New Preview</h1>
+    <p class="text-slate-500 mt-1">Premium 3D glass style for offer-only and active candidate journeys</p>
+    <div class="flex justify-center gap-4 mt-4">
+      <button onclick="showView('offer')" id="btn-offer" class="px-5 py-2 rounded-xl text-sm font-semibold bg-blue-600 text-white shadow-sm">
+        📩 Offer-Received Candidate
+      </button>
+      <button onclick="showView('active')" id="btn-active" class="px-5 py-2 rounded-xl text-sm font-semibold bg-slate-200 text-slate-700">
+        ✅ Partner-Registered Candidate
+      </button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <!--  VIEW 1: OFFER-RECEIVED CANDIDATE              -->
+  <!-- ═══════════════════════════════════════════════ -->
+  <div id="view-offer" class="space-y-6">
+    <div class="bg-gradient-to-r from-sky-50 to-cyan-50 border border-sky-200 rounded-[24px] p-4 mb-2 shadow-sm">
+      <p class="text-sm font-semibold text-blue-800">📩 Scenario: Candidate received an offer from a partner (not yet registered)</p>
+      <p class="text-xs text-blue-600 mt-1">This candidate was sent an offer via email. They logged in with the temp credentials. They see offers but no active services yet.</p>
+    </div>
+
+    <div class="portal-frame">
+      <!-- Top bar -->
+      <div class="bg-slate-950/95 px-6 py-4 flex items-center justify-between backdrop-blur">
+        <div class="flex items-center gap-3">
+          <div class="h-9 w-9 rounded-2xl bg-gradient-to-br from-teal-400 via-cyan-400 to-rose-400 flex items-center justify-center text-white font-bold text-xs shadow-lg">SC</div>
+          <span class="text-white font-semibold text-sm">SCCG Career Lab</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-slate-400 text-xs">Fatima Ahmed</span>
+          <div class="h-7 w-7 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">FA</div>
+        </div>
+      </div>
+
+      <div class="flex min-h-[760px] bg-white/10">
+        <!-- Sidebar -->
+        <div class="w-64 border-r border-white/40 bg-white/35 p-4 space-y-1 shrink-0 backdrop-blur-xl">
+          <div class="sidebar-item active">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+            Dashboard
+          </div>
+          <div class="sidebar-item">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            My Offers
+          </div>
+          <div class="sidebar-item">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+            Messages
+          </div>
+          <div class="px-3 pt-4 pb-1"><p class="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Services</p></div>
+          <div class="sidebar-item">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+            Packages
+          </div>
+          <div class="sidebar-item">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+            Payments
+          </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 p-6 space-y-6">
+          <div class="hero text-white">
+            <div class="relative z-10 grid lg:grid-cols-[1.4fr_0.8fr] gap-6 items-end">
+              <div class="space-y-5">
+                <div class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em]">✦ Candidate Experience</div>
+                <div>
+                  <h1 class="text-4xl font-semibold tracking-tight">Welcome back, Fatima.</h1>
+                  <p class="mt-3 max-w-xl text-sm leading-6 text-white/80">Track your offers, messages, and service journey from a premium workspace designed to feel polished, clear, and deeply professional.</p>
+                </div>
+                <div class="grid md:grid-cols-3 gap-3">
+                  <div class="hero-stat">
+                    <p class="text-[11px] uppercase tracking-[0.24em] text-white/60">Registrations</p>
+                    <p class="mt-2 text-2xl font-semibold">0</p>
+                    <p class="mt-1 text-xs text-white/70">No active services yet</p>
+                  </div>
+                  <div class="hero-stat">
+                    <p class="text-[11px] uppercase tracking-[0.24em] text-white/60">Offers Ready</p>
+                    <p class="mt-2 text-2xl font-semibold">2</p>
+                    <p class="mt-1 text-xs text-white/70">Commercial proposals awaiting review</p>
+                  </div>
+                  <div class="hero-stat">
+                    <p class="text-[11px] uppercase tracking-[0.24em] text-white/60">Payments Cleared</p>
+                    <p class="mt-2 text-2xl font-semibold">€0.00</p>
+                    <p class="mt-1 text-xs text-white/70">No paid package yet</p>
+                  </div>
+                </div>
+              </div>
+              <div class="spotlight text-slate-900">
+                <div class="flex items-start justify-between gap-3">
+                  <div>
+                    <p class="text-xs uppercase tracking-[0.22em] text-slate-500">Journey Snapshot</p>
+                    <p class="mt-2 text-xl font-semibold">Offer Pipeline</p>
+                  </div>
+                  <div class="rounded-2xl border border-white/50 bg-white/65 px-3 py-2 text-teal-700 shadow-[0_18px_40px_-28px_rgba(15,118,110,0.85)]">✦</div>
+                </div>
+                <div class="mt-5 space-y-3">
+                  <div class="flex items-center justify-between rounded-2xl border border-white/50 bg-white/65 px-4 py-3">
+                    <div>
+                      <p class="text-xs text-slate-500">Current stage</p>
+                      <p class="font-medium text-slate-900">Offer review in progress</p>
+                    </div>
+                    <span class="text-slate-400">→</span>
+                  </div>
+                  <div class="flex items-center justify-between rounded-2xl border border-white/50 bg-white/65 px-4 py-3">
+                    <div>
+                      <p class="text-xs text-slate-500">Payment standing</p>
+                      <p class="font-medium text-slate-900">No due milestone</p>
+                    </div>
+                    <span class="text-slate-400">◎</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Candidate Quick Links -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div class="card link-card p-4 flex items-center gap-3 border-sky-200 bg-sky-50/70 cursor-pointer transition">
+              <div class="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                <svg class="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              </div>
+              <div class="flex-1">
+                <p class="font-medium text-sm text-blue-900">My Offers</p>
+                <p class="text-xs text-blue-600">2 offers</p>
+              </div>
+              <svg class="h-4 w-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </div>
+            <div class="card link-card p-4 flex items-center gap-3 border-rose-200 bg-rose-50/70 cursor-pointer transition">
+              <div class="h-10 w-10 rounded-lg bg-rose-100 flex items-center justify-center">
+                <svg class="h-5 w-5 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+              </div>
+              <div class="flex-1">
+                <p class="font-medium text-sm text-rose-900">Messages</p>
+                <p class="text-xs text-rose-600">Contact your partner</p>
+              </div>
+              <svg class="h-4 w-4 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </div>
+          </div>
+
+          <!-- Offer-Only Banner -->
+          <div class="card border-amber-200 bg-amber-50/90 p-4">
+            <div class="flex items-start gap-3">
+              <svg class="h-5 w-5 text-amber-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              <div>
+                <p class="font-medium text-amber-900 text-sm">You have pending offers</p>
+                <p class="text-xs text-amber-700 mt-1">You have 2 offers waiting for your review. Once you purchase a plan, you'll be able to track your full service timeline here.</p>
+                <a class="inline-flex items-center gap-1 mt-2 text-xs font-medium text-amber-800 hover:text-amber-900 cursor-pointer">
+                  View Offers →
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <!-- KPI Cards -->
+          <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
+            <div class="card p-4">
+              <div class="flex justify-between items-center mb-1"><p class="text-[10px] font-medium text-slate-500 uppercase">Active Packages</p><span class="text-teal-500">📦</span></div>
+              <p class="text-2xl font-bold">0</p>
+            </div>
+            <div class="card p-4">
+              <div class="flex justify-between items-center mb-1"><p class="text-[10px] font-medium text-slate-500 uppercase">Sessions Done</p><span class="text-green-500">✅</span></div>
+              <p class="text-2xl font-bold text-green-600">0</p><p class="text-[10px] text-slate-400">of 0</p>
+            </div>
+            <div class="card p-4">
+              <div class="flex justify-between items-center mb-1"><p class="text-[10px] font-medium text-slate-500 uppercase">Upcoming</p><span class="text-blue-500">📅</span></div>
+              <p class="text-2xl font-bold text-blue-600">0</p>
+            </div>
+            <div class="card p-4">
+              <div class="flex justify-between items-center mb-1"><p class="text-[10px] font-medium text-slate-500 uppercase">Amount Due</p><span class="text-red-500">💳</span></div>
+              <p class="text-2xl font-bold text-red-600">€0.00</p>
+            </div>
+            <div class="card p-4">
+              <div class="flex justify-between items-center mb-1"><p class="text-[10px] font-medium text-slate-500 uppercase">Notifications</p><span class="text-orange-500">🔔</span></div>
+              <p class="text-2xl font-bold text-orange-600">1</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Offer Detail Preview -->
+    <h2 class="text-lg font-bold text-slate-700 mt-8">📄 Offer Detail View (when candidate clicks an offer)</h2>
+    <div class="portal-frame">
+      <div class="bg-slate-900 px-6 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-xs">SC</div>
+          <span class="text-white font-semibold text-sm">SCCG Career Lab</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-slate-400 text-xs">Fatima Ahmed</span>
+          <div class="h-7 w-7 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">FA</div>
+        </div>
+      </div>
+      <div class="p-6 space-y-5">
+        <!-- Header -->
+        <div class="flex items-center gap-3">
+          <span class="text-slate-400 cursor-pointer">←</span>
+          <div>
+            <div class="flex items-center gap-2">
+              <h1 class="text-xl font-bold text-slate-900">SO-2026-00142</h1>
+              <span class="badge bg-blue-100 text-blue-800">sent</span>
+            </div>
+            <p class="text-sm text-slate-500">From Bangladesh Partner GmbH · Valid until 15/07/2026</p>
+          </div>
+        </div>
+
+        <!-- Summary -->
+        <div class="card p-5">
+          <p class="text-xs font-semibold text-slate-500 uppercase mb-3">Offer Summary</p>
+          <div class="grid grid-cols-4 gap-4">
+            <div><p class="text-xs text-slate-500">Subtotal</p><p class="text-lg font-bold">€2,308.00</p></div>
+            <div><p class="text-xs text-slate-500">Discount</p><p class="text-lg font-bold text-green-600">5%</p></div>
+            <div><p class="text-xs text-slate-500">Total Amount</p><p class="text-lg font-bold text-blue-600">€2,192.60</p></div>
+            <div><p class="text-xs text-slate-500">Status</p><span class="badge bg-blue-100 text-blue-800 mt-1">sent</span></div>
+          </div>
+        </div>
+
+        <!-- Services with What's Included (NEW!) -->
+        <div class="card p-5">
+          <p class="text-xs font-semibold text-slate-500 uppercase mb-4">Services & What's Included</p>
+          <div class="space-y-4">
+            <!-- Service 1 -->
+            <div class="border rounded-xl p-4">
+              <div class="flex justify-between">
+                <div>
+                  <p class="font-semibold text-slate-900">Ausbildung All Inclusive</p>
+                  <span class="inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 mt-1">Ausbildung</span>
+                </div>
+                <div class="text-right">
+                  <p class="text-xs text-slate-500">Qty: 1</p>
+                  <p class="font-bold text-blue-600">€1,998.00</p>
+                </div>
+              </div>
+              <div class="mt-3 pt-3 border-t border-dashed">
+                <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">What's Included</p>
+                <ul class="space-y-1.5">
+                  <li class="flex items-center gap-2 text-sm text-slate-600"><span class="text-green-500">✓</span> Language course (A1-B1)</li>
+                  <li class="flex items-center gap-2 text-sm text-slate-600"><span class="text-green-500">✓</span> ZAB verification</li>
+                  <li class="flex items-center gap-2 text-sm text-slate-600"><span class="text-green-500">✓</span> Profile Assessment</li>
+                  <li class="flex items-center gap-2 text-sm text-slate-600"><span class="text-green-500">✓</span> Job Application Training</li>
+                  <li class="flex items-center gap-2 text-sm text-slate-600"><span class="text-green-500">✓</span> Offer Letter support</li>
+                </ul>
+              </div>
+            </div>
+            <!-- Service 2 -->
+            <div class="border rounded-xl p-4">
+              <div class="flex justify-between">
+                <div>
+                  <p class="font-semibold text-slate-900">Visa Support</p>
+                  <span class="inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 mt-1">Ausbildung</span>
+                </div>
+                <div class="text-right">
+                  <p class="text-xs text-slate-500">Qty: 1</p>
+                  <p class="font-bold text-blue-600">€120.00</p>
+                </div>
+              </div>
+              <div class="mt-3 pt-3 border-t border-dashed">
+                <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">What's Included</p>
+                <ul class="space-y-1.5">
+                  <li class="flex items-center gap-2 text-sm text-slate-600"><span class="text-green-500">✓</span> Visa application guidance</li>
+                  <li class="flex items-center gap-2 text-sm text-slate-600"><span class="text-green-500">✓</span> Document checklist</li>
+                  <li class="flex items-center gap-2 text-sm text-slate-600"><span class="text-green-500">✓</span> Embassy appointment support</li>
+                </ul>
+              </div>
+            </div>
+            <!-- Service 3 -->
+            <div class="border rounded-xl p-4">
+              <div class="flex justify-between">
+                <div>
+                  <p class="font-semibold text-slate-900">Job Application Training</p>
+                  <span class="inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 mt-1">Ausbildung</span>
+                </div>
+                <div class="text-right">
+                  <p class="text-xs text-slate-500">Qty: 1</p>
+                  <p class="font-bold text-blue-600">€190.00</p>
+                </div>
+              </div>
+              <div class="mt-3 pt-3 border-t border-dashed">
+                <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">What's Included</p>
+                <ul class="space-y-1.5">
+                  <li class="flex items-center gap-2 text-sm text-slate-600"><span class="text-green-500">✓</span> CV & Cover letter</li>
+                  <li class="flex items-center gap-2 text-sm text-slate-600"><span class="text-green-500">✓</span> Job search strategy</li>
+                  <li class="flex items-center gap-2 text-sm text-slate-600"><span class="text-green-500">✓</span> Interview preparation</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Contact CTA -->
+        <div class="card border-purple-200 bg-purple-50 p-4 flex items-center justify-between">
+          <div>
+            <p class="font-medium text-purple-900 text-sm">Have questions about this offer?</p>
+            <p class="text-xs text-purple-700">Send a message to your partner directly</p>
+          </div>
+          <button class="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium">Send Message</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <!--  VIEW 2: PARTNER-REGISTERED ACTIVE CANDIDATE   -->
+  <!-- ═══════════════════════════════════════════════ -->
+  <div id="view-active" class="space-y-6" style="display:none">
+    <div class="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-4 mb-2">
+      <p class="text-sm font-semibold text-green-800">✅ Scenario: Partner registered this candidate — fully active with services</p>
+      <p class="text-xs text-green-600 mt-1">This candidate was registered by a partner through the candidate wizard. They have active services, timeline, payments, and can message their partner.</p>
+    </div>
+
+    <div class="portal-frame">
+      <!-- Top bar -->
+      <div class="bg-slate-900 px-6 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-xs">SC</div>
+          <span class="text-white font-semibold text-sm">SCCG Career Lab</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-slate-400 text-xs">Mohammad Rahman</span>
+          <div class="h-7 w-7 rounded-full bg-emerald-500 flex items-center justify-center text-white text-xs font-bold">MR</div>
+        </div>
+      </div>
+
+      <div class="flex min-h-[650px]">
+        <!-- Sidebar -->
+        <div class="w-56 border-r bg-slate-50/50 p-3 space-y-1 shrink-0">
+          <div class="sidebar-item active">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+            Dashboard
+          </div>
+          <div class="sidebar-item">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            My Offers
+          </div>
+          <div class="sidebar-item">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+            My Timeline
+          </div>
+          <div class="sidebar-item">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+            Messages
+          </div>
+          <div class="px-3 pt-4 pb-1"><p class="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Services</p></div>
+          <div class="sidebar-item">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+            Packages
+          </div>
+          <div class="sidebar-item">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+            Payments
+          </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 p-6 space-y-5">
+          <div>
+            <h1 class="text-xl font-bold text-slate-900">Welcome back, Mohammad!</h1>
+            <p class="text-sm text-slate-500 mt-1">Here's an overview of your services and upcoming activity.</p>
+          </div>
+
+          <!-- Candidate Quick Links -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div class="card p-4 flex items-center gap-3 border-blue-200 bg-blue-50/50 cursor-pointer hover:shadow-md transition">
+              <div class="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                <svg class="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              </div>
+              <div class="flex-1">
+                <p class="font-medium text-sm text-blue-900">My Offers</p>
+                <p class="text-xs text-blue-600">1 offer</p>
+              </div>
+              <svg class="h-4 w-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </div>
+            <div class="card p-4 flex items-center gap-3 border-teal-200 bg-teal-50/50 cursor-pointer hover:shadow-md transition">
+              <div class="h-10 w-10 rounded-lg bg-teal-100 flex items-center justify-center">
+                <svg class="h-5 w-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+              </div>
+              <div class="flex-1">
+                <p class="font-medium text-sm text-teal-900">My Timeline</p>
+                <p class="text-xs text-teal-600">1 registration</p>
+              </div>
+              <svg class="h-4 w-4 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </div>
+            <div class="card p-4 flex items-center gap-3 border-purple-200 bg-purple-50/50 cursor-pointer hover:shadow-md transition">
+              <div class="h-10 w-10 rounded-lg bg-purple-100 flex items-center justify-center">
+                <svg class="h-5 w-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+              </div>
+              <div class="flex-1">
+                <p class="font-medium text-sm text-purple-900">Messages</p>
+                <p class="text-xs text-purple-600">Contact your partner</p>
+              </div>
+              <svg class="h-4 w-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </div>
+          </div>
+
+          <!-- Active Registration Card -->
+          <div class="card">
+            <div class="px-4 py-3 border-b"><p class="text-sm font-semibold text-slate-900">My Registrations</p></div>
+            <div class="p-4 space-y-3">
+              <div class="border rounded-lg p-3 hover:bg-slate-50 cursor-pointer transition">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="font-medium text-sm">KIS-AUS-00078</p>
+                    <p class="text-xs text-slate-500">Ausbildung</p>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span class="badge bg-blue-50 text-blue-700 border border-blue-200">document-review</span>
+                    <span class="badge bg-blue-100 text-blue-800">deposit-paid</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- KPI Cards -->
+          <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
+            <div class="card p-4">
+              <div class="flex justify-between items-center mb-1"><p class="text-[10px] font-medium text-slate-500 uppercase">Active Packages</p><span>📦</span></div>
+              <p class="text-2xl font-bold">1</p>
+            </div>
+            <div class="card p-4">
+              <div class="flex justify-between items-center mb-1"><p class="text-[10px] font-medium text-slate-500 uppercase">Sessions Done</p><span>✅</span></div>
+              <p class="text-2xl font-bold text-green-600">2</p><p class="text-[10px] text-slate-400">of 5</p>
+            </div>
+            <div class="card p-4">
+              <div class="flex justify-between items-center mb-1"><p class="text-[10px] font-medium text-slate-500 uppercase">Upcoming</p><span>📅</span></div>
+              <p class="text-2xl font-bold text-blue-600">1</p>
+            </div>
+            <div class="card p-4">
+              <div class="flex justify-between items-center mb-1"><p class="text-[10px] font-medium text-slate-500 uppercase">Amount Due</p><span>💳</span></div>
+              <p class="text-2xl font-bold text-red-600">€1,498.00</p>
+            </div>
+            <div class="card p-4">
+              <div class="flex justify-between items-center mb-1"><p class="text-[10px] font-medium text-slate-500 uppercase">Notifications</p><span>🔔</span></div>
+              <p class="text-2xl font-bold text-orange-600">3</p>
+            </div>
+          </div>
+
+          <!-- Recent Sessions -->
+          <div class="card">
+            <div class="px-4 py-3 border-b"><p class="text-sm font-semibold text-slate-900">Recent Sessions</p></div>
+            <div class="divide-y">
+              <div class="p-4 flex items-center justify-between">
+                <div>
+                  <p class="text-sm font-medium">German A1 — Session 12</p>
+                  <p class="text-xs text-slate-500">Completed Jun 9, 2026</p>
+                </div>
+                <span class="badge bg-green-100 text-green-800">completed</span>
+              </div>
+              <div class="p-4 flex items-center justify-between">
+                <div>
+                  <p class="text-sm font-medium">Profile Assessment</p>
+                  <p class="text-xs text-slate-500">Completed Jun 5, 2026</p>
+                </div>
+                <span class="badge bg-green-100 text-green-800">completed</span>
+              </div>
+              <div class="p-4 flex items-center justify-between">
+                <div>
+                  <p class="text-sm font-medium">German A1 — Session 13</p>
+                  <p class="text-xs text-slate-500">Scheduled Jun 16, 2026</p>
+                </div>
+                <span class="badge bg-blue-100 text-blue-800">scheduled</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Timeline Preview -->
+    <h2 class="text-lg font-bold text-slate-700 mt-8">📋 Timeline View (partner-registered candidate's journey)</h2>
+    <div class="portal-frame">
+      <div class="bg-slate-900 px-6 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-xs">SC</div>
+          <span class="text-white font-semibold text-sm">SCCG Career Lab</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-slate-400 text-xs">Mohammad Rahman</span>
+          <div class="h-7 w-7 rounded-full bg-emerald-500 flex items-center justify-center text-white text-xs font-bold">MR</div>
+        </div>
+      </div>
+      <div class="p-6 space-y-5">
+        <div class="flex items-center gap-3">
+          <span class="text-slate-400 cursor-pointer">←</span>
+          <div>
+            <h1 class="text-xl font-bold text-slate-900">My Timeline</h1>
+            <p class="text-sm text-slate-500">Track your registration progress and service status</p>
+          </div>
+        </div>
+
+        <!-- Registration Card -->
+        <div class="card p-5">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <p class="font-bold text-slate-900">KIS-AUS-00078 — Ausbildung</p>
+              <p class="text-xs text-slate-500">Registered by Bangladesh Partner GmbH · May 28, 2026</p>
+            </div>
+            <div class="flex gap-2">
+              <span class="badge bg-blue-50 text-blue-700 border border-blue-200">document-review</span>
+              <span class="badge bg-blue-100 text-blue-800">deposit-paid</span>
+            </div>
+          </div>
+          <div class="grid grid-cols-3 gap-4 mb-4">
+            <div><p class="text-xs text-slate-500">Total Fee</p><p class="font-bold">€1,998.00</p></div>
+            <div><p class="text-xs text-slate-500">Deposit Paid</p><p class="font-bold text-green-600">€500.00</p></div>
+            <div><p class="text-xs text-slate-500">Remaining</p><p class="font-bold text-red-600">€1,498.00</p></div>
+          </div>
+        </div>
+
+        <!-- Timeline Steps -->
+        <div class="card p-5">
+          <p class="text-xs font-semibold text-slate-500 uppercase mb-4">Progress Timeline</p>
+          <div class="space-y-0">
+            <div class="flex gap-4">
+              <div class="flex flex-col items-center">
+                <div class="h-8 w-8 rounded-full bg-green-500 flex items-center justify-center text-white text-xs font-bold">✓</div>
+                <div class="w-0.5 h-8 bg-green-300"></div>
+              </div>
+              <div class="pb-6"><p class="font-medium text-sm text-slate-900">Registration Submitted</p><p class="text-xs text-slate-500">May 28, 2026 — Partner: Bangladesh Partner GmbH</p></div>
+            </div>
+            <div class="flex gap-4">
+              <div class="flex flex-col items-center">
+                <div class="h-8 w-8 rounded-full bg-green-500 flex items-center justify-center text-white text-xs font-bold">✓</div>
+                <div class="w-0.5 h-8 bg-green-300"></div>
+              </div>
+              <div class="pb-6"><p class="font-medium text-sm text-slate-900">Deposit Payment Received</p><p class="text-xs text-slate-500">May 29, 2026 — €500.00 via bKash</p></div>
+            </div>
+            <div class="flex gap-4">
+              <div class="flex flex-col items-center">
+                <div class="h-8 w-8 rounded-full bg-green-500 flex items-center justify-center text-white text-xs font-bold">✓</div>
+                <div class="w-0.5 h-8 bg-green-300"></div>
+              </div>
+              <div class="pb-6"><p class="font-medium text-sm text-slate-900">Profile Assessment Completed</p><p class="text-xs text-slate-500">Jun 5, 2026</p></div>
+            </div>
+            <div class="flex gap-4">
+              <div class="flex flex-col items-center">
+                <div class="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold animate-pulse">●</div>
+                <div class="w-0.5 h-8 bg-slate-200"></div>
+              </div>
+              <div class="pb-6"><p class="font-medium text-sm text-blue-700">Document Review (In Progress)</p><p class="text-xs text-slate-500">Started Jun 8, 2026 — Upload your documents</p></div>
+            </div>
+            <div class="flex gap-4">
+              <div class="flex flex-col items-center">
+                <div class="h-8 w-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-400 text-xs">5</div>
+                <div class="w-0.5 h-8 bg-slate-200"></div>
+              </div>
+              <div class="pb-6"><p class="font-medium text-sm text-slate-400">Language Course (A1-B1)</p><p class="text-xs text-slate-400">Pending</p></div>
+            </div>
+            <div class="flex gap-4">
+              <div class="flex flex-col items-center">
+                <div class="h-8 w-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-400 text-xs">6</div>
+              </div>
+              <div><p class="font-medium text-sm text-slate-400">Visa Application</p><p class="text-xs text-slate-400">Pending</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Messages Preview -->
+    <h2 class="text-lg font-bold text-slate-700 mt-8">💬 Messages (candidate ↔ partner communication)</h2>
+    <div class="portal-frame">
+      <div class="bg-slate-900 px-6 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-xs">SC</div>
+          <span class="text-white font-semibold text-sm">SCCG Career Lab</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-slate-400 text-xs">Mohammad Rahman</span>
+          <div class="h-7 w-7 rounded-full bg-emerald-500 flex items-center justify-center text-white text-xs font-bold">MR</div>
+        </div>
+      </div>
+      <div class="p-6 space-y-5">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <span class="text-slate-400 cursor-pointer">←</span>
+            <div>
+              <h1 class="text-xl font-bold text-slate-900">Messages</h1>
+              <p class="text-sm text-slate-500">Communication with your partner</p>
+            </div>
+          </div>
+          <button class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            New Message
+          </button>
+        </div>
+
+        <div class="space-y-3">
+          <div class="card p-4 hover:shadow-md cursor-pointer transition border-l-4 border-l-blue-500">
+            <div class="flex justify-between items-start">
+              <div>
+                <p class="font-semibold text-sm text-slate-900">Document Upload Request</p>
+                <p class="text-xs text-slate-500 mt-1 line-clamp-1">Please upload your passport copy and latest language certificate for the document review...</p>
+              </div>
+              <div class="text-right shrink-0 ml-4">
+                <p class="text-[10px] text-slate-400">Jun 10, 2026</p>
+                <span class="badge bg-blue-100 text-blue-700 mt-1">2 replies</span>
+              </div>
+            </div>
+          </div>
+          <div class="card p-4 hover:shadow-md cursor-pointer transition">
+            <div class="flex justify-between items-start">
+              <div>
+                <p class="font-semibold text-sm text-slate-900">Payment Confirmation</p>
+                <p class="text-xs text-slate-500 mt-1 line-clamp-1">Your deposit of €500 has been received. Thank you! Your profile assessment session is now scheduled...</p>
+              </div>
+              <div class="text-right shrink-0 ml-4">
+                <p class="text-[10px] text-slate-400">May 29, 2026</p>
+                <span class="badge bg-slate-100 text-slate-600 mt-1">1 reply</span>
+              </div>
+            </div>
+          </div>
+          <div class="card p-4 hover:shadow-md cursor-pointer transition">
+            <div class="flex justify-between items-start">
+              <div>
+                <p class="font-semibold text-sm text-slate-900">Welcome to SCCG!</p>
+                <p class="text-xs text-slate-500 mt-1 line-clamp-1">Welcome Mohammad! You have been registered for the Ausbildung program. Here's what to expect next...</p>
+              </div>
+              <div class="text-right shrink-0 ml-4">
+                <p class="text-[10px] text-slate-400">May 28, 2026</p>
+                <span class="badge bg-slate-100 text-slate-600 mt-1">0 replies</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function showView(view) {
+      document.getElementById('view-offer').style.display = view === 'offer' ? 'block' : 'none';
+      document.getElementById('view-active').style.display = view === 'active' ? 'block' : 'none';
+      document.getElementById('btn-offer').className = view === 'offer'
+        ? 'px-5 py-2 rounded-xl text-sm font-semibold bg-blue-600 text-white shadow-sm'
+        : 'px-5 py-2 rounded-xl text-sm font-semibold bg-slate-200 text-slate-700';
+      document.getElementById('btn-active').className = view === 'active'
+        ? 'px-5 py-2 rounded-xl text-sm font-semibold bg-emerald-600 text-white shadow-sm'
+        : 'px-5 py-2 rounded-xl text-sm font-semibold bg-slate-200 text-slate-700';
+    }
+  </script>
+
+  </div><!-- end .page-content -->
+</body>
+</html>

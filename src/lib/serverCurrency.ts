@@ -1,14 +1,12 @@
 /**
  * serverCurrency.ts
  *
- * Server-side helpers for displaying BDT amounts with EUR equivalents.
- * Call `loadRate()` once per server component to get the cached rate,
- * then pass it into `fmtBdt()` for every amount rendered on that page.
+ * Server-side helpers — EUR only display.
  */
 
 import { getBdtToEurRate } from "@/lib/currency";
 
-/** Fetch and cache the BDT→EUR rate.  Returns null on failure so pages degrade gracefully. */
+/** Fetch and cache the BDT→EUR rate. Still used by calculator API. */
 export async function loadRate(): Promise<number | null> {
   try {
     return await getBdtToEurRate();
@@ -17,35 +15,19 @@ export async function loadRate(): Promise<number | null> {
   }
 }
 
-/**
- * Format a BDT amount showing EUR equivalent when a rate is available.
- * Examples:
- *   fmtBdt(15000, 0.00836)  →  "15,000 BDT (≈ 125.40 EUR)"
- *   fmtBdt(15000, null)     →  "15,000 BDT"
- *   fmtBdt(15000, 0.00836, { compact: true })  →  "BDT 15,000 · €125.40"
- */
+/** Format amount as EUR only. Legacy params kept for compat. */
 export function fmtBdt(
   amount: number,
   rate: number | null,
-  opts?: { compact?: boolean; decimals?: number }
+  _opts?: { compact?: boolean; decimals?: number }
 ): string {
-  const d = opts?.decimals ?? 2;
-  const bdtFmt = new Intl.NumberFormat("en-BD", {
-    minimumFractionDigits: d,
-    maximumFractionDigits: d,
-  }).format(amount);
-
-  if (!rate) return `BDT ${bdtFmt}`;
-
-  const eur = Math.round((amount * rate + Number.EPSILON) * Math.pow(10, d)) / Math.pow(10, d);
-  const eurFmt = eur.toFixed(d);
-
-  return opts?.compact
-    ? `BDT ${bdtFmt} · €${eurFmt}`
-    : `BDT ${bdtFmt} (≈ €${eurFmt})`;
+  if (!rate) return `€${amount.toFixed(2)}`;
+  const eur = Math.round((amount * rate + Number.EPSILON) * 100) / 100;
+  return `€${eur.toFixed(2)}`;
 }
 
-/** Compact integer version – no decimals, compact display. */
+/** Compact integer version — EUR only. */
 export function fmtBdtInt(amount: number, rate: number | null): string {
-  return fmtBdt(amount, rate, { decimals: 0, compact: true });
+  if (!rate) return `€${Math.round(amount)}`;
+  return `€${Math.round(amount * rate)}`;
 }

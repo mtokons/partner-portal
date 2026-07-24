@@ -1,6 +1,6 @@
 "use server";
 
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import { redirect } from "next/navigation";
 import type { SessionUser } from "@/types";
 import { completeSession, getSessionById } from "@/lib/sharepoint";
@@ -10,7 +10,7 @@ export async function completeSessionAction(
   expertNotes: string,
   durationMinutes: number
 ) {
-  const authSession = await auth();
+  const authSession = await getEffectiveSession();
   if (!authSession?.user) throw new Error("Unauthorized");
   const user = authSession.user as SessionUser;
 

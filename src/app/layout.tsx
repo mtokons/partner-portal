@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Inter, Outfit } from "next/font/google";
 import "./globals.css";
 import AuthContext from "@/components/providers/AuthContext";
+import CurrencyCalculator from "@/components/CurrencyCalculator";
+import FloatingAssistantLauncher from "@/components/ai/FloatingAssistantLauncher";
 import { Toaster } from "sonner";
 
 const geistSans = Geist({
@@ -32,6 +34,11 @@ export const metadata: Metadata = {
     template: "%s | Partner Portal",
   },
   description: "Enterprise B2B Partner Portal — Manage orders, clients, and financials powered by SCCG.",
+  icons: {
+    icon: "/assets/sccg-logo.png",
+    shortcut: "/assets/sccg-logo.png",
+    apple: "/assets/sccg-logo.png",
+  },
 };
 
 export default function RootLayout({
@@ -47,6 +54,8 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-background">
         <AuthContext>
           {children}
+          <CurrencyCalculator />
+          <FloatingAssistantLauncher />
         </AuthContext>
         <Toaster richColors position="top-right" />
       </body>

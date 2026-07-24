@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  @page { size: A4; margin: 20mm 18mm 20mm 18mm; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Liberation Sans', 'DejaVu Sans', Arial, Helvetica, sans-serif;
+    font-size: 10pt;
+    line-height: 1.55;
+    color: #2d2d2d;
+    background: #fff;
+  }
+  .header {
+    text-align: center;
+    padding-bottom: 14px;
+    margin-bottom: 18px;
+    border-bottom: 2px solid #0d47a1;
+  }
+  .header h1 {
+    font-size: 22pt;
+    font-weight: 700;
+    color: #0d47a1;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+  }
+  .header p {
+    font-size: 10pt;
+    color: #555;
+  }
+  h2 {
+    font-size: 12pt;
+    font-weight: 700;
+    color: #0d47a1;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 4px;
+    margin-top: 16px;
+    margin-bottom: 8px;
+  }
+  h3 {
+    font-size: 10.5pt;
+    font-weight: 600;
+    color: #333;
+    margin-top: 10px;
+    margin-bottom: 3px;
+  }
+  p { margin-bottom: 6px; }
+  ul, ol { margin-left: 18px; margin-bottom: 8px; }
+  li { margin-bottom: 2px; }
+  strong { font-weight: 600; }
+  em { font-style: italic; color: #444; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 10px;
+  }
+  th, td {
+    border: 1px solid #ddd;
+    padding: 5px 8px;
+    text-align: left;
+    font-size: 9.5pt;
+  }
+  th {
+    background: #f0f4fa;
+    font-weight: 600;
+    color: #0d47a1;
+  }
+  a { color: #0d47a1; text-decoration: none; }
+  hr {
+    border: none;
+    border-top: 1px solid #ddd;
+    margin: 14px 0;
+  }
+</style>
+</head>
+<body>
+  <div class="header">
+    <h1>{{ title }}</h1>
+    <p>Curriculum Vitae</p>
+  </div>
+  {{ content }}
+</body>
+</html>

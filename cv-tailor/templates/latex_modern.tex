@@ -1,0 +1,114 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[left=2cm,right=2cm,top=2cm,bottom=2cm]{geometry}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{array}
+\usepackage{color}
+\usepackage{hyperref}
+
+% Define custom margins and page headers
+\titleformat{\section}{\large\bfseries\color{blue}}{}{0em}{}[\titlerule]
+\titlespacing{\section}{0pt}{1.5ex}{1ex}
+\definecolor{blue}{rgb}{0.1, 0.2, 0.6}
+
+\begin{document}
+\pagestyle{empty}
+
+% --- PROFILE HEADER ---
+\begin{center}
+    {\Huge \textbf{((( result.expert_name | default("Expert Profile") )))}} \\
+    \vspace{0.15cm}
+    {\large \textbf{Tailored Professional Curriculum Vitae}} \\
+    \vspace{0.1cm}
+    \small GIZ / EU / UN Standard Formatting
+\end{center}
+\vspace{0.3cm}
+
+% --- PERSONAL DETAILS (If person_data is available) ---
+((% if person_data %))
+\section*{Personal Details}
+\begin{tabular}{ll}
+    \textbf{First Name / Family Name:} & ((( person_data.firstName ))) ((( person_data.familyName ))) \\
+    \textbf{Nationality:} & ((( person_data.nationality ))) \\
+    \textbf{Date of Birth:} & ((( person_data.dateOfBirth ))) \\
+    \textbf{Place of Residence:} & ((( person_data.placeOfResidence ))) \\
+    \textbf{Email / Telephone:} & ((( person_data.email ))) / ((( person_data.tel ))) \\
+    \textbf{Proposed Assignment Role:} & \textbf{((( person_data.proposedRole | default(result.expert_name) )))}
+\end{tabular}
+\vspace{0.2cm}
+((% endif %))
+
+% --- PROFILE SUMMARY / TAILORED SUMMARY ---
+\section*{Professional Summary \& Core Competency}
+% If we have result.sections, look for Professional Summary
+((% set found_summary = false %))
+((% for sec in result.sections %))
+    ((% if sec.section == "Professional Summary" or sec.section == "Key Qualifications" or sec.section == "Summary" %))
+        ((( sec.tailored )))
+        ((% set found_summary = true %))
+    ((% endif %))
+((% endfor %))
+((% if not found_summary %))
+The expert is highly qualified and holds extensive experience in development-sector projects, directly aligning with the stated Terms of Reference (ToR) and project requirements.
+((% endif %))
+\vspace{0.2cm}
+
+% --- EDUCATION (If person_data is available) ---
+((% if person_data and person_data.education %))
+\section*{Education}
+\begin{itemize}[leftmargin=*]
+((% for edu in person_data.education %))
+    \item[] \textbf{((( edu.degree )))} \\
+    ((( edu.institution ))) \hfill \textit{((( edu.dateFrom ))) - ((( edu.dateTo )))}
+((% endfor %))
+\end{itemize}
+\vspace{0.2cm}
+((% endif %))
+
+% --- DETAILED EXPERIENCE (If person_data is available) ---
+((% if person_data and person_data.experience %))
+\section*{Professional Experience}
+\begin{itemize}[leftmargin=*]
+((% for exp in person_data.experience %))
+    \item[] \textbf{((( exp.position )))} | ((( exp.company ))) \hfill \textit{((( exp.dateFrom ))) - ((( exp.dateTo )))} \\
+    \textbf{Project:} ((( exp.projectTitle ))) \hfill \textit{Donor: ((( exp.donor ))), Location: ((( exp.location )))} \\
+    \vspace{-0.15cm}
+    \begin{itemize}[label=$\bullet$, leftmargin=1.5em]
+        \item ((( exp.description )))
+    \end{itemize}
+    \vspace{0.2cm}
+((% endfor %))
+\end{itemize}
+\vspace{0.2cm}
+((% endif %))
+
+% --- TAILORED SECTIONS (For general tailored outputs) ---
+\section*{Tailored Qualifications \& Specific Experience}
+\begin{itemize}[leftmargin=*]
+((% for sec in result.sections %))
+    ((% if sec.section != "Professional Summary" and sec.section != "Key Qualifications" and sec.section != "Summary" %))
+        \item[] \textbf{((( sec.section )))} \\
+        ((( sec.tailored )))
+        ((% if sec.keywords %))
+            \\ \textit{Keywords: ((( sec.keywords | join(", ") )))}
+        ((% endif %))
+        \vspace{0.2cm}
+    ((% endif %))
+((% endfor %))
+\end{itemize}
+\vspace{0.2cm}
+
+% --- EVALUATION MATRIX ALIGNMENT ---
+((% if result.matrix_matches %))
+\section*{TOR Requirements \& Scoring Criteria Alignment}
+\begin{itemize}[leftmargin=*]
+((% for match in result.matrix_matches %))
+    \item[] \textbf{Requirement:} ((( match.requirement ))) \\
+    \textbf{Evidence:} ((( match.evidence ))) \hfill \textit{Score: ((( match.score ))) / ((( match.max_score )))}
+    \vspace{0.15cm}
+((% endfor %))
+\end{itemize}
+((% endif %))
+
+\end{document}

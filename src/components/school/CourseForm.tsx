@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createCourse, updateCourse } from "@/app/(portal)/admin/school/actions";
+import { createCourse, updateCourse } from "@/app/admin/school/actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,7 +40,7 @@ export function CourseForm({ initialData, onSuccess }: CourseFormProps) {
       sessionDurationMinutes: parseInt(form.get("sessionDuration") as string),
       totalDurationWeeks: parseInt(form.get("totalWeeks") as string),
       courseFee: parseFloat(form.get("courseFee") as string),
-      courseFeeCurrency: "BDT" as const,
+      courseFeeCurrency: "EUR" as const,
       maxStudentsPerBatch: parseInt(form.get("maxStudents") as string),
       prerequisites: (form.get("prerequisites") as string) || undefined,
     };
@@ -122,7 +122,7 @@ export function CourseForm({ initialData, onSuccess }: CourseFormProps) {
           <Input id="totalWeeks" name="totalWeeks" type="number" required min={1} defaultValue={initialData?.totalDurationWeeks} placeholder="12" className="rounded-xl h-12" />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="courseFee" className="font-bold">Course Fee (BDT) *</Label>
+          <Label htmlFor="courseFee" className="font-bold">Course Fee (EUR) *</Label>
           <Input id="courseFee" name="courseFee" type="number" required min={0} defaultValue={initialData?.courseFee} placeholder="25000" className="rounded-xl h-12" />
         </div>
         <div className="space-y-2">

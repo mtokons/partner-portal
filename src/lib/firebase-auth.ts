@@ -131,7 +131,7 @@ export async function firebaseRegister(
       specialization: extra?.specialization || "",
       photoURL: "",
       emailVerified: false,
-      status: role === "customer" ? "active" : "pending",
+      status: "active",
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
@@ -230,7 +230,7 @@ export async function firebaseGoogleSignup(
         company: company,
         specialization: specialization,
         emailVerified: true,
-        status: role === "customer" ? "active" : "pending",
+        status: "active",
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };

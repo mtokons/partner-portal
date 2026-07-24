@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { getEffectiveSession } from "@/lib/effective-user";
 import { redirect } from "next/navigation";
 import type { SessionUser } from "@/types";
 import { getExpertPayments, getExpertById } from "@/lib/sharepoint";
@@ -15,7 +15,7 @@ const statusLabel: Record<string, { label: string; cls: string }> = {
 };
 
 export default async function ExpertPaymentsPage() {
-  const session = await auth();
+  const session = await getEffectiveSession();
   if (!session?.user) redirect("/expert-login");
   const user = session.user as SessionUser;
 
@@ -38,7 +38,7 @@ export default async function ExpertPaymentsPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm text-gray-500">Total Paid Out</CardTitle></CardHeader>
           <CardContent><p className="text-2xl font-bold text-green-700">{fmt(totalEarned)}</p></CardContent>

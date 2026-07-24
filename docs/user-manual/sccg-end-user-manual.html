@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SCCG End User Manual</title>
+  <style>
+    :root {
+      --ink: #0f172a;
+      --muted: #475569;
+      --line: #dbe4f0;
+      --brand: #0f766e;
+      --brand-dark: #134e4a;
+      --soft: #f8fafc;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--ink);
+      background: #eef2f7;
+      line-height: 1.55;
+    }
+    .page {
+      width: 210mm;
+      margin: 0 auto 24px;
+      background: white;
+      padding: 16mm;
+      box-shadow: 0 8px 30px rgba(15, 23, 42, 0.08);
+    }
+    .cover {
+      min-height: 260mm;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background: linear-gradient(135deg, #ecfeff 0%, #f8fafc 45%, #ccfbf1 100%);
+      border: 1px solid #cbd5e1;
+    }
+    .brand-row {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+    .brand-row img {
+      width: 88px;
+      height: auto;
+    }
+    h1, h2, h3 { margin: 0 0 10px; color: var(--ink); }
+    h1 { font-size: 30px; line-height: 1.15; }
+    h2 {
+      margin-top: 18px;
+      font-size: 22px;
+      border-bottom: 2px solid var(--line);
+      padding-bottom: 8px;
+    }
+    h3 { margin-top: 14px; font-size: 17px; color: var(--brand-dark); }
+    p { margin: 8px 0; }
+    .eyebrow {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(15, 118, 110, 0.12);
+      color: var(--brand-dark);
+      font-size: 12px;
+      font-weight: bold;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .lead { font-size: 18px; color: #1e293b; max-width: 130mm; }
+    .muted { color: var(--muted); }
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 20px;
+    }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+      background: var(--soft);
+    }
+    .toc ul, .checklist, .feature-list, .flow-list, .tips-list {
+      margin: 10px 0 0;
+      padding-left: 18px;
+    }
+    .section-intro {
+      margin-bottom: 10px;
+      color: var(--muted);
+    }
+    .screenshot {
+      margin: 12px 0 18px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+      background: #fff;
+    }
+    .screenshot img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+    .caption {
+      padding: 8px 12px;
+      background: #f8fafc;
+      color: var(--muted);
+      font-size: 12px;
+      border-top: 1px solid var(--line);
+    }
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .badge {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: bold;
+      color: white;
+      background: var(--brand);
+      padding: 4px 8px;
+      border-radius: 999px;
+      margin-bottom: 8px;
+    }
+    .footer-note {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 18px;
+      border-top: 1px solid var(--line);
+      padding-top: 10px;
+    }
+    @media print {
+      body { background: white; }
+      .page {
+        margin: 0;
+        box-shadow: none;
+        page-break-after: always;
+      }
+      .page:last-child { page-break-after: auto; }
+    }
+  </style>
+</head>
+<body>
+  <section class="page cover">
+    <div>
+      <div class="brand-row">
+        <img src="../../public/assets/sccg-logo.png" alt="SCCG Logo" />
+        <div>
+          <div class="eyebrow">Official Portal Manual</div>
+          <h1>SCCG Career Lab UG<br />End User Manual</h1>
+          <p class="lead">A practical step-by-step guide for partner and customer users to understand the portal, complete daily workflows, and navigate each feature confidently.</p>
+        </div>
+      </div>
+      <div class="meta-grid">
+        <div class="card">
+          <strong>Portal URL</strong>
+          <p class="muted">https://portal.mysccg.de</p>
+        </div>
+        <div class="card">
+          <strong>Audience</strong>
+          <p class="muted">Partner users and Customer users</p>
+        </div>
+        <div class="card">
+          <strong>Purpose</strong>
+          <p class="muted">Daily use, onboarding, workshop preparation, and guided feature testing</p>
+        </div>
+        <div class="card">
+          <strong>Prepared By</strong>
+          <p class="muted">SCCG Career Lab UG</p>
+        </div>
+      </div>
+    </div>
+    <div class="footer-note">This manual is based on the current live portal experience and is intended for end users who are new to the system.</div>
+  </section>
+
+  <section class="page toc">
+    <h2>Table of Contents</h2>
+    <ul>
+      <li>1. Portal Overview</li>
+      <li>2. Quick Start For New Users</li>
+      <li>3. Partner Role Guide</li>
+      <li>4. Customer Role Guide</li>
+      <li>5. End-to-End Process Flows</li>
+      <li>6. Good Usage Practices</li>
+      <li>7. Troubleshooting and Support</li>
+    </ul>
+
+    <h2>1. Portal Overview</h2>
+    <p class="section-intro">The SCCG portal is a role-based operational platform. Each user sees features that match their role and current business journey.</p>
+    <div class="two-col">
+      <div class="card">
+        <div class="badge">Partner Role</div>
+        <p>Partners use the portal to manage candidates, prepare offers, track tasks, maintain B2B relationships, review finance, access the marketplace, and receive support.</p>
+      </div>
+      <div class="card">
+        <div class="badge">Customer Role</div>
+        <p>Customers use the portal to review offers, follow their service timeline, track packages and courses, attend sessions, manage messages, and review payments and invoices.</p>
+      </div>
+    </div>
+
+    <h2>2. Quick Start For New Users</h2>
+    <ol class="flow-list">
+      <li>Open the portal URL in a modern browser.</li>
+      <li>Sign in using the role-specific username and password provided by SCCG.</li>
+      <li>Wait for the role dashboard to load. This is your home screen.</li>
+      <li>Use the left menu to move between modules.</li>
+      <li>Use dashboard summaries first to understand your current tasks, records, or pending actions.</li>
+      <li>Complete actions step by step and return to the dashboard regularly to monitor progress.</li>
+    </ol>
+    <p><strong>Important:</strong> The portal is workflow-driven. Most users should start with dashboard review, then move into records such as candidates, offers, packages, messages, or payments.</p>
+  </section>
+
+  <section class="page">
+    <h2>3. Partner Role Guide</h2>
+    <p class="section-intro">The partner role is designed for business development, candidate handling, offer preparation, B2B relationship management, financial follow-up, and support communication.</p>
+
+    <h3>3.1 Partner Dashboard</h3>
+    <p>The dashboard gives a quick operational overview. It is the recommended starting point each time the partner logs in.</p>
+    <div class="screenshot">
+      <img src="assets/partner-dashboard.png" alt="Partner dashboard" />
+      <div class="caption">Partner dashboard: summary KPIs, shortcuts, and current activity overview.</div>
+    </div>
+
+    <h3>3.2 Candidate Gallery</h3>
+    <p>Use Candidate Gallery to view, search, and manage candidate records already connected to your account.</p>
+    <ul class="feature-list">
+      <li>Review existing candidate records</li>
+      <li>Open candidate details</li>
+      <li>Track status and related service workflows</li>
+    </ul>
+    <div class="screenshot">
+      <img src="assets/partner-candidates.png" alt="Partner candidate gallery" />
+      <div class="caption">Candidate Gallery: central place for candidate review and follow-up.</div>
+    </div>
+
+    <h3>3.3 Create Offer</h3>
+    <p>The Create Offer module is used when the partner wants to prepare service offers for customers or candidates.</p>
+    <ul class="feature-list">
+      <li>Create new offers</li>
+      <li>Review offer status</li>
+      <li>Continue working on existing offers</li>
+    </ul>
+    <div class="screenshot">
+      <img src="assets/partner-offers.png" alt="Partner offers page" />
+      <div class="caption">Create Offer: offer preparation and tracking workspace.</div>
+    </div>
+
+    <h3>3.4 My Tasks</h3>
+    <p>This area helps partners manage action items generated by ongoing services and internal workflows.</p>
+    <div class="screenshot">
+      <img src="assets/partner-tasks.png" alt="Partner tasks page" />
+      <div class="caption">My Tasks: operational follow-up for daily work.</div>
+    </div>
+
+    <h3>3.5 My B2B Network</h3>
+    <p>The B2B section is used to maintain partner company relationships and issue cooperation certificates when relevant.</p>
+    <ul class="feature-list">
+      <li>Add B2B companies</li>
+      <li>Upload supporting files</li>
+      <li>Review relationship status</li>
+      <li>Manage certificate actions when available</li>
+    </ul>
+    <div class="screenshot">
+      <img src="assets/partner-b2b.png" alt="Partner B2B page" />
+      <div class="caption">My B2B Network: relationship records, uploads, and certificate actions.</div>
+    </div>
+
+    <h3>3.6 Finance</h3>
+    <p>Finance Overview and related pages help partners understand business performance, invoices, payments, refunds, and due amounts.</p>
+    <div class="screenshot">
+      <img src="assets/partner-finance.png" alt="Partner finance page" />
+      <div class="caption">Finance: overview of financial data and payment-related follow-up.</div>
+    </div>
+
+    <h3>3.7 Marketplace</h3>
+    <p>The Marketplace provides access to products, services, and downloadable resources relevant to partners.</p>
+    <div class="screenshot">
+      <img src="assets/partner-marketplace.png" alt="Partner marketplace page" />
+      <div class="caption">Marketplace: products, services, and downloadable materials.</div>
+    </div>
+
+    <h3>3.8 Account Settings and Support</h3>
+    <p>Partners can manage their own account profile and open support interactions when help is needed.</p>
+    <div class="two-col">
+      <div class="screenshot">
+        <img src="assets/partner-settings.png" alt="Partner settings page" />
+        <div class="caption">Account Settings: maintain account details.</div>
+      </div>
+      <div class="screenshot">
+        <img src="assets/partner-support.png" alt="Partner support page" />
+        <div class="caption">Support / Helpdesk: submit and monitor support matters.</div>
+      </div>
+    </div>
+
+    <h3>3.9 Partner Process Flow For New Users</h3>
+    <ol class="flow-list">
+      <li>Log in and review the dashboard first.</li>
+      <li>Open Candidate Gallery to understand your active candidate base.</li>
+      <li>Create or review offers for current business opportunities.</li>
+      <li>Check My Tasks to see what requires action today.</li>
+      <li>Use My B2B Network to maintain business relationships and upload documents where needed.</li>
+      <li>Check Finance for invoices, payments, and due follow-ups.</li>
+      <li>Use Marketplace to access partner resources and service packages.</li>
+      <li>Use Support / Helpdesk whenever a process issue or question needs SCCG follow-up.</li>
+    </ol>
+  </section>
+
+  <section class="page">
+    <h2>4. Customer Role Guide</h2>
+    <p class="section-intro">The customer role is designed to help end users track their journey, documents, services, messages, and payment activity from one place.</p>
+
+    <h3>4.1 Customer Dashboard</h3>
+    <p>The dashboard is the main home screen for customers. It should be the first page checked after login.</p>
+    <div class="screenshot">
+      <img src="assets/customer-dashboard.png" alt="Customer dashboard" />
+      <div class="caption">Customer dashboard: summary of service progress and customer activity.</div>
+    </div>
+
+    <h3>4.2 My Offers</h3>
+    <p>Customers can review offers prepared for them, compare service options, and monitor offer progress.</p>
+    <div class="screenshot">
+      <img src="assets/customer-offers.png" alt="Customer offers page" />
+      <div class="caption">My Offers: review and follow up on submitted offers.</div>
+    </div>
+
+    <h3>4.3 My Timeline</h3>
+    <p>The Timeline page helps customers understand what has happened already and what comes next in their service journey.</p>
+    <div class="screenshot">
+      <img src="assets/customer-timeline.png" alt="Customer timeline page" />
+      <div class="caption">My Timeline: a structured view of progress and next steps.</div>
+    </div>
+
+    <h3>4.4 Packages and Courses</h3>
+    <p>Customers can review assigned packages and any learning-related items such as courses.</p>
+    <div class="two-col">
+      <div class="screenshot">
+        <img src="assets/customer-packages.png" alt="Customer packages page" />
+        <div class="caption">My Packages: purchased or assigned package details.</div>
+      </div>
+      <div class="screenshot">
+        <img src="assets/customer-school.png" alt="Customer school page" />
+        <div class="caption">My Courses: course access and education-related progress.</div>
+      </div>
+    </div>
+
+    <h3>4.5 Sessions and Messages</h3>
+    <p>Sessions show scheduled engagements while Messages is the communication space for direct follow-up.</p>
+    <div class="two-col">
+      <div class="screenshot">
+        <img src="assets/customer-sessions.png" alt="Customer sessions page" />
+        <div class="caption">Sessions: customer appointments and planned interactions.</div>
+      </div>
+      <div class="screenshot">
+        <img src="assets/customer-messages.png" alt="Customer messages page" />
+        <div class="caption">Messages: communication and response history.</div>
+      </div>
+    </div>
+
+    <h3>4.6 Payments and Invoices</h3>
+    <p>These pages give financial transparency for the customer side of the journey.</p>
+    <div class="two-col">
+      <div class="screenshot">
+        <img src="assets/customer-payments.png" alt="Customer payments page" />
+        <div class="caption">Payments: review payment activity and outstanding items.</div>
+      </div>
+      <div class="screenshot">
+        <img src="assets/customer-invoices.png" alt="Customer invoices page" />
+        <div class="caption">Invoices: billing history and invoice review.</div>
+      </div>
+    </div>
+
+    <h3>4.7 Customer Process Flow For New Users</h3>
+    <ol class="flow-list">
+      <li>Log in and start with the dashboard.</li>
+      <li>Review My Offers to understand approved, pending, or active services.</li>
+      <li>Check My Timeline to understand the current stage of your journey.</li>
+      <li>Open My Packages and My Courses to review active learning or service items.</li>
+      <li>Monitor Sessions for scheduled support or educational interactions.</li>
+      <li>Use Messages for communication and clarification with the support team.</li>
+      <li>Review Payments and Invoices regularly for financial clarity.</li>
+    </ol>
+  </section>
+
+  <section class="page">
+    <h2>5. End-to-End Process Flows</h2>
+    <h3>5.1 Partner End-to-End Flow</h3>
+    <ol class="flow-list">
+      <li>Partner logs in.</li>
+      <li>Partner checks dashboard and active tasks.</li>
+      <li>Partner reviews or creates candidate records.</li>
+      <li>Partner prepares offers and continues candidate service workflows.</li>
+      <li>Partner updates B2B relationships and uploads supporting files where necessary.</li>
+      <li>Partner monitors financial progress, invoices, and payment activity.</li>
+      <li>Partner uses support when escalation or clarification is needed.</li>
+    </ol>
+
+    <h3>5.2 Customer End-to-End Flow</h3>
+    <ol class="flow-list">
+      <li>Customer logs in.</li>
+      <li>Customer checks dashboard summary.</li>
+      <li>Customer reviews offers and timeline updates.</li>
+      <li>Customer accesses packages, courses, sessions, and messages.</li>
+      <li>Customer checks payments and invoices as part of ongoing service delivery.</li>
+      <li>Customer returns to the portal regularly to track new updates.</li>
+    </ol>
+
+    <h2>6. Good Usage Practices</h2>
+    <ul class="tips-list">
+      <li>Start from the dashboard every session.</li>
+      <li>Use the left navigation menu rather than relying only on browser history.</li>
+      <li>Review tasks, messages, and timeline items frequently.</li>
+      <li>Keep profile and account information accurate.</li>
+      <li>Use support when any business or technical question blocks your work.</li>
+    </ul>
+
+    <h2>7. Troubleshooting and Support</h2>
+    <ul class="tips-list">
+      <li>If a page does not load correctly, refresh the browser once.</li>
+      <li>If login fails, verify the exact username, password, and correct portal login URL.</li>
+      <li>If expected records are missing, first return to the dashboard and then re-open the module.</li>
+      <li>If you still face an issue, use the Support / Helpdesk area or contact SCCG directly.</li>
+    </ul>
+
+    <div class="footer-note">
+      SCCG Career Lab UG Official Portal User Manual. This document is intended for practical end-user onboarding, feature familiarization, and workshop preparation.
+    </div>
+  </section>
+</body>
+</html>

@@ -25,6 +25,10 @@ cp -r ./public/* ./.next/standalone/public/ 2>/dev/null || true
 echo "📂 Syncing standalone production server..."
 rsync -avz --delete -e "ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no" \
            ./.next/standalone/ ${VPS_USER}@${VPS_IP}:${VPS_PATH}/.next/standalone/
+# Ensure node_modules inside standalone are fully synced (critical for server startup)
+echo "📂 Syncing standalone node_modules (full sync)..."
+rsync -avz --delete -e "ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no" \
+           ./.next/standalone/node_modules/ ${VPS_USER}@${VPS_IP}:${VPS_PATH}/.next/standalone/node_modules/
 
 # 2. Sync static and public assets
 echo "📂 Syncing static assets..."
@@ -38,6 +42,16 @@ echo "📂 Syncing Docker configuration..."
 rsync -avz -e "ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no" \
            ./docker-compose.yml ./Dockerfile ./Caddyfile ./.env.production \
            ${VPS_USER}@${VPS_IP}:${VPS_PATH}/
+
+# 4. Sync Python CV Tailor microservice
+echo "📂 Syncing CV Tailor Python service..."
+rsync -avz --delete -e "ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no" \
+           ./cv-tailor/ ${VPS_USER}@${VPS_IP}:${VPS_PATH}/cv-tailor/
+
+# 4.5. Sync Python Model Test System microservice
+echo "📂 Syncing Model Test System Python service..."
+rsync -avz --delete -e "ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no" \
+           ./model-test-system/ ${VPS_USER}@${VPS_IP}:${VPS_PATH}/model-test-system/
 
 # 4. Restart Docker Stack on VPS
 echo "🏗️  Restarting Docker containers on VPS..."

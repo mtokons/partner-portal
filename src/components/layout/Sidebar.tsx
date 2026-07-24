@@ -9,7 +9,7 @@ import {
   UserCheck, Calendar, CreditCard, Zap, Mail, ChevronRight, ChevronDown,
   FlaskConical, ClipboardList, Store, Tag, Share2, Wallet, User, X, ClipboardCheck,
   Building2, UserPlus, GraduationCap, BookOpen, Layers, Award, ShoppingBag, Search, Megaphone, Database,
-  LifeBuoy
+  LifeBuoy, TrendingUp, ArrowUpRight, Target, Send
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect } from "react";
@@ -22,6 +22,7 @@ interface SidebarProps {
   onClose: () => void;
   siteUrl?: string;
   listUrls?: Record<string, string>;
+  partnerLogoUrl?: string;
 }
 
 interface LinkItem {
@@ -34,16 +35,20 @@ interface LinkItem {
 
 const allLinks: LinkItem[] = [
   // Main
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, group: "main", roles: ["partner", "admin", "finance", "hr", "school-manager"] },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, group: "main", roles: ["admin", "finance", "hr", "school-manager"] },
   { href: "/admin/tasks", label: "Task Board", icon: ClipboardList, group: "main", roles: ["admin"] },
   { href: "/customer/dashboard", label: "My Dashboard", icon: LayoutDashboard, group: "main", roles: ["customer"] },
   { href: "/expert/dashboard", label: "Expert Console", icon: LayoutDashboard, group: "main", roles: ["expert"] },
 
   // Partner Portal (SCCG Partner Portal)
   { href: "/partner/dashboard", label: "Partner Overview", icon: LayoutDashboard, group: "partner", roles: ["partner-individual", "partner-institutional"] },
+  { href: "/partner/tasks", label: "Task Board", icon: ClipboardList, group: "partner", roles: ["partner-individual", "partner-institutional"] },
   { href: "/partner/candidates", label: "My Candidates", icon: Users, group: "partner", roles: ["partner-individual", "partner-institutional"] },
   { href: "/partner/candidates/new", label: "Register Candidate", icon: UserPlus, group: "partner", roles: ["partner-individual", "partner-institutional"] },
-  { href: "/partner/finance", label: "Finance Ledger", icon: DollarSign, group: "partner", roles: ["partner-individual", "partner-institutional"] },
+  { href: "/partner/finance", label: "Finance Overview", icon: DollarSign, group: "partner", roles: ["partner-individual", "partner-institutional"] },
+  { href: "/partner/finance/revenue", label: "My Revenue", icon: TrendingUp, group: "partner", roles: ["partner-individual", "partner-institutional"] },
+  { href: "/partner/finance/sccg-payments", label: "SCCG Settlements", icon: ArrowUpRight, group: "partner", roles: ["partner-individual", "partner-institutional"] },
+  { href: "/partner/finance/target", label: "Target vs Achievement", icon: Target, group: "partner", roles: ["partner-individual", "partner-institutional"] },
   { href: "/partner/marketplace", label: "Downloads", icon: ShoppingBag, group: "partner", roles: ["partner-individual", "partner-institutional"] },
   { href: "/partner/support", label: "Support / Helpdesk", icon: LifeBuoy, group: "partner", roles: ["partner-individual", "partner-institutional"] },
 
@@ -103,6 +108,7 @@ const allLinks: LinkItem[] = [
   { href: "/admin/approvals", label: "Approvals", icon: ClipboardCheck, group: "admin", roles: ["admin"] },
   { href: "/admin/users", label: "Manage Users", icon: Users, group: "admin", roles: ["admin"] },
   { href: "/admin/partners", label: "Manage Partners", icon: Shield, group: "admin", roles: ["admin"] },
+  { href: "/admin/currency", label: "Currency Management", icon: DollarSign, group: "admin", roles: ["admin"] },
   { href: "/admin/customers", label: "Customers", icon: Users, group: "admin", roles: ["admin"] },
   { href: "/admin/experts", label: "Experts", icon: UserCheck, group: "admin", roles: ["admin"] },
   { href: "/admin/sessions", label: "All Sessions", icon: Calendar, group: "admin", roles: ["admin"] },
@@ -110,6 +116,7 @@ const allLinks: LinkItem[] = [
   { href: "/admin/send-email", label: "Send Email", icon: Mail, group: "admin", roles: ["admin"] },
   { href: "/activity", label: "Activity Logs", icon: Activity, group: "admin", roles: ["admin"] },
   { href: "/admin/cv-suite", label: "CV Suite", icon: FileText, group: "admin", roles: ["admin"] },
+  { href: "/admin/onedrive-to-telegram", label: "OneDrive to Telegram", icon: Send, group: "admin", roles: ["admin"] },
   { href: "/admin/candidates", label: "All Candidates", icon: Users, group: "admin", roles: ["admin"] },
   { href: "/admin/helpdesk", label: "Helpdesk", icon: LifeBuoy, group: "admin", roles: ["admin"] },
 
@@ -137,7 +144,8 @@ export default function Sidebar({
   open, 
   onClose = () => {}, 
   siteUrl,
-  listUrls = {}
+  listUrls = {},
+  partnerLogoUrl
 }: SidebarProps) {
   const pathname = usePathname();
   const [searchQuery, setSearchQuery] = useState("");
@@ -178,6 +186,7 @@ export default function Sidebar({
     "/admin/school/certificates": "SchoolCertificates",
     "/admin/users": "UserProfiles",
     "/partner/candidates": "Candidates",
+    "/partner/tasks": "CandidateTasks",
     "/partner/support": "HelpdeskTickets",
     "/admin/candidates": "Candidates",
     "/admin/helpdesk": "HelpdeskTickets",
@@ -245,10 +254,10 @@ export default function Sidebar({
         <div className={cn("p-6 pb-4 shrink-0 transition-all", isMini && "p-4")}>
           <div className="flex items-center justify-between">
             {isMini ? (
-              <img src="/assets/sccg-logo.png" alt="Logo" className="h-8 w-auto mx-auto object-contain animate-in fade-in zoom-in-90 duration-300" />
+              <img src={partnerLogoUrl || "/assets/sccg-logo.png"} alt="Logo" className="h-8 w-auto mx-auto object-contain animate-in fade-in zoom-in-90 duration-300" />
             ) : (
               <div className="flex items-center gap-3 animate-in fade-in slide-in-from-left-2 duration-300">
-                <img src="/assets/sccg-logo.png" alt="SCCG Logo" className="h-9 w-auto object-contain" />
+                <img src={partnerLogoUrl || "/assets/sccg-logo.png"} alt="SCCG Logo" className="h-9 w-auto object-contain" />
                 <div className="border-l border-white/10 pl-3">
                   <h1 className="text-[14px] font-bold text-white tracking-tight leading-none font-[family-name:var(--font-outfit)]">
                     Partner Portal
@@ -323,7 +332,7 @@ export default function Sidebar({
                     onClick={() => toggleGroup(group)}
                     className="flex items-center justify-between w-full px-3 mb-1.5 focus:outline-none group/btn transition-all"
                   >
-                    <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-sidebar-foreground/40 group-hover/btn:text-sidebar-foreground/70 transition-colors">
+                    <span className="text-[12px] xl:text-[13px] 2xl:text-[14px] font-bold uppercase tracking-[0.12em] text-sidebar-foreground/50 group-hover/btn:text-sidebar-foreground/80 transition-colors">
                       {groupLabels[group] || group}
                     </span>
                     <ChevronDown className={cn(
@@ -346,7 +355,7 @@ export default function Sidebar({
                         onClick={onClose}
                         title={isMini ? link.label : ""}
                         className={cn(
-                          "group flex items-center gap-3 rounded-xl text-sm font-medium transition-all duration-200 relative overflow-hidden",
+                          "group flex items-center gap-3 rounded-xl text-sm xl:text-[15px] 2xl:text-[16px] font-semibold transition-all duration-200 relative overflow-hidden",
                           isMini ? "justify-center p-3 h-12 w-12 mx-auto" : "px-3 py-2.5",
                           isActive
                             ? "bg-gradient-to-r from-[rgba(99,130,245,0.25)] to-[rgba(99,130,245,0.08)] text-white shadow-sm border border-[rgba(99,130,245,0.25)]"
