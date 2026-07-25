@@ -215,6 +215,16 @@ export function sanitizeTelegramChatId(input: string): string {
 
 const TELEGRAM_MAX_FILE_BYTES = 50 * 1024 * 1024; // 50MB HTTP limit for Bot API
 
+export function sanitizeErrorMessage(msg: any): string {
+  let clean = String(msg?.message || msg || "").trim();
+  // Strip non-printable / binary control characters
+  clean = clean.replace(/[\u0000-\u001F\u007F-\u009F\uFFFD]/g, "");
+  if (clean.length > 250) {
+    clean = clean.substring(0, 250) + "... (truncated binary output)";
+  }
+  return clean || "Unknown transfer error";
+}
+
 function recordHistory(status: "completed" | "stopped" | "error", reason?: string) {
   saveHistoryRecord({
     id: "job_" + Date.now(),
@@ -473,25 +483,44 @@ export async function startTransferJob(options: {
         let uploadSuccess = false;
 
         try {
-          // Download file content from Graph with 10-minute timeout resilience
-          const downloadApi = options.userId
-            ? `/users/${options.userId}/drive/items/${file.id}/content`
-            : `/me/drive/items/${file.id}/content`;
+          // Download file content using direct pre-authenticated CDN link or Graph fallback
+          const itemApi = options.userId
+            ? `/users/${options.userId}/drive/items/${file.id}?$select=id,name,@microsoft.graph.downloadUrl`
+            : `/me/drive/items/${file.id}?$select=id,name,@microsoft.graph.downloadUrl`;
 
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 10 * 60 * 1000);
-
-          let arrayBuffer: ArrayBuffer;
+          let downloadUrl = "";
           try {
-            arrayBuffer = await client
-              .api(downloadApi)
-              .responseType("arraybuffer" as any)
-              .get();
-          } finally {
-            clearTimeout(timeoutId);
+            const itemData = await client.api(itemApi).get();
+            downloadUrl = itemData["@microsoft.graph.downloadUrl"] || "";
+          } catch (e: any) {
+            console.warn(`[OneDrive] Could not fetch downloadUrl for ${file.name}:`, e?.message);
           }
 
-          const buffer = Buffer.from(arrayBuffer);
+          let buffer: Buffer;
+          if (downloadUrl) {
+            const fileRes = await fetch(downloadUrl);
+            if (!fileRes.ok) {
+              throw new Error(`OneDrive CDN download failed with HTTP ${fileRes.status} for ${file.name}`);
+            }
+            const arrayBuf = await fileRes.arrayBuffer();
+            buffer = Buffer.from(arrayBuf);
+          } else {
+            // Fallback: Graph API content stream
+            const downloadApi = options.userId
+              ? `/users/${options.userId}/drive/items/${file.id}/content`
+              : `/me/drive/items/${file.id}/content`;
+            
+            const rawRes = await client.api(downloadApi).responseType("arraybuffer" as any).get();
+            if (Buffer.isBuffer(rawRes)) {
+              buffer = rawRes;
+            } else if (rawRes instanceof ArrayBuffer) {
+              buffer = Buffer.from(rawRes);
+            } else if (rawRes && rawRes.buffer instanceof ArrayBuffer) {
+              buffer = Buffer.from(rawRes.buffer);
+            } else {
+              throw new Error(`Could not create buffer for file ${file.name}`);
+            }
+          }
 
           // MODE A: Direct Telegram MTProto Client API (GramJS / Teleproto) - UP TO 2 GB PER FILE
           if (transferMode === "user_mtproto" && mtClient) {
@@ -658,7 +687,7 @@ export async function startTransferJob(options: {
 
         } catch (err: any) {
           globalState.failedFiles++;
-          const errMsg = err.message || String(err);
+          const errMsg = sanitizeErrorMessage(err);
           addLog(`❌ [${i + 1}/${files.length}] Failed to upload ${file.name}: ${errMsg}`);
           
           if (globalState.failedFiles >= 5 && globalState.successfulFiles === 0) {
