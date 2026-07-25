@@ -307,6 +307,9 @@ export default function OneDriveToTelegramPage() {
       if (res.ok) {
         const data: TransferState = await res.json();
         setState(data);
+        if (data.status === "running") {
+          setAuthStep("authenticated");
+        }
       }
     } catch (err) {
       console.error("Failed to fetch status:", err);

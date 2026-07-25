@@ -8,6 +8,7 @@ services:
     environment:
       - CV_TAILOR_API_URL=http://cv-tailor:8001
       - MODEL_TEST_API_URL=http://model-test:8002
+      - NODE_OPTIONS=--max-old-space-size=256 --expose-gc
     restart: always
     logging:
       driver: "json-file"

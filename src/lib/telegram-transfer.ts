@@ -714,6 +714,9 @@ export async function startTransferJob(options: {
           } catch (cleanErr) {
             console.warn("Could not clean up temp file:", tempFilePath, cleanErr);
           }
+          if (typeof (global as any).gc === "function") {
+            try { (global as any).gc(); } catch {}
+          }
           globalState.processedFiles++;
           const elapsedSec = (Date.now() - startTimeMs) / 1000;
           globalState.speedBps = elapsedSec > 0 ? Math.round(globalState.processedBytes / elapsedSec) : 0;
