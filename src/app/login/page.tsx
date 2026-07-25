@@ -2,8 +2,8 @@
 
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { firebaseAuthAction } from "@/lib/actions";
-import { firebaseLogin, firebaseGoogleLogin, getFirebaseAuth } from "@/lib/firebase-auth";
+import { firebaseAuthAction, loginAction } from "@/lib/actions";
+import { firebaseLogin, firebaseGoogleLogin, firebaseLogout, getFirebaseAuth } from "@/lib/firebase-auth";
 import { Eye, EyeOff, Zap, ArrowRight, Shield, BarChart3, Globe } from "lucide-react";
 
 const features = [
@@ -16,6 +16,7 @@ function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const approved = searchParams.get("approved");
+  const portalHint = searchParams.get("portal") || undefined;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
@@ -29,7 +30,10 @@ function LoginContent() {
     setLoading(true);
     
     try {
-      // 1. Firebase Login
+      // 0. Clean old Firebase client state before authenticating new user
+      await firebaseLogout().catch(() => {});
+
+      // 1. Attempt Firebase Login first
       const result = await firebaseLogin(email, password);
       
       if (result.success) {
@@ -56,16 +60,30 @@ function LoginContent() {
             router.refresh();
             return;
           }
-          // Auth action returned an error (e.g. pending, suspended)
           setError(sessionResult.error || "Login failed. Your account may be pending approval.");
-        } else {
-          setError("Failed to get authentication token.");
+          setLoading(false);
+          return;
         }
-      } else {
-        setError(result.error || "Invalid credentials. Please try again.");
       }
+
+      // 3. Fallback for non-Firebase users (SharePoint partners, experts, customers, local credentials)
+      const legacyResult = await loginAction(email, password, portalHint);
+      if (legacyResult.success) {
+        if (portalHint === "customer") {
+          router.push("/customer/dashboard");
+        } else if (portalHint === "expert") {
+          router.push("/expert/dashboard");
+        } else {
+          router.push("/dashboard");
+        }
+        router.refresh();
+        return;
+      }
+
+      // 4. Both authentication engines failed
+      setError("Invalid email or password. Please verify your credentials.");
     } catch {
-      setError("An unexpected error occurred.");
+      setError("An unexpected error occurred during authentication.");
     } finally {
       setLoading(false);
     }

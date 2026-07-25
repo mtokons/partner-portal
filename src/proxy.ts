@@ -69,9 +69,10 @@ export default auth((req: NextAuthRequest) => {
     pathname.startsWith("/offer-response");
 
   if (isPublic) {
-    // If already logged in, redirect away from login pages
+    // If already logged in, redirect away from login pages UNLESS explicitly switching accounts
     if (isLoggedIn) {
-      if (pathname === "/login" || pathname === "/customer-login" || pathname === "/expert-login") {
+      const isSwitching = req.nextUrl.searchParams.has("switch") || req.nextUrl.searchParams.has("logout");
+      if (!isSwitching && (pathname === "/login" || pathname === "/customer-login" || pathname === "/expert-login")) {
         return NextResponse.redirect(new URL(resolveDefaultConsole(roles), req.url));
       }
     }

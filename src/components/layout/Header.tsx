@@ -127,7 +127,7 @@ export default function Header({
 
   async function handleLogout() {
     await firebaseLogout();
-    await signOut({ callbackUrl: "/login" });
+    await signOut({ callbackUrl: "/login?switch=true" });
   }
 
   return (
@@ -321,6 +321,16 @@ export default function Header({
                 <User className="h-4 w-4 text-muted-foreground" />
                 My Profile
               </Link>
+              <button
+                onClick={async () => {
+                  setUserMenuOpen(false);
+                  await handleLogout();
+                }}
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-foreground hover:bg-muted/60 transition-colors"
+              >
+                <User className="h-4 w-4 text-muted-foreground" />
+                Switch Account
+              </button>
               <button
                 onClick={handleLogout}
                 className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-red-600 hover:bg-red-50 transition-colors"
