@@ -282,25 +282,43 @@ export async function verifyUserAuthCode(
   }
 
   try {
-    await client.signIn({
-      phoneNumber,
-      phoneCodeHash,
-      phoneCode: code.trim(),
-      password: password ? password.trim() : undefined,
-    });
+    await client.invoke(
+      new Api.auth.SignIn({
+        phoneNumber,
+        phoneCodeHash,
+        phoneCode: code.trim(),
+      })
+    );
   } catch (err: any) {
     console.error("[MTProto] signIn error:", err);
     const errStr = String(err?.errorMessage || err?.message || err);
     if (errStr.includes("SESSION_PASSWORD_NEEDED") || errStr.includes("2FA")) {
-      throw new Error("2FA_REQUIRED");
-    }
-    if (errStr.includes("PHONE_CODE_INVALID")) {
+      if (!password || !password.trim()) {
+        throw new Error("2FA_REQUIRED");
+      }
+      try {
+        const pwdState = await client.invoke(new Api.account.GetPassword());
+        const { computeCheck } = await import("teleproto/Password");
+        const pwdCheck = await computeCheck(pwdState, password.trim());
+        await client.invoke(
+          new Api.auth.CheckPassword({
+            password: pwdCheck,
+          })
+        );
+      } catch (pwdErr: any) {
+        const pwdErrStr = String(pwdErr?.errorMessage || pwdErr?.message || pwdErr);
+        if (pwdErrStr.includes("PASSWORD_HASH_INVALID")) {
+          throw new Error("The 2FA password entered is incorrect. Please check your 2FA password and try again.");
+        }
+        throw new Error(pwdErrStr || "2FA verification failed.");
+      }
+    } else if (errStr.includes("PHONE_CODE_INVALID")) {
       throw new Error("The 5-digit verification code is invalid. Please check Telegram app and try again.");
-    }
-    if (errStr.includes("PHONE_CODE_EXPIRED")) {
+    } else if (errStr.includes("PHONE_CODE_EXPIRED")) {
       throw new Error("The verification code has expired. Please click 'Send Auth Code' again.");
+    } else {
+      throw new Error(errStr || "Failed to verify code.");
     }
-    throw new Error(errStr || "Failed to verify code.");
   }
 
   const sessionString = (client.session as StringSession).save();
