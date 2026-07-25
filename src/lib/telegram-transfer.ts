@@ -1,8 +1,12 @@
 import { getGraphClient } from "@/lib/graph";
 import fs from "fs";
 import path from "path";
+import os from "os";
+import { Readable } from "stream";
+import { pipeline } from "stream/promises";
 import { TelegramClient, Api } from "teleproto";
 import { StringSession } from "teleproto/sessions";
+import { CustomFile } from "teleproto/client/uploads";
 
 export interface JobHistoryRecord {
   id: string;
@@ -481,9 +485,10 @@ export async function startTransferJob(options: {
         addLog(`[${i + 1}/${files.length}] Processing: ${file.name} (${fileSizeMb} MB)...`);
 
         let uploadSuccess = false;
+        const tempFilePath = path.join(os.tmpdir(), `onedrive_transfer_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.dat`);
 
         try {
-          // Download file content using direct pre-authenticated CDN link or Graph fallback
+          // Download file content using direct pre-authenticated CDN link or Graph fallback straight to temp file on disk
           const itemApi = options.userId
             ? `/users/${options.userId}/drive/items/${file.id}?$select=id,name,@microsoft.graph.downloadUrl`
             : `/me/drive/items/${file.id}?$select=id,name,@microsoft.graph.downloadUrl`;
@@ -496,39 +501,43 @@ export async function startTransferJob(options: {
             console.warn(`[OneDrive] Could not fetch downloadUrl for ${file.name}:`, e?.message);
           }
 
-          let buffer: Buffer;
           if (downloadUrl) {
             const fileRes = await fetch(downloadUrl);
-            if (!fileRes.ok) {
+            if (!fileRes.ok || !fileRes.body) {
               throw new Error(`OneDrive CDN download failed with HTTP ${fileRes.status} for ${file.name}`);
             }
-            const arrayBuf = await fileRes.arrayBuffer();
-            buffer = Buffer.from(arrayBuf);
+            const writeStream = fs.createWriteStream(tempFilePath);
+            const nodeStream = Readable.fromWeb(fileRes.body as any);
+            await pipeline(nodeStream, writeStream);
           } else {
-            // Fallback: Graph API content stream
+            // Fallback: Graph API content stream to file
             const downloadApi = options.userId
               ? `/users/${options.userId}/drive/items/${file.id}/content`
               : `/me/drive/items/${file.id}/content`;
             
             const rawRes = await client.api(downloadApi).responseType("arraybuffer" as any).get();
+            let buf: Buffer;
             if (Buffer.isBuffer(rawRes)) {
-              buffer = rawRes;
+              buf = rawRes;
             } else if (rawRes instanceof ArrayBuffer) {
-              buffer = Buffer.from(rawRes);
+              buf = Buffer.from(rawRes);
             } else if (rawRes && rawRes.buffer instanceof ArrayBuffer) {
-              buffer = Buffer.from(rawRes.buffer);
+              buf = Buffer.from(rawRes.buffer);
             } else {
               throw new Error(`Could not create buffer for file ${file.name}`);
             }
+            await fs.promises.writeFile(tempFilePath, buf);
           }
 
-          // MODE A: Direct Telegram MTProto Client API (GramJS / Teleproto) - UP TO 2 GB PER FILE
+          // MODE A: Direct Telegram MTProto Client API (GramJS / Teleproto) - UP TO 2 GB PER FILE (DISK CHUNKED)
           if (transferMode === "user_mtproto" && mtClient) {
-            addLog(`⚡ [MTProto] Streaming file directly to Telegram DC: ${file.name}...`);
+            addLog(`⚡ [MTProto] Streaming file directly to Telegram DC from disk: ${file.name}...`);
             
-            // Upload file to Telegram MTProto storage engine
+            const customFile = new CustomFile(file.name, file.size, tempFilePath);
+
+            // Upload file to Telegram MTProto storage engine via disk chunking
             const fileResult = await mtClient.uploadFile({
-              file: buffer,
+              file: customFile,
               workers: 4,
             });
 
@@ -570,6 +579,7 @@ export async function startTransferJob(options: {
               globalState.processedBytes += file.size;
               addLog(`✓ [${i + 1}/${files.length}] Sent metadata link to Telegram for large file: ${file.name}`);
             } else {
+              const buffer = await fs.promises.readFile(tempFilePath);
               const isPhoto = /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name);
               const isVideo = /\.(mp4|mov|avi|mkv|webm|3gp)$/i.test(file.name);
 
@@ -696,6 +706,14 @@ export async function startTransferJob(options: {
             addLog(`🚨 [AUTO-CANCEL] ${globalState.cancellationReason}`);
           }
         } finally {
+          // Clean up temp disk file after transfer
+          try {
+            if (fs.existsSync(tempFilePath)) {
+              await fs.promises.unlink(tempFilePath);
+            }
+          } catch (cleanErr) {
+            console.warn("Could not clean up temp file:", tempFilePath, cleanErr);
+          }
           globalState.processedFiles++;
           const elapsedSec = (Date.now() - startTimeMs) / 1000;
           globalState.speedBps = elapsedSec > 0 ? Math.round(globalState.processedBytes / elapsedSec) : 0;
