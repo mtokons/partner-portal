@@ -34,10 +34,7 @@ export default async function DashboardPage() {
     redirect("/project-partner/dashboard");
   }
 
-  // Redirect admin to admin overview
-  if (roles.some((r) => r.toLowerCase() === "admin")) {
-    redirect("/admin/overview");
-  }
+  // Admin roles render the overview dashboard directly
 
   const pid = user.role === "admin" ? undefined : user.partnerId;
 
