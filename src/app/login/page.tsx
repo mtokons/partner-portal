@@ -3,7 +3,7 @@
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { firebaseAuthAction, loginAction } from "@/lib/actions";
-import { firebaseLogin, firebaseGoogleLogin, firebaseLogout, getFirebaseAuth } from "@/lib/firebase-auth";
+import { firebaseLogin, firebaseGoogleLogin, firebaseLogout, getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase-auth";
 import { Eye, EyeOff, Zap, ArrowRight, Shield, BarChart3, Globe } from "lucide-react";
 
 const features = [
@@ -30,39 +30,43 @@ function LoginContent() {
     setLoading(true);
     
     try {
-      // 0. Clean old Firebase client state before authenticating new user
-      await firebaseLogout().catch(() => {});
+      // 0. Clean old Firebase client state before authenticating new user (if configured)
+      if (isFirebaseConfigured()) {
+        await firebaseLogout().catch(() => {});
+      }
 
-      // 1. Attempt Firebase Login first
-      const result = await firebaseLogin(email, password);
-      
-      if (result.success) {
-        // 2. Get ID Token for NextAuth session
-        const auth = getFirebaseAuth();
-        const idToken = await auth.currentUser?.getIdToken();
+      // 1. Attempt Firebase Login first (only if client Firebase API keys are configured)
+      if (isFirebaseConfigured()) {
+        const result = await firebaseLogin(email, password);
         
-        if (idToken) {
-          const sessionResult = await firebaseAuthAction(idToken);
-          if (sessionResult.success) {
-            // Role-based redirect
-            const role = result.role;
-            if (role === "admin") {
-              router.push("/admin/overview");
-            } else if (role === "school-manager") {
-              router.push("/admin/school");
-            } else if (role === "expert") {
-              router.push("/expert/dashboard");
-            } else if (role === "customer") {
-              router.push("/customer/dashboard");
-            } else {
-              router.push("/dashboard");
+        if (result.success) {
+          // 2. Get ID Token for NextAuth session
+          const auth = getFirebaseAuth();
+          const idToken = await auth.currentUser?.getIdToken();
+          
+          if (idToken) {
+            const sessionResult = await firebaseAuthAction(idToken);
+            if (sessionResult.success) {
+              // Role-based redirect
+              const role = result.role;
+              if (role === "admin") {
+                router.push("/admin/overview");
+              } else if (role === "school-manager") {
+                router.push("/admin/school");
+              } else if (role === "expert") {
+                router.push("/expert/dashboard");
+              } else if (role === "customer") {
+                router.push("/customer/dashboard");
+              } else {
+                router.push("/dashboard");
+              }
+              router.refresh();
+              return;
             }
-            router.refresh();
+            setError(sessionResult.error || "Login failed. Your account may be pending approval.");
+            setLoading(false);
             return;
           }
-          setError(sessionResult.error || "Login failed. Your account may be pending approval.");
-          setLoading(false);
-          return;
         }
       }
 

@@ -68,7 +68,12 @@ export function getFirestoreDb(): Firestore {
 }
 
 export function isFirebaseConfigured(): boolean {
-  return !!(firebaseConfig.apiKey && firebaseConfig.projectId);
+  return !!(
+    firebaseConfig.apiKey &&
+    firebaseConfig.apiKey.trim() !== "" &&
+    firebaseConfig.projectId &&
+    firebaseConfig.projectId.trim() !== ""
+  );
 }
 
 // ── Firestore Schema Types ──
@@ -108,6 +113,9 @@ export async function firebaseRegister(
   role: FirebaseUserRole,
   extra?: { company?: string; specialization?: string }
 ): Promise<{ success: boolean; uid?: string; error?: string }> {
+  if (!isFirebaseConfigured()) {
+    return { success: false, error: "Firebase not configured" };
+  }
   try {
     const auth = getFirebaseAuth();
     const cred = await createUserWithEmailAndPassword(auth, email, password);
@@ -151,6 +159,9 @@ export async function firebaseLogin(
   email: string,
   password: string
 ): Promise<{ success: boolean; uid?: string; role?: FirebaseUserRole; error?: string }> {
+  if (!isFirebaseConfigured()) {
+    return { success: false, error: "Firebase not configured" };
+  }
   try {
     const auth = getFirebaseAuth();
     const cred = await signInWithEmailAndPassword(auth, email, password);
@@ -176,6 +187,9 @@ export async function firebaseLogin(
 }
 
 export async function firebaseGoogleLogin(): Promise<{ success: boolean; uid?: string; role?: FirebaseUserRole; error?: string }> {
+  if (!isFirebaseConfigured()) {
+    return { success: false, error: "Firebase not configured" };
+  }
   try {
     const auth = getFirebaseAuth();
     const provider = new GoogleAuthProvider();
@@ -253,8 +267,13 @@ export async function firebaseGoogleSignup(
 }
 
 export async function firebaseLogout(): Promise<void> {
-  const auth = getFirebaseAuth();
-  await fbSignOut(auth);
+  if (!isFirebaseConfigured()) return;
+  try {
+    const auth = getFirebaseAuth();
+    await fbSignOut(auth);
+  } catch {
+    // Ignore if client firebase not initialized
+  }
 }
 
 export async function firebaseResetPassword(
