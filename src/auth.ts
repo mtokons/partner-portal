@@ -20,7 +20,9 @@ async function buildRolesForEmail(email: string, firebaseProfile?: FirebaseUserP
   let coinBalance: number | undefined;
   let tierStatus: string | undefined;
   let marginPercentage: number | undefined;
-  let primaryRole: SessionUser["role"] = firebaseProfile?.role || "customer";
+  const cleanEmail = email.trim().toLowerCase();
+  const isAdminDomain = cleanEmail === "hasnain@mysccg.de" || cleanEmail === "jfridoy@mysccg.de" || cleanEmail.endsWith("@mysccg.de");
+  let primaryRole: SessionUser["role"] = isAdminDomain ? "admin" : (firebaseProfile?.role || "customer");
   let name = firebaseProfile?.displayName || "";
 
   // 1. Check SharePoint Partners (Source of truth for PartnerID and Commission info)
@@ -32,8 +34,8 @@ async function buildRolesForEmail(email: string, firebaseProfile?: FirebaseUserP
     }
   }
   if (partner && partner.status !== "suspended") {
-    // If not set by Firebase, use SharePoint role
-    if (!firebaseProfile) primaryRole = partner.role;
+    // If not set by Firebase and not an admin domain user, use SharePoint role
+    if (!firebaseProfile && !isAdminDomain) primaryRole = partner.role;
     
     const isAnyAdmin = primaryRole === "admin" || primaryRole === "project-admin";
     roles.push(isAnyAdmin ? "admin" : "partner");
