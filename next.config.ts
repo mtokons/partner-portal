@@ -6,6 +6,8 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
 
+  serverExternalPackages: ['firebase-admin', 'teleproto'],
+
   experimental: {
     // Server Actions receive uploaded files (CVs, project docs) as their body.
     // The default 1MB limit rejects most PDF/DOCX uploads with a 500 before the
