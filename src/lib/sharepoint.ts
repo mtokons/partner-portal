@@ -643,6 +643,7 @@ export async function updatePartner(id: string, data: Partial<Omit<Partner, "id"
     const fields: Record<string, unknown> = {};
     if (data.name !== undefined)              fields[PART_COL.name]             = data.name;
     if (data.email !== undefined)             fields[PART_COL.email]            = data.email;
+    if (data.passwordHash !== undefined)      fields[PART_COL.passwordHash]      = data.passwordHash;
     if (data.company !== undefined)           fields[PART_COL.company]          = data.company;
     if (data.phone !== undefined)             fields[PART_COL.phone]            = data.phone;
     if (data.partnerType !== undefined)       fields[PART_COL.partnerType]      = data.partnerType;

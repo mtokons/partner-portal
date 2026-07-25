@@ -244,7 +244,8 @@ let pendingAuthPhone: string = "";
 
 export async function sendUserAuthCode(apiId: number, apiHash: string, phoneNumber: string) {
   addLog(`[MTProto] Sending Telegram authentication code to phone: ${phoneNumber}...`);
-  const client = new TelegramClient(new StringSession(""), apiId, apiHash, {
+  const stringSession = new StringSession("");
+  const client = new TelegramClient(stringSession, apiId, apiHash, {
     connectionRetries: 5,
   });
   await client.connect();
@@ -254,10 +255,11 @@ export async function sendUserAuthCode(apiId: number, apiHash: string, phoneNumb
     phoneNumber
   );
 
+  const tempSession = stringSession.save();
   pendingAuthClient = client;
   pendingAuthPhone = phoneNumber;
 
-  return { phoneCodeHash };
+  return { phoneCodeHash, tempSession };
 }
 
 export async function verifyUserAuthCode(
@@ -266,11 +268,14 @@ export async function verifyUserAuthCode(
   phoneNumber: string,
   phoneCodeHash: string,
   code: string,
-  password?: string
+  password?: string,
+  tempSession?: string
 ) {
+  addLog(`[MTProto] Verifying login code for ${phoneNumber}...`);
   let client = pendingAuthClient;
-  if (!client) {
-    client = new TelegramClient(new StringSession(""), apiId, apiHash, {
+  if (!client || !client.connected) {
+    const stringSession = new StringSession(tempSession || "");
+    client = new TelegramClient(stringSession, apiId, apiHash, {
       connectionRetries: 5,
     });
     await client.connect();
@@ -280,18 +285,28 @@ export async function verifyUserAuthCode(
     await client.signIn({
       phoneNumber,
       phoneCodeHash,
-      phoneCode: code,
-      password: password || undefined,
+      phoneCode: code.trim(),
+      password: password ? password.trim() : undefined,
     });
   } catch (err: any) {
-    if (err.errorMessage === "SESSION_PASSWORD_NEEDED" || err.message?.includes("2FA")) {
+    console.error("[MTProto] signIn error:", err);
+    const errStr = String(err?.errorMessage || err?.message || err);
+    if (errStr.includes("SESSION_PASSWORD_NEEDED") || errStr.includes("2FA")) {
       throw new Error("2FA_REQUIRED");
     }
-    throw err;
+    if (errStr.includes("PHONE_CODE_INVALID")) {
+      throw new Error("The 5-digit verification code is invalid. Please check Telegram app and try again.");
+    }
+    if (errStr.includes("PHONE_CODE_EXPIRED")) {
+      throw new Error("The verification code has expired. Please click 'Send Auth Code' again.");
+    }
+    throw new Error(errStr || "Failed to verify code.");
   }
 
   const sessionString = (client.session as StringSession).save();
-  await client.disconnect();
+  try {
+    await client.disconnect();
+  } catch {}
   pendingAuthClient = null;
 
   addLog(`✓ [MTProto] User Account Authenticated! Session created.`);

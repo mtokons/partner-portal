@@ -21,24 +21,25 @@ echo "📦 Preparing standalone bundle assets..."
 mkdir -p ./.next/standalone/.next/static ./.next/standalone/public
 cp -r ./.next/static/* ./.next/standalone/.next/static/ 2>/dev/null || true
 cp -r ./public/* ./.next/standalone/public/ 2>/dev/null || true
+sleep 1
 
 # 1. Pack and transfer standalone artifacts
 echo "📂 Packing & uploading standalone production server..."
-tar czf /tmp/standalone.tar.gz -C ./.next standalone
+tar --warning=no-file-changed -czf /tmp/standalone.tar.gz -C ./.next standalone || true
 scp ${SSH_OPTS} /tmp/standalone.tar.gz ${VPS_USER}@${VPS_IP}:/tmp/standalone.tar.gz
 ssh ${SSH_OPTS} ${VPS_USER}@${VPS_IP} "rm -rf ${VPS_PATH}/.next/standalone && mkdir -p ${VPS_PATH}/.next && tar xzf /tmp/standalone.tar.gz -C ${VPS_PATH}/.next && rm /tmp/standalone.tar.gz"
 rm -f /tmp/standalone.tar.gz
 
 # 2. Transfer static assets
 echo "📂 Packing & uploading static assets..."
-tar czf /tmp/static.tar.gz -C ./.next static
+tar --warning=no-file-changed -czf /tmp/static.tar.gz -C ./.next static || true
 scp ${SSH_OPTS} /tmp/static.tar.gz ${VPS_USER}@${VPS_IP}:/tmp/static.tar.gz
 ssh ${SSH_OPTS} ${VPS_USER}@${VPS_IP} "rm -rf ${VPS_PATH}/.next/static && mkdir -p ${VPS_PATH}/.next && tar xzf /tmp/static.tar.gz -C ${VPS_PATH}/.next && rm /tmp/static.tar.gz"
 rm -f /tmp/static.tar.gz
 
 # 3. Transfer public assets
 echo "📂 Uploading public assets..."
-tar czf /tmp/public.tar.gz -C . public
+tar --warning=no-file-changed -czf /tmp/public.tar.gz -C . public || true
 scp ${SSH_OPTS} /tmp/public.tar.gz ${VPS_USER}@${VPS_IP}:/tmp/public.tar.gz
 ssh ${SSH_OPTS} ${VPS_USER}@${VPS_IP} "rm -rf ${VPS_PATH}/public && tar xzf /tmp/public.tar.gz -C ${VPS_PATH} && rm /tmp/public.tar.gz"
 rm -f /tmp/public.tar.gz
@@ -46,7 +47,8 @@ rm -f /tmp/public.tar.gz
 # 4. Transfer Docker config files
 echo "📂 Uploading Docker configuration..."
 [ -f ./.env.production ] && ENV_FILE="./.env.production" || ENV_FILE="./import.env"
-scp ${SSH_OPTS} ./docker-compose.yml ./Dockerfile ./Caddyfile ${ENV_FILE} ${VPS_USER}@${VPS_IP}:${VPS_PATH}/.env.production
+scp ${SSH_OPTS} ./docker-compose.yml ./Dockerfile ./Caddyfile ${VPS_USER}@${VPS_IP}:${VPS_PATH}/
+scp ${SSH_OPTS} ${ENV_FILE} ${VPS_USER}@${VPS_IP}:${VPS_PATH}/.env.production
 
 # 5. Transfer CV Tailor service
 echo "📂 Uploading CV Tailor Python service..."

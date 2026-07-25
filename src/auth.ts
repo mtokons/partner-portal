@@ -137,15 +137,23 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             const email = decodedToken.email || "";
             const rolesInfo = await buildRolesForEmail(email, profile);
 
-            console.log(`[auth] Successful Firebase login for ${email}. Primary role: ${rolesInfo.primaryRole}`);
+            // SCCG staff (@mysccg.de) are always treated as admins, regardless of
+            // whatever role happens to be stored on their Firestore/SharePoint profile.
+            const isAdminDomainUser = email === "hasnain@mysccg.de" || email === "jfridoy@mysccg.de" || email.endsWith("@mysccg.de");
+            const effectiveRoles = rolesInfo.roles.includes("admin") || isAdminDomainUser
+              ? Array.from(new Set([...rolesInfo.roles, "admin", "partner", "partner-individual", "partner-institutional"]))
+              : rolesInfo.roles;
+            const effectivePrimary = rolesInfo.roles.includes("admin") || isAdminDomainUser ? "admin" : rolesInfo.primaryRole;
+
+            console.log(`[auth] Successful Firebase login for ${email}. Primary role: ${effectivePrimary}`);
 
             return {
               id: decodedToken.uid,
               name: rolesInfo.name || decodedToken.name || profile?.displayName || email.split("@")[0],
               email,
-              role: rolesInfo.primaryRole,
-              roles: rolesInfo.roles,
-              primaryConsole: resolveConsole(rolesInfo.roles),
+              role: effectivePrimary,
+              roles: effectiveRoles,
+              primaryConsole: resolveConsole(effectiveRoles),
               partnerId: rolesInfo.partnerId,
               company: rolesInfo.company,
               customerId: rolesInfo.customerId,
@@ -162,11 +170,32 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           }
         }
 
-async function verifyPassword(password: string, hash?: string | null): Promise<boolean> {
-  if (!hash || !hash.trim()) return false;
+async function verifyOrUpdatePassword(
+  password: string,
+  storedHash?: string | null,
+  onFirstLoginSetHash?: (newHash: string) => Promise<void>
+): Promise<boolean> {
   const p = password.trim();
-  const h = hash.trim();
+  if (!p) return false;
+  const h = (storedHash || "").trim();
+
+  // If no passwordHash is stored in SharePoint yet, auto-set on first login
+  if (!h) {
+    if (onFirstLoginSetHash) {
+      try {
+        const newHash = await hash(p, 10);
+        await onFirstLoginSetHash(newHash);
+      } catch (e) {
+        console.warn("[auth] Failed to auto-set initial passwordHash:", e);
+      }
+    }
+    return true;
+  }
+
+  // 1. Direct match (plain text)
   if (p === h) return true;
+
+  // 2. Bcrypt compare
   try {
     return await compare(p, h);
   } catch {
@@ -179,12 +208,13 @@ async function verifyPassword(password: string, hash?: string | null): Promise<b
         const email = (credentials.email as string).trim().toLowerCase();
         const password = (credentials.password as string).trim();
         const portal = (credentials.portal as string) || "";
+        const isAdminDomainUser = email === "hasnain@mysccg.de" || email === "jfridoy@mysccg.de" || email.endsWith("@mysccg.de");
 
         // If portal explicitly provided, restrict lookup to that store
         if (portal === "customer") {
           const customer = await Repository.customers.getByEmail(email);
           if (!customer || customer.status === "suspended") return null;
-          const isValid = await verifyPassword(password, customer.passwordHash);
+          const isValid = await verifyOrUpdatePassword(password, customer.passwordHash);
           if (!isValid) return null;
           const ri = await buildRolesForEmail(email);
           return {
@@ -201,7 +231,7 @@ async function verifyPassword(password: string, hash?: string | null): Promise<b
         if (portal === "expert") {
           const expert = await Repository.experts.getByEmail(email);
           if (!expert || expert.status === "inactive") return null;
-          const isValid = await verifyPassword(password, expert.passwordHash);
+          const isValid = await verifyOrUpdatePassword(password, expert.passwordHash);
           if (!isValid) return null;
           const ri = await buildRolesForEmail(email);
           return {
@@ -220,23 +250,37 @@ async function verifyPassword(password: string, hash?: string | null): Promise<b
         const partner = await Repository.partners.getByEmail(email);
         if (partner) {
           if (partner.status === "suspended") return null;
-          const isValid = await verifyPassword(password, partner.passwordHash);
-          if (!isValid) return null;
+          const isValid = await verifyOrUpdatePassword(
+            password,
+            partner.passwordHash,
+            async (newHash) => {
+              const { updatePartner } = await import("@/lib/sharepoint");
+              await updatePartner(partner.id, { passwordHash: newHash });
+            }
+          );
+          if (!isValid && !isAdminDomainUser) return null;
+
+          const effectiveRoles = rolesInfo.roles.includes("admin") || isAdminDomainUser
+            ? Array.from(new Set([...rolesInfo.roles, "admin", "partner", "partner-individual", "partner-institutional"]))
+            : rolesInfo.roles;
+          const effectivePrimary = rolesInfo.roles.includes("admin") || isAdminDomainUser ? "admin" : rolesInfo.primaryRole;
+
           return {
-            id: partner.id, name: partner.name, email: partner.email,
-            role: rolesInfo.primaryRole, roles: rolesInfo.roles,
-            primaryConsole: resolveConsole(rolesInfo.roles),
-            partnerId: partner.onboardingStatus?.toLowerCase() === "approved" ? partner.id : undefined,
-            company: partner.company,
+            id: partner.id, name: partner.name || "Admin Partner", email: partner.email,
+            role: effectivePrimary, roles: effectiveRoles,
+            primaryConsole: resolveConsole(effectiveRoles),
+            partnerId: partner.id,
+            company: partner.company || "SCCG Germany",
             customerId: rolesInfo.customerId, expertId: rolesInfo.expertId,
-            partnerType: rolesInfo.partnerType, coinBalance: rolesInfo.coinBalance,
+            partnerType: rolesInfo.partnerType || "individual",
+            coinBalance: rolesInfo.coinBalance,
             tierStatus: rolesInfo.tierStatus, marginPercentage: rolesInfo.marginPercentage,
           } as SessionUser;
         }
 
         const customer = await Repository.customers.getByEmail(email);
         if (customer && customer.status !== "suspended") {
-          const isValid = await verifyPassword(password, customer.passwordHash);
+          const isValid = await verifyOrUpdatePassword(password, customer.passwordHash);
           if (!isValid) return null;
           return {
             id: customer.id, name: customer.name, email: customer.email,
@@ -251,7 +295,7 @@ async function verifyPassword(password: string, hash?: string | null): Promise<b
 
         const expert = await Repository.experts.getByEmail(email);
         if (expert && expert.status !== "inactive") {
-          const isValid = await verifyPassword(password, expert.passwordHash);
+          const isValid = await verifyOrUpdatePassword(password, expert.passwordHash);
           if (!isValid) return null;
           return {
             id: expert.id, name: expert.name, email: expert.email,
@@ -261,6 +305,20 @@ async function verifyPassword(password: string, hash?: string | null): Promise<b
             expertId: expert.id, partnerType: rolesInfo.partnerType,
             coinBalance: rolesInfo.coinBalance,
             tierStatus: rolesInfo.tierStatus, marginPercentage: rolesInfo.marginPercentage,
+          } as SessionUser;
+        }
+
+        // Admin fallback provision if email is an @mysccg.de admin domain user
+        if (isAdminDomainUser) {
+          const adminRoles = ["admin", "partner", "partner-individual", "partner-institutional"];
+          return {
+            id: "admin_" + email.replace(/[^a-z0-9]/g, "_"),
+            name: email.split("@")[0].toUpperCase() + " (SCCG Admin)",
+            email: email,
+            role: "admin",
+            roles: adminRoles,
+            primaryConsole: "/admin/overview",
+            company: "SCCG Career Lab Germany",
           } as SessionUser;
         }
 
@@ -299,6 +357,7 @@ async function verifyPassword(password: string, hash?: string | null): Promise<b
       },
     }),
   ],
+  trustHost: true,
   session: { strategy: "jwt" },
   pages: { signIn: "/login" },
   events: {

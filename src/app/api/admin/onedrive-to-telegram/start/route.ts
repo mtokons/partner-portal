@@ -12,7 +12,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "apiId, apiHash, and phoneNumber are required." }, { status: 400 });
       }
       const res = await sendUserAuthCode(Number(apiId), apiHash.trim(), phoneNumber.trim());
-      return NextResponse.json({ success: true, phoneCodeHash: res.phoneCodeHash });
+      return NextResponse.json({ success: true, phoneCodeHash: res.phoneCodeHash, tempSession: res.tempSession });
     }
 
     // 2. Verify Code & Generate MTProto StringSession
@@ -20,7 +20,15 @@ export async function POST(req: Request) {
       if (!apiId || !apiHash || !phoneNumber || !phoneCodeHash || !code) {
         return NextResponse.json({ error: "apiId, apiHash, phoneNumber, phoneCodeHash, and code are required." }, { status: 400 });
       }
-      const res = await verifyUserAuthCode(Number(apiId), apiHash.trim(), phoneNumber.trim(), phoneCodeHash, code.trim(), password);
+      const res = await verifyUserAuthCode(
+        Number(apiId),
+        apiHash.trim(),
+        phoneNumber.trim(),
+        phoneCodeHash,
+        code.trim(),
+        password,
+        body.tempSession
+      );
       return NextResponse.json({ success: true, sessionString: res.sessionString });
     }
 

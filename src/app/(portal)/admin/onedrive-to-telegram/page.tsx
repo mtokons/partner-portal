@@ -87,6 +87,7 @@ export default function OneDriveToTelegramPage() {
   const [apiHash, setApiHash] = useState("829e2bcf0fbb355750471d4f099d8277");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [phoneCodeHash, setPhoneCodeHash] = useState("");
+  const [tempSession, setTempSession] = useState("");
   const [authCode, setAuthCode] = useState("");
   const [twoFaPassword, setTwoFaPassword] = useState("");
   const [sessionString, setSessionString] = useState("");
@@ -248,6 +249,7 @@ export default function OneDriveToTelegramPage() {
       if (!res.ok) throw new Error(data.error || "Failed to send verification code.");
 
       setPhoneCodeHash(data.phoneCodeHash);
+      setTempSession(data.tempSession || "");
       setAuthStep("code_sent");
     } catch (err: any) {
       setErrorMsg(err.message || "Could not send login code.");
@@ -278,6 +280,7 @@ export default function OneDriveToTelegramPage() {
           phoneCodeHash,
           code: authCode.trim(),
           password: twoFaPassword.trim() || undefined,
+          tempSession,
         }),
       });
 
