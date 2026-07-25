@@ -112,6 +112,8 @@ export default function OneDriveToTelegramPage() {
   const [authLoading, setAuthLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [logFilter, setLogFilter] = useState<string>("all");
+  const [driveQuota, setDriveQuota] = useState<{ total: number; used: number; remaining: number; deleted: number } | null>(null);
+  const [fetchingQuota, setFetchingQuota] = useState(false);
 
   const [state, setState] = useState<TransferState>({
     status: "idle",
@@ -315,6 +317,27 @@ export default function OneDriveToTelegramPage() {
       console.error("Failed to fetch status:", err);
     }
   }
+
+  async function fetchDriveQuota() {
+    setFetchingQuota(true);
+    try {
+      const res = await fetch(`/api/admin/onedrive-to-telegram/quota?userId=${encodeURIComponent(userId)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.quota) {
+          setDriveQuota(data.quota);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to fetch drive quota:", e);
+    } finally {
+      setFetchingQuota(false);
+    }
+  }
+
+  useEffect(() => {
+    fetchDriveQuota();
+  }, [userId]);
 
   useEffect(() => {
     fetchStatus();
@@ -648,6 +671,65 @@ export default function OneDriveToTelegramPage() {
                   </div>
                 </div>
               )}
+
+              {/* OneDrive Storage Quota */}
+              <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                  <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                    <Gauge className="w-4 h-4 text-blue-400" />
+                    OneDrive Storage Quota
+                  </span>
+                  <button
+                    type="button"
+                    onClick={fetchDriveQuota}
+                    disabled={fetchingQuota}
+                    className="text-[10px] text-blue-400 hover:text-blue-300 flex items-center gap-1 hover:underline disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${fetchingQuota ? "animate-spin" : ""}`} />
+                    Refresh Status
+                  </button>
+                </div>
+                {driveQuota ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-[11px] text-slate-400">
+                      <span>Used: <strong>{formatBytes(driveQuota.used)}</strong></span>
+                      <span>Total: <strong>{formatBytes(driveQuota.total)}</strong></span>
+                    </div>
+                    {/* Progress Bar */}
+                    <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden border border-slate-700/50">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          (driveQuota.used / driveQuota.total) > 0.9
+                            ? "bg-rose-500"
+                            : (driveQuota.used / driveQuota.total) > 0.75
+                            ? "bg-amber-500"
+                            : "bg-blue-500"
+                        }`}
+                        style={{ width: `${Math.min(100, Math.round((driveQuota.used / driveQuota.total) * 100))}%` }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between text-[10px]">
+                      <span className="text-slate-500">
+                        {Math.round((driveQuota.used / driveQuota.total) * 100)}% Capacity Used
+                      </span>
+                      <span className="font-bold text-emerald-400">
+                        {formatBytes(driveQuota.remaining)} Free
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-[11px] text-slate-500 italic flex items-center justify-between">
+                    <span>Loading storage metrics...</span>
+                    <button
+                      type="button"
+                      onClick={fetchDriveQuota}
+                      className="text-blue-400 hover:underline"
+                    >
+                      Fetch
+                    </button>
+                  </div>
+                )}
+              </div>
 
               {/* Destination Preset Selector */}
               <div className="space-y-2">
