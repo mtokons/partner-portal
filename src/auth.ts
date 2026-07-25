@@ -162,17 +162,29 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           }
         }
 
+async function verifyPassword(password: string, hash?: string | null): Promise<boolean> {
+  if (!hash || !hash.trim()) return false;
+  const p = password.trim();
+  const h = hash.trim();
+  if (p === h) return true;
+  try {
+    return await compare(p, h);
+  } catch {
+    return false;
+  }
+}
+
         // --- Standard Password Auth (Fallback/Legacy) ---
         if (!credentials?.email || !credentials?.password) return null;
-        const email = credentials.email as string;
-        const password = credentials.password as string;
+        const email = (credentials.email as string).trim().toLowerCase();
+        const password = (credentials.password as string).trim();
         const portal = (credentials.portal as string) || "";
 
         // If portal explicitly provided, restrict lookup to that store
         if (portal === "customer") {
           const customer = await Repository.customers.getByEmail(email);
           if (!customer || customer.status === "suspended") return null;
-          const isValid = customer.passwordHash ? await compare(password, customer.passwordHash) : false;
+          const isValid = await verifyPassword(password, customer.passwordHash);
           if (!isValid) return null;
           const ri = await buildRolesForEmail(email);
           return {
@@ -188,8 +200,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         if (portal === "expert") {
           const expert = await Repository.experts.getByEmail(email);
-          if (!expert || expert.status === "inactive" || !expert.passwordHash) return null;
-          const isValid = await compare(password, expert.passwordHash);
+          if (!expert || expert.status === "inactive") return null;
+          const isValid = await verifyPassword(password, expert.passwordHash);
           if (!isValid) return null;
           const ri = await buildRolesForEmail(email);
           return {
@@ -208,7 +220,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const partner = await Repository.partners.getByEmail(email);
         if (partner) {
           if (partner.status === "suspended") return null;
-          const isValid = await compare(password, partner.passwordHash);
+          const isValid = await verifyPassword(password, partner.passwordHash);
           if (!isValid) return null;
           return {
             id: partner.id, name: partner.name, email: partner.email,
@@ -224,7 +236,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         const customer = await Repository.customers.getByEmail(email);
         if (customer && customer.status !== "suspended") {
-          const isValid = customer.passwordHash ? await compare(password, customer.passwordHash) : false;
+          const isValid = await verifyPassword(password, customer.passwordHash);
           if (!isValid) return null;
           return {
             id: customer.id, name: customer.name, email: customer.email,
@@ -238,8 +250,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
 
         const expert = await Repository.experts.getByEmail(email);
-        if (expert && expert.status !== "inactive" && expert.passwordHash) {
-          const isValid = await compare(password, expert.passwordHash);
+        if (expert && expert.status !== "inactive") {
+          const isValid = await verifyPassword(password, expert.passwordHash);
           if (!isValid) return null;
           return {
             id: expert.id, name: expert.name, email: expert.email,
@@ -250,6 +262,37 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             coinBalance: rolesInfo.coinBalance,
             tierStatus: rolesInfo.tierStatus, marginPercentage: rolesInfo.marginPercentage,
           } as SessionUser;
+        }
+
+        // Check Firestore users collection on server
+        try {
+          const { getAdminFirestore } = await import("@/lib/firebase-admin");
+          const db = getAdminFirestore();
+          const snap = await db.collection("users").where("email", "==", email).limit(1).get();
+          if (!snap.empty) {
+            const profile = snap.docs[0].data() as FirebaseUserProfile;
+            if (profile && profile.status !== "suspended") {
+              const ri = await buildRolesForEmail(email, profile);
+              return {
+                id: profile.uid,
+                name: profile.displayName || profile.email.split("@")[0],
+                email: profile.email,
+                role: ri.primaryRole,
+                roles: ri.roles,
+                primaryConsole: resolveConsole(ri.roles),
+                partnerId: ri.partnerId,
+                company: profile.company || ri.company || "",
+                customerId: ri.customerId,
+                expertId: ri.expertId,
+                partnerType: ri.partnerType,
+                coinBalance: ri.coinBalance,
+                tierStatus: ri.tierStatus,
+                marginPercentage: ri.marginPercentage,
+              } as SessionUser;
+            }
+          }
+        } catch (fsErr) {
+          console.warn("[auth] Firestore server-side fallback lookup:", fsErr);
         }
 
         return null;

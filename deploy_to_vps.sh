@@ -45,7 +45,8 @@ rm -f /tmp/public.tar.gz
 
 # 4. Transfer Docker config files
 echo "📂 Uploading Docker configuration..."
-scp ${SSH_OPTS} ./docker-compose.yml ./Dockerfile ./Caddyfile ./.env.production ${VPS_USER}@${VPS_IP}:${VPS_PATH}/
+[ -f ./.env.production ] && ENV_FILE="./.env.production" || ENV_FILE="./import.env"
+scp ${SSH_OPTS} ./docker-compose.yml ./Dockerfile ./Caddyfile ${ENV_FILE} ${VPS_USER}@${VPS_IP}:${VPS_PATH}/.env.production
 
 # 5. Transfer CV Tailor service
 echo "📂 Uploading CV Tailor Python service..."
