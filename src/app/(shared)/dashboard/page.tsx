@@ -23,14 +23,17 @@ export default async function DashboardPage() {
   if (!session?.user) redirect("/login");
   const user = session.user as SessionUser;
 
-  // Redirect partner roles to the dedicated partner portal
+  // Redirect partner roles to the dedicated partner portal (UNLESS user is an admin)
   const roles = (user.roles || [user.role]) as string[];
-  if (roles.some((r) => ["partner", "partner-individual", "partner-institutional"].includes(r.toLowerCase()))) {
+  const lowerRoles = roles.map((r) => r.toLowerCase());
+  const isAdmin = lowerRoles.includes("admin");
+
+  if (!isAdmin && lowerRoles.some((r) => ["partner", "partner-individual", "partner-institutional"].includes(r))) {
     redirect("/partner/dashboard");
   }
 
-  // Redirect project partners to their collaboration console
-  if (roles.some((r) => ["project-partner", "project-partner-admin"].includes(r.toLowerCase()))) {
+  // Redirect project partners to their collaboration console (UNLESS user is an admin)
+  if (!isAdmin && lowerRoles.some((r) => ["project-partner", "project-partner-admin"].includes(r))) {
     redirect("/project-partner/dashboard");
   }
 

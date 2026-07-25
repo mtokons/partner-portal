@@ -18,7 +18,7 @@ const CONSOLE_ROLES: Record<string, string[]> = {
 
 /** Ordered by priority — first match wins for login redirect */
 const ROLE_CONSOLE: [string[], string][] = [
-  [["admin", "project-admin"],    "/admin/dashboard"],
+  [["admin", "project-admin"],    "/admin/overview"],
   [["school-manager"], "/admin/school"],
   [["project-partner", "project-partner-admin"], "/project-partner/dashboard"],
   [["partner", "partner-individual", "partner-institutional"], "/partner/dashboard"],
