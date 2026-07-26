@@ -121,6 +121,7 @@ let globalState: TransferState = {
 };
 
 let shouldStop = false;
+let activeAbortController: AbortController | null = null;
 
 export function getTransferStatus(): TransferState {
   return {
@@ -131,10 +132,14 @@ export function getTransferStatus(): TransferState {
 }
 
 export function stopTransferJob(): void {
-  if (globalState.status === "running") {
-    shouldStop = true;
-    globalState.cancellationReason = "User clicked Stop Transfer Operation button";
-    addLog("[CONTROL] 🛑 Stop signal sent by user. Halting transfer operation...");
+  shouldStop = true;
+  globalState.cancellationReason = "User clicked Stop Transfer Operation button";
+  addLog("[CONTROL] 🛑 Stop signal sent by user. Halting transfer operation...");
+  if (activeAbortController) {
+    try {
+      activeAbortController.abort();
+      addLog("[CONTROL] Aborted active OneDrive download stream.");
+    } catch (e) {}
   }
 }
 
@@ -502,13 +507,15 @@ export async function startTransferJob(options: {
           }
 
           if (downloadUrl) {
-            const fileRes = await fetch(downloadUrl);
+            activeAbortController = new AbortController();
+            const fileRes = await fetch(downloadUrl, { signal: activeAbortController.signal });
             if (!fileRes.ok || !fileRes.body) {
               throw new Error(`OneDrive CDN download failed with HTTP ${fileRes.status} for ${file.name}`);
             }
             const writeStream = fs.createWriteStream(tempFilePath);
             const nodeStream = Readable.fromWeb(fileRes.body as any);
             await pipeline(nodeStream, writeStream);
+            activeAbortController = null;
           } else {
             // Fallback: Graph API content stream to file
             const downloadApi = options.userId
@@ -536,9 +543,16 @@ export async function startTransferJob(options: {
             const customFile = new CustomFile(file.name, file.size, tempFilePath);
 
             // Upload file to Telegram MTProto storage engine via disk chunking
+            const progressCallback = (progress: number) => {};
+            Object.defineProperty(progressCallback, "isCanceled", {
+              get: () => shouldStop,
+              configurable: true,
+            });
+
             const fileResult = await mtClient.uploadFile({
               file: customFile,
               workers: 4,
+              onProgress: progressCallback,
             });
 
             await mtClient.sendFile(targetChatId, {
@@ -706,6 +720,7 @@ export async function startTransferJob(options: {
             addLog(`🚨 [AUTO-CANCEL] ${globalState.cancellationReason}`);
           }
         } finally {
+          activeAbortController = null;
           // Clean up temp disk file after transfer
           try {
             if (fs.existsSync(tempFilePath)) {
