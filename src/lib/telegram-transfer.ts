@@ -161,26 +161,43 @@ async function fetchOneDriveFiles(
   async function crawlFolder(endpoint: string, currentPath: string) {
     if (shouldStop) return;
     try {
-      const res = await client.api(endpoint).get();
-      const items: DriveItem[] = res.value || [];
-
-      for (const item of items) {
+      let currentEndpoint: string | null = endpoint;
+      while (currentEndpoint) {
         if (shouldStop) return;
-        const itemPath = `${currentPath}/${item.name}`;
-        if (item.folder) {
-          addLog(`Scanning directory: ${itemPath}`);
-          const subEndpoint = userId
-            ? `/users/${userId}/drive/items/${item.id}/children`
-            : `/me/drive/items/${item.id}/children`;
-          await crawlFolder(subEndpoint, itemPath);
-        } else if (item.file) {
-          fileList.push({
-            id: item.id,
-            name: item.name,
-            size: item.size || 0,
-            path: itemPath,
-            webUrl: item.webUrl,
-          });
+        const res: any = await client.api(currentEndpoint).get();
+        const items: DriveItem[] = res.value || [];
+
+        for (const item of items) {
+          if (shouldStop) return;
+          const itemPath = `${currentPath}/${item.name}`;
+          if (item.folder) {
+            addLog(`Scanning directory: ${itemPath}`);
+            const subEndpoint = userId
+              ? `/users/${userId}/drive/items/${item.id}/children`
+              : `/me/drive/items/${item.id}/children`;
+            await crawlFolder(subEndpoint, itemPath);
+          } else if (item.file) {
+            fileList.push({
+              id: item.id,
+              name: item.name,
+              size: item.size || 0,
+              path: itemPath,
+              webUrl: item.webUrl,
+            });
+          }
+        }
+
+        const nextLink: string | undefined = res["@odata.nextLink"];
+        if (nextLink) {
+          if (nextLink.startsWith("https://graph.microsoft.com/v1.0")) {
+            currentEndpoint = nextLink.replace("https://graph.microsoft.com/v1.0", "");
+          } else if (nextLink.startsWith("https://graph.microsoft.com/beta")) {
+            currentEndpoint = nextLink.replace("https://graph.microsoft.com/beta", "");
+          } else {
+            currentEndpoint = nextLink;
+          }
+        } else {
+          currentEndpoint = null;
         }
       }
     } catch (err: any) {
@@ -593,7 +610,6 @@ export async function startTransferJob(options: {
               globalState.processedBytes += file.size;
               addLog(`✓ [${i + 1}/${files.length}] Sent metadata link to Telegram for large file: ${file.name}`);
             } else {
-              const buffer = await fs.promises.readFile(tempFilePath);
               const isPhoto = /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name);
               const isVideo = /\.(mp4|mov|avi|mkv|webm|3gp)$/i.test(file.name);
 
@@ -621,7 +637,13 @@ export async function startTransferJob(options: {
                   formData.append("supports_streaming", "true");
                 }
 
-                const blob = new Blob([buffer]);
+                let blob: Blob;
+                if (typeof (fs as any).openAsBlob === "function") {
+                  blob = await (fs as any).openAsBlob(tempFilePath);
+                } else {
+                  const buffer = await fs.promises.readFile(tempFilePath);
+                  blob = new Blob([buffer]);
+                }
                 formData.append(fieldName, blob, file.name);
 
                 let tgRes: Response;
@@ -651,7 +673,7 @@ export async function startTransferJob(options: {
                   const docFormData = new FormData();
                   docFormData.append("chat_id", options.chatId.trim());
                   docFormData.append("caption", `📁 ${file.name}\nPath: ${file.path}`);
-                  docFormData.append("document", new Blob([buffer]), file.name);
+                  docFormData.append("document", blob, file.name);
 
                   try {
                     tgRes = await fetch(`https://api.telegram.org/bot${options.botToken}/sendDocument`, {
@@ -766,5 +788,13 @@ export async function startTransferJob(options: {
       recordHistory("error", fatalErr);
       if (mtClient) await mtClient.disconnect();
     }
-  })();
+  })().catch((unhandledErr) => {
+    console.error("[OneDrive Transfer Worker Error]", unhandledErr);
+    globalState.status = "error";
+    globalState.endTime = new Date().toISOString();
+    const errMsg = String(unhandledErr?.message || unhandledErr);
+    globalState.cancellationReason = errMsg;
+    addLog(`[UNHANDLED ERROR] ${errMsg}`);
+    recordHistory("error", errMsg);
+  });
 }

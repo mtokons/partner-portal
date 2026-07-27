@@ -28,16 +28,36 @@ export async function GET(req: Request) {
     }
 
     // Filter only folder items
-    endpoint += `?$filter=folder ne null&$select=id,name,folder&$top=200`;
+    endpoint += `?$filter=folder ne null&$select=id,name,folder&$top=999`;
 
-    const res = await client.api(endpoint).get();
-    const items: DriveItem[] = res.value || [];
+    const folders: Array<{ id: string; name: string; path: string }> = [];
+    let currentEndpoint: string | null = endpoint;
 
-    const folders = items.map((item) => ({
-      id: item.id,
-      name: item.name,
-      path: cleanPath ? `/${cleanPath}/${item.name}` : `/${item.name}`,
-    }));
+    while (currentEndpoint) {
+      const res: any = await client.api(currentEndpoint).get();
+      const items: DriveItem[] = res.value || [];
+
+      for (const item of items) {
+        folders.push({
+          id: item.id,
+          name: item.name,
+          path: cleanPath ? `/${cleanPath}/${item.name}` : `/${item.name}`,
+        });
+      }
+
+      const nextLink: string | undefined = res["@odata.nextLink"];
+      if (nextLink) {
+        if (nextLink.startsWith("https://graph.microsoft.com/v1.0")) {
+          currentEndpoint = nextLink.replace("https://graph.microsoft.com/v1.0", "");
+        } else if (nextLink.startsWith("https://graph.microsoft.com/beta")) {
+          currentEndpoint = nextLink.replace("https://graph.microsoft.com/beta", "");
+        } else {
+          currentEndpoint = nextLink;
+        }
+      } else {
+        currentEndpoint = null;
+      }
+    }
 
     return NextResponse.json({
       currentPath: cleanPath ? `/${cleanPath}` : "/",
