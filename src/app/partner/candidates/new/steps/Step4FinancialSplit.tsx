@@ -28,6 +28,8 @@ export function Step4FinancialSplit({
   exchangeRate = 1,
 }: Step4FinancialSplitProps) {
   const [split, setSplit] = useState<FinancialSplitResult | null>(null);
+  const [sccgSale, setSccgSale] = useState(false);
+  const effectiveMargin = (sccgSale ? 0 : partnerMargin) as PartnerMargin;
 
   useEffect(() => {
     const result = calculateFinancialSplit({
@@ -38,10 +40,11 @@ export function Step4FinancialSplit({
         quantity: s.quantity,
         initialPaymentAmount: s.initialPaymentAmount,
       })),
-      partnerMarginPercentage: partnerMargin,
+      partnerMarginPercentage: effectiveMargin,
     });
     setSplit(result);
-  }, [selectedServices, partnerMargin]);
+  }, [selectedServices, effectiveMargin]);
+
 
   if (!split) return null;
 
@@ -56,10 +59,26 @@ export function Step4FinancialSplit({
       <div>
         <h2 className="text-lg font-semibold">Financial Split</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Automated split calculation based on your {partnerMargin}% partner margin.
+          Automated split calculation based on your {effectiveMargin}% partner margin.
           {showSec && ` Local currency (${secondaryCurrency}) is based on real-time exchange rates.`}
         </p>
       </div>
+
+      {/* SCCG direct sale toggle — removes the partner split entirely */}
+      <label className="flex items-start gap-3 rounded-xl border p-3 cursor-pointer hover:bg-muted/30 transition-colors">
+        <input
+          type="checkbox"
+          checked={sccgSale}
+          onChange={(e) => setSccgSale(e.target.checked)}
+          className="mt-0.5 h-4 w-4"
+        />
+        <span className="text-sm">
+          <span className="font-semibold text-foreground">SCCG Sale (no partner split)</span>
+          <span className="block text-muted-foreground text-xs mt-0.5">
+            Enable for direct SCCG sales — the partner share is removed and 100% is allocated to SCCG.
+          </span>
+        </span>
+      </label>
 
       {/* Line items */}
       <div className="border rounded-xl overflow-hidden">
@@ -90,7 +109,7 @@ export function Step4FinancialSplit({
         {[
           ["Total Service Fee", dual(split.totalServiceFee), "font-bold text-foreground"],
           [`SCCG Share`, fmt(split.sccgShare), "text-muted-foreground"],
-          [`Your Share (${partnerMargin}%)`, fmt(split.partnerShare), "text-green-600 dark:text-green-400 font-semibold"],
+          [`Your Share (${effectiveMargin}%)`, fmt(split.partnerShare), "text-green-600 dark:text-green-400 font-semibold"],
           ["Required Deposit (Cumulative)", dual(split.depositAmount), "text-blue-600 dark:text-blue-400"],
         ].map(([label, value, cls]) => (
           <div key={label as string} className="flex items-center justify-between">

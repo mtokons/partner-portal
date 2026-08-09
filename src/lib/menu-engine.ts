@@ -8,7 +8,7 @@
 
 import type { UserRole } from "@/types";
 
-export type ConsoleType = "partner" | "admin" | "student" | "customer" | "expert" | "school-admin" | "project-partner" | "job-seeker" | "job-partner" | "ausbildung-seeker" | "ausbildung-partner";
+export type ConsoleType = "partner" | "admin" | "student" | "customer" | "expert" | "school-admin" | "project-partner" | "job-seeker" | "job-partner" | "ausbildung-seeker" | "ausbildung-partner" | "sccg";
 
 export interface MenuItem {
   key: string;           // Unique key: "partner.dashboard"
@@ -22,6 +22,7 @@ export interface MenuItem {
   isEnabled: boolean;    // Toggle on/off
   isDefault: boolean;    // Part of default role menu
   isLocked: boolean;     // Cannot be disabled by admin
+  adminOnly?: boolean;   // Only visible to console admins (e.g. SCCG Admin, not SCCG Staff)
 }
 
 export interface MenuConfigRecord {
@@ -60,6 +61,7 @@ export const CONSOLE_META: Record<ConsoleType, { label: string; subtitle: string
   "job-partner": { label: "Job Partner Portal",    subtitle: "Recruitment Dashboard" },
   "ausbildung-seeker": { label: "Ausbildung Seeker",  subtitle: "Vocational Console" },
   "ausbildung-partner": { label: "Ausbildung Partner", subtitle: "Training Academy" },
+  sccg:         { label: "SCCG Career Lab",       subtitle: "Operations Console" },
 };
 
 // ============================================================
@@ -292,10 +294,89 @@ const AUSBILDUNG_PARTNER_MENU: MenuItem[] = [
   { key: "auspartner.applicants",  label: "Applicants",         href: "/ausbildung/partner/applicants", icon: "Users",          group: "main", groupLabel: "Main Console", groupOrder: 1, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
 ];
 
+// ============================================================
+// SCCG Career Lab console (SCCG Admin + SCCG Staff)
+// Reuses existing /admin/* pages. Items flagged `adminOnly` are
+// hidden from SCCG Staff (Partner Management, Finance, Administration).
+// Order matches the requirement doc's operational preference exactly.
+// ============================================================
+const SCCG_MENU: MenuItem[] = [
+  // Main Console
+  { key: "sccg.dashboard",   label: "Dashboard",  href: "/sccg/dashboard", icon: "LayoutDashboard", group: "main", groupLabel: "Main Console", groupOrder: 1, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: true },
+  { key: "sccg.tasks",       label: "Task Board", href: "/sccg/tasks",     icon: "ClipboardList",   group: "main", groupLabel: "Main Console", groupOrder: 1, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
+
+  // 1. Candidate Gallery
+  { key: "sccg.candidates",           label: "Candidate Gallery",       href: "/sccg/candidates",     icon: "Users",    group: "candidates", groupLabel: "Candidate Gallery", groupOrder: 2, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.candidates.new",       label: "Register a Candidate",    href: "/sccg/candidates/new", icon: "UserPlus", group: "candidates", groupLabel: "Candidate Gallery", groupOrder: 2, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.offers",               label: "Create Offer",            href: "/sccg/offers",          icon: "Handshake",group: "candidates", groupLabel: "Candidate Gallery", groupOrder: 2, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.candidates.successful",label: "Successful Candidates",   href: "/sccg/candidates/successful", icon: "Trophy", group: "candidates", groupLabel: "Candidate Gallery", groupOrder: 2, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false },
+
+  // 2. Operation
+  { key: "sccg.cv-maker",       label: "Create CV",             href: "/admin/cv-maker",       icon: "FileEdit",     group: "operation", groupLabel: "Operation", groupOrder: 3, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.cover-letters",  label: "Cover Letters",         href: "/admin/cover-letters",  icon: "FileText",     group: "operation", groupLabel: "Operation", groupOrder: 3, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.cv-tailor",      label: "CV Tailor (AI)",        href: "/admin/cv-tailor",      icon: "FilePen",      group: "operation", groupLabel: "Operation", groupOrder: 3, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.timeline",       label: "Client Service Timeline",href: "/sccg/timeline",       icon: "GanttChartSquare", group: "operation", groupLabel: "Operation", groupOrder: 3, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.assign-expert",  label: "Assign Expert",         href: "/sccg/assign-expert",   icon: "UserCheck",    group: "operation", groupLabel: "Operation", groupOrder: 3, itemOrder: 5, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.sessions",       label: "Expert Session Overview",href: "/sccg/sessions",       icon: "CalendarClock",group: "operation", groupLabel: "Operation", groupOrder: 3, itemOrder: 6, isEnabled: true, isDefault: true, isLocked: false },
+
+  // 3. Candidate Bank
+  { key: "sccg.cv-bank",   label: "CV Master Bank",        href: "/admin/cv-bank",  icon: "Database",    group: "bank", groupLabel: "Candidate Bank", groupOrder: 4, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.cv-suite",  label: "CV Suite Variations",   href: "/admin/cv-suite", icon: "Layers",      group: "bank", groupLabel: "Candidate Bank", groupOrder: 4, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.gdpr",      label: "GDPR Compliance",       href: "/admin/gdpr",     icon: "ShieldAlert", group: "bank", groupLabel: "Candidate Bank", groupOrder: 4, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.sharing",   label: "Share with Partner",    href: "/sccg/share",     icon: "Share2",      group: "bank", groupLabel: "Candidate Bank", groupOrder: 4, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false },
+
+  // 4. Partner Management (Admin only)
+  { key: "sccg.partners",    label: "Manage Partner",     href: "/admin/partners",  icon: "Shield",         group: "partners", groupLabel: "Partner Management", groupOrder: 5, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false, adminOnly: true },
+  { key: "sccg.partner-performance", label: "Partner Performance", href: "/sccg/partner-performance", icon: "ChartNoAxesCombined", group: "partners", groupLabel: "Partner Management", groupOrder: 5, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false, adminOnly: true },
+  { key: "sccg.approvals",   label: "Approval",           href: "/admin/approvals", icon: "ClipboardCheck", group: "partners", groupLabel: "Partner Management", groupOrder: 5, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false, adminOnly: true },
+  { key: "sccg.projects",    label: "Project Partner",    href: "/admin/projects",  icon: "FolderKanban",   group: "partners", groupLabel: "Partner Management", groupOrder: 5, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false, adminOnly: true },
+
+  // 5. Sales & Marketing
+  { key: "sccg.products",    label: "Manage Product",         href: "/admin/products",   icon: "Package",       group: "sales", groupLabel: "Sales & Marketing", groupOrder: 6, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.bookings",    label: "Booking & Lead",         href: "/sales/bookings",   icon: "CalendarCheck", group: "sales", groupLabel: "Sales & Marketing", groupOrder: 6, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.promotions",  label: "Current Campaign",       href: "/admin/promotions", icon: "Megaphone",     group: "sales", groupLabel: "Sales & Marketing", groupOrder: 6, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.promo-codes", label: "Promo Codes",            href: "/admin/promo-codes",icon: "Tag",           group: "sales", groupLabel: "Sales & Marketing", groupOrder: 6, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.marketing-materials", label: "Marketing Materials", href: "/sccg/marketing-materials", icon: "FolderOpen", group: "sales", groupLabel: "Sales & Marketing", groupOrder: 6, itemOrder: 5, isEnabled: true, isDefault: true, isLocked: false, adminOnly: true },
+
+  // 6. Finance
+  { key: "sccg.financials", label: "Finance Overview", href: "/sccg/finance", icon: "DollarSign", group: "finance", groupLabel: "Finance", groupOrder: 7, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.invoices",   label: "Invoices",         href: "/sccg/finance/invoices",   icon: "FileText",   group: "finance", groupLabel: "Finance", groupOrder: 7, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.payments",   label: "Payments",         href: "/sccg/finance/payments",   icon: "CreditCard", group: "finance", groupLabel: "Finance", groupOrder: 7, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.payouts",    label: "Payout",           href: "/sccg/finance/payouts",    icon: "Wallet",     group: "finance", groupLabel: "Finance", groupOrder: 7, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.expert-payments", label: "Expert Payment", href: "/sccg/expert-payments", icon: "HandCoins", group: "finance", groupLabel: "Finance", groupOrder: 7, itemOrder: 5, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.refunds",    label: "Refund",           href: "/sccg/refunds",     icon: "Undo2",      group: "finance", groupLabel: "Finance", groupOrder: 7, itemOrder: 6, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.expenses",   label: "Expenses",         href: "/sccg/finance/expenses", icon: "ReceiptText", group: "finance", groupLabel: "Finance", groupOrder: 7, itemOrder: 7, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.reports",    label: "Reports",          href: "/sccg/finance/reports",    icon: "BarChart3",  group: "finance", groupLabel: "Finance", groupOrder: 7, itemOrder: 8, isEnabled: true, isDefault: true, isLocked: false },
+
+  // 7. Human Resource
+  { key: "sccg.hr", label: "HR Dashboard", href: "/sccg/hr", icon: "Building2", group: "hr", groupLabel: "Human Resource", groupOrder: 8, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.hr.employees", label: "Employees", href: "/sccg/hr/employees", icon: "Users", group: "hr", groupLabel: "Human Resource", groupOrder: 8, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
+
+  // 8. Language School
+  { key: "sccg.school", label: "Language School", href: "/sccg/school", icon: "GraduationCap", group: "school", groupLabel: "Language School", groupOrder: 9, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.school.courses", label: "Courses", href: "/sccg/school/courses", icon: "BookOpen", group: "school", groupLabel: "Language School", groupOrder: 9, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.school.batches", label: "Batches", href: "/sccg/school/batches", icon: "Layers", group: "school", groupLabel: "Language School", groupOrder: 9, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.school.enrollments", label: "Enrollments", href: "/sccg/school/enrollments", icon: "ClipboardList", group: "school", groupLabel: "Language School", groupOrder: 9, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.school.teachers", label: "Teachers", href: "/sccg/school/teachers", icon: "UserCheck", group: "school", groupLabel: "Language School", groupOrder: 9, itemOrder: 5, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.school.certificates", label: "Certificates", href: "/sccg/school/certificates", icon: "Award", group: "school", groupLabel: "Language School", groupOrder: 9, itemOrder: 6, isEnabled: true, isDefault: true, isLocked: false },
+
+  // 9. Wallet & Rewards
+  { key: "sccg.wallets",    label: "Manage Wallets", href: "/admin/wallets",    icon: "Wallet",     group: "wallet", groupLabel: "Wallet & Rewards", groupOrder: 10, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.gift-cards", label: "Gift Cards",     href: "/admin/gift-cards", icon: "Gift",       group: "wallet", groupLabel: "Wallet & Rewards", groupOrder: 10, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.sccg-cards", label: "SCCG Cards",     href: "/admin/sccg-cards", icon: "CreditCard", group: "wallet", groupLabel: "Wallet & Rewards", groupOrder: 10, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
+
+  // 10. Administration (Admin only)
+  { key: "sccg.users",        label: "User Management",     href: "/admin/users",        icon: "Users",     group: "admin", groupLabel: "Administration", groupOrder: 11, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false, adminOnly: true },
+  { key: "sccg.menu-config",  label: "Role & Access",       href: "/sccg/access-control", icon: "Settings",  group: "admin", groupLabel: "Administration", groupOrder: 11, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false, adminOnly: true },
+  { key: "sccg.activity-log", label: "User Activity Log",   href: "/admin/activity-log", icon: "ScrollText",group: "admin", groupLabel: "Administration", groupOrder: 11, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false, adminOnly: true },
+  { key: "sccg.data-sources", label: "System Settings",     href: "/admin/data-sources", icon: "Database",  group: "admin", groupLabel: "Administration", groupOrder: 11, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false, adminOnly: true },
+];
+
 /** Registry of all default menus by console */
 export const DEFAULT_MENUS: Record<ConsoleType, MenuItem[]> = {
   partner:        PARTNER_MENU,
   admin:          ADMIN_MENU,
+  sccg:           SCCG_MENU,
   customer:       CUSTOMER_MENU,
   expert:         EXPERT_MENU,
   student:        STUDENT_MENU,
@@ -319,6 +400,7 @@ export function getAllAvailableMenuItems(): MenuItem[] {
 /** Given a user's roles array, determine their primary console */
 export function resolveConsole(roles: string[]): ConsoleType {
   const lower = roles.map((r) => r.toLowerCase());
+  if (lower.includes("sccg-admin") || lower.includes("sccg-staff")) return "sccg";
   if (lower.includes("admin") || lower.includes("project-admin")) return "admin";
   if (lower.includes("school-manager")) return "school-admin";
   if (lower.includes("project-partner") || lower.includes("project-partner-admin")) return "project-partner";
@@ -336,6 +418,55 @@ export function resolveConsole(roles: string[]): ConsoleType {
 // ============================================================
 // Menu Resolution (with DB override support)
 // ============================================================
+
+/**
+ * Menu keys whose target routes are not implemented yet (would 404).
+ * These are hidden from every sidebar so users only ever see working links.
+ * When the corresponding page is built under src/app, remove its key here.
+ */
+export const UNAVAILABLE_MENU_KEYS = new Set<string>([
+  // Admin → Project Partner AI (PPMS) — no /admin/ppms/* pages exist
+  "admin.ppms.projects",
+  "admin.ppms.evaluation-matrix",
+  "admin.ppms.tor",
+  "admin.ppms.intake",
+  "admin.ppms.review",
+  "admin.ppms.reports",
+  "admin.ppms.evalsetup",
+  "admin.ppms.activity",
+  "admin.ppms.org",
+  // Admin — misc routes without a page
+  "admin.register",         // /admin/candidates/new
+  "admin.sessions",         // /admin/sessions
+  "admin.expert-payments",  // /admin/expert-payments
+  "admin.commissions",      // /admin/commissions
+  "admin.hr.employees",     // /admin/hr/employees
+  // Admin → Language School sub-pages (only /admin/school dashboard exists)
+  "admin.school.courses",
+  "admin.school.batches",
+  "admin.school.enrollments",
+  "admin.school.teachers",
+  "admin.school.certs",
+  "admin.school.students",
+  "admin.school.model-tests",
+  "admin.school.model-test-builder",
+  // Student console sub-pages without a page
+  "student.courses",
+  "student.progress",
+  "student.documents",
+  // School-admin console — same missing /admin/school/* targets
+  "school.courses",
+  "school.batches",
+  "school.enrollments",
+  "school.teachers",
+  "school.certificates",
+  "school.reports",
+  "school.students",
+  "school.model-tests",
+  "school.model-test-builder",
+  // SCCG console — routes phased in later (Phase 1/2)
+  "sccg.offers",                  // /sccg/offers
+]);
 
 /**
  * Resolve the final menu for a given console and optional user overrides.
@@ -357,6 +488,7 @@ export function resolveMenu(
   
   // Build a map for fast lookup
   const menuMap = new Map<string, MenuItem>();
+  const catalog = new Map(getAllAvailableMenuItems().map((item) => [item.key, item]));
   for (const item of defaults) {
     menuMap.set(item.key, { ...item });
   }
@@ -364,6 +496,8 @@ export function resolveMenu(
   // Apply role-level overrides
   if (roleOverrides) {
     for (const override of roleOverrides) {
+      const catalogItem = catalog.get(override.menuKey);
+      if (!catalogItem) continue;
       if (menuMap.has(override.menuKey)) {
         // Update existing item
         const item = menuMap.get(override.menuKey)!;
@@ -374,19 +508,12 @@ export function resolveMenu(
         item.itemOrder = override.itemOrder ?? item.itemOrder;
         item.groupOrder = override.groupOrder ?? item.groupOrder;
       } else {
-        // Add new item from override
         menuMap.set(override.menuKey, {
-          key: override.menuKey,
-          label: override.label,
-          href: override.href,
-          icon: override.icon,
-          group: override.groupName,
-          groupLabel: override.groupName,
-          groupOrder: override.groupOrder,
-          itemOrder: override.itemOrder,
+          ...catalogItem,
+          label: override.label || catalogItem.label,
+          groupOrder: override.groupOrder ?? catalogItem.groupOrder,
+          itemOrder: override.itemOrder ?? catalogItem.itemOrder,
           isEnabled: override.isEnabled,
-          isDefault: false,
-          isLocked: override.isLocked,
         });
       }
     }
@@ -395,6 +522,8 @@ export function resolveMenu(
   // Apply user-level overrides (highest priority)
   if (userOverrides) {
     for (const override of userOverrides) {
+      const catalogItem = catalog.get(override.menuKey);
+      if (!catalogItem) continue;
       if (menuMap.has(override.menuKey)) {
         const item = menuMap.get(override.menuKey)!;
         if (!item.isLocked) {
@@ -404,25 +533,20 @@ export function resolveMenu(
         item.itemOrder = override.itemOrder ?? item.itemOrder;
       } else {
         menuMap.set(override.menuKey, {
-          key: override.menuKey,
-          label: override.label,
-          href: override.href,
-          icon: override.icon,
-          group: override.groupName,
-          groupLabel: override.groupName,
-          groupOrder: override.groupOrder,
-          itemOrder: override.itemOrder,
+          ...catalogItem,
+          label: override.label || catalogItem.label,
+          groupOrder: override.groupOrder ?? catalogItem.groupOrder,
+          itemOrder: override.itemOrder ?? catalogItem.itemOrder,
           isEnabled: override.isEnabled,
-          isDefault: false,
-          isLocked: override.isLocked,
         });
       }
     }
   }
 
-  // Filter to enabled only, then sort
+  // Filter to enabled only, then sort. Also drop items whose target route
+  // does not exist yet (would 404) so the sidebar only shows working links.
   return Array.from(menuMap.values())
-    .filter((item) => item.isEnabled)
+    .filter((item) => item.isEnabled && !UNAVAILABLE_MENU_KEYS.has(item.key))
     .sort((a, b) => {
       if (a.groupOrder !== b.groupOrder) return a.groupOrder - b.groupOrder;
       return a.itemOrder - b.itemOrder;

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import type { SessionUser } from "@/types";
 import ConsoleShell from "@/components/layout/ConsoleShell";
+import { getMenuOverridesForUser } from "@/lib/menu-overrides";
 import NotificationsLiveBridge from "@/components/providers/NotificationsLiveBridge";
 import ImpersonationBannerServer from "@/components/layout/ImpersonationBannerServer";
 
@@ -15,6 +16,8 @@ export default async function JobPartnerLayout({ children }: { children: React.R
   const isAllowed = userRoles.includes("job-partner") || userRoles.includes("admin");
   if (!isAllowed) redirect("/login");
 
+  const { roleOverrides, userOverrides } = await getMenuOverridesForUser(user.email, userRoles);
+
   return (
     <>
       <ImpersonationBannerServer />
@@ -23,6 +26,8 @@ export default async function JobPartnerLayout({ children }: { children: React.R
         roles={userRoles}
         userName={user.name || "Job Partner"}
         company={user.company}
+        roleMenuOverrides={roleOverrides}
+        userMenuOverrides={userOverrides}
       >
         <NotificationsLiveBridge />
         {children}

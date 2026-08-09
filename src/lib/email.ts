@@ -586,3 +586,95 @@ export function buildPartnerOfferEmail(data: {
 </div>`,
   };
 }
+
+export function injectTemplateVariables(template: string, data: Record<string, string>): string {
+  let result = template;
+  for (const [key, value] of Object.entries(data)) {
+    // Replace all occurrences of [Key] with the value
+    // E.g. [CandidateName] -> John Doe
+    const regex = new RegExp(`\\[${key}\\]`, "g");
+    result = result.replace(regex, value || "");
+  }
+  return result;
+}
+
+export async function buildSessionEmailTemplateAsync(data: {
+  recipientName: string;
+  role: "candidate" | "expert";
+  sessionNumber: number;
+  scheduledAt?: string;
+  sessionTitle: string;
+  sessionDetails: string;
+  meetingUrl?: string;
+  notes?: string;
+  expertName?: string;
+  candidateName?: string;
+  candidateType: string;
+}): Promise<{ subject: string; htmlBody: string }> {
+  const { Repository } = await import("@/lib/repository");
+  
+  // Construct the template key (e.g. session-student visa-1, session-expert-1)
+  // We'll create distinct templates for experts and candidates
+  const normalizedType = data.candidateType.toLowerCase().replace(/[^a-z0-9]/g, "-");
+  let templateKey = `session-${data.role}-${normalizedType}-${data.sessionNumber}`;
+  
+  let template = await Repository.emailTemplates.getByTemplateKey(templateKey);
+  
+  // Fallback to a generic session template if the specific one is missing
+  if (!template) {
+    template = await Repository.emailTemplates.getByTemplateKey(`session-${data.role}-default`);
+  }
+
+  const when = data.scheduledAt ? new Date(data.scheduledAt).toLocaleString("en-GB") : "TBD";
+  
+  const variables = {
+    RecipientName: data.recipientName,
+    CandidateName: data.candidateName || "",
+    ExpertName: data.expertName || "",
+    SessionNumber: String(data.sessionNumber),
+    ScheduledAt: when,
+    SessionTitle: data.sessionTitle,
+    SessionDetails: data.sessionDetails,
+    MeetingUrl: data.meetingUrl || "TBD",
+    AdditionalNotes: data.notes || "None",
+  };
+
+  if (template) {
+    return {
+      subject: injectTemplateVariables(template.subjectTemplate, variables),
+      htmlBody: injectTemplateVariables(template.htmlBodyTemplate, variables)
+    };
+  }
+
+  // HARDCODED FALLBACK IF NO SHAREPOINT TEMPLATE IS FOUND AT ALL
+  const subjectRole = data.role === "expert" ? `New Session Assigned: Session #${data.sessionNumber} with ${data.candidateName}` : `Your Session #${data.sessionNumber} has been scheduled`;
+  const intro = data.role === "expert" 
+    ? `<p>You have been assigned to conduct session #${data.sessionNumber} for <strong>${data.candidateName}</strong>.</p>`
+    : `<p>Your session #${data.sessionNumber} has been assigned to expert <strong>${data.expertName}</strong>.</p>`;
+
+  const notesHtml = data.notes ? `<div style="background:#f8fafc;border-left:3px solid #cbd5e1;padding:12px 16px;border-radius:6px;margin:16px 0;"><p style="margin:0;font-size:13px;color:#475569;"><strong>Additional Notes:</strong> ${data.notes}</p></div>` : "";
+  const detailsHtml = `
+    <div style="background:#f1f5f9; padding: 16px; border-radius: 8px; margin: 16px 0;">
+      <h3 style="margin-top:0; color: #334155;">Agenda: ${data.sessionTitle}</h3>
+      <div style="color: #475569; font-size: 14px;">${data.sessionDetails}</div>
+    </div>
+  `;
+  const meetingHtml = data.meetingUrl ? `<p><strong>Meeting Link:</strong> <a href="${data.meetingUrl}">${data.meetingUrl}</a></p>` : "";
+
+  return {
+    subject: subjectRole,
+    htmlBody: `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#ffffff;padding:20px;border:1px solid #e2e8f0;border-radius:8px;">
+      <h2 style="color: #0f172a;">Session #${data.sessionNumber} Scheduled</h2>
+      <p>Dear <strong>${data.recipientName}</strong>,</p>
+      ${intro}
+      <p><strong>Scheduled Date & Time:</strong> ${when}</p>
+      ${meetingHtml}
+      ${detailsHtml}
+      ${notesHtml}
+      ${data.role === "expert" ? `<p><em>Please find the candidate's CV/documents attached to this email.</em></p>` : ""}
+      <p style="color: #64748b; font-size: 13px; margin-top: 24px;">— SCCG Portal Team</p>
+    </div>
+    `
+  };
+}

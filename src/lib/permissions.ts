@@ -19,63 +19,68 @@ const PERMISSION_MAP = {
   "user.delete": ["admin"],
 
   // Quotation / Offer
-  "quotation.create": ["admin", "partner-individual", "partner-institutional"],
-  "quotation.view.own": ["admin", "finance", "partner-individual", "partner-institutional", "customer"],
-  "quotation.view.all": ["admin", "finance"],
-  "quotation.send": ["admin", "partner-individual", "partner-institutional"],
+  "quotation.create": ["admin", "sccg-staff", "partner-individual", "partner-institutional"],
+  "quotation.view.own": ["admin", "sccg-staff", "finance", "partner-individual", "partner-institutional", "customer"],
+  "quotation.view.all": ["admin", "finance", "sccg-staff"],
+  "quotation.send": ["admin", "sccg-staff", "partner-individual", "partner-institutional"],
 
   // Sales Orders
-  "order.view.own": ["admin", "finance", "partner-individual", "partner-institutional", "customer"],
-  "order.view.all": ["admin", "finance"],
+  "order.view.own": ["admin", "sccg-staff", "finance", "partner-individual", "partner-institutional", "customer"],
+  "order.view.all": ["admin", "finance", "sccg-staff"],
   "order.update.status": ["admin"],
 
   // Payments
   "payment.make": ["customer"],
   "payment.upload.slip": ["customer"],
-  "payment.verify": ["admin", "finance"],
-  "payment.view": ["admin", "finance"],
-  "payment.record": ["admin", "finance"],
-  "payment.refund": ["admin", "finance"],
-  "payout.approve": ["admin", "finance"],
+  "payment.verify": ["admin", "finance", "sccg-staff"],
+  "payment.view": ["admin", "finance", "sccg-staff"],
+  "payment.record": ["admin", "finance", "sccg-staff"],
+  "payment.refund": ["admin", "finance", "sccg-staff"],
+  "payout.approve": ["admin", "finance", "sccg-staff"],
+  "expert-payment.manage": ["admin", "sccg-staff"],
+  "partner.performance.view": ["admin", "sccg-staff"],
 
   // Invoices
-  "invoice.view.own": ["admin", "finance", "partner-individual", "partner-institutional", "expert", "customer"],
-  "invoice.view.all": ["admin", "finance"],
-  "invoice.view": ["admin", "finance"],
-  "invoice.generate": ["admin", "finance"],
-  "invoice.create": ["admin", "finance"],
-  "invoice.manage": ["admin", "finance"],
+  "invoice.view.own": ["admin", "finance", "sccg-staff", "partner-individual", "partner-institutional", "expert", "customer"],
+  "invoice.view.all": ["admin", "finance", "sccg-staff"],
+  "invoice.view": ["admin", "finance", "sccg-staff"],
+  "invoice.generate": ["admin", "finance", "sccg-staff"],
+  "invoice.create": ["admin", "finance", "sccg-staff"],
+  "invoice.manage": ["admin", "finance", "sccg-staff"],
 
   // Installments
-  "installment.view": ["admin", "finance", "partner-individual", "partner-institutional"],
-  "installment.manage": ["admin", "finance"],
+  "installment.view": ["admin", "finance", "sccg-staff", "partner-individual", "partner-institutional"],
+  "installment.manage": ["admin", "finance", "sccg-staff"],
 
   // SCCG Card
-  "card.view.own": ["admin", "finance", "partner-individual", "partner-institutional", "expert", "teacher", "school-manager", "customer"],
-  "card.issue": ["admin", "finance"],
-  "card.freeze": ["admin", "finance"],
-  "sccg-card.view": ["admin", "finance"],
-  "sccg-card.create": ["admin", "finance"],
-  "sccg-card.manage": ["admin", "finance"],
+  "card.view.own": ["admin", "finance", "sccg-staff", "partner-individual", "partner-institutional", "expert", "teacher", "school-manager", "customer"],
+  "card.issue": ["admin", "finance", "sccg-staff"],
+  "card.freeze": ["admin", "finance", "sccg-staff"],
+  "sccg-card.view": ["admin", "finance", "sccg-staff"],
+  "sccg-card.create": ["admin", "finance", "sccg-staff"],
+  "sccg-card.manage": ["admin", "finance", "sccg-staff"],
 
   // Sessions
   "session.deliver": ["expert", "teacher"],
-  "session.view.own": ["expert", "teacher", "school-manager", "customer"],
+  "session.view.own": ["admin", "sccg-staff", "expert", "teacher", "school-manager", "customer"],
+  "session.view.all": ["admin", "sccg-staff"],
+  "session.manage": ["admin", "sccg-staff"],
+  "expert.assign": ["admin", "sccg-staff"],
 
   // Commission
   "commission.view.own": ["partner-individual", "partner-institutional", "expert"],
-  "commission.view.all": ["admin", "finance"],
-  "commission.configure": ["admin"],
+  "commission.view.all": ["admin", "finance", "sccg-staff"],
+  "commission.configure": ["admin", "sccg-staff"],
 
   // Reports
-  "report.financial": ["admin", "finance"],
-  "report.partner": ["admin", "finance"],
+  "report.financial": ["admin", "finance", "sccg-staff"],
+  "report.partner": ["admin", "finance", "sccg-staff"],
   "report.school": ["admin", "school-manager", "hr"],
 
   // HR
-  "hr.employee.view": ["admin", "hr"],
-  "hr.employee.create": ["admin", "hr"],
-  "hr.employee.edit": ["admin", "hr"],
+  "hr.employee.view": ["admin", "sccg-staff", "hr"],
+  "hr.employee.create": ["admin", "sccg-staff", "hr"],
+  "hr.employee.edit": ["admin", "sccg-staff", "hr"],
   "hr.employee.status.change": ["admin", "hr"],
   "hr.employee.salary.view": ["admin", "hr"],
   "hr.employee.salary.edit": ["admin", "hr"],
@@ -91,27 +96,28 @@ const PERMISSION_MAP = {
   "school.enrollment.create": ["admin", "school-manager"],
   "school.enrollment.manage": ["admin", "school-manager"],
   "school.attendance.record": ["teacher"],
-  "school.content.upload": ["teacher", "admin", "school-manager"],
+  "school.content.upload": ["teacher", "admin", "sccg-staff", "school-manager"],
   "school.results.enter": ["teacher"],
   "school.results.publish": ["teacher", "admin", "school-manager"],
   "school.certificate.issue": ["admin", "school-manager"],
   "school.certificate.revoke": ["admin", "school-manager"],
-  "school.report": ["admin", "school-manager", "finance"],
+  "school.report": ["admin", "sccg-staff", "school-manager", "finance"],
   "school.teacher.manage": ["admin", "school-manager"],
 
   // Candidate management (SCCG Partner Portal)
-  "candidate.create": ["partner-individual", "partner-institutional", "admin"],
+  "candidate.create": ["partner-individual", "partner-institutional", "admin", "sccg-staff"],
   "candidate.view.own": ["partner-individual", "partner-institutional"],
-  "candidate.view.all": ["admin", "finance"],
-  "candidate.status.advance": ["admin"],
+  "candidate.view.all": ["admin", "sccg-staff", "finance"],
+  "candidate.status.advance": ["admin", "sccg-staff"],
   "candidate.status.advance.own": ["partner-individual", "partner-institutional"],
-  "candidate.document.upload": ["partner-individual", "partner-institutional", "admin"],
+  "candidate.document.upload": ["partner-individual", "partner-institutional", "admin", "sccg-staff"],
+  "candidate.share": ["admin", "sccg-staff"],
 
   // Helpdesk ticketing
-  "helpdesk.ticket.create": ["partner-individual", "partner-institutional", "admin"],
+  "helpdesk.ticket.create": ["partner-individual", "partner-institutional", "admin", "sccg-staff"],
   "helpdesk.ticket.view.own": ["partner-individual", "partner-institutional"],
-  "helpdesk.ticket.view.all": ["admin"],
-  "helpdesk.ticket.respond": ["admin"],
+  "helpdesk.ticket.view.all": ["admin", "sccg-staff"],
+  "helpdesk.ticket.respond": ["admin", "sccg-staff"],
 } as const;
 
 export type Permission = keyof typeof PERMISSION_MAP;
@@ -128,9 +134,13 @@ export async function requirePermission(permission: Permission): Promise<Session
 
   const user = session.user as SessionUser;
   const userRoles = user.roles || [user.role];
+  // SCCG Admin has full internal admin parity for server-action permissions.
+  const effectiveRoles = userRoles.some((r) => r?.toLowerCase() === "sccg-admin")
+    ? [...userRoles, "admin"]
+    : userRoles;
   const allowedRoles = PERMISSION_MAP[permission] as readonly string[];
 
-  const hasPermission = userRoles.some((r: string) => allowedRoles.includes(r));
+  const hasPermission = effectiveRoles.some((r: string) => allowedRoles.includes(r));
 
   if (!hasPermission) {
     // Log denied access attempt

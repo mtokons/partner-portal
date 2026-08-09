@@ -87,6 +87,7 @@ interface WizardShellProps {
   existingCandidate?: ExistingCandidateData;
   /** Admin/SCCG direct-sale mode — adjusts navigation links */
   adminMode?: boolean;
+  routeBase?: string;
   /** Pre-fill personal info from booking */
   prefill?: { name: string; email: string; phone: string; notes: string };
   /** Partner's payment details (bKash, Nagad, bank) to show in payment step */
@@ -101,11 +102,12 @@ export function WizardShell({
   exchangeRate = 1,
   existingCandidate,
   adminMode = false,
+  routeBase,
   prefill,
   partnerPaymentInfo,
 }: WizardShellProps) {
-  const candidatesPath = adminMode ? "/admin/candidates" : "/partner/candidates";
-  const newCandidatePath = adminMode ? "/admin/candidates/new" : "/partner/candidates/new";
+  const candidatesPath = routeBase || (adminMode ? "/admin/candidates" : "/partner/candidates");
+  const newCandidatePath = `${candidatesPath}/new`;
   const router = useRouter();
 
   const initialState: WizardState = {

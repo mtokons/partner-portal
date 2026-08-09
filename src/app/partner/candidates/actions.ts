@@ -2,9 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/permissions";
+import { isAdminEquivalent } from "@/lib/admin-guard";
 import {
   getCandidates,
   getCandidateById,
+  getPartnerById,
   getPartnerByEmail,
   createCandidate,
   createCandidateService,
@@ -33,7 +35,7 @@ export async function deleteCandidateAction(
     if (!candidate) return { success: false, error: "Candidate not found" };
 
     const roles = (user.roles || [user.role]) as string[];
-    if (!roles.includes("admin")) {
+    if (!isAdminEquivalent(roles)) {
       const partner = await getPartnerByEmail(user.email!);
       if (!partner || candidate.partnerId !== partner.id) {
         return { success: false, error: "Unauthorized" };
@@ -43,6 +45,7 @@ export async function deleteCandidateAction(
     await deleteCandidate(candidateId);
 
     revalidatePath("/partner/candidates");
+    revalidatePath("/sccg/candidates");
     return { success: true };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : "Failed to delete candidate" };
@@ -245,7 +248,7 @@ export async function getCandidateOrdersAction(candidateId: string): Promise<{
 
   // Partner isolation
   const roles = (user.roles || [user.role]) as string[];
-  if (!roles.includes("admin") && candidate.partnerId !== partner.id) {
+  if (!isAdminEquivalent(roles) && candidate.partnerId !== partner.id) {
     return { services: [], candidate: null };
   }
 
@@ -280,14 +283,36 @@ export interface WizardCandidateInput {
 }
 
 export async function finalizeRegistrationAction(
-  state: WizardCandidateInput,
-  partnerId: string
+  state: WizardCandidateInput
 ): Promise<{ candidateId: string; submissionId: string } | { error: string }> {
   try {
     const user = await requirePermission("candidate.create");
+    const roles = (user.roles || [user.role]) as string[];
+    const isPrivileged = isAdminEquivalent(roles);
+    let partner = null;
+    let partnerId: string;
+
+    if (isPrivileged) {
+      partnerId = state.partnerId;
+      if (partnerId !== "SCCG-DIRECT") {
+        partner = await getPartnerById(partnerId);
+        if (!partner || partner.status !== "active") {
+          return { error: "Selected partner is not active or does not exist" };
+        }
+      }
+    } else {
+      partner = await getPartnerByEmail(user.email!);
+      if (!partner || partner.status !== "active") {
+        return { error: "Active partner account not found" };
+      }
+      partnerId = partner.id;
+    }
+
     const isDirectSale = partnerId === "SCCG-DIRECT";
-    const partner = isDirectSale ? null : await getPartnerByEmail(user.email!);
     const partnerCode = isDirectSale ? "SCCG" : (partner?.partnerCode || "PART");
+    const marginPercentage = isPrivileged
+      ? state.partnerMarginPercentage
+      : (partner?.marginPercentage || state.partnerMarginPercentage);
 
     const split = calculateFinancialSplit({
       services: state.selectedServices.map((s) => ({
@@ -297,7 +322,7 @@ export async function finalizeRegistrationAction(
         quantity: s.quantity,
         initialPaymentAmount: s.initialPaymentAmount,
       })),
-      partnerMarginPercentage: state.partnerMarginPercentage,
+      partnerMarginPercentage: marginPercentage,
     });
 
     const sccgId = await generatePartnerCandidateId(partnerCode, state.workflowCategory);
@@ -326,7 +351,7 @@ export async function finalizeRegistrationAction(
       sccgShare: split.sccgShare,
       partnerShare: split.partnerShare,
       depositAmount: split.depositAmount,
-      marginPercentage: state.partnerMarginPercentage,
+      marginPercentage,
       paymentStatus,
       paymentMethod: state.paymentMethod,
       paymentReference: state.paymentReference,
@@ -400,6 +425,7 @@ export async function finalizeRegistrationAction(
           toName: state.fullName,
           subject: emailData.subject,
           htmlBody: emailData.htmlBody,
+          cc: [{ email: "info@mysccg.de", name: "SCCG" }],
         });
       }
     } catch {
@@ -436,7 +462,7 @@ export async function advanceCandidateStatusAction(
 
     // Partner ownership check (admins bypass)
     const roles = (user.roles || [user.role]) as string[];
-    if (!roles.includes("admin")) {
+    if (!isAdminEquivalent(roles)) {
       const partner = await getPartnerByEmail(user.email!);
       if (!partner || candidate.partnerId !== partner.id) {
         return { error: "Unauthorized: candidate belongs to another partner" };
@@ -457,7 +483,7 @@ export async function advanceCandidateStatusAction(
 
     // Payment gate: cannot complete final steps without full payment
     const completionStatuses = ["COMPLETED", "TRAINING_FINISHED", "VISA_GRANTED", "CARD_ISSUED"];
-    if (completionStatuses.includes(nextStatus)) {
+    if (completionStatuses.includes(nextStatus) && !candidate.serviceUnlocked) {
       if (candidate.paymentStatus !== "fully-paid") {
         return {
           error: "Cannot complete this step: full payment is required. Current payment status: " +
@@ -497,10 +523,11 @@ export async function advanceCandidateStatusAction(
         toName: candidate.fullName,
         subject: `SCCG — Status Update: ${toLabel}`,
         htmlBody: statusEmailHtml,
+        cc: [{ email: "info@mysccg.de", name: "SCCG" }],
       }).catch(() => {/* best-effort */});
     }
 
-    // Email to partner
+    // Email to the acting user (partner/admin/staff)
     if (user.email) {
       sendEmailViaGraph({
         to: user.email,
@@ -508,6 +535,21 @@ export async function advanceCandidateStatusAction(
         subject: `SCCG — Candidate ${candidate.fullName} moved to: ${toLabel}`,
         htmlBody: statusEmailHtml,
       }).catch(() => {/* best-effort */});
+    }
+
+    // Always notify the candidate's owning partner (e.g. when admin/staff advances the status)
+    if (candidate.partnerId) {
+      try {
+        const owningPartner = await getPartnerById(candidate.partnerId);
+        if (owningPartner?.email && owningPartner.email !== user.email) {
+          sendEmailViaGraph({
+            to: owningPartner.email,
+            toName: owningPartner.name || owningPartner.email,
+            subject: `SCCG — Candidate ${candidate.fullName} moved to: ${toLabel}`,
+            htmlBody: statusEmailHtml,
+          }).catch(() => {/* best-effort */});
+        }
+      } catch {/* best-effort */}
     }
 
     revalidatePath(`/partner/candidates/${candidateId}`);
@@ -535,7 +577,7 @@ export async function advanceServiceStatusAction(
 
     // Partner ownership check (admins bypass)
     const roles = (user.roles || [user.role]) as string[];
-    if (!roles.includes("admin")) {
+    if (!isAdminEquivalent(roles)) {
       const partner = await getPartnerByEmail(user.email!);
       if (!partner || candidate.partnerId !== partner.id) {
         return { error: "Unauthorized: candidate belongs to another partner" };
@@ -589,7 +631,20 @@ export async function rerunFinancialSplitAction(
   partnerMarginPercentage: PartnerMargin
 ): Promise<{ error: string } | undefined> {
   try {
-    await requirePermission("candidate.create");
+    const user = await requirePermission("candidate.create");
+    const candidate = await getCandidateById(candidateId);
+    if (!candidate) return { error: "Candidate not found" };
+
+    const roles = (user.roles || [user.role]) as string[];
+    let effectiveMargin = partnerMarginPercentage;
+    if (!isAdminEquivalent(roles)) {
+      const partner = await getPartnerByEmail(user.email!);
+      if (!partner || partner.status !== "active" || candidate.partnerId !== partner.id) {
+        return { error: "Unauthorized: candidate belongs to another partner" };
+      }
+      effectiveMargin = partner.marginPercentage || partnerMarginPercentage;
+    }
+
     const { deleteCandidateServices } = await import("@/lib/sharepoint");
 
     const split = calculateFinancialSplit({
@@ -599,7 +654,7 @@ export async function rerunFinancialSplitAction(
         basePrice: s.basePrice,
         quantity: s.quantity,
       })),
-      partnerMarginPercentage,
+      partnerMarginPercentage: effectiveMargin,
     });
 
     await deleteCandidateServices(candidateId);
@@ -621,10 +676,11 @@ export async function rerunFinancialSplitAction(
       sccgShare: split.sccgShare,
       partnerShare: split.partnerShare,
       depositAmount: split.depositAmount,
-      marginPercentage: partnerMarginPercentage,
+      marginPercentage: effectiveMargin,
     });
 
     revalidatePath(`/partner/candidates/${candidateId}`);
+    revalidatePath(`/sccg/candidates/${candidateId}`);
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Recalculation failed" };
   }
@@ -742,40 +798,46 @@ export async function getCandidateDocumentsAction(
 ): Promise<{ success: boolean; data?: any[]; error?: string }> {
   try {
     await requirePermission("candidate.view.own");
-    const { getGraphClient, resolveSiteId } = await import("@/lib/graph");
-    const client = await getGraphClient();
-    const siteId = await resolveSiteId();
-
-    const sanitizedName = candidateName ? candidateName.replace(/[^a-zA-Z0-9_-]/g, " ").trim() : "Unknown_Candidate";
-    const folderName = `${sanitizedName} - ${candidateId}`;
-    const folderPath = `CandidateDocs/${folderName}`;
-
-    const url = `/sites/${siteId}/drive/root:/${folderPath}:/children`;
-    
-    let res;
-    try {
-      res = await client.api(url).get();
-    } catch (err: any) {
-      // Folder might not exist yet, which is fine
-      if (err.statusCode === 404) {
-        return { success: true, data: [] };
-      }
-      throw err;
-    }
-
-    const items = (res.value || []).map((item: any) => ({
-      id: item.id,
-      name: item.name,
-      size: item.size,
-      webUrl: item.webUrl,
-      downloadUrl: item["@microsoft.graph.downloadUrl"] || item.webUrl,
-      createdAt: item.createdDateTime,
-    }));
-
+    const { listCandidateDocuments } = await import("@/lib/candidate-documents");
+    const items = await listCandidateDocuments(candidateId, candidateName);
     return { success: true, data: items };
   } catch (err: any) {
     console.error("getCandidateDocumentsAction error:", err);
     return { success: false, error: err.message || "Failed to load documents" };
+  }
+}
+
+export async function setCandidateSpecialApprovalAction(
+  candidateId: string,
+  unlocked: boolean
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const user = await requirePermission("candidate.create");
+    const roles = (user.roles || [user.role]) as string[];
+    if (!isAdminEquivalent(roles)) {
+      return { success: false, error: "Only admin/staff can grant Special Approval" };
+    }
+    const candidate = await getCandidateById(candidateId);
+    if (!candidate) return { success: false, error: "Candidate not found" };
+
+    await updateCandidate(candidateId, { serviceUnlocked: unlocked });
+
+    try {
+      const { writeAuditLog } = await import("@/lib/audit-log");
+      await writeAuditLog({
+        action: unlocked ? "candidate.special_approval.grant" : "candidate.special_approval.revoke",
+        actorId: user.id,
+        actorEmail: user.email || "",
+        targetId: candidateId,
+        targetType: "candidate",
+        after: { serviceUnlocked: unlocked, sccgId: candidate.sccgId },
+      });
+    } catch {/* audit is best-effort */}
+
+    revalidatePath(`/partner/candidates/${candidateId}`);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : "Failed to update approval" };
   }
 }
 
@@ -923,7 +985,7 @@ export async function addServiceOrderAction(
     if (!candidate) return { error: "Candidate not found" };
 
     const roles = (user.roles || [user.role]) as string[];
-    if (!roles.includes("admin") && candidate.partnerId !== partner.id) {
+    if (!isAdminEquivalent(roles) && candidate.partnerId !== partner.id) {
       return { error: "Unauthorized" };
     }
 
@@ -1072,6 +1134,7 @@ export async function recordPaymentAction(data: {
   serviceId?: string;
   amountEur: number;
   isInitialPayment: boolean;
+  paymentMethod?: string;
   paymentNote?: string;
 }): Promise<
   | { newPaidAmount: number; newPaymentStatus: CandidatePaymentStatus }
@@ -1083,7 +1146,7 @@ export async function recordPaymentAction(data: {
     if (!candidate) return { error: "Candidate not found" };
 
     const roles = (user.roles || [user.role]) as string[];
-    if (!roles.includes("admin")) {
+    if (!isAdminEquivalent(roles)) {
       const partner = await getPartnerByEmail(user.email!);
       if (!partner || candidate.partnerId !== partner.id) {
         return { error: "Unauthorized" };
@@ -1111,6 +1174,7 @@ export async function recordPaymentAction(data: {
     payments.push({
       amount: data.amountEur,
       date: new Date().toISOString(),
+      method: data.paymentMethod || "Bank Transfer",
       note: data.paymentNote || (data.isInitialPayment ? "Initial payment" : "Payment"),
       recordedBy: user.email || user.id,
       serviceId: data.serviceId,

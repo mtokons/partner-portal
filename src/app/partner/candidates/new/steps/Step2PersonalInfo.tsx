@@ -17,7 +17,7 @@ interface Step2PersonalInfoProps {
 }
 
 const REQUIRED: (keyof PersonalInfo)[] = [
-  "fullName", "dateOfBirth", "email", "phone", "nationality", "country",
+  "fullName", "email", "phone", "nationality", "country",
 ];
 
 export function Step2PersonalInfo({ initialData, products, isExistingCandidate, onNext, onBack }: Step2PersonalInfoProps) {

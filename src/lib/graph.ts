@@ -300,3 +300,30 @@ export async function deleteDriveItem(path: string): Promise<boolean> {
     throw err;
   }
 }
+
+/**
+ * Generate a Microsoft Teams online meeting.
+ * @param organizerEmail The user principal name (email) of the organizer.
+ * @param subject The title of the meeting.
+ * @param startDateTime The start time (ISO 8601).
+ * @returns The meeting details containing joinWebUrl.
+ */
+export async function createMsTeamsMeeting(organizerEmail: string, subject: string, startDateTime: string): Promise<{ joinWebUrl: string; id: string }> {
+  const client = await getGraphClient();
+  const endDateTime = new Date(new Date(startDateTime).getTime() + 60 * 60 * 1000).toISOString(); // 1 hour duration
+  
+  const meeting = {
+    startDateTime,
+    endDateTime,
+    subject
+  };
+
+  const res = await client
+    .api(`/users/${organizerEmail}/onlineMeetings`)
+    .post(meeting);
+
+  return {
+    joinWebUrl: res.joinWebUrl,
+    id: res.id
+  };
+}

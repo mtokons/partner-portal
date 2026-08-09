@@ -7,8 +7,10 @@ ENV NEXT_TELEMETRY_DISABLED 1
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Copy pre-built standalone artifacts from the local build
+# Copy standalone server runtime, static CSS/JS chunks, and public assets
 COPY --chown=nextjs:nodejs ./.next/standalone ./
+COPY --chown=nextjs:nodejs ./.next/static ./.next/static
+COPY --chown=nextjs:nodejs ./public ./public
 
 USER nextjs
 
@@ -16,4 +18,4 @@ EXPOSE 3000
 ENV PORT 3000
 ENV HOSTNAME "0.0.0.0"
 
-CMD ["node", "--max-old-space-size=256", "--expose-gc", "server.js"]
+CMD ["node", "--max-old-space-size=512", "--expose-gc", "server.js"]

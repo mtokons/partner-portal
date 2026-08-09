@@ -13,6 +13,7 @@ import type {
   KanbanTask,
   SchoolCertificate,
   Candidate, CandidateService, CandidateTask,
+  SuccessStory,
   HelpdeskTicket, HelpdeskMessage,
   B2BCompany,
   TierStatus, PartnerMargin,
@@ -463,7 +464,16 @@ const SESS_COL = { // Sessions
   meetingUrl: "MeetingUrl",
   expertNotes: "ExpertNotes",
   studentNotes: "StudentNotes",
+  candidateType: "CandidateType",
+  attachmentUrl: "AttachmentUrl",
+  sessionDetailsOverride: "SessionDetailsOverride",
   createdAt: "CreatedAt",
+};
+
+const TPL_COL = { // EmailTemplates
+  templateKey: "Title",
+  subjectTemplate: "SubjectTemplate",
+  htmlBodyTemplate: "HtmlBodyTemplate",
 };
 
 // ============================================================
@@ -1471,8 +1481,25 @@ export async function createCustomerPackage(pkg: Omit<CustomerPackage, "id">): P
   }, () => ({ ...pkg, id: "failed" } as any));
 }
 
-/** Assign expert to a customer package and all its unassigned sessions. */
-export async function assignExpertToPackage(packageId: string, expertId: string): Promise<void> {
+/** Assign expert to a customer package and cascade to any of its unassigned sessions. */
+export async function assignExpertToPackage(packageId: string, expertId: string, expertName: string): Promise<void> {
+  const { graphGet, graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
+  await graphPatch(`${await getSiteListUrlAsync("CustomerPackages")}/${packageId}/fields`, {
+    [CP_COL.expertId]: expertId,
+    [CP_COL.expertName]: expertName,
+  });
+
+  const url = `${await getSiteListUrlAsync("Sessions")}?$expand=fields&$filter=fields/${SESS_COL.packageId} eq '${packageId}'`;
+  const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, any> }> }>(url);
+  const unassigned = res.value.filter((item) => !item.fields[SESS_COL.expertId]);
+  await Promise.all(
+    unassigned.map(async (item) =>
+      graphPatch(`${await getSiteListUrlAsync("Sessions")}/${item.id}/fields`, {
+        [SESS_COL.expertId]: expertId,
+        [SESS_COL.expertName]: expertName,
+      })
+    )
+  );
 }
 
 // ============================================================
@@ -1499,8 +1526,12 @@ export async function getSessionsByPackage(packageId: string): Promise<Session[]
         scheduledAt: f[SESS_COL.scheduledAt] ? String(f[SESS_COL.scheduledAt]) : undefined,
         completedAt: f[SESS_COL.completedAt] ? String(f[SESS_COL.completedAt]) : undefined,
         durationMinutes: Number(f[SESS_COL.durationMinutes] || 0),
+        meetingUrl: f[SESS_COL.meetingUrl] ? String(f[SESS_COL.meetingUrl]) : undefined,
         notes: String(f[SESS_COL.studentNotes] || ""),
         expertNotes: String(f[SESS_COL.expertNotes] || ""),
+        candidateType: f[SESS_COL.candidateType] ? String(f[SESS_COL.candidateType]) : undefined,
+        attachmentUrl: f[SESS_COL.attachmentUrl] ? String(f[SESS_COL.attachmentUrl]) : undefined,
+        sessionDetailsOverride: f[SESS_COL.sessionDetailsOverride] ? String(f[SESS_COL.sessionDetailsOverride]) : undefined,
         createdAt: String(f[SESS_COL.createdAt] || ""),
       } as Session;
     });
@@ -1527,8 +1558,12 @@ export async function getSessionsByExpert(expertId: string): Promise<Session[]> 
         scheduledAt: f[SESS_COL.scheduledAt] ? String(f[SESS_COL.scheduledAt]) : undefined,
         completedAt: f[SESS_COL.completedAt] ? String(f[SESS_COL.completedAt]) : undefined,
         durationMinutes: Number(f[SESS_COL.durationMinutes] || 0),
+        meetingUrl: f[SESS_COL.meetingUrl] ? String(f[SESS_COL.meetingUrl]) : undefined,
         notes: String(f[SESS_COL.studentNotes] || ""),
         expertNotes: String(f[SESS_COL.expertNotes] || ""),
+        candidateType: f[SESS_COL.candidateType] ? String(f[SESS_COL.candidateType]) : undefined,
+        attachmentUrl: f[SESS_COL.attachmentUrl] ? String(f[SESS_COL.attachmentUrl]) : undefined,
+        sessionDetailsOverride: f[SESS_COL.sessionDetailsOverride] ? String(f[SESS_COL.sessionDetailsOverride]) : undefined,
         createdAt: String(f[SESS_COL.createdAt] || ""),
       } as Session;
     });
@@ -1556,8 +1591,12 @@ export async function getSessionsByCustomer(customerId: string): Promise<Session
         scheduledAt: f[SESS_COL.scheduledAt] ? String(f[SESS_COL.scheduledAt]) : undefined,
         completedAt: f[SESS_COL.completedAt] ? String(f[SESS_COL.completedAt]) : undefined,
         durationMinutes: Number(f[SESS_COL.durationMinutes] || 0),
+        meetingUrl: f[SESS_COL.meetingUrl] ? String(f[SESS_COL.meetingUrl]) : undefined,
         notes: String(f[SESS_COL.studentNotes] || ""),
         expertNotes: String(f[SESS_COL.expertNotes] || ""),
+        candidateType: f[SESS_COL.candidateType] ? String(f[SESS_COL.candidateType]) : undefined,
+        attachmentUrl: f[SESS_COL.attachmentUrl] ? String(f[SESS_COL.attachmentUrl]) : undefined,
+        sessionDetailsOverride: f[SESS_COL.sessionDetailsOverride] ? String(f[SESS_COL.sessionDetailsOverride]) : undefined,
         createdAt: String(f[SESS_COL.createdAt] || ""),
       } as Session;
     });
@@ -1583,8 +1622,12 @@ export async function getSessionById(id: string): Promise<Session | null> {
       scheduledAt: f[SESS_COL.scheduledAt] ? String(f[SESS_COL.scheduledAt]) : undefined,
       completedAt: f[SESS_COL.completedAt] ? String(f[SESS_COL.completedAt]) : undefined,
       durationMinutes: Number(f[SESS_COL.durationMinutes] || 0),
+      meetingUrl: f[SESS_COL.meetingUrl] ? String(f[SESS_COL.meetingUrl]) : undefined,
       notes: String(f[SESS_COL.studentNotes] || ""),
       expertNotes: String(f[SESS_COL.expertNotes] || ""),
+      candidateType: f[SESS_COL.candidateType] ? String(f[SESS_COL.candidateType]) : undefined,
+      attachmentUrl: f[SESS_COL.attachmentUrl] ? String(f[SESS_COL.attachmentUrl]) : undefined,
+      sessionDetailsOverride: f[SESS_COL.sessionDetailsOverride] ? String(f[SESS_COL.sessionDetailsOverride]) : undefined,
       createdAt: String(f[SESS_COL.createdAt] || ""),
     } as Session;
   }, () => null);
@@ -1596,6 +1639,60 @@ export async function scheduleSession(id: string, scheduledAt: string): Promise<
     [SESS_COL.scheduledAt]: scheduledAt,
     [SESS_COL.status]: "scheduled",
   });
+}
+
+/** Fetch every session across all experts/customers (no filter) — used by SCCG-wide overviews. */
+export async function getAllSessions(): Promise<Session[]> {
+  return runSafe(async () => {
+    const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
+    const url = `${await getSiteListUrlAsync("Sessions")}?$expand=fields&$top=999`;
+    const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, any> }> }>(url);
+    return res.value.map((item) => {
+      const f = item.fields;
+      return {
+        id: String(item.id),
+        customerPackageId: String(f[SESS_COL.packageId] || ""),
+        customerId: String(f[SESS_COL.customerId] || ""),
+        customerName: String(f[SESS_COL.clientName] || ""),
+        expertId: f[SESS_COL.expertId] ? String(f[SESS_COL.expertId]) : undefined,
+        expertName: f[SESS_COL.expertName] ? String(f[SESS_COL.expertName]) : undefined,
+        partnerId: String(f[SESS_COL.partnerId] || ""),
+        sessionNumber: Number(f[SESS_COL.sessionNumber] || 0),
+        totalSessions: Number(f[SESS_COL.totalSessions] || 0),
+        status: String(f[SESS_COL.status] || "pending") as any,
+        scheduledAt: f[SESS_COL.scheduledAt] ? String(f[SESS_COL.scheduledAt]) : undefined,
+        completedAt: f[SESS_COL.completedAt] ? String(f[SESS_COL.completedAt]) : undefined,
+        durationMinutes: Number(f[SESS_COL.durationMinutes] || 0),
+        meetingUrl: f[SESS_COL.meetingUrl] ? String(f[SESS_COL.meetingUrl]) : undefined,
+        notes: String(f[SESS_COL.studentNotes] || ""),
+        expertNotes: String(f[SESS_COL.expertNotes] || ""),
+        candidateType: f[SESS_COL.candidateType] ? String(f[SESS_COL.candidateType]) : undefined,
+        attachmentUrl: f[SESS_COL.attachmentUrl] ? String(f[SESS_COL.attachmentUrl]) : undefined,
+        sessionDetailsOverride: f[SESS_COL.sessionDetailsOverride] ? String(f[SESS_COL.sessionDetailsOverride]) : undefined,
+        createdAt: String(f[SESS_COL.createdAt] || ""),
+      } as Session;
+    });
+  }, () => []);
+}
+
+/** Update a session's schedule/meeting-link/status/expert assignment in one PATCH. */
+export async function updateSessionSchedule(
+  id: string,
+  updates: Partial<Pick<Session, "scheduledAt" | "meetingUrl" | "status" | "expertId" | "expertName" | "durationMinutes" | "notes" | "attachmentUrl" | "candidateType" | "sessionDetailsOverride">>
+): Promise<void> {
+  const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
+  const fields: Record<string, unknown> = {};
+  if (updates.scheduledAt !== undefined) fields[SESS_COL.scheduledAt] = updates.scheduledAt;
+  if (updates.meetingUrl !== undefined) fields[SESS_COL.meetingUrl] = updates.meetingUrl;
+  if (updates.status !== undefined) fields[SESS_COL.status] = updates.status;
+  if (updates.expertId !== undefined) fields[SESS_COL.expertId] = updates.expertId;
+  if (updates.expertName !== undefined) fields[SESS_COL.expertName] = updates.expertName;
+  if (updates.durationMinutes !== undefined) fields[SESS_COL.durationMinutes] = updates.durationMinutes;
+  if (updates.notes !== undefined) fields[SESS_COL.studentNotes] = updates.notes;
+  if (updates.attachmentUrl !== undefined) fields[SESS_COL.attachmentUrl] = updates.attachmentUrl;
+  if (updates.candidateType !== undefined) fields[SESS_COL.candidateType] = updates.candidateType;
+  if (updates.sessionDetailsOverride !== undefined) fields[SESS_COL.sessionDetailsOverride] = updates.sessionDetailsOverride;
+  await graphPatch(`${await getSiteListUrlAsync("Sessions")}/${id}/fields`, fields);
 }
 
 export async function completeSession(
@@ -1616,13 +1713,55 @@ export async function completeSession(
 // Expert Payments
 // ============================================================
 export async function getExpertPayments(expertId?: string, partnerId?: string): Promise<ExpertPayment[]> {
-  return [];
+  return runSafe(async () => {
+    const { graphGet, getSiteListUrlAsync, escapeOData } = await import("@/lib/graph");
+    const filters: string[] = [];
+    if (expertId) filters.push(`fields/ExpertId eq '${escapeOData(expertId)}'`);
+    if (partnerId) filters.push(`fields/PartnerId eq '${escapeOData(partnerId)}'`);
+    let url = `${await getSiteListUrlAsync("ExpertPayments")}?$expand=fields&$top=999`;
+    if (filters.length) url += `&$filter=${filters.join(" and ")}`;
+    const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, unknown> }> }>(url);
+    return res.value.map((item) => {
+      const f = item.fields;
+      return {
+        id: String(item.id),
+        expertId: String(f.ExpertId || ""),
+        expertName: f.ExpertName ? String(f.ExpertName) : undefined,
+        sessionId: String(f.SessionId || ""),
+        customerId: String(f.CustomerId || ""),
+        customerName: f.CustomerName ? String(f.CustomerName) : undefined,
+        partnerId: String(f.PartnerId || ""),
+        amount: Number(f.Amount || 0),
+        currency: String(f.Currency || "EUR"),
+        amountEur: f.AmountEUR ? Number(f.AmountEUR) : undefined,
+        conversionRate: f.ConversionRate ? Number(f.ConversionRate) : undefined,
+        status: String(f.Status || "pending") as ExpertPayment["status"],
+        eligibleAt: f.EligibleAt ? String(f.EligibleAt) : undefined,
+        approvedAt: f.ApprovedAt ? String(f.ApprovedAt) : undefined,
+        paidAt: f.PaymentDate ? String(f.PaymentDate) : undefined,
+        approvedBy: f.ApprovedBy ? String(f.ApprovedBy) : undefined,
+        notes: f.Notes ? String(f.Notes) : undefined,
+        createdAt: String(f.CreatedAt || ""),
+      } as ExpertPayment;
+    });
+  }, () => []);
 }
 
 export async function approveExpertPayment(id: string, adminId: string): Promise<void> {
+  const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
+  await graphPatch(`${await getSiteListUrlAsync("ExpertPayments")}/${id}/fields`, {
+    Status: "approved",
+    ApprovedAt: new Date().toISOString(),
+    ApprovedBy: adminId,
+  });
 }
 
 export async function markExpertPaymentPaid(id: string): Promise<void> {
+  const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
+  await graphPatch(`${await getSiteListUrlAsync("ExpertPayments")}/${id}/fields`, {
+    Status: "paid",
+    PaymentDate: new Date().toISOString(),
+  });
 }
 
 export async function createExpertPayment(payment: Omit<ExpertPayment, "id">): Promise<ExpertPayment> {
@@ -1633,9 +1772,16 @@ export async function createExpertPayment(payment: Omit<ExpertPayment, "id">): P
         ExpertId: payment.expertId,
         ExpertName: payment.expertName,
         SessionId: payment.sessionId,
+        CustomerId: payment.customerId,
+        CustomerName: payment.customerName,
+        PartnerId: payment.partnerId,
         Amount: payment.amount,
         Status: payment.status,
         Currency: payment.currency,
+        EligibleAt: payment.eligibleAt || null,
+        ApprovedAt: payment.approvedAt || null,
+        ApprovedBy: payment.approvedBy || null,
+        Notes: payment.notes || null,
         PaymentDate: payment.paidAt || null,
         CreatedAt: payment.createdAt,
       },
@@ -3921,6 +4067,7 @@ const CAND_COL = {
   paymentMethod: "PaymentMethod",
   paymentReference: "PaymentReference",
   isOnHold: "IsOnHold",
+  serviceUnlocked: "ServiceUnlocked",
   notes: "Notes",
   createdBy: "CreatedBy",
   createdAt: "CreatedAt",
@@ -3956,6 +4103,7 @@ function mapCandidate(item: { id: string; fields: Record<string, unknown> }): Ca
     paymentMethod: f[CAND_COL.paymentMethod] ? String(f[CAND_COL.paymentMethod]) : undefined,
     paymentReference: f[CAND_COL.paymentReference] ? String(f[CAND_COL.paymentReference]) : undefined,
     isOnHold: Boolean(f[CAND_COL.isOnHold]),
+    serviceUnlocked: Boolean(f[CAND_COL.serviceUnlocked]),
     notes: f[CAND_COL.notes] ? String(f[CAND_COL.notes]) : undefined,
     createdBy: String(f[CAND_COL.createdBy] || ""),
     createdAt: String(f[CAND_COL.createdAt] || new Date().toISOString()),
@@ -4023,6 +4171,7 @@ export async function createCandidate(data: Omit<Candidate, "id">): Promise<Cand
     [CAND_COL.paymentMethod]: data.paymentMethod,
     [CAND_COL.paymentReference]: data.paymentReference,
     [CAND_COL.isOnHold]: data.isOnHold ?? false,
+    [CAND_COL.serviceUnlocked]: data.serviceUnlocked ?? false,
     [CAND_COL.notes]: data.notes,
     [CAND_COL.createdBy]: data.createdBy,
     [CAND_COL.createdAt]: data.createdAt,
@@ -4047,6 +4196,7 @@ export async function updateCandidate(id: string, data: Partial<Candidate>): Pro
     if (data.partnerShare !== undefined) fields[CAND_COL.partnerShare] = data.partnerShare;
     if (data.depositAmount !== undefined) fields[CAND_COL.depositAmount] = data.depositAmount;
     if (data.isOnHold !== undefined) fields[CAND_COL.isOnHold] = data.isOnHold;
+    if (data.serviceUnlocked !== undefined) fields[CAND_COL.serviceUnlocked] = data.serviceUnlocked;
     if (data.notes !== undefined) fields[CAND_COL.notes] = data.notes;
     if (data.submissionId !== undefined) fields[CAND_COL.submissionId] = data.submissionId;
     if (data.submittedAt !== undefined) fields[CAND_COL.submittedAt] = data.submittedAt;
@@ -4069,10 +4219,70 @@ export async function advanceCandidateStatus(
   });
 }
 
+// ─── Success Stories ──────────────────────────────────────────────────────────
+
+const SUCCESS_STORY_COL = {
+  name: "Title",
+  profession: "Profession",
+  service: "Service",
+  photoUrl: "PhotoUrl",
+  story: "Story",
+  isPublished: "IsPublished",
+  createdBy: "CreatedBy",
+  createdAt: "CreatedAt",
+} as const;
+
+function mapSuccessStory(item: { id: string; fields: Record<string, unknown> }): SuccessStory {
+  const f = item.fields;
+  return {
+    id: String(item.id),
+    name: String(f[SUCCESS_STORY_COL.name] || ""),
+    profession: String(f[SUCCESS_STORY_COL.profession] || ""),
+    service: String(f[SUCCESS_STORY_COL.service] || ""),
+    photoUrl: f[SUCCESS_STORY_COL.photoUrl] ? String(f[SUCCESS_STORY_COL.photoUrl]) : undefined,
+    story: f[SUCCESS_STORY_COL.story] ? String(f[SUCCESS_STORY_COL.story]) : undefined,
+    isPublished: Boolean(f[SUCCESS_STORY_COL.isPublished]),
+    createdBy: f[SUCCESS_STORY_COL.createdBy] ? String(f[SUCCESS_STORY_COL.createdBy]) : undefined,
+    createdAt: String(f[SUCCESS_STORY_COL.createdAt] || new Date().toISOString()),
+  };
+}
+
+export async function getSuccessStories(): Promise<SuccessStory[]> {
+  return runSafe(async () => {
+    const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
+    const listUrl = await getSiteListUrlAsync("SuccessStories");
+    const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, unknown> }> }>(
+      `${listUrl}?$expand=fields&$top=200&$orderby=fields/${SUCCESS_STORY_COL.createdAt} desc`
+    );
+    return res.value.map(mapSuccessStory);
+  }, () => []);
+}
+
+export async function createSuccessStory(data: Omit<SuccessStory, "id">): Promise<SuccessStory> {
+  const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
+  const listUrl = await getSiteListUrlAsync("SuccessStories");
+  const fields: Record<string, unknown> = {
+    [SUCCESS_STORY_COL.name]: data.name,
+    [SUCCESS_STORY_COL.profession]: data.profession,
+    [SUCCESS_STORY_COL.service]: data.service,
+    [SUCCESS_STORY_COL.photoUrl]: data.photoUrl,
+    [SUCCESS_STORY_COL.story]: data.story,
+    [SUCCESS_STORY_COL.isPublished]: data.isPublished,
+    [SUCCESS_STORY_COL.createdBy]: data.createdBy,
+    [SUCCESS_STORY_COL.createdAt]: data.createdAt,
+  };
+  const res = await graphPost<{ id: string; fields: Record<string, unknown> }>(listUrl, { fields });
+  return mapSuccessStory(res);
+}
+
+export async function deleteSuccessStory(id: string): Promise<void> {
+  const { graphDelete, getSiteListUrlAsync } = await import("@/lib/graph");
+  await graphDelete(`${await getSiteListUrlAsync("SuccessStories")}/${id}`);
+}
+
 // ─── Candidate Services ───────────────────────────────────────────────────────
 
-const CANDS_COL = {
-  candidateId: "CandidateId",
+const CANDS_COL = {  candidateId: "CandidateId",
   servicePricingId: "ServicePricingId",
   serviceName: "Title",
   packageType: "PackageType",
@@ -4187,6 +4397,7 @@ const CANDTASK_COL = {
   candidateName: "CandidateName",
   taskCategory: "TaskCategory",
   workflowCategory: "WorkflowCategory",
+  taskFlow: "TaskFlow",
   tags: "Tags",
 } as const;
 
@@ -4211,6 +4422,7 @@ function mapCandidateTask(item: { id: string; fields: Record<string, unknown> })
     candidateName: f[CANDTASK_COL.candidateName] ? String(f[CANDTASK_COL.candidateName]) : undefined,
     taskCategory: String(f[CANDTASK_COL.taskCategory] || "General Task") as CandidateTask["taskCategory"],
     workflowCategory: String(f[CANDTASK_COL.workflowCategory] || "Training & Language") as CandidateTask["workflowCategory"],
+    taskFlow: f[CANDTASK_COL.taskFlow] ? String(f[CANDTASK_COL.taskFlow]) as CandidateTask["taskFlow"] : "partner",
   };
 }
 
@@ -4236,6 +4448,17 @@ export async function getCandidateTasksByPartner(partnerId: string): Promise<Can
   }, () => []);
 }
 
+export async function getAllCandidateTasks(): Promise<CandidateTask[]> {
+  return runSafe(async () => {
+    const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
+    const listUrl = await getSiteListUrlAsync("CandidateTasks");
+    const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, unknown> }> }>(
+      `${listUrl}?$expand=fields&$top=1000`
+    );
+    return res.value.map(mapCandidateTask);
+  }, () => []);
+}
+
 export async function createCandidateTask(data: Omit<CandidateTask, "id">): Promise<CandidateTask> {
   const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
   const listUrl = await getSiteListUrlAsync("CandidateTasks");
@@ -4255,6 +4478,7 @@ export async function createCandidateTask(data: Omit<CandidateTask, "id">): Prom
     [CANDTASK_COL.candidateName]: data.candidateName,
     [CANDTASK_COL.taskCategory]: data.taskCategory,
     [CANDTASK_COL.workflowCategory]: data.workflowCategory,
+    [CANDTASK_COL.taskFlow]: data.taskFlow,
   };
   let res: { id: string; fields: Record<string, unknown> };
   try {
@@ -4289,6 +4513,7 @@ export async function updateCandidateTask(
     if (data.priority !== undefined) fields[CANDTASK_COL.priority] = data.priority;
     if (data.taskCategory !== undefined) fields[CANDTASK_COL.taskCategory] = data.taskCategory;
     if (data.workflowCategory !== undefined) fields[CANDTASK_COL.workflowCategory] = data.workflowCategory;
+    if (data.taskFlow !== undefined) fields[CANDTASK_COL.taskFlow] = data.taskFlow;
     fields[CANDTASK_COL.updatedAt] = new Date().toISOString();
     try {
       await graphPatch(`${listUrl}/${id}/fields`, fields);
@@ -4740,3 +4965,70 @@ export async function getActivityLogs(opts?: {
   }, () => []);
 }
 
+// ============================================================
+// EmailTemplates
+// ============================================================
+
+export async function getEmailTemplateByKey(templateKey: string): Promise<import("@/types").EmailTemplate | null> {
+  return runSafe(async () => {
+    const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
+    let url = `${await getSiteListUrlAsync("EmailTemplates")}?$filter=fields/${TPL_COL.templateKey} eq '${templateKey}'&$expand=fields&$top=1`;
+    let res = await graphGet<{ value: Array<{ id: string; fields: Record<string, any> }> }>(url);
+    if (!res.value.length) return null;
+    const item = res.value[0];
+    const f = item.fields;
+    return {
+      id: String(item.id),
+      templateKey: String(f[TPL_COL.templateKey] || ""),
+      subjectTemplate: String(f[TPL_COL.subjectTemplate] || ""),
+      htmlBodyTemplate: String(f[TPL_COL.htmlBodyTemplate] || ""),
+    };
+  }, () => null);
+}
+
+export async function getAllEmailTemplates(): Promise<import("@/types").EmailTemplate[]> {
+  return runSafe(async () => {
+    const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
+    const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, any> }> }>(
+      `${await getSiteListUrlAsync("EmailTemplates")}?$expand=fields`
+    );
+    return res.value.map((item) => ({
+      id: String(item.id),
+      templateKey: String(item.fields[TPL_COL.templateKey] || ""),
+      subjectTemplate: String(item.fields[TPL_COL.subjectTemplate] || ""),
+      htmlBodyTemplate: String(item.fields[TPL_COL.htmlBodyTemplate] || ""),
+    }));
+  }, () => []);
+}
+
+export async function createEmailTemplate(data: Omit<import("@/types").EmailTemplate, "id">): Promise<import("@/types").EmailTemplate> {
+  return runSafe(async () => {
+    const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
+    const res = await graphPost<{ id: string }>(await getSiteListUrlAsync("EmailTemplates"), {
+      fields: {
+        [TPL_COL.templateKey]: data.templateKey,
+        [TPL_COL.subjectTemplate]: data.subjectTemplate,
+        [TPL_COL.htmlBodyTemplate]: data.htmlBodyTemplate,
+      },
+    });
+    return { ...data, id: String(res.id) };
+  });
+}
+
+export async function updateEmailTemplate(id: string, data: Partial<import("@/types").EmailTemplate>): Promise<void> {
+  return runSafe(async () => {
+    const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
+    const fields: Record<string, any> = {};
+    if (data.templateKey !== undefined) fields[TPL_COL.templateKey] = data.templateKey;
+    if (data.subjectTemplate !== undefined) fields[TPL_COL.subjectTemplate] = data.subjectTemplate;
+    if (data.htmlBodyTemplate !== undefined) fields[TPL_COL.htmlBodyTemplate] = data.htmlBodyTemplate;
+    await graphPatch(`${await getSiteListUrlAsync("EmailTemplates")}/${id}/fields`, fields);
+  });
+}
+
+export async function deleteEmailTemplate(id: string): Promise<void> {
+  return runSafe(async () => {
+    const { graphDelete, getSiteListUrlAsync } = await import("@/lib/graph");
+    await graphDelete(`${await getSiteListUrlAsync("EmailTemplates")}/${id}`);
+  });
+}

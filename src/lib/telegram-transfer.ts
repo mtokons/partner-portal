@@ -4,9 +4,10 @@ import path from "path";
 import os from "os";
 import { Readable } from "stream";
 import { pipeline } from "stream/promises";
-import { TelegramClient, Api } from "teleproto";
-import { StringSession } from "teleproto/sessions";
+import { TelegramClient, Api, sessions } from "teleproto";
 import { CustomFile } from "teleproto/client/uploads";
+
+const { StringSession } = sessions;
 
 export interface JobHistoryRecord {
   id: string;

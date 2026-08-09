@@ -4,6 +4,7 @@ import { getEffectiveSession } from "@/lib/effective-user";
 import type { SessionUser } from "@/types";
 import { getCandidates, getCandidateServices, getPartnerByEmail, getProducts, getSalesOffers } from "@/lib/sharepoint";
 import { getEurToRate } from "@/lib/currency";
+import { isAdminEquivalent } from "@/lib/admin-guard";
 import { UserPlus, Users } from "lucide-react";
 import CandidateListClient from "./CandidateListClient";
 
@@ -13,7 +14,7 @@ export default async function CandidatesPage() {
 
   const user = session.user as SessionUser;
   const roles = (user.roles || [user.role]) as string[];
-  const isAdmin = roles.includes("admin");
+  const isAdmin = isAdminEquivalent(roles);
 
   let partnerId: string | undefined;
   let secCur = "BDT";

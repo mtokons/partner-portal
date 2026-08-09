@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import RevenueBarChart from "@/components/charts/RevenueBarChart";
 import SalesLineChart from "@/components/charts/SalesLineChart";
 import {
-  TrendingUp, TrendingDown, DollarSign, Receipt, PiggyBank,
+  TrendingUp, TrendingDown, Euro, Receipt, PiggyBank,
   BadgeCheck, AlertCircle, BarChart2, LineChart,
 } from "lucide-react";
 
@@ -59,7 +59,7 @@ export default async function FinancialsPage() {
     {
       label: "Total Revenue",
       value: fmtBdt(totalRevenue, rate),
-      icon: DollarSign,
+      icon: Euro,
       gradient: "gradient-blue",
       sub: "Gross income",
       positive: true,

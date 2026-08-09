@@ -9,7 +9,7 @@ import { RevenueCard } from "@/components/partner/RevenueCard";
 import { CandidateStatsCard } from "@/components/partner/CandidateStatsCard";
 import { TasksWidget } from "@/components/partner/TasksWidget";
 import PartnerCharts from "@/components/partner/PartnerCharts";
-import { Award, FileText, ShoppingBag, AlertCircle, TrendingUp, Users, DollarSign, Building2 } from "lucide-react";
+import { Award, FileText, ShoppingBag, AlertCircle, TrendingUp, Users, Euro, Building2 } from "lucide-react";
 import Link from "next/link";
 
 const TIER_COLORS = {
@@ -129,7 +129,7 @@ export default async function PartnerDashboardPage() {
         <Link href="/partner/finance/revenue" className="group">
           <div className="bg-card rounded-xl border p-4 hover:shadow-md hover:border-emerald-500/30 transition-all">
             <div className="flex items-center gap-2 mb-1">
-              <DollarSign className="w-4 h-4 text-emerald-500" />
+              <Euro className="w-4 h-4 text-emerald-500" />
               <span className="text-xs text-muted-foreground">Total Revenue</span>
             </div>
             <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">

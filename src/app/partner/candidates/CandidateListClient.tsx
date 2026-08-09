@@ -49,6 +49,7 @@ export default function CandidateListClient({
   secondaryCurrency,
   exchangeRate,
   waitingOffers = [],
+  routeBase = "/partner/candidates",
 }: {
   candidates: CandidateWithServices[];
   products?: Product[];
@@ -56,6 +57,7 @@ export default function CandidateListClient({
   secondaryCurrency?: string;
   exchangeRate?: number;
   waitingOffers?: WaitingOffer[];
+  routeBase?: string;
 }) {
   const [activeTab, setActiveTab] = useState<"registered" | "waiting">(
     waitingOffers.length > 0 && candidates.length === 0 ? "waiting" : "registered"
@@ -158,7 +160,7 @@ export default function CandidateListClient({
               </p>
               {!filter && (
                 <Link
-                  href="/partner/candidates/new"
+                  href={`${routeBase}/new`}
                   className="mt-4 inline-flex items-center gap-2 rounded-xl bg-primary text-primary-foreground px-4 py-2.5 text-sm font-medium hover:bg-primary/90 transition-colors"
                 >
                   <UserPlus className="w-4 h-4" />
@@ -226,7 +228,7 @@ export default function CandidateListClient({
                         </div>
                       </div>
                       <Link
-                        href={`/partner/candidates/${c.id}`}
+                        href={`${routeBase}/${c.id}`}
                         onClick={(e) => e.stopPropagation()}
                         className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm transition-colors"
                       >
@@ -372,7 +374,7 @@ export default function CandidateListClient({
                       </div>
 
                       <Link
-                        href={`/partner/candidates/new?email=${encodeURIComponent(w.email)}&name=${encodeURIComponent(w.name)}&offerId=${w.offerId}`}
+                        href={`${routeBase}/new?email=${encodeURIComponent(w.email)}&name=${encodeURIComponent(w.name)}&offerId=${w.offerId}`}
                         className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors"
                       >
                         <UserPlus className="w-3.5 h-3.5" />

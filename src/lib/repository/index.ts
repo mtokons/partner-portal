@@ -1,31 +1,34 @@
 import {
   getPartnerByEmail, getPartners, updatePartnerStatus, approvePartnerOnboarding,
   getCustomerByEmail, getCustomers, getCustomerById, createCustomer,
-  getExpertByEmail, getExperts,
+  getExpertByEmail, getExperts, getExpertById,
   getUserRoles, addUserRole, updateUserProfileRoles, getUserProfileByEmail,
   getKanbanTasks, createKanbanTask, updateKanbanTask, deleteKanbanTask,
   getActivities, createActivity,
   getServicePackages, getCustomerPackages, getCustomerPackageById, createCustomerPackage,
-  getSessionsByPackage, scheduleSession, completeSession,
+  getSessionsByPackage, getSessionsByExpert, getSessionsByCustomer, getSessionById, getAllSessions,
+  scheduleSession, completeSession, updateSessionSchedule, assignExpertToPackage,
   getSalesOffers, createSalesOffer, getSalesOfferItems, createSalesOfferItem,
   getSalesOrders, createSalesOrder, getSalesOrderItems, createSalesOrderItem,
   getCoinWallet, createCoinWallet, updateWalletBalance, getWalletTransactions, createCoinTransaction,
   getReferrals, createReferral, updateReferral,
   getPayouts, createPayout, updatePayoutStatus,
+  getExpertPayments, approveExpertPayment, markExpertPaymentPaid,
   getCertificates, createCertificate, getCertificateByCode,
   getCandidates, getCandidateById, createCandidate, updateCandidate, advanceCandidateStatus,
   getCandidateServices, createCandidateService, deleteCandidateServices,
-  getCandidateTasks, getCandidateTasksByPartner, createCandidateTask, updateCandidateTask, deleteCandidateTask,
+  getCandidateTasks, getCandidateTasksByPartner, getAllCandidateTasks, createCandidateTask, updateCandidateTask, deleteCandidateTask,
   getHelpdeskTickets, createHelpdeskTicket, updateHelpdeskTicket,
   getHelpdeskMessages, createHelpdeskMessage,
+  getEmailTemplateByKey,
 } from "@/lib/sharepoint";
 import type {
   Partner, Customer, Expert, UserRoleEntry, KanbanTask, Activity,
   UserRoleType, UserProfile, ServicePackage, CustomerPackage, Session,
   SalesOffer, SalesOfferItem, SalesOrder, SalesOrderItem, CoinWallet, CoinTransaction,
-  Referral, Payout, SchoolCertificate,
+  Referral, Payout, ExpertPayment, SchoolCertificate,
   Candidate, CandidateService, CandidateTask,
-  HelpdeskTicket, HelpdeskMessage,
+  HelpdeskTicket, HelpdeskMessage, EmailTemplate,
 } from "@/types";
 
 /**
@@ -85,6 +88,9 @@ export const Repository = {
     async getByEmail(email: string): Promise<Expert | null> {
       return getExpertByEmail(email);
     },
+    async getById(id: string): Promise<Expert | null> {
+      return getExpertById(id);
+    },
     async getAll(): Promise<Expert[]> {
       return getExperts();
     }
@@ -127,6 +133,9 @@ export const Repository = {
     },
     async create(data: Omit<CustomerPackage, "id">): Promise<CustomerPackage> {
       return createCustomerPackage(data);
+    },
+    async assignExpert(packageId: string, expertId: string, expertName: string): Promise<void> {
+      return assignExpertToPackage(packageId, expertId, expertName);
     }
   },
 
@@ -135,8 +144,23 @@ export const Repository = {
     async getByPackage(packageId: string): Promise<Session[]> {
       return getSessionsByPackage(packageId);
     },
+    async getByExpert(expertId: string): Promise<Session[]> {
+      return getSessionsByExpert(expertId);
+    },
+    async getByCustomer(customerId: string): Promise<Session[]> {
+      return getSessionsByCustomer(customerId);
+    },
+    async getById(id: string): Promise<Session | null> {
+      return getSessionById(id);
+    },
+    async getAll(): Promise<Session[]> {
+      return getAllSessions();
+    },
     async schedule(id: string, date: string): Promise<void> {
       return scheduleSession(id, date);
+    },
+    async update(id: string, updates: Partial<Pick<Session, "scheduledAt" | "meetingUrl" | "status" | "expertId" | "expertName" | "durationMinutes">>): Promise<void> {
+      return updateSessionSchedule(id, updates);
     },
     async complete(id: string, notes: string, duration: number): Promise<void> {
       return completeSession(id, notes, duration);
@@ -224,6 +248,18 @@ export const Repository = {
     }
   },
 
+  expertPayments: {
+    async getAll(expertId?: string, partnerId?: string): Promise<ExpertPayment[]> {
+      return getExpertPayments(expertId, partnerId);
+    },
+    async approve(id: string, adminId: string): Promise<void> {
+      return approveExpertPayment(id, adminId);
+    },
+    async markPaid(id: string): Promise<void> {
+      return markExpertPaymentPaid(id);
+    },
+  },
+
   // --- Certificates & Verification ---
   certificates: {
     async getAll(userId?: string): Promise<SchoolCertificate[]> {
@@ -250,6 +286,29 @@ export const Repository = {
     },
     async delete(id: string): Promise<void> {
       return deleteKanbanTask(id);
+    }
+  },
+
+  // --- Email Templates ---
+  emailTemplates: {
+    async getAll(): Promise<EmailTemplate[]> {
+      const { getAllEmailTemplates } = await import("@/lib/sharepoint");
+      return getAllEmailTemplates();
+    },
+    async getByTemplateKey(key: string): Promise<EmailTemplate | null> {
+      return getEmailTemplateByKey(key);
+    },
+    async create(data: Omit<EmailTemplate, "id">): Promise<EmailTemplate> {
+      const { createEmailTemplate } = await import("@/lib/sharepoint");
+      return createEmailTemplate(data);
+    },
+    async update(id: string, data: Partial<EmailTemplate>): Promise<void> {
+      const { updateEmailTemplate } = await import("@/lib/sharepoint");
+      return updateEmailTemplate(id, data);
+    },
+    async delete(id: string): Promise<void> {
+      const { deleteEmailTemplate } = await import("@/lib/sharepoint");
+      return deleteEmailTemplate(id);
     }
   },
 
@@ -284,6 +343,9 @@ export const Repository = {
     },
     async getTasksByPartner(partnerId: string): Promise<CandidateTask[]> {
       return getCandidateTasksByPartner(partnerId);
+    },
+    async getAllTasks(): Promise<CandidateTask[]> {
+      return getAllCandidateTasks();
     },
     async addTask(data: Omit<CandidateTask, "id">): Promise<CandidateTask> {
       return createCandidateTask(data);

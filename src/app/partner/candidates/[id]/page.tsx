@@ -13,6 +13,7 @@ import { dual } from "@/lib/formatCurrency";
 import { getAllowedTransitions } from "@/lib/engine/candidate-workflow";
 import { format, parseISO, isPast } from "date-fns";
 import { ArrowLeft, AlertCircle, FileText, CreditCard, ClipboardList, ShoppingBag } from "lucide-react";
+import { isAdminEquivalent } from "@/lib/admin-guard";
 import { getCandidateDocumentsAction } from "../actions";
 import CandidateDocumentsSection from "./CandidateDocumentsSection";
 import { ServiceWorkflowView } from "./ServiceWorkflowView";
@@ -34,12 +35,16 @@ export default async function CandidateDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  return CandidateDetail({ id, routeBase: "/partner/candidates" });
+}
+
+export async function CandidateDetail({ id, routeBase }: { id: string; routeBase: string }) {
   const session = await getEffectiveSession();
   if (!session?.user) redirect("/login");
 
   const user = session.user as SessionUser;
   const roles = (user.roles || [user.role]) as string[];
-  const isAdmin = roles.includes("admin");
+  const isAdmin = isAdminEquivalent(roles);
 
   const [candidate, services, tasks] = await Promise.all([
     getCandidateById(id),
@@ -85,7 +90,7 @@ export default async function CandidateDetailPage({
       {/* Header */}
       <div className="flex items-center gap-3">
         <Link
-          href="/partner/candidates"
+          href={routeBase}
           className="text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
@@ -127,12 +132,13 @@ export default async function CandidateDetailPage({
         paidAmountEur={paidAmountEur}
         secondaryCurrency={secCur}
         exchangeRate={rate}
+        serviceUnlocked={candidate.serviceUnlocked}
       />
 
       {/* Register Service */}
       <div className="flex items-center">
         <Link
-          href={`/partner/candidates/new?candidateId=${candidate.id}`}
+          href={`${routeBase}/new?candidateId=${candidate.id}`}
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors shadow-sm"
         >
           <ShoppingBag className="w-4 h-4" /> Register Service

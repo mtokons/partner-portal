@@ -48,3 +48,4 @@ all_vercel_envs.txt
 ProjectPartner/geminiAPIKey.text
 **/geminiAPIKey.text
 **/*apikey*.text
+FirebaseDetails/*.json

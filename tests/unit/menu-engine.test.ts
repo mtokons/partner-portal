@@ -6,11 +6,28 @@ import {
   DEFAULT_MENUS,
   getAllAvailableMenuItems,
 } from "@/lib/menu-engine";
+import {
+  resolveDashboardForRoles,
+  resolveConsoleForRoles,
+  rolesCanAccessPath,
+} from "@/lib/access-policy";
 
 describe("menu-engine", () => {
   it("resolveConsole returns admin for admin role", () => {
     expect(resolveConsole(["admin"])).toBe("admin");
     expect(resolveConsole(["admin", "partner"])).toBe("admin");
+  });
+
+  it("resolveConsole returns SCCG for SCCG roles", () => {
+    expect(resolveConsole(["sccg-admin"])).toBe("sccg");
+    expect(resolveConsole(["sccg-staff"])).toBe("sccg");
+  });
+
+  it("canonical access policy selects SCCG dashboard and protects routes", () => {
+    expect(resolveConsoleForRoles(["sccg-admin"])).toBe("sccg");
+    expect(resolveDashboardForRoles(["sccg-admin"])).toBe("/sccg/dashboard");
+    expect(rolesCanAccessPath(["sccg-admin"], "/sccg/dashboard")).toBe(true);
+    expect(rolesCanAccessPath(["sccg-admin"], "/partner/dashboard")).toBe(false);
   });
 
   it("resolveConsole returns partner for partner role", () => {
@@ -57,6 +74,15 @@ describe("menu-engine", () => {
     const menu = resolveMenu("partner", overrides);
     const dashboard = menu.find((m) => m.key === "partner.dashboard");
     expect(dashboard?.isEnabled).toBe(true);
+  });
+
+  it("resolveMenu ignores unknown stored menu entries", () => {
+    const menu = resolveMenu("partner", undefined, [{
+      id: "unknown", scope: "user" as const, menuKey: "external.route", isEnabled: true,
+      itemOrder: 0, label: "External", href: "/external", icon: "Circle", groupName: "External",
+      groupOrder: 0, isDefault: false, isLocked: false, createdAt: "", createdBy: "",
+    }]);
+    expect(menu.some((item) => item.key === "external.route")).toBe(false);
   });
 
   it("groupMenuItems groups by group field", () => {

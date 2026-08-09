@@ -1,6 +1,7 @@
 services:
   portal:
     build: .
+    image: partner-portal-portal:latest
     ports:
       - "3000:3000"
     env_file:
@@ -8,8 +9,10 @@ services:
     environment:
       - CV_TAILOR_API_URL=http://cv-tailor:8001
       - MODEL_TEST_API_URL=http://model-test:8002
-      - NODE_OPTIONS=--max-old-space-size=256 --expose-gc
+      - NODE_OPTIONS=--max-old-space-size=384 --expose-gc
     restart: always
+    mem_limit: 450m
+    mem_reservation: 256m
     logging:
       driver: "json-file"
       options:
@@ -21,11 +24,13 @@ services:
 
   cv-tailor:
     build: ./cv-tailor
+    image: partner-portal-cv-tailor:latest
     ports:
       - "8001:8001"
     env_file:
       - .env.production
     restart: always
+    mem_limit: 250m
     logging:
       driver: "json-file"
       options:
@@ -34,9 +39,11 @@ services:
 
   model-test:
     build: ./model-test-system
+    image: partner-portal-model-test:latest
     ports:
       - "8002:8002"
     restart: always
+    mem_limit: 200m
     logging:
       driver: "json-file"
       options:

@@ -1,4 +1,5 @@
 import { getEffectiveSession } from "@/lib/effective-user";
+import { resolveDashboardForRoles } from "@/lib/access-policy";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { SessionUser } from "@/types";
@@ -10,8 +11,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
-  ShoppingCart, Users, DollarSign, AlertTriangle, FileText,
-  TrendingUp, ArrowUpRight, ArrowDownRight, Zap, Clock,
+  ShoppingCart, Users, Euro, AlertTriangle, FileText,
+  TrendingUp, ArrowUpRight, ArrowDownRight, Zap,
   CheckCircle2, Package, Activity, BarChart2,
 } from "lucide-react";
 import CashflowAreaChart from "@/components/charts/CashflowAreaChart";
@@ -23,21 +24,20 @@ export default async function DashboardPage() {
   if (!session?.user) redirect("/login");
   const user = session.user as SessionUser;
 
-  // Redirect partner roles to the dedicated partner portal (UNLESS user is an admin)
-  const roles = (user.roles || [user.role]) as string[];
+  // Admin-pinned landing dashboard takes precedence over role-based routing.
+  const override = (user.dashboardOverride || "").trim();
+  if (override.startsWith("/") && !override.startsWith("/dashboard")) {
+    redirect(override);
+  }
+
+  // Redirect non-admin roles to their dedicated role-based dashboards
+  const roles = (user.roles || [user.role]).filter(Boolean) as string[];
   const lowerRoles = roles.map((r) => r.toLowerCase());
-  const isAdmin = lowerRoles.includes("admin");
+  const isAdmin = lowerRoles.includes("admin") || lowerRoles.includes("project-admin");
 
-  if (!isAdmin && lowerRoles.some((r) => ["partner", "partner-individual", "partner-institutional"].includes(r))) {
-    redirect("/partner/dashboard");
+  if (!isAdmin) {
+    redirect(resolveDashboardForRoles(roles) || "/access-denied");
   }
-
-  // Redirect project partners to their collaboration console (UNLESS user is an admin)
-  if (!isAdmin && lowerRoles.some((r) => ["project-partner", "project-partner-admin"].includes(r))) {
-    redirect("/project-partner/dashboard");
-  }
-
-  // Admin roles render the overview dashboard directly
 
   const pid = user.role === "admin" ? undefined : user.partnerId;
 
@@ -55,7 +55,7 @@ export default async function DashboardPage() {
       </div>
     );
   }
-  const [orders, clients, financials, activities, installments, invoices, sOrders, sOffers] = await Promise.all([
+  const [, clients, financials, activities, installments, invoices, sOrders, sOffers] = await Promise.all([
     getOrders(pid), getClients(pid), getFinancials(pid),
     getActivities(pid), getInstallments(pid), getInvoices(pid),
     getSalesOrders(pid), getSalesOffers(pid),
@@ -98,7 +98,7 @@ export default async function DashboardPage() {
       label: "Total Revenue",
       value: `€${((totalRevenueEur ?? totalRevenue) / 1000).toFixed(1)}K`,
       sub: undefined,
-      icon: DollarSign,
+      icon: Euro,
       gradient: "gradient-blue",
       bg: "linear-gradient(135deg, #4f8ef7 0%, #1a4fd8 60%, #0f2fa8 100%)",
       trend: "+14.2%",

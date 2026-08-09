@@ -76,8 +76,7 @@ export function Step6ReviewSubmit({
           },
         });
       } else {
-        result = await finalizeRegistrationAction(
-          {
+        result = await finalizeRegistrationAction({
             partnerId,
             workflowCategory: personalInfo.workflowCategory,
             fullName: personalInfo.fullName,
@@ -94,9 +93,7 @@ export function Step6ReviewSubmit({
             paymentOption,
             paymentMethod,
             paymentReference,
-          },
-          partnerId
-        );
+          });
       }
 
       if ("error" in result) {

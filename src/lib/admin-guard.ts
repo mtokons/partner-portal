@@ -1,14 +1,32 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import type { SessionUser } from "@/types";
+import { resolveDashboardForRoles } from "@/lib/access-policy";
 
-/** Returns the SessionUser if the caller has the admin role, otherwise redirects. */
+/**
+ * True for roles that should see ALL partners' data and manage it directly:
+ * legacy admin/project-admin plus the new SCCG Admin and SCCG Staff roles
+ * (both have full Candidate Gallery access per the SCCG requirement doc).
+ */
+export function isAdminEquivalent(roles: string[]): boolean {
+  const lower = roles.map((r) => (r || "").toLowerCase());
+  return lower.some((r) => ["admin", "project-admin", "sccg-admin", "sccg-staff"].includes(r));
+}
+
+export function resolveRoleDashboard(roles: string[]): string {
+  return resolveDashboardForRoles(roles) || "/access-denied";
+}
+
+/** Returns the SessionUser if the caller has the admin role, otherwise redirects to role dashboard. */
 export async function requireAdmin(redirectTo: string = "/login"): Promise<SessionUser> {
   const session = await auth();
   if (!session?.user) redirect(redirectTo);
   const user = session.user as SessionUser;
   const roles = user.roles || [user.role];
-  if (!roles.includes("admin")) redirect("/dashboard");
+  const lowerRoles = roles.map(r => r.toLowerCase());
+  if (!lowerRoles.includes("admin") && !lowerRoles.includes("project-admin") && !lowerRoles.includes("sccg-admin")) {
+    redirect(resolveRoleDashboard(roles));
+  }
   return user;
 }
 
@@ -20,8 +38,35 @@ export async function assertAdmin(): Promise<SessionUser> {
   }
   const user = session.user as SessionUser;
   const roles = user.roles || [user.role];
-  if (!roles.includes("admin")) {
+  const lowerRoles = roles.map(r => r.toLowerCase());
+  if (!lowerRoles.includes("admin") && !lowerRoles.includes("project-admin") && !lowerRoles.includes("sccg-admin")) {
     throw new Error("FORBIDDEN: admin role required");
+  }
+  return user;
+}
+
+/** Allows SCCG Admin and SCCG Staff (plus legacy admin). Use on shared SCCG console pages. */
+export async function requireSccgAccess(redirectTo: string = "/login"): Promise<SessionUser> {
+  const session = await auth();
+  if (!session?.user) redirect(redirectTo);
+  const user = session.user as SessionUser;
+  const roles = user.roles || [user.role];
+  const lowerRoles = roles.map(r => r.toLowerCase());
+  if (!lowerRoles.some(r => ["admin", "sccg-admin", "sccg-staff"].includes(r))) {
+    redirect(resolveRoleDashboard(roles));
+  }
+  return user;
+}
+
+/** Allows only SCCG Admin (plus legacy admin). Use on admin-only SCCG modules. */
+export async function requireSccgAdmin(redirectTo: string = "/login"): Promise<SessionUser> {
+  const session = await auth();
+  if (!session?.user) redirect(redirectTo);
+  const user = session.user as SessionUser;
+  const roles = user.roles || [user.role];
+  const lowerRoles = roles.map(r => r.toLowerCase());
+  if (!lowerRoles.some(r => ["admin", "sccg-admin"].includes(r))) {
+    redirect(resolveRoleDashboard(roles));
   }
   return user;
 }
@@ -35,8 +80,9 @@ export async function requireSchoolAccess(redirectTo: string = "/login"): Promis
   if (!session?.user) redirect(redirectTo);
   const user = session.user as SessionUser;
   const roles = user.roles || [user.role];
-  if (!roles.includes("admin") && !roles.includes("school-manager")) {
-    redirect("/dashboard");
+  const lowerRoles = roles.map(r => r.toLowerCase());
+  if (!lowerRoles.includes("admin") && !lowerRoles.includes("school-manager")) {
+    redirect(resolveRoleDashboard(roles));
   }
   return user;
 }

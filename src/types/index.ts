@@ -2,7 +2,7 @@
 // B2B Partner Portal — Data Models (map to SharePoint lists)
 // ============================================================
 
-export type UserRole = "partner" | "admin" | "customer" | "expert" | "student" | "project-partner" | "project-partner-admin" | "project-admin";
+export type UserRole = "partner" | "admin" | "customer" | "expert" | "student" | "project-partner" | "project-partner-admin" | "project-admin" | "sccg-admin" | "sccg-staff";
 export type PartnerType = "individual" | "institutional";
 export type PartnerStatus = "pending" | "active" | "suspended";
 export type PartnerOnboardingStatus = "application" | "review" | "approved" | "rejected";
@@ -284,6 +284,8 @@ export interface SessionUser {
   tierStatus?: TierStatus;
   /** Partner margin percentage: 8, 15, 20, 25 */
   marginPercentage?: PartnerMargin;
+  /** Admin-assigned landing dashboard path that overrides role-based routing. */
+  dashboardOverride?: string;
 }
 
 // ============================================================
@@ -389,8 +391,12 @@ export interface Session {
   completedAt?: string;
   durationMinutes?: number;
   status: SessionStatus;
+  meetingUrl?: string;
   notes?: string;
   expertNotes?: string;
+  attachmentUrl?: string;
+  candidateType?: "Student Visa" | "Ausbildung" | "Opportunity Card" | string;
+  sessionDetailsOverride?: string;
   customerRating?: number; // 1–5
   isOnHold?: boolean;
   createdAt: string;
@@ -714,6 +720,8 @@ export interface UserProfile {
 
 export type UserRoleType =
   | "admin"
+  | "sccg-admin"
+  | "sccg-staff"
   | "customer"
   | "partner"
   | "partner-individual"
@@ -1686,11 +1694,26 @@ export interface Candidate {
   paymentMethod?: string;
   paymentReference?: string;
   isOnHold?: boolean;
+  /** Admin "Special Approval": unlock service start without payment */
+  serviceUnlocked?: boolean;
   notes?: string;
   createdBy: string;
   createdAt: string;
   updatedAt?: string;
   submittedAt?: string;
+}
+
+/** A published success story shown in the Successful Candidate Gallery. */
+export interface SuccessStory {
+  id: string;
+  name: string;
+  profession: string;
+  service: string;
+  photoUrl?: string;
+  story?: string;
+  isPublished: boolean;
+  createdBy?: string;
+  createdAt: string;
 }
 
 export type ServicePackageType = "all-inclusive" | "premium-bundle" | "add-on";
@@ -1726,11 +1749,14 @@ export type CandidateTaskCategory =
   | "Payment Due"
   | "General Task";
 
+export type CandidateTaskFlow = "candidate" | "partner" | "staff" | "sccg";
+
 export interface CandidateTask extends KanbanTask {
   candidateId: string;
   candidateName?: string;
   taskCategory: CandidateTaskCategory;
   workflowCategory: WorkflowCategory;
+  taskFlow?: CandidateTaskFlow;
 }
 
 // ============================================================
@@ -2063,3 +2089,9 @@ export interface UserGdprSettings {
   lastActive: string;
 }
 
+export interface EmailTemplate {
+  id: string;
+  templateKey: string;
+  subjectTemplate: string;
+  htmlBodyTemplate: string;
+}

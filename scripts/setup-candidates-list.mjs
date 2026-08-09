@@ -137,6 +137,7 @@ async function run() {
     { name: "CandidateName", text: {} },
     { name: "TaskCategory", choice: { choices: ["Document Required", "Payment Due", "General Task"] } },
     { name: "WorkflowCategory", choice: { choices: ["Training", "Ausbildung", "Student Visa", "Opportunity Card"] } },
+    { name: "TaskFlow", text: {} },
     { name: "PartnerId", text: {} },
     { name: "CreatedBy", text: {} },
     { name: "CreatedAt", dateTime: {} },

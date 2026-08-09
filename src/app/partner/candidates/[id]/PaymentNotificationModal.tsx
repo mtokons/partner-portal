@@ -41,6 +41,7 @@ export function PaymentNotificationModal({
 }: Props) {
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
+  const [method, setMethod] = useState("Bank Transfer");
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -63,6 +64,7 @@ export function PaymentNotificationModal({
         serviceId,
         amountEur: amountNum,
         isInitialPayment: isInitial,
+        paymentMethod: method,
         paymentNote: note || undefined,
       });
       if ("error" in res) {
@@ -154,6 +156,21 @@ export function PaymentNotificationModal({
                 ≈ {secSym}{secAmount.toLocaleString()} {secondaryCurrency}
               </p>
             )}
+          </div>
+
+          {/* Payment method */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-foreground">Payment Method</label>
+            <select
+              value={method}
+              onChange={(e) => setMethod(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-xl border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+              disabled={isPending || done}
+            >
+              {["Bank Transfer", "Cash", "Card", "PayPal", "bKash", "Nagad", "Other"].map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
           </div>
 
           {/* Note */}

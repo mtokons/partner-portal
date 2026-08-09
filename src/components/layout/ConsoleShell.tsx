@@ -52,6 +52,10 @@ const SHELL_THEME: Record<ConsoleType, { shellClass: string; frameClass: string 
     shellClass: "role-partner",
     frameClass: "portal-frame-partner",
   },
+  sccg: {
+    shellClass: "role-admin",
+    frameClass: "portal-frame-admin",
+  },
 };
 
 interface ConsoleShellProps {
@@ -87,6 +91,7 @@ const CONSOLE_THEME: Record<ConsoleType, string> = {
   "job-partner": "console-theme-partner",
   "ausbildung-seeker": "console-theme-student",
   "ausbildung-partner": "console-theme-partner",
+  sccg: "console-theme-admin",
 };
 
 /** Ornate arabesque medallion inspired by carved calligraphic artwork, without text. */
@@ -237,7 +242,10 @@ export default function ConsoleShell({
   // Hide management (ppa.*) items from read-only viewers
   const lowerRoles = (roles || []).map((r) => r.toLowerCase());
   const canManage = lowerRoles.includes("admin") || lowerRoles.includes("project-partner-admin");
-  const menuItems = canManage ? resolvedMenu : resolvedMenu.filter((m) => !isManagementMenuKey(m.key));
+  // SCCG Staff cannot see admin-only groups (Partner Mgmt, Finance, Administration)
+  const isSccgAdmin = lowerRoles.includes("admin") || lowerRoles.includes("sccg-admin");
+  const menuItems = (canManage ? resolvedMenu : resolvedMenu.filter((m) => !isManagementMenuKey(m.key)))
+    .filter((m) => !m.adminOnly || isSccgAdmin);
 
   const pathname = usePathname();
   const isFullBleed = pathname?.includes("/cv-suite/create") || pathname?.includes("/cv-maker");

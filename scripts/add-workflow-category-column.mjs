@@ -84,6 +84,10 @@ async function run() {
     name: "WorkflowCategory",
     choice: { choices: ["Training", "Ausbildung", "Student Visa", "Opportunity Card"] },
   };
+  const taskFlowCol = {
+    name: "TaskFlow",
+    text: {},
+  };
 
   // Add to CandidateServices
   const servicesList = await findList(siteId, "CandidateServices");
@@ -99,6 +103,7 @@ async function run() {
   if (tasksList) {
     console.log(`Found CandidateTasks list (${tasksList.id})`);
     await addColumnIfMissing(siteId, tasksList.id, "CandidateTasks", workflowCategoryCol);
+    await addColumnIfMissing(siteId, tasksList.id, "CandidateTasks", taskFlowCol);
   } else {
     console.log("❌ CandidateTasks list not found!");
   }

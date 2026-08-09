@@ -46,11 +46,11 @@ export default async function ProjectPartnerDashboard() {
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-        <KpiCard icon={<FolderKanban className="h-5 w-5" />} label="Projects" value={projects.length} className="gradient-blue" />
-        <KpiCard icon={<Users className="h-5 w-5" />} label="Mapped Experts" value={totalExperts} className="gradient-purple" />
-        <KpiCard icon={<Activity className="h-5 w-5" />} label="Active Experts" value={activeExperts} className="gradient-green" />
-        <KpiCard icon={<PauseCircle className="h-5 w-5" />} label="On Standby" value={standbyExperts} className="gradient-orange" />
-        <KpiCard icon={<FileText className="h-5 w-5" />} label="CVs Available" value={totalCvs} className="gradient-blue" />
+        <KpiCard icon={<FolderKanban className="h-5 w-5" />} label="Projects" value={projects.length} className="gradient-blue" href="/project-partner/projects" />
+        <KpiCard icon={<Users className="h-5 w-5" />} label="Mapped Experts" value={totalExperts} className="gradient-purple" href="/project-partner/experts" />
+        <KpiCard icon={<Activity className="h-5 w-5" />} label="Active Experts" value={activeExperts} className="gradient-green" href="/project-partner/experts" />
+        <KpiCard icon={<PauseCircle className="h-5 w-5" />} label="On Standby" value={standbyExperts} className="gradient-orange" href="/project-partner/experts" />
+        <KpiCard icon={<FileText className="h-5 w-5" />} label="CVs Available" value={totalCvs} className="gradient-blue" href="/project-partner/projects" />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -100,16 +100,20 @@ export default async function ProjectPartnerDashboard() {
   );
 }
 
-function KpiCard({ icon, label, value, className }: { icon: React.ReactNode; label: string; value: number; className: string }) {
-  return (
-    <div className={`rounded-xl p-5 text-white shadow-sm ${className}`}>
+function KpiCard({ icon, label, value, className, href }: { icon: React.ReactNode; label: string; value: number; className: string; href?: string }) {
+  const content = (
+    <div className={`group rounded-xl p-5 text-white shadow-sm transition-all duration-200 hover:scale-[1.02] hover:shadow-lg cursor-pointer ${className}`}>
       <div className="flex items-center justify-between">
-        <span className="text-sm/none opacity-90">{label}</span>
+        <span className="text-sm/none opacity-90 group-hover:opacity-100 flex items-center gap-1">
+          {label}
+          {href && <ArrowRight className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-all duration-200 transform -translate-x-1 group-hover:translate-x-0" />}
+        </span>
         {icon}
       </div>
       <p className="mt-3 text-3xl font-bold">{value}</p>
     </div>
   );
+  return href ? <Link href={href} className="block focus:outline-none">{content}</Link> : content;
 }
 
 function StatusBar({ label, value, total, color }: { label: string; value: number; total: number; color: string }) {

@@ -35,10 +35,12 @@ interface LinkItem {
 
 const allLinks: LinkItem[] = [
   // Main
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, group: "main", roles: ["admin", "finance", "hr", "school-manager"] },
+  { href: "/admin/overview", label: "Admin Overview", icon: LayoutDashboard, group: "main", roles: ["admin"] },
   { href: "/admin/tasks", label: "Task Board", icon: ClipboardList, group: "main", roles: ["admin"] },
   { href: "/customer/dashboard", label: "My Dashboard", icon: LayoutDashboard, group: "main", roles: ["customer"] },
-  { href: "/expert/dashboard", label: "Expert Console", icon: LayoutDashboard, group: "main", roles: ["expert"] },
+  { href: "/expert/dashboard", label: "Expert Console", icon: LayoutDashboard, group: "main", roles: ["expert", "teacher"] },
+  { href: "/student/dashboard", label: "Student Portal", icon: LayoutDashboard, group: "main", roles: ["student"] },
+  { href: "/project-partner/dashboard", label: "Project Dashboard", icon: LayoutDashboard, group: "main", roles: ["project-partner", "project-partner-admin"] },
 
   // Partner Portal (SCCG Partner Portal)
   { href: "/partner/dashboard", label: "Partner Overview", icon: LayoutDashboard, group: "partner", roles: ["partner-individual", "partner-institutional"] },

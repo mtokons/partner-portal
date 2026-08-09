@@ -70,27 +70,33 @@ export default async function StudentDashboardPage() {
 
       {/* KPI cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="border-0 shadow-xl rounded-[24px] bg-white/70 backdrop-blur-xl">
-          <CardContent className="p-5 text-center">
-            <BookOpen className="h-5 w-5 mx-auto text-indigo-500 mb-2" />
-            <p className="text-2xl font-black">{active.length}</p>
-            <p className="text-xs font-bold text-muted-foreground">Active</p>
-          </CardContent>
-        </Card>
-        <Card className="border-0 shadow-xl rounded-[24px] bg-white/70 backdrop-blur-xl">
-          <CardContent className="p-5 text-center">
-            <CreditCard className="h-5 w-5 mx-auto text-green-500 mb-2" />
-            <p className="text-2xl font-black">৳{totalPaid.toLocaleString()}</p>
-            <p className="text-xs font-bold text-muted-foreground">Paid</p>
-          </CardContent>
-        </Card>
-        <Card className="border-0 shadow-xl rounded-[24px] bg-white/70 backdrop-blur-xl">
-          <CardContent className="p-5 text-center">
-            <AlertCircle className={`h-5 w-5 mx-auto mb-2 ${totalOwed > 0 ? "text-red-500" : "text-green-500"}`} />
-            <p className="text-2xl font-black">৳{totalOwed.toLocaleString()}</p>
-            <p className="text-xs font-bold text-muted-foreground">Due</p>
-          </CardContent>
-        </Card>
+        <Link href="/customer/school" className="block group outline-none">
+          <Card className="border-0 shadow-xl rounded-[24px] bg-white/70 backdrop-blur-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-2xl cursor-pointer">
+            <CardContent className="p-5 text-center">
+              <BookOpen className="h-5 w-5 mx-auto text-indigo-500 mb-2 group-hover:scale-110 transition-transform" />
+              <p className="text-2xl font-black">{active.length}</p>
+              <p className="text-xs font-bold text-muted-foreground group-hover:text-indigo-600 transition-colors">Active Courses</p>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href="/customer/payments" className="block group outline-none">
+          <Card className="border-0 shadow-xl rounded-[24px] bg-white/70 backdrop-blur-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-2xl cursor-pointer">
+            <CardContent className="p-5 text-center">
+              <CreditCard className="h-5 w-5 mx-auto text-green-500 mb-2 group-hover:scale-110 transition-transform" />
+              <p className="text-2xl font-black">৳{totalPaid.toLocaleString()}</p>
+              <p className="text-xs font-bold text-muted-foreground group-hover:text-green-600 transition-colors">Paid Amount</p>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href="/customer/payments" className="block group outline-none">
+          <Card className="border-0 shadow-xl rounded-[24px] bg-white/70 backdrop-blur-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-2xl cursor-pointer">
+            <CardContent className="p-5 text-center">
+              <AlertCircle className={`h-5 w-5 mx-auto mb-2 group-hover:scale-110 transition-transform ${totalOwed > 0 ? "text-red-500" : "text-green-500"}`} />
+              <p className="text-2xl font-black">৳{totalOwed.toLocaleString()}</p>
+              <p className="text-xs font-bold text-muted-foreground group-hover:text-red-600 transition-colors">Due Amount</p>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       {/* Visual analytics */}

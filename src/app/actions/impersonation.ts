@@ -4,8 +4,10 @@ import { redirect } from "next/navigation";
 import { assertAdmin } from "@/lib/admin-guard";
 import { setImpersonationCookie, clearImpersonationCookie } from "@/lib/impersonation";
 import { resolveConsole } from "@/lib/menu-engine";
+import { resolveDashboardForRoles } from "@/lib/access-policy";
 import { auth } from "@/auth";
 import type { SessionUser } from "@/types";
+import { getAllManagedUsers } from "@/lib/admin-users";
 
 /**
  * Start impersonating a target user.
@@ -23,10 +25,21 @@ export async function startImpersonationAction(
     const admin = session?.user as SessionUser | undefined;
     if (!admin?.email) return { success: false, error: "Admin session not found" };
 
-    // Determine where the impersonated user's primary console is
-    const console = resolveConsole(targetRoles);
+    // Re-resolve the target from the server-side registry. The browser-provided
+    // role is only a UI hint and must never control authorization or routing.
+    const managedTarget = (await getAllManagedUsers()).find(
+      (user) => user.email.toLowerCase() === targetEmail.toLowerCase().trim()
+    );
+    if (!managedTarget) return { success: false, error: "Target user could not be resolved." };
+    if (managedTarget.status !== "active") return { success: false, error: "Target user is not active." };
+
+    const resolvedTargetRoles = Array.from(new Set([managedTarget.primaryRole, ...managedTarget.roles]));
+    const resolvedTargetName = managedTarget.displayName || targetName;
+    const resolvedTargetId = managedTarget.id || targetId;
+    const console = resolveConsole(resolvedTargetRoles);
     const consoleMap: Record<string, string> = {
       admin: "/admin/overview",
+      sccg: "/sccg/dashboard",
       "school-admin": "/admin/school",
       partner: "/partner/dashboard",
       expert: "/expert/dashboard",
@@ -37,12 +50,12 @@ export async function startImpersonationAction(
       "ausbildung-seeker": "/ausbildung/seeker/dashboard",
       "ausbildung-partner": "/ausbildung/partner/dashboard",
     };
-    const redirectTo = consoleMap[console] || "/dashboard";
+    const redirectTo = resolveDashboardForRoles(resolvedTargetRoles) || consoleMap[console] || "/access-denied";
 
     // For partner targets, resolve the SharePoint Partners list id so partner
     // pages/actions that gate on `user.partnerId` work during impersonation.
     let targetPartnerId: string | undefined;
-    const isPartnerTarget = targetRoles.some((r) =>
+    const isPartnerTarget = resolvedTargetRoles.some((r) =>
       ["partner", "partner-individual", "partner-institutional"].includes(r.toLowerCase())
     );
     if (isPartnerTarget && targetEmail) {
@@ -58,10 +71,10 @@ export async function startImpersonationAction(
     await setImpersonationCookie({
       adminEmail: admin.email,
       adminName: admin.name || "Admin",
-      targetId,
+      targetId: resolvedTargetId,
       targetEmail,
-      targetName,
-      targetRoles,
+      targetName: resolvedTargetName,
+      targetRoles: resolvedTargetRoles,
       targetPrimaryConsole: console,
       targetPartnerId,
     });
@@ -74,17 +87,18 @@ export async function startImpersonationAction(
         actorName: admin.name || "Admin",
         actorRole: "admin",
         action: "impersonate_start",
-        description: `${admin.name || admin.email} started viewing as ${targetName || targetEmail}`,
-        targetId,
+        description: `${admin.name || admin.email} started viewing as ${resolvedTargetName || targetEmail}`,
+        targetId: resolvedTargetId,
         targetEmail,
-        targetName,
+        targetName: resolvedTargetName,
         console: "admin",
       });
     } catch { /* non-fatal */ }
 
     return { success: true, redirectTo };
-  } catch (err: any) {
-    return { success: false, error: err?.message || "Failed to start impersonation" };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Failed to start impersonation";
+    return { success: false, error: message };
   }
 }
 

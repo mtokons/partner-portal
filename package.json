@@ -12,6 +12,7 @@
     "sp:setup-products": "node scripts/setup-products.mjs",
     "sp:setup-certificates": "node scripts/setup-certificates-list.mjs",
     "sp:setup-experts": "node scripts/setup-expert-list.mjs",
+    "sp:add-task-flow": "node scripts/add-workflow-category-column.mjs",
     "sp:migrate-gfa": "node scripts/migrate-gfa-experts-to-bank.mjs",
     "sp:setup-kanban": "node scripts/setup-kanban-tasks.mjs",
     "demo:create-user": "node scripts/create-public-demo-user.mjs",

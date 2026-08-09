@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getEffectiveUser } from "@/lib/effective-user";
+import { getMenuOverridesForUser } from "@/lib/menu-overrides";
 import { getInstallments, getInvoices, getPartnerByEmail } from "@/lib/sharepoint";
 import ConsoleShell from "@/components/layout/ConsoleShell";
 import NotificationsLiveBridge from "@/components/providers/NotificationsLiveBridge";
@@ -41,6 +42,8 @@ export default async function PartnerLayout({ children }: { children: React.Reac
   const overdueCount = installments.filter((i) => i.status === "overdue").length;
   const unpaidInvoicesCount = invoices.filter((i) => i.status === "overdue" || i.status === "sent").length;
 
+  const { roleOverrides, userOverrides } = await getMenuOverridesForUser(user.email, userRoles);
+
   return (
     <>
       <ImpersonationBannerServer />
@@ -56,6 +59,8 @@ export default async function PartnerLayout({ children }: { children: React.Reac
       tierStatus={partnerData?.tierStatus}
       marginPercentage={partnerData?.marginPercentage}
       partnerLogoUrl={partnerData?.logoUrl}
+      roleMenuOverrides={roleOverrides}
+      userMenuOverrides={userOverrides}
     >
         <NotificationsLiveBridge />
         {children}

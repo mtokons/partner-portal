@@ -78,7 +78,7 @@ export function isFirebaseConfigured(): boolean {
 
 // ── Firestore Schema Types ──
 
-export type FirebaseUserRole = "partner" | "customer" | "expert" | "admin";
+export type FirebaseUserRole = "partner" | "customer" | "expert" | "admin" | "sccg-admin" | "sccg-staff";
 
 export interface FirebaseUserProfile {
   uid: string;
@@ -91,8 +91,14 @@ export interface FirebaseUserProfile {
   photoURL?: string;
   emailVerified: boolean;
   status: "active" | "pending" | "suspended";
+  /** Admin-assigned landing dashboard path that overrides role-based routing. */
+  dashboardOverride?: string;
   createdAt: unknown; // serverTimestamp
   updatedAt: unknown;
+}
+
+function normalizeFirebaseRole(role: string | undefined): FirebaseUserRole {
+  return (role || "partner").trim().toLowerCase() as FirebaseUserRole;
 }
 
 export interface ActivityLog {
@@ -178,7 +184,7 @@ export async function firebaseLogin(
     return {
       success: true,
       uid: user.uid,
-      role: profile?.role || "partner",
+      role: normalizeFirebaseRole(profile?.role),
     };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Login failed";
@@ -211,7 +217,7 @@ export async function firebaseGoogleLogin(): Promise<{ success: boolean; uid?: s
     return {
       success: true,
       uid: user.uid,
-      role: profile.role,
+      role: normalizeFirebaseRole(profile.role),
     };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Google login failed";

@@ -1,6 +1,6 @@
 import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import { compare } from "bcryptjs";
+import { compare, hash } from "bcryptjs";
 import { Repository } from "@/lib/repository";
 import { verifyIdToken } from "@/lib/firebase-admin";
 import type { SessionUser, PartnerType } from "@/types";
@@ -8,6 +8,51 @@ import type { FirebaseUserProfile } from "@/lib/firebase-auth";
 import { getFirestoreDb } from "@/lib/firebase-auth";
 import { doc, getDoc } from "firebase/firestore";
 import { resolveConsole } from "@/lib/menu-engine";
+
+/**
+ * Explicit admin email allowlist. Only these SCCG staff accounts are always
+ * treated as admins regardless of the role stored in Firestore/SharePoint.
+ * Everyone else (including other @mysccg.de accounts such as test partners,
+ * customers and experts) keeps their real role so they land on the correct,
+ * role-specific console. Extra admins can be added via the ADMIN_EMAILS env
+ * var (comma-separated) without a code change.
+ */
+const ADMIN_EMAILS = new Set(
+  [
+    "hasnain@mysccg.de",
+    "jfridoy@mysccg.de",
+    ...(process.env.ADMIN_EMAILS?.split(",") ?? []),
+  ]
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean)
+);
+
+/** True only for explicitly allow-listed admin accounts. */
+function isAdminEmail(email: string): boolean {
+  return ADMIN_EMAILS.has((email || "").trim().toLowerCase());
+}
+
+/**
+ * Optional email allowlists for the SCCG Career Lab console. Lets SCCG staff/admin
+ * be onboarded without editing Firestore. Comma-separated env vars.
+ */
+const SCCG_ADMIN_EMAILS = new Set(
+  (process.env.SCCG_ADMIN_EMAILS?.split(",") ?? []).map((e) => e.trim().toLowerCase()).filter(Boolean)
+);
+const SCCG_STAFF_EMAILS = new Set(
+  [
+    "faria@mysccg.de",
+    ...(process.env.SCCG_STAFF_EMAILS?.split(",") ?? []),
+  ].map((e) => e.trim().toLowerCase()).filter(Boolean)
+);
+
+/** Returns "sccg-admin"/"sccg-staff" if the email is allow-listed, else undefined. */
+function sccgRoleFromEmail(email: string): "sccg-admin" | "sccg-staff" | undefined {
+  const e = (email || "").trim().toLowerCase();
+  if (SCCG_ADMIN_EMAILS.has(e)) return "sccg-admin";
+  if (SCCG_STAFF_EMAILS.has(e)) return "sccg-staff";
+  return undefined;
+}
 
 /** Build a roles[] array by checking all stores for a given email */
 async function buildRolesForEmail(email: string, firebaseProfile?: FirebaseUserProfile) {
@@ -21,8 +66,11 @@ async function buildRolesForEmail(email: string, firebaseProfile?: FirebaseUserP
   let tierStatus: string | undefined;
   let marginPercentage: number | undefined;
   const cleanEmail = email.trim().toLowerCase();
-  const isAdminDomain = cleanEmail === "hasnain@mysccg.de" || cleanEmail === "jfridoy@mysccg.de" || cleanEmail.endsWith("@mysccg.de");
-  let primaryRole: SessionUser["role"] = isAdminDomain ? "admin" : (firebaseProfile?.role || "customer");
+  const isAdminDomain = isAdminEmail(cleanEmail);
+  const firebaseRole = firebaseProfile?.role
+    ? String(firebaseProfile.role).trim().toLowerCase() as SessionUser["role"]
+    : undefined;
+  let primaryRole: SessionUser["role"] = isAdminDomain ? "admin" : (firebaseRole || "customer");
   let name = firebaseProfile?.displayName || "";
 
   // 1. Check SharePoint Partners (Source of truth for PartnerID and Commission info)
@@ -96,6 +144,14 @@ async function buildRolesForEmail(email: string, firebaseProfile?: FirebaseUserP
     if (!roles.includes("partner-institutional")) roles.push("partner-institutional");
   }
 
+  // SCCG Career Lab allowlist: force the sccg role for allow-listed staff/admin
+  // (unless the account is a full platform admin, which takes precedence).
+  const sccgRole = sccgRoleFromEmail(cleanEmail);
+  if (sccgRole && !isAdminDomain && primaryRole !== "admin" && primaryRole !== "project-admin") {
+    primaryRole = sccgRole;
+    if (!roles.includes(sccgRole)) roles.push(sccgRole);
+  }
+
   return { roles, partnerId, company, customerId, expertId, partnerType, coinBalance, tierStatus, marginPercentage, primaryRole, name };
 }
 
@@ -127,21 +183,25 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             const profileDoc = await db.collection("users").doc(decodedToken.uid).get();
             const profile = profileDoc.data() as FirebaseUserProfile | undefined;
 
-            if (profile) {
-              if (profile.status === "suspended") {
-                console.warn(`[auth] User ${decodedToken.email} is suspended`);
-                const err = new CredentialsSignin("Your account has been suspended.");
-                throw err;
-              }
+            // No Firestore doc means the account was removed (manually or via
+            // admin action) — Firebase Auth alone is not proof of portal access.
+            if (!profile) {
+              console.warn(`[auth] No user profile found for ${decodedToken.email} (uid ${decodedToken.uid}); denying login`);
+              throw new CredentialsSignin("Your account was not found. Please contact an administrator.");
+            }
+            if (profile.status === "suspended") {
+              console.warn(`[auth] User ${decodedToken.email} is suspended`);
+              throw new CredentialsSignin("Your account has been suspended.");
             }
 
             // 2. Map to Portal Roles (Bridging Firebase and SharePoint)
             const email = decodedToken.email || "";
             const rolesInfo = await buildRolesForEmail(email, profile);
 
-            // SCCG staff (@mysccg.de) are always treated as admins, regardless of
-            // whatever role happens to be stored on their Firestore/SharePoint profile.
-            const isAdminDomainUser = email === "hasnain@mysccg.de" || email === "jfridoy@mysccg.de" || email.endsWith("@mysccg.de");
+            // Only allow-listed SCCG staff accounts are forced to admin; every other
+            // user keeps the role resolved from Firestore/SharePoint so they land on
+            // their own role-specific console.
+            const isAdminDomainUser = isAdminEmail(email);
             const effectiveRoles = rolesInfo.roles.includes("admin") || isAdminDomainUser
               ? Array.from(new Set([...rolesInfo.roles, "admin", "partner", "partner-individual", "partner-institutional"]))
               : rolesInfo.roles;
@@ -164,6 +224,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               coinBalance: rolesInfo.coinBalance,
               tierStatus: rolesInfo.tierStatus,
               marginPercentage: rolesInfo.marginPercentage,
+              dashboardOverride: (profile?.dashboardOverride || "").trim() || undefined,
             } as SessionUser;
           } catch (error) {
             console.error("[auth] Firebase token login failed:", error instanceof Error ? error.message : error);
@@ -210,7 +271,7 @@ async function verifyOrUpdatePassword(
         const email = (credentials.email as string).trim().toLowerCase();
         const password = (credentials.password as string).trim();
         const portal = (credentials.portal as string) || "";
-        const isAdminDomainUser = email === "hasnain@mysccg.de" || email === "jfridoy@mysccg.de" || email.endsWith("@mysccg.de");
+        const isAdminDomainUser = isAdminEmail(email);
 
         // If portal explicitly provided, restrict lookup to that store
         if (portal === "customer") {
@@ -348,6 +409,7 @@ async function verifyOrUpdatePassword(
                 coinBalance: ri.coinBalance,
                 tierStatus: ri.tierStatus,
                 marginPercentage: ri.marginPercentage,
+                dashboardOverride: (profile.dashboardOverride || "").trim() || undefined,
               } as SessionUser;
             }
           }
@@ -414,6 +476,7 @@ async function verifyOrUpdatePassword(
         token.coinBalance = u.coinBalance;
         token.tierStatus = u.tierStatus;
         token.marginPercentage = u.marginPercentage;
+        token.dashboardOverride = u.dashboardOverride;
       }
       return token;
     },
@@ -432,6 +495,7 @@ async function verifyOrUpdatePassword(
         u.coinBalance = token.coinBalance as number | undefined;
         u.tierStatus = token.tierStatus as SessionUser["tierStatus"];
         u.marginPercentage = token.marginPercentage as SessionUser["marginPercentage"];
+        u.dashboardOverride = token.dashboardOverride as string | undefined;
       }
       return session;
     },

@@ -1,0 +1,14 @@
+import { requireSccgAccess } from "@/lib/admin-guard";
+import { fetchPartnerPerformanceAction } from "../finance/actions";
+
+function eur(amount: number) { return new Intl.NumberFormat("en-GB", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(amount); }
+
+export const dynamic = "force-dynamic";
+
+export default async function PartnerPerformancePage() {
+  await requireSccgAccess();
+  const result = await fetchPartnerPerformanceAction();
+  if (!result.success || !result.data) return <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-6 text-sm text-destructive">{result.error || "Failed to load partner performance."}</div>;
+  const totals = result.data.reduce((sum, row) => ({ revenue: sum.revenue + row.revenue, paid: sum.paid + row.paid, outstanding: sum.outstanding + row.outstanding }), { revenue: 0, paid: 0, outstanding: 0 });
+  return <div className="space-y-6"><div><h1 className="text-2xl font-bold text-foreground">Partner Performance</h1><p className="mt-1 text-sm text-muted-foreground">Revenue, collections, outstanding balances, and refunds by partner.</p></div><div className="grid gap-3 sm:grid-cols-3">{[["Total revenue", totals.revenue, "text-blue-600"], ["Collected", totals.paid, "text-emerald-600"], ["Outstanding", totals.outstanding, "text-amber-600"]].map(([label, value, tone]) => <div key={String(label)} className="rounded-xl border border-border bg-card p-4"><p className="text-xs text-muted-foreground">{label}</p><p className={`mt-1 text-2xl font-bold ${tone}`}>{eur(Number(value))}</p></div>)}</div><div className="overflow-x-auto rounded-xl border border-border bg-card"><table className="w-full text-sm"><thead className="bg-muted/40 text-left text-xs text-muted-foreground"><tr><th className="p-3">Rank</th><th className="p-3">Partner</th><th className="p-3">Revenue</th><th className="p-3">Collected</th><th className="p-3">Outstanding</th><th className="p-3">Collection rate</th><th className="p-3">Refunds</th></tr></thead><tbody>{result.data.map((row, index) => { const rate = row.revenue ? Math.round((row.paid / row.revenue) * 100) : 0; return <tr key={row.partnerId} className="border-t border-border/60"><td className="p-3 font-semibold">{index + 1}</td><td className="p-3 font-medium">{row.partnerName}</td><td className="p-3">{eur(row.revenue)}</td><td className="p-3 text-emerald-600">{eur(row.paid)}</td><td className="p-3 text-amber-600">{eur(row.outstanding)}</td><td className="p-3">{rate}%</td><td className="p-3 text-red-600">{eur(row.refundTotal)}</td></tr>; })}{result.data.length === 0 && <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">No partner financial records found.</td></tr>}</tbody></table></div></div>;
+}

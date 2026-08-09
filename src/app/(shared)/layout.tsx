@@ -5,6 +5,7 @@ import { getInstallments, getInvoices, getPartnerByEmail } from "@/lib/sharepoin
 import ConsoleShell from "@/components/layout/ConsoleShell";
 import NotificationsLiveBridge from "@/components/providers/NotificationsLiveBridge";
 import { resolveConsole } from "@/lib/menu-engine";
+import { getMenuOverridesForUser } from "@/lib/menu-overrides";
 import { getImpersonationSession } from "@/lib/impersonation";
 import ImpersonationBanner from "@/components/layout/ImpersonationBanner";
 
@@ -38,6 +39,11 @@ export default async function SharedLayout({ children }: { children: React.React
   const overdueCount = installments.filter((i) => i.status === "overdue").length;
   const unpaidInvoicesCount = invoices.filter((i) => i.status === "overdue" || i.status === "sent").length;
 
+  const { roleOverrides, userOverrides } = await getMenuOverridesForUser(
+    impersonation ? impersonation.targetEmail : user.email,
+    effectiveRoles
+  );
+
   return (
     <>
       {impersonation && (
@@ -59,6 +65,8 @@ export default async function SharedLayout({ children }: { children: React.React
         listUrls={spInfo.listUrls}
         tierStatus={partnerData?.tierStatus}
         marginPercentage={partnerData?.marginPercentage}
+        roleMenuOverrides={roleOverrides}
+        userMenuOverrides={userOverrides}
         impersonating={!!impersonation}
       >
         <NotificationsLiveBridge />

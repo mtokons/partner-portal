@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Package, CreditCard, AlertCircle, Banknote, LockKeyhole } from "lucide-react";
+import { Package, CreditCard, AlertCircle, Banknote, LockKeyhole, ShieldCheck } from "lucide-react";
 import type { WorkflowCategory, CandidateService, CandidatePaymentStatus } from "@/types";
 import { WorkflowStepper } from "@/components/candidate/WorkflowStepper";
 import { CandidateStatusAdvancer } from "./CandidateStatusAdvancer";
 import { ServiceStatusAdvancer } from "./ServiceStatusAdvancer";
 import { PaymentNotificationModal } from "./PaymentNotificationModal";
+import { setCandidateSpecialApprovalAction } from "../actions";
 import { getAllowedTransitions, formatStatusLabel } from "@/lib/engine/candidate-workflow";
 
 interface ServiceWorkflowViewProps {
@@ -32,6 +33,7 @@ interface ServiceWorkflowViewProps {
   paidAmountEur: number;
   secondaryCurrency: string;
   exchangeRate: number;
+  serviceUnlocked?: boolean;
 }
 
 export function ServiceWorkflowView({
@@ -54,6 +56,7 @@ export function ServiceWorkflowView({
   paidAmountEur: paidAmountEurProp,
   secondaryCurrency,
   exchangeRate,
+  serviceUnlocked: serviceUnlockedProp,
 }: ServiceWorkflowViewProps) {
   // Selected service index — null means show primary candidate workflow
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
@@ -64,11 +67,29 @@ export function ServiceWorkflowView({
 
   // Payment modal state: which service triggered it
   const [paymentModal, setPaymentModal] = useState<CandidateService | null>(null);
+  // Account-level Add Payment modal (not tied to a specific service)
+  const [accountPaymentOpen, setAccountPaymentOpen] = useState(false);
+  // Admin "Special Approval" — unlock service start without payment
+  const [serviceUnlocked, setServiceUnlocked] = useState<boolean>(!!serviceUnlockedProp);
+  const [unlockPending, setUnlockPending] = useState(false);
+
+  async function toggleSpecialApproval() {
+    const next = !serviceUnlocked;
+    setUnlockPending(true);
+    setServiceUnlocked(next); // optimistic
+    const res = await setCandidateSpecialApprovalAction(candidateId, next);
+    if (!res.success) {
+      setServiceUnlocked(!next); // revert
+      alert(res.error || "Failed to update Special Approval");
+    }
+    setUnlockPending(false);
+  }
 
   function handlePaymentSuccess(newPaidAmount: number, newStatus: CandidatePaymentStatus) {
     setLocalPaidAmount(newPaidAmount);
     setLocalPaymentStatus(newStatus);
     setPaymentModal(null);
+    setAccountPaymentOpen(false);
   }
 
   // Determine what workflow to show
@@ -99,7 +120,7 @@ export function ServiceWorkflowView({
       ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
       : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400";
 
-  const isPaymentPending = localPaymentStatus === "pending";
+  const isPaymentPending = localPaymentStatus === "pending" && !serviceUnlocked;
 
   return (
     <div className="space-y-6">
@@ -271,9 +292,40 @@ export function ServiceWorkflowView({
 
       {/* Payment & Account Status */}
       <div className="bg-card rounded-2xl border p-6 space-y-3">
-        <div className="flex items-center gap-2">
-          <CreditCard className="w-4 h-4 text-muted-foreground" />
-          <h2 className="font-semibold text-foreground">Payment & Account Status</h2>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CreditCard className="w-4 h-4 text-muted-foreground" />
+            <h2 className="font-semibold text-foreground">Payment & Account Status</h2>
+            {serviceUnlocked && (
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 font-semibold inline-flex items-center gap-1">
+                <ShieldCheck className="w-3 h-3" /> Special Approval
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <button
+                onClick={toggleSpecialApproval}
+                disabled={unlockPending}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 ${
+                  serviceUnlocked
+                    ? "bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400"
+                    : "bg-indigo-600 text-white hover:bg-indigo-700"
+                }`}
+                title="Unlock service start without payment (admin override)"
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                {serviceUnlocked ? "Revoke Approval" : "Special Approval"}
+              </button>
+            )}
+            <button
+              onClick={() => setAccountPaymentOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+            >
+              <Banknote className="w-3.5 h-3.5" />
+              Add Payment
+            </button>
+          </div>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div className="space-y-1">
@@ -350,6 +402,23 @@ export function ServiceWorkflowView({
           secondaryCurrency={secondaryCurrency}
           exchangeRate={exchangeRate}
           onClose={() => setPaymentModal(null)}
+          onSuccess={handlePaymentSuccess}
+        />
+      )}
+
+      {/* Account-level Add Payment Modal */}
+      {accountPaymentOpen && (
+        <PaymentNotificationModal
+          candidateId={candidateId}
+          candidateName={candidateName}
+          serviceName="Account Payment"
+          serviceTotal={totalServiceFeeRaw}
+          depositRequired={depositRequired}
+          alreadyPaid={localPaidAmount}
+          totalServiceFee={totalServiceFeeRaw}
+          secondaryCurrency={secondaryCurrency}
+          exchangeRate={exchangeRate}
+          onClose={() => setAccountPaymentOpen(false)}
           onSuccess={handlePaymentSuccess}
         />
       )}

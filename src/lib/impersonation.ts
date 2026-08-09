@@ -10,13 +10,17 @@
  */
 
 import { cookies } from "next/headers";
-import { createHmac } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 
 const COOKIE_NAME = "__sccg_impersonate";
 const EXPIRY_MS = 2 * 60 * 60 * 1000; // 2 hours
 
 function getSecret(): string {
-  return (process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || "sccg-impersonate-secret-2026").slice(0, 64);
+  const secret = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET;
+  if (!secret && process.env.NODE_ENV === "production") {
+    throw new Error("NEXTAUTH_SECRET or AUTH_SECRET is required for impersonation.");
+  }
+  return (secret || "sccg-impersonate-dev-only").slice(0, 64);
 }
 
 function sign(payload: string): string {
@@ -55,7 +59,9 @@ export function decodeImpersonationToken(token: string): ImpersonationPayload | 
     const [b64, sig] = token.split(".");
     if (!b64 || !sig) return null;
     const expectedSig = sign(b64);
-    if (sig !== expectedSig) return null;
+    const actual = Buffer.from(sig, "utf8");
+    const expected = Buffer.from(expectedSig, "utf8");
+    if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) return null;
     const payload: ImpersonationPayload = JSON.parse(Buffer.from(b64, "base64url").toString("utf8"));
     if (!payload.exp || Date.now() > payload.exp) return null;
     return payload;

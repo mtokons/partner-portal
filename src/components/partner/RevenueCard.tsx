@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { DollarSign, ChevronDown, ChevronUp } from "lucide-react";
+import { Euro, ChevronDown, ChevronUp } from "lucide-react";
 import SalesLineChart from "@/components/charts/SalesLineChart";
 import type { Payout, Candidate } from "@/types";
 
@@ -77,7 +77,7 @@ export function RevenueCard({ payouts, candidates, partnerMargin }: RevenueCardP
     <div className="kpi-card gradient-green rounded-2xl p-6 text-white">
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-2">
-          <DollarSign className="w-5 h-5 opacity-80" />
+          <Euro className="w-5 h-5 opacity-80" />
           <span className="font-semibold text-base">My Revenue</span>
         </div>
         <button
