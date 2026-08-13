@@ -264,7 +264,7 @@ export default function Sidebar({
                   <h1 className="text-[14px] font-bold text-white tracking-tight leading-none font-[family-name:var(--font-outfit)]">
                     Partner Portal
                   </h1>
-                  <p className="text-[10px] text-sidebar-foreground/50 uppercase tracking-[0.12em] mt-1">
+                  <p className="text-[10px] text-slate-300 uppercase tracking-[0.12em] mt-1 font-medium">
                     {roleLabel} Console
                   </p>
                 </div>
@@ -275,7 +275,7 @@ export default function Sidebar({
             <button
               onClick={() => setIsMini(!isMini)}
               className={cn(
-                "hidden lg:flex h-8 w-8 rounded-xl bg-white/5 items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-all shadow-sm",
+                "hidden lg:flex h-8 w-8 rounded-xl bg-white/10 items-center justify-center text-white/70 hover:text-white hover:bg-white/20 transition-all shadow-sm",
                 isMini && "mx-auto"
               )}
             >
@@ -285,7 +285,7 @@ export default function Sidebar({
             {/* Mobile close button */}
             <button
               onClick={onClose}
-              className="lg:hidden h-8 w-8 rounded-xl bg-white/10 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/15 transition-colors"
+              className="lg:hidden h-8 w-8 rounded-xl bg-white/10 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/20 transition-colors"
             >
               <X className="h-4 w-4" />
             </button>
@@ -295,20 +295,20 @@ export default function Sidebar({
           <div className={cn("mt-5 relative z-10 transition-all", isMini && "mt-8")}>
             {isMini ? (
               <div 
-                className="flex items-center justify-center h-10 w-10 mx-auto rounded-xl bg-white/5 text-sidebar-foreground/40 cursor-pointer hover:bg-white/10"
+                className="flex items-center justify-center h-10 w-10 mx-auto rounded-xl bg-white/10 text-white/70 cursor-pointer hover:bg-white/15 hover:text-white"
                 onClick={() => setIsMini(false)}
               >
                 <Search className="h-4 w-4" />
               </div>
             ) : (
               <div className="animate-in fade-in zoom-in-95 duration-300">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-sidebar-foreground/40" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/60" />
                 <input
                   type="text"
                   placeholder="Search menu..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-white/5 border border-sidebar-border/30 rounded-xl pl-9 pr-3 py-2 text-sm text-sidebar-foreground placeholder:text-sidebar-foreground/30 outline-none focus:bg-white/10 focus:border-sidebar-primary/50 transition-all font-medium"
+                  className="w-full bg-white/10 border border-white/15 rounded-xl pl-9 pr-3 py-2 text-sm text-white placeholder:text-white/50 outline-none focus:bg-white/15 focus:border-indigo-400/60 transition-all font-medium"
                 />
               </div>
             )}
@@ -318,7 +318,7 @@ export default function Sidebar({
         {/* Navigation */}
         <nav className={cn("flex-1 px-3 pb-4 overflow-y-auto space-y-4 pr-1 scrollbar-hide transition-all", isMini && "px-2")}>
           {orderedGroups.length === 0 && !isMini && (
-            <div className="text-center py-6 text-sidebar-foreground/40 text-sm">
+            <div className="text-center py-6 text-white/60 text-sm">
               No results found for "{searchQuery}"
             </div>
           )}
@@ -332,13 +332,13 @@ export default function Sidebar({
                 {!isMini && (
                   <button 
                     onClick={() => toggleGroup(group)}
-                    className="flex items-center justify-between w-full px-3 mb-1.5 focus:outline-none group/btn transition-all"
+                    className="flex items-center justify-between w-full px-3 mb-1.5 focus:outline-none group/btn transition-all cursor-pointer"
                   >
-                    <span className="text-[12px] xl:text-[13px] 2xl:text-[14px] font-bold uppercase tracking-[0.12em] text-sidebar-foreground/50 group-hover/btn:text-sidebar-foreground/80 transition-colors">
+                    <span className="text-[11px] xl:text-[12px] 2xl:text-[13px] font-bold uppercase tracking-[0.12em] text-white/80 group-hover/btn:text-white transition-colors">
                       {groupLabels[group] || group}
                     </span>
                     <ChevronDown className={cn(
-                      "h-3 w-3 text-sidebar-foreground/30 group-hover/btn:text-sidebar-foreground/50 transition-transform duration-200",
+                      "h-3 w-3 text-white/60 group-hover/btn:text-white transition-transform duration-200",
                       isCollapsed ? "-rotate-90" : "rotate-0"
                     )} />
                   </button>
@@ -360,62 +360,62 @@ export default function Sidebar({
                           "group flex items-center gap-3 rounded-xl text-sm xl:text-[15px] 2xl:text-[16px] font-semibold transition-all duration-200 relative overflow-hidden",
                           isMini ? "justify-center p-3 h-12 w-12 mx-auto" : "px-3 py-2.5",
                           isActive
-                            ? "bg-gradient-to-r from-[rgba(99,130,245,0.25)] to-[rgba(99,130,245,0.08)] text-white shadow-sm border border-[rgba(99,130,245,0.25)]"
-                            : "text-sidebar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+                            ? "bg-gradient-to-r from-indigo-600/35 to-indigo-600/15 text-white shadow-sm border border-indigo-400/30"
+                            : "text-slate-200 hover:bg-white/10 hover:text-white"
                         )}
                       >
                         {isActive && !isMini && (
-                          <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5/6 rounded-r bg-sidebar-primary nav-glow" />
+                          <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5/6 rounded-r bg-indigo-400 nav-glow" />
                         )}
                         <link.icon
                           className={cn(
                             "h-4 w-4 shrink-0 transition-colors",
-                            isActive ? "text-sidebar-primary" : "text-sidebar-foreground/40 group-hover:text-sidebar-foreground/70"
+                            isActive ? "text-indigo-400" : "text-slate-400 group-hover:text-white"
                           )}
                         />
                         {!isMini && <span className="flex-1 truncate">{link.label}</span>}
                         {isActive && !isMini && (
-                          <ChevronRight className="h-3 w-3 text-sidebar-primary/70 shrink-0" />
+                          <ChevronRight className="h-3 w-3 text-indigo-300/80 shrink-0" />
                         )}
                       </Link>
                     );
                   })}
                 </div>
-                {isMini && <div className="h-px bg-white/5 mx-auto w-8 my-2" />}
+                {isMini && <div className="h-px bg-white/10 mx-auto w-8 my-2" />}
               </div>
             );
           })}
         </nav>
 
         {/* Footer */}
-        <div className={cn("p-4 border-t border-sidebar-border/50 shrink-0 transition-all", isMini && "p-2")}>
+        <div className={cn("p-4 border-t border-white/10 shrink-0 transition-all", isMini && "p-2")}>
           {siteUrl && !isMini && (
             <a 
               href={sidebarLinkUrl} 
               target="_blank" 
               rel="noopener noreferrer"
-              className="flex items-center gap-3 px-4 py-3 mb-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/10 text-indigo-400 text-[11px] font-bold hover:bg-indigo-500/10 hover:border-indigo-500/20 hover:text-indigo-300 transition-all group relative overflow-hidden"
+              className="flex items-center gap-3 px-4 py-3 mb-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-[11px] font-bold hover:bg-indigo-500/20 hover:border-indigo-500/30 hover:text-indigo-200 transition-all group relative overflow-hidden"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-indigo-500/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-              <div className="relative flex items-center justify-center h-6 w-6 rounded-lg bg-indigo-500/10 shrink-0">
-                <Database className="h-3.5 w-3.5" />
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-indigo-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+              <div className="relative flex items-center justify-center h-6 w-6 rounded-lg bg-indigo-500/20 shrink-0">
+                <Database className="h-3.5 w-3.5 text-indigo-300" />
                 <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-emerald-500 border-2 border-[#09090b] animate-pulse" />
               </div>
               <div className="flex flex-col min-w-0">
-                <span className="truncate leading-tight">Live SharePoint</span>
-                <span className="text-[9px] text-indigo-400/50 font-medium">Real-time Sync</span>
+                <span className="truncate leading-tight text-indigo-200">Live SharePoint</span>
+                <span className="text-[9px] text-indigo-300/70 font-medium">Real-time Sync</span>
               </div>
-              <ExternalLink className="h-3 w-3 ml-auto opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
+              <ExternalLink className="h-3 w-3 ml-auto opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-indigo-300" />
             </a>
           )}
           
           <div className={cn("flex items-center gap-2.5 px-1", isMini && "justify-center")}>
             <div className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_6px_2px_rgba(52,211,153,0.5)]" />
-            {!isMini && <p className="text-[10px] text-sidebar-foreground/40">System operational</p>}
+            {!isMini && <p className="text-[10px] text-white/75 font-medium">System operational</p>}
           </div>
           {!isMini && (
-            <div className="text-[9px] text-sidebar-foreground/25 text-center mt-3 space-y-0.5">
-              <p className="font-bold text-sidebar-foreground/40 uppercase tracking-tight leading-none">SCCG Career Lab UG</p>
+            <div className="text-[9px] text-white/60 text-center mt-3 space-y-0.5">
+              <p className="font-bold text-white/80 uppercase tracking-tight leading-none">SCCG Career Lab UG</p>
               <p>Julius-Ludowieg-Straße 46, 21073 Hamburg</p>
               <p>© 2026 SCCG</p>
             </div>

@@ -172,6 +172,34 @@ export async function CandidateDetail({ id, routeBase }: { id: string; routeBase
         )}
       </div>
 
+      {/* Client Service Timeline Placeholder */}
+      <div className="bg-card rounded-2xl border p-6 space-y-4">
+        <h2 className="font-semibold text-foreground">Client Service Timeline</h2>
+        <div className="relative border-l-2 border-primary/20 ml-3 space-y-6">
+          <div className="relative pl-6">
+            <div className="absolute -left-[5px] top-1 h-2 w-2 rounded-full bg-primary ring-4 ring-background" />
+            <p className="text-sm font-semibold">Candidate Registered</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{candidate.createdAt ? format(parseISO(candidate.createdAt), "MMM d, yyyy h:mm a") : "—"}</p>
+          </div>
+          
+          <div className="relative pl-6">
+            <div className={`absolute -left-[5px] top-1 h-2 w-2 rounded-full ring-4 ring-background ${candidate.paymentStatus !== 'pending' ? 'bg-primary' : 'bg-muted-foreground/30'}`} />
+            <p className="text-sm font-semibold">Payment Received</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {candidate.paymentStatus !== 'pending' ? "Payment completed" : "Awaiting payment"}
+            </p>
+          </div>
+          
+          <div className="relative pl-6">
+            <div className={`absolute -left-[5px] top-1 h-2 w-2 rounded-full ring-4 ring-background ${candidate.currentStatus !== candidate.workflowCategory + '_step1' ? 'bg-primary' : 'bg-muted-foreground/30'}`} />
+            <p className="text-sm font-semibold">Service Started</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+               {candidate.currentStatus.replace(/_/g, " ")}
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Tasks */}
       {activeTasks.length > 0 && (
         <div className="bg-card rounded-2xl border p-6 space-y-3">

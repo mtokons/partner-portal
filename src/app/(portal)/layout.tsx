@@ -69,6 +69,7 @@ export default async function PortalLayout({ children }: { children: React.React
         roleMenuOverrides={roleOverrides}
         userMenuOverrides={userOverrides}
         impersonating={!!impersonation}
+        isAdmin={isAdmin}
       >
         <NotificationsLiveBridge />
         {children}

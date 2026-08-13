@@ -21,12 +21,12 @@ interface TaskBoardClientProps {
   partner: { id: string; name: string; email: string; partnerCode: string };
 }
 
-const COLUMNS: Array<{ id: TaskStatus; label: string; bg: string; border: string; text: string; dot: string }> = [
-  { id: "backlog", label: "Backlog", bg: "bg-slate-500/5", border: "border-slate-500/10", text: "text-slate-400", dot: "bg-slate-400" },
-  { id: "todo", label: "To Do", bg: "bg-blue-500/5", border: "border-blue-500/10", text: "text-blue-400", dot: "bg-blue-500" },
-  { id: "in-progress", label: "In Progress", bg: "bg-amber-500/5", border: "border-amber-500/10", text: "text-amber-400", dot: "bg-amber-500" },
-  { id: "review", label: "In Review", bg: "bg-purple-500/5", border: "border-purple-500/10", text: "text-purple-400", dot: "bg-purple-500" },
-  { id: "done", label: "Done", bg: "bg-emerald-500/5", border: "border-emerald-500/10", text: "text-emerald-400", dot: "bg-emerald-500" },
+const COLUMNS: Array<{ id: TaskStatus; label: string; bg: string; border: string; text: string; dot: string; topBorder: string }> = [
+  { id: "backlog", label: "Backlog", bg: "bg-slate-500/5", border: "border-slate-500/10", text: "text-slate-400", dot: "bg-slate-400", topBorder: "border-t-slate-500" },
+  { id: "todo", label: "To Do", bg: "bg-indigo-500/5", border: "border-indigo-500/10", text: "text-indigo-400", dot: "bg-indigo-500", topBorder: "border-t-indigo-500" },
+  { id: "in-progress", label: "In Progress", bg: "bg-amber-500/5", border: "border-amber-500/10", text: "text-amber-400", dot: "bg-amber-500", topBorder: "border-t-amber-500" },
+  { id: "review", label: "In Review", bg: "bg-violet-500/5", border: "border-violet-500/10", text: "text-violet-400", dot: "bg-violet-500", topBorder: "border-t-violet-500" },
+  { id: "done", label: "Done", bg: "bg-emerald-500/5", border: "border-emerald-500/10", text: "text-emerald-400", dot: "bg-emerald-500", topBorder: "border-t-emerald-500" },
 ];
 
 const PRIORITIES: TaskPriority[] = ["low", "medium", "high"];
@@ -94,6 +94,27 @@ export default function TaskBoardClient({ initialTasks, candidates, partner }: T
       // Revert if action failed
       setTasks(previousTasks);
       alert(result.error || "Failed to move task");
+    }
+  };
+
+  const handleMoveStage = async (e: React.MouseEvent, taskId: string, currentStatus: TaskStatus, direction: "next" | "prev") => {
+    e.stopPropagation();
+    const stageOrder: TaskStatus[] = ["backlog", "todo", "in-progress", "review", "done"];
+    const idx = stageOrder.indexOf(currentStatus);
+    let nextIdx = idx;
+    if (direction === "next" && idx < stageOrder.length - 1) nextIdx = idx + 1;
+    if (direction === "prev" && idx > 0) nextIdx = idx - 1;
+    
+    if (nextIdx !== idx) {
+      const targetStatus = stageOrder[nextIdx];
+      const previousTasks = [...tasks];
+      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: targetStatus } : t));
+
+      const result = await movePartnerTaskAction(taskId, targetStatus);
+      if (!result.success) {
+        setTasks(previousTasks);
+        alert(result.error || "Failed to move task");
+      }
     }
   };
 
@@ -213,18 +234,15 @@ export default function TaskBoardClient({ initialTasks, candidates, partner }: T
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, col.id)}
               className={cn(
-                "rounded-2xl border transition-all duration-300 flex flex-col max-h-[750px]",
+                "rounded-2xl border-x border-b border-t-4 transition-all duration-300 flex flex-col max-h-[750px]",
                 col.bg,
+                col.topBorder,
                 isOver ? "border-primary/50 ring-2 ring-primary/10 scale-[1.01]" : col.border
               )}
             >
-              {/* Column Header */}
               <div className="p-4 border-b border-white/5 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className={cn("w-2 h-2 rounded-full", col.dot)} />
-                  <span className="font-bold text-foreground text-sm tracking-wide">{col.label}</span>
-                </div>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-muted-foreground font-semibold">
+                <span className="font-bold text-foreground text-sm tracking-wide">{col.label}</span>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-muted/80 text-foreground font-semibold">
                   {colTasks.length}
                 </span>
               </div>
@@ -300,10 +318,28 @@ export default function TaskBoardClient({ initialTasks, candidates, partner }: T
                               title={`Assigned to: ${task.assignedToName}`} 
                               className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold"
                             >
-                              Assignee: {task.assignedToName.split(" ")[0]}
+                              ✓ Assig: {task.assignedToName.split(" ")[0]}
                             </span>
                           </div>
                         )}
+
+                        {/* Kanban Arrow Move Buttons */}
+                        <div className="border-t border-white/5 pt-3 mt-3 flex justify-between items-center" onClick={(e) => e.stopPropagation()}>
+                          <button 
+                            onClick={(e) => handleMoveStage(e, task.id, task.status, "prev")}
+                            disabled={task.status === "backlog"}
+                            className="text-[10px] font-semibold px-2 py-1 bg-muted/40 border border-border/50 rounded text-muted-foreground hover:bg-muted disabled:opacity-30 transition-colors cursor-pointer"
+                          >
+                            ◀
+                          </button>
+                          <button 
+                            onClick={(e) => handleMoveStage(e, task.id, task.status, "next")}
+                            disabled={task.status === "done"}
+                            className="text-[10px] font-semibold px-2 py-1 bg-muted/40 border border-border/50 rounded text-muted-foreground hover:bg-muted disabled:opacity-30 transition-colors cursor-pointer"
+                          >
+                            ▶
+                          </button>
+                        </div>
                       </div>
                     );
                   })

@@ -358,7 +358,7 @@ export async function verifyUserAuthCode(
     }
   }
 
-  const sessionString = (client.session as StringSession).save();
+  const sessionString = (client.session as any).save();
   try {
     await client.disconnect();
   } catch {}

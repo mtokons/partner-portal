@@ -8,9 +8,11 @@ import type { CandidateTask, CandidateTaskFlow, TaskStatus } from "@/types";
 export async function fetchSccgTaskBoardDataAction() {
   try {
     await requirePermission("candidate.view.all");
-    const [candidates, tasks] = await Promise.all([
+    const [candidates, tasks, partners, users] = await Promise.all([
       Repository.candidates.getAll(),
       Repository.candidates.getAllTasks(),
+      Repository.partners.getAll(),
+      Repository.users.getAll(),
     ]);
 
     return {
@@ -22,6 +24,8 @@ export async function fetchSccgTaskBoardDataAction() {
           fullName: candidate.fullName,
           sccgId: candidate.sccgId,
         })),
+        partners: partners.map(p => ({ id: p.id, companyName: p.companyName, email: p.email })),
+        staff: users.map(u => ({ id: u.id, name: u.name, email: u.email })),
       },
     };
   } catch (error) {
@@ -35,7 +39,7 @@ export async function saveSccgTaskAction(taskData: Partial<CandidateTask>) {
     const candidate = taskData.candidateId ? await Repository.candidates.getById(taskData.candidateId) : null;
     if (!candidate) return { success: false, error: "Select a valid candidate" };
 
-    const allowedFlows: CandidateTaskFlow[] = ["candidate", "staff", "sccg"];
+    const allowedFlows: CandidateTaskFlow[] = ["candidate", "partner", "staff", "sccg"];
     const taskFlow: CandidateTaskFlow = allowedFlows.includes(taskData.taskFlow as CandidateTaskFlow)
       ? (taskData.taskFlow as CandidateTaskFlow)
       : "sccg";
@@ -109,7 +113,27 @@ async function notifyTaskCreated(task: CandidateTask, candidateEmail?: string) {
           </div>
         `,
       });
-    } else if (task.taskFlow === "staff" && task.assignedTo) {
+    } else if (task.taskFlow === "partner" && task.assignedToEmail) {
+      const { sendEmailViaGraph } = await import("@/lib/email");
+      const rawPortalUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL;
+      const portalUrl = rawPortalUrl && !rawPortalUrl.includes("localhost") ? rawPortalUrl.replace(/\/$/, "") : "https://portal.mysccg.de";
+      await sendEmailViaGraph({
+        to: task.assignedToEmail,
+        toName: task.assignedToName || "Partner",
+        subject: `SCCG Partner — New Task: ${task.title}`,
+        htmlBody: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <p>Dear ${task.assignedToName || "Partner"},</p>
+            <p>A new task has been assigned to you by SCCG for candidate <strong>${task.candidateName}</strong>:</p>
+            <p style="font-size:16px;font-weight:600;">${task.title}</p>
+            ${task.description ? `<p style="color:#475569;">${task.description}</p>` : ""}
+            ${task.dueDate ? `<p><strong>Due:</strong> ${task.dueDate}</p>` : ""}
+            <p><a href="${portalUrl}/partner/tasks" style="color:#2563eb;">Open Partner Portal →</a></p>
+            <p style="color:#64748b;font-size:13px;margin-top:24px;">Best regards,<br/><strong>SCCG Career Lab Germany</strong></p>
+          </div>
+        `,
+      });
+    } else if ((task.taskFlow === "staff" || task.taskFlow === "sccg") && task.assignedTo) {
       const { createNotification } = await import("@/lib/sharepoint");
       await createNotification({
         userId: task.assignedTo,
@@ -121,6 +145,28 @@ async function notifyTaskCreated(task: CandidateTask, candidateEmail?: string) {
         relatedId: task.id,
         createdAt: new Date().toISOString(),
       });
+      
+      // Also trigger email if email exists
+      if (task.assignedToEmail) {
+         const { sendEmailViaGraph } = await import("@/lib/email");
+         const rawPortalUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL;
+         const portalUrl = rawPortalUrl && !rawPortalUrl.includes("localhost") ? rawPortalUrl.replace(/\/$/, "") : "https://portal.mysccg.de";
+         await sendEmailViaGraph({
+           to: task.assignedToEmail,
+           toName: task.assignedToName || "Staff",
+           subject: `SCCG Staff — New Task: ${task.title}`,
+           htmlBody: `
+             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+               <p>Hi ${task.assignedToName || "Team"},</p>
+               <p>A new task has been assigned to you for candidate <strong>${task.candidateName}</strong>:</p>
+               <p style="font-size:16px;font-weight:600;">${task.title}</p>
+               ${task.description ? `<p style="color:#475569;">${task.description}</p>` : ""}
+               ${task.dueDate ? `<p><strong>Due:</strong> ${task.dueDate}</p>` : ""}
+               <p><a href="${portalUrl}/sccg/tasks" style="color:#2563eb;">Open Task Board →</a></p>
+             </div>
+           `,
+         });
+      }
     }
   } catch (err) {
     console.error("[sccg-tasks] notifyTaskCreated failed:", err);

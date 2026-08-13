@@ -69,7 +69,7 @@ export async function generateCvDocx(cvData: CvData): Promise<Blob> {
   if (contacts.length > 0) {
     children.push(
       new Paragraph({
-        space: { after: 200 },
+        spacing: { after: 200 },
         children: [
           new TextRun({
             text: contacts.join("  |  "),
@@ -87,7 +87,7 @@ export async function generateCvDocx(cvData: CvData): Promise<Blob> {
     children.push(
       new Paragraph({
         heading: HeadingLevel.HEADING_2,
-        space: { before: 300, after: 120 },
+        spacing: { before: 300, after: 120 },
         border: {
           bottom: {
             color: accentHex,
@@ -114,7 +114,7 @@ export async function generateCvDocx(cvData: CvData): Promise<Blob> {
     addSectionHeader("Professional Summary");
     children.push(
       new Paragraph({
-        space: { after: 200 },
+        spacing: { after: 200 },
         children: [
           new TextRun({
             text: personalInfo.summary,
@@ -136,7 +136,7 @@ export async function generateCvDocx(cvData: CvData): Promise<Blob> {
 
       children.push(
         new Paragraph({
-          space: { before: 140, after: 40 },
+          spacing: { before: 140, after: 40 },
           children: [
             new TextRun({
               text: exp.jobTitle,
@@ -169,7 +169,7 @@ export async function generateCvDocx(cvData: CvData): Promise<Blob> {
           children.push(
             new Paragraph({
               bullet: { level: 0 },
-              space: { after: 40 },
+              spacing: { after: 40 },
               children: [
                 new TextRun({
                   text: cleanLine,
@@ -191,7 +191,7 @@ export async function generateCvDocx(cvData: CvData): Promise<Blob> {
     for (const edu of education) {
       children.push(
         new Paragraph({
-          space: { before: 100, after: 40 },
+          spacing: { before: 100, after: 40 },
           children: [
             new TextRun({
               text: edu.degree,
@@ -219,7 +219,7 @@ export async function generateCvDocx(cvData: CvData): Promise<Blob> {
       if (edu.grade) {
         children.push(
           new Paragraph({
-            space: { after: 40 },
+            spacing: { after: 40 },
             children: [
               new TextRun({
                 text: `Grade: ${edu.grade}`,
@@ -241,7 +241,7 @@ export async function generateCvDocx(cvData: CvData): Promise<Blob> {
     const skillList = skills.map((s) => `${s.name} (${s.category})`).join("  •  ");
     children.push(
       new Paragraph({
-        space: { after: 140 },
+        spacing: { after: 140 },
         children: [
           new TextRun({
             text: skillList,
@@ -260,7 +260,7 @@ export async function generateCvDocx(cvData: CvData): Promise<Blob> {
     const langList = languages.map((l) => `${l.language}: ${l.proficiency}`).join("  |  ");
     children.push(
       new Paragraph({
-        space: { after: 140 },
+        spacing: { after: 140 },
         children: [
           new TextRun({
             text: langList,
@@ -279,7 +279,7 @@ export async function generateCvDocx(cvData: CvData): Promise<Blob> {
     for (const cert of certifications) {
       children.push(
         new Paragraph({
-          space: { after: 60 },
+          spacing: { after: 60 },
           children: [
             new TextRun({
               text: cert.title,
@@ -306,7 +306,7 @@ export async function generateCvDocx(cvData: CvData): Promise<Blob> {
     for (const proj of projects) {
       children.push(
         new Paragraph({
-          space: { before: 80, after: 40 },
+          spacing: { before: 80, after: 40 },
           children: [
             new TextRun({
               text: proj.title,
@@ -330,7 +330,7 @@ export async function generateCvDocx(cvData: CvData): Promise<Blob> {
       if (proj.description) {
         children.push(
           new Paragraph({
-            space: { after: 60 },
+            spacing: { after: 60 },
             children: [
               new TextRun({
                 text: proj.description,

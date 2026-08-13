@@ -3,8 +3,8 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import type { Candidate, WorkflowCategory, SuccessStory } from "@/types";
-import { Search, Award, Plus, X, Trash2, Loader2, Star } from "lucide-react";
 import { createSuccessStoryAction, deleteSuccessStoryAction } from "./actions";
+import { recordPaymentAction } from "@/app/partner/candidates/actions";
 
 type SuccessfulCandidate = Candidate & { partnerName: string };
 
@@ -45,7 +45,16 @@ export default function SuccessfulCandidatesClient({
   const [photo, setPhoto] = useState<{ base64: string; name: string; type: string } | null>(null);
   const [storyError, setStoryError] = useState<string | null>(null);
 
-  function onPhoto(file: File) {
+  // Payment modal state
+  const [paymentCandidate, setPaymentCandidate] = useState<SuccessfulCandidate | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("Bank Transfer");
+  const [paymentNote, setPaymentNote] = useState("");
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+
+  function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
     if (file.size > 5 * 1024 * 1024) { setStoryError("Photo must be under 5MB"); return; }
     const reader = new FileReader();
     reader.onload = () => setPhoto({ base64: String(reader.result), name: file.name, type: file.type });
@@ -86,6 +95,34 @@ export default function SuccessfulCandidatesClient({
       const res = await deleteSuccessStoryAction(id);
       if (res.success) setStories((prev) => prev.filter((s) => s.id !== id));
       else alert(res.error || "Failed to delete");
+    });
+  }
+
+  function submitPayment(e: React.FormEvent) {
+    e.preventDefault();
+    setPaymentError(null);
+    if (!paymentCandidate) return;
+    const amountNum = parseFloat(paymentAmount.replace(",", "."));
+    if (isNaN(amountNum) || amountNum <= 0) {
+      setPaymentError("Enter a valid positive amount");
+      return;
+    }
+    startTransition(async () => {
+      const res = await recordPaymentAction({
+        candidateId: paymentCandidate.id,
+        amountEur: amountNum,
+        isInitialPayment: false,
+        paymentMethod,
+        paymentNote,
+      });
+      if ("error" in res) {
+        setPaymentError(res.error);
+      } else {
+        setPaymentCandidate(null);
+        setPaymentAmount("");
+        setPaymentNote("");
+        alert("Payment recorded successfully!");
+      }
     });
   }
 
@@ -227,9 +264,82 @@ export default function SuccessfulCandidatesClient({
                   {c.currentStatus.replace(/_/g, " ")}
                 </span>
               </div>
-              <p className="mt-2 text-xs text-muted-foreground">Partner: {c.partnerName}</p>
+              <p className="mt-2 text-xs text-muted-foreground mb-3">Partner: {c.partnerName}</p>
+              
+              <div className="flex gap-2">
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setPaymentCandidate(c);
+                  }}
+                  className="flex-1 rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20 transition-colors"
+                >
+                  Add Payment
+                </button>
+              </div>
             </Link>
           ))}
+        </div>
+      )}
+
+      {/* Add Payment Modal */}
+      {paymentCandidate && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <form onSubmit={submitPayment} className="w-full max-w-sm space-y-4 rounded-2xl border bg-card p-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b pb-3">
+              <h3 className="text-lg font-bold text-foreground">Record Payment</h3>
+              <button type="button" onClick={() => setPaymentCandidate(null)} className="text-muted-foreground hover:text-foreground">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div>
+              <p className="text-sm font-semibold">{paymentCandidate.fullName}</p>
+              <p className="text-xs text-muted-foreground">{paymentCandidate.sccgId}</p>
+            </div>
+            
+            {paymentError && (
+              <div className="p-3 text-sm text-red-700 bg-red-100 rounded-lg dark:bg-red-900/30 dark:text-red-400">
+                {paymentError}
+              </div>
+            )}
+            
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground">Amount (EUR) *</label>
+              <input 
+                type="number" step="0.01" 
+                value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)}
+                className="w-full rounded-xl border bg-background px-3 py-2 text-sm" 
+                placeholder="e.g. 500" required 
+              />
+            </div>
+            
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground">Payment Method</label>
+              <select 
+                value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}
+                className="w-full rounded-xl border bg-background px-3 py-2 text-sm"
+              >
+                <option>Bank Transfer</option>
+                <option>Cash</option>
+                <option>Credit Card</option>
+                <option>PayPal</option>
+                <option>bKash / Nagad</option>
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground">Reference / Note</label>
+              <input 
+                value={paymentNote} onChange={(e) => setPaymentNote(e.target.value)}
+                className="w-full rounded-xl border bg-background px-3 py-2 text-sm" 
+                placeholder="Transaction ID or note..." 
+              />
+            </div>
+
+            <button type="submit" disabled={isPending} className="w-full rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
+              {isPending ? "Saving..." : "Save Payment"}
+            </button>
+          </form>
         </div>
       )}
 

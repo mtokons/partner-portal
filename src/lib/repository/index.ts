@@ -6,7 +6,7 @@ import {
   getKanbanTasks, createKanbanTask, updateKanbanTask, deleteKanbanTask,
   getActivities, createActivity,
   getServicePackages, getCustomerPackages, getCustomerPackageById, createCustomerPackage,
-  getSessionsByPackage, getSessionsByExpert, getSessionsByCustomer, getSessionById, getAllSessions,
+  getSessionsByPackage, getSessionsByExpert, getSessionsByCustomer, getSessionById, getAllSessions, createSession,
   scheduleSession, completeSession, updateSessionSchedule, assignExpertToPackage,
   getSalesOffers, createSalesOffer, getSalesOfferItems, createSalesOfferItem,
   getSalesOrders, createSalesOrder, getSalesOrderItems, createSalesOrderItem,
@@ -149,6 +149,9 @@ export const Repository = {
     },
     async getByCustomer(customerId: string): Promise<Session[]> {
       return getSessionsByCustomer(customerId);
+    },
+    async create(data: Omit<Session, "id">): Promise<Session> {
+      return createSession(data);
     },
     async getById(id: string): Promise<Session | null> {
       return getSessionById(id);

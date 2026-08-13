@@ -426,6 +426,7 @@ export async function finalizeRegistrationAction(
           subject: emailData.subject,
           htmlBody: emailData.htmlBody,
           cc: [{ email: "info@mysccg.de", name: "SCCG" }],
+          bcc: [{ email: "admin@mysccg.de" }, { email: "portal@mysccg.de" }],
         });
       }
     } catch {
@@ -524,6 +525,7 @@ export async function advanceCandidateStatusAction(
         subject: `SCCG — Status Update: ${toLabel}`,
         htmlBody: statusEmailHtml,
         cc: [{ email: "info@mysccg.de", name: "SCCG" }],
+        bcc: [{ email: "admin@mysccg.de" }, { email: "portal@mysccg.de" }],
       }).catch(() => {/* best-effort */});
     }
 

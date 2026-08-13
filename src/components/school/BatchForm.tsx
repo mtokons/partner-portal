@@ -27,8 +27,8 @@ export function BatchForm({ initialData, courses, teachers, onSuccess }: BatchFo
 
   const isEdit = !!initialData;
 
-  function handleCourseChange(courseId: string) {
-    if (isEdit) return; // Don't auto-fill in edit mode
+  function handleCourseChange(courseId: string | null) {
+    if (isEdit || !courseId) return; // Don't auto-fill in edit mode
     const course = courses.find((c) => c.id === courseId);
     if (!course) return;
     const year = new Date().getFullYear();

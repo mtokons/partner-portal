@@ -4,6 +4,7 @@ import { useState } from "react";
 import { usePathname } from "next/navigation";
 import DynamicSidebar from "@/components/layout/DynamicSidebar";
 import Header from "@/components/layout/Header";
+import RoleSwitcher from "@/components/layout/RoleSwitcher";
 import { resolveMenu, isManagementMenuKey } from "@/lib/menu-engine";
 import type { ConsoleType, MenuConfigRecord } from "@/lib/menu-engine";
 
@@ -77,6 +78,8 @@ interface ConsoleShellProps {
   partnerLogoUrl?: string;
   /** True when an admin is impersonating this user */
   impersonating?: boolean;
+  /** True when current user is a super admin (admin or sccg-admin) */
+  isAdmin?: boolean;
 }
 
 const CONSOLE_THEME: Record<ConsoleType, string> = {
@@ -232,20 +235,28 @@ export default function ConsoleShell({
   userMenuOverrides,
   partnerLogoUrl,
   impersonating,
+  isAdmin,
 }: ConsoleShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const theme = SHELL_THEME[consoleName];
+  const [previewConsole, setPreviewConsole] = useState<ConsoleType | null>(null);
 
-  // Resolve final menu items for this console + overrides
-  const themeClass = CONSOLE_THEME[consoleName];
-  const resolvedMenu = resolveMenu(consoleName, roleMenuOverrides, userMenuOverrides);
+  // Use preview console if set, otherwise the real console
+  const activeConsole = previewConsole ?? consoleName;
+  const theme = SHELL_THEME[activeConsole];
+
+  // Resolve final menu items for the active console + overrides
+  const themeClass = CONSOLE_THEME[activeConsole];
+  // When previewing, resolve menu from defaults only (no user/role overrides)
+  const resolvedMenu = previewConsole
+    ? resolveMenu(previewConsole)
+    : resolveMenu(consoleName, roleMenuOverrides, userMenuOverrides);
   // Hide management (ppa.*) items from read-only viewers
   const lowerRoles = (roles || []).map((r) => r.toLowerCase());
   const canManage = lowerRoles.includes("admin") || lowerRoles.includes("project-partner-admin");
   // SCCG Staff cannot see admin-only groups (Partner Mgmt, Finance, Administration)
   const isSccgAdmin = lowerRoles.includes("admin") || lowerRoles.includes("sccg-admin");
-  const menuItems = (canManage ? resolvedMenu : resolvedMenu.filter((m) => !isManagementMenuKey(m.key)))
-    .filter((m) => !m.adminOnly || isSccgAdmin);
+  const menuItems = (canManage || previewConsole ? resolvedMenu : resolvedMenu.filter((m) => !isManagementMenuKey(m.key)))
+    .filter((m) => !m.adminOnly || isSccgAdmin || previewConsole);
 
   const pathname = usePathname();
   const isFullBleed = pathname?.includes("/cv-suite/create") || pathname?.includes("/cv-maker");
@@ -258,13 +269,22 @@ export default function ConsoleShell({
       <div className="console-orb console-orb-two" aria-hidden="true" />
       <CalligraphyArt />
       <DynamicSidebar
-        console={consoleName}
+        console={activeConsole}
         menuItems={menuItems}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         tierStatus={tierStatus}
         marginPercentage={marginPercentage}
         partnerLogoUrl={partnerLogoUrl}
+        roleSwitcher={
+          isAdmin ? (
+            <RoleSwitcher
+              currentConsole={consoleName}
+              previewConsole={previewConsole}
+              onSwitch={setPreviewConsole}
+            />
+          ) : undefined
+        }
       />
       <Header
         userName={userName}

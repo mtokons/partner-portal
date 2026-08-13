@@ -30,7 +30,7 @@ export default function ExpertSidebar({ unreadCount }: { unreadCount: number }) 
           </div>
           <div>
             <h1 className="text-lg font-bold text-white tracking-tight">Expert Portal</h1>
-            <p className="text-[10px] text-sidebar-foreground/60 uppercase tracking-widest">Service Delivery</p>
+            <p className="text-[10px] text-slate-300 uppercase tracking-widest font-medium">Service Delivery</p>
           </div>
         </div>
       </div>
@@ -44,11 +44,11 @@ export default function ExpertSidebar({ unreadCount }: { unreadCount: number }) 
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
                 isActive
-                  ? "bg-sidebar-accent text-sidebar-primary-foreground shadow-sm"
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                  ? "bg-sidebar-accent text-white shadow-sm font-semibold"
+                  : "text-slate-200 hover:bg-sidebar-accent/50 hover:text-white"
               )}
             >
-              <link.icon className={cn("h-4 w-4 shrink-0", isActive && "text-sidebar-primary")} />
+              <link.icon className={cn("h-4 w-4 shrink-0", isActive ? "text-sidebar-primary" : "text-slate-400 group-hover:text-white")} />
               {link.label}
               {link.href === "/expert/notifications" && unreadCount > 0 && (
                 <span className="ml-auto bg-purple-500 text-white text-[10px] rounded-full px-1.5 py-0.5 min-w-[1.25rem] text-center font-bold">
@@ -63,7 +63,7 @@ export default function ExpertSidebar({ unreadCount }: { unreadCount: number }) 
         })}
       </nav>
       <div className="p-4 border-t border-sidebar-border">
-        <p className="text-[10px] text-sidebar-foreground/40 text-center">Powered by SCCG © 2026</p>
+        <p className="text-[10px] text-white/70 text-center font-medium">Powered by SCCG © 2026</p>
       </div>
     </aside>
   );

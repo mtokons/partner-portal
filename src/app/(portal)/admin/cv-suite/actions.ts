@@ -24,7 +24,7 @@ export interface CvSuiteStats {
 
 export async function getCvSuiteStats(): Promise<CvSuiteStats> {
   try {
-    await requirePermission("admin.view");
+    await requirePermission("candidate.view.all");
     const all = await getCandidates();
 
     const byCategory: Record<string, number> = {};
@@ -73,7 +73,7 @@ export async function getCvSuiteStats(): Promise<CvSuiteStats> {
 // ── Get All Candidates (for table) ────────────────────────────
 export async function getAllCandidatesAction(): Promise<Candidate[]> {
   try {
-    await requirePermission("admin.view");
+    await requirePermission("candidate.view.all");
     return await getCandidates();
   } catch (err) {
     console.error("getAllCandidatesAction Error:", err);
@@ -92,7 +92,7 @@ export async function getCandidateDetailAction(
   candidateId: string
 ): Promise<CandidateDetail | null> {
   try {
-    await requirePermission("admin.view");
+    await requirePermission("candidate.view.all");
     const [candidate, services, tasks] = await Promise.all([
       getCandidateById(candidateId),
       getCandidateServices(candidateId),
@@ -137,7 +137,7 @@ export async function exportCandidatesCsvAction(
   candidateIds?: string[]
 ): Promise<string> {
   try {
-    await requirePermission("admin.view");
+    await requirePermission("candidate.view.all");
     let all = await getCandidates();
 
     if (candidateIds && candidateIds.length > 0) {
@@ -237,7 +237,7 @@ export async function getDocumentCompletenessAction(): Promise<
   DocumentCompletenessRow[]
 > {
   try {
-    await requirePermission("admin.view");
+    await requirePermission("candidate.view.all");
     const all = await getCandidates();
 
     return all.map((c) => {

@@ -8,10 +8,12 @@ import type { SelectedService } from "../WizardShell";
 interface Step4FinancialSplitProps {
   selectedServices: SelectedService[];
   partnerMargin: PartnerMargin;
-  onNext: (split: FinancialSplitResult) => void;
+  onNext: (split: FinancialSplitResult, partnerId?: string) => void;
   onBack: () => void;
   secondaryCurrency?: string;
   exchangeRate?: number;
+  availablePartners?: Array<{ id: string; companyName: string }>;
+  initialPartnerId?: string;
 }
 
 const CSYM: Record<string, string> = {
@@ -26,9 +28,12 @@ export function Step4FinancialSplit({
   onBack,
   secondaryCurrency = "EUR",
   exchangeRate = 1,
+  availablePartners,
+  initialPartnerId,
 }: Step4FinancialSplitProps) {
   const [split, setSplit] = useState<FinancialSplitResult | null>(null);
   const [sccgSale, setSccgSale] = useState(false);
+  const [selectedPartnerId, setSelectedPartnerId] = useState(initialPartnerId || "");
   const effectiveMargin = (sccgSale ? 0 : partnerMargin) as PartnerMargin;
 
   useEffect(() => {
@@ -80,6 +85,22 @@ export function Step4FinancialSplit({
         </span>
       </label>
 
+      {availablePartners && !sccgSale && (
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Assign to Partner</label>
+          <select 
+            className="w-full rounded-xl border p-2.5 text-sm bg-background"
+            value={selectedPartnerId}
+            onChange={(e) => setSelectedPartnerId(e.target.value)}
+          >
+            <option value="">Select a Partner...</option>
+            {availablePartners.map(p => (
+              <option key={p.id} value={p.id}>{p.companyName}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {/* Line items */}
       <div className="border rounded-xl overflow-hidden">
         <table className="w-full text-sm">
@@ -127,7 +148,13 @@ export function Step4FinancialSplit({
           ← Back
         </button>
         <button
-          onClick={() => onNext(split)}
+          onClick={() => {
+            if (availablePartners && !sccgSale && !selectedPartnerId) {
+              alert("Please select a partner or mark as SCCG direct sale.");
+              return;
+            }
+            onNext(split, sccgSale ? "SCCG-DIRECT" : selectedPartnerId);
+          }}
           className="px-6 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
         >
           Confirm →

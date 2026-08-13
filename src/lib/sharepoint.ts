@@ -1483,23 +1483,31 @@ export async function createCustomerPackage(pkg: Omit<CustomerPackage, "id">): P
 
 /** Assign expert to a customer package and cascade to any of its unassigned sessions. */
 export async function assignExpertToPackage(packageId: string, expertId: string, expertName: string): Promise<void> {
-  const { graphGet, graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
-  await graphPatch(`${await getSiteListUrlAsync("CustomerPackages")}/${packageId}/fields`, {
-    [CP_COL.expertId]: expertId,
-    [CP_COL.expertName]: expertName,
-  });
+  return runSafe(async () => {
+    const { graphGet, graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
+    try {
+      await graphPatch(`${await getSiteListUrlAsync("CustomerPackages")}/${packageId}/fields`, {
+        [CP_COL.expertId]: expertId,
+        [CP_COL.expertName]: expertName,
+      });
+    } catch (err: any) {
+      console.warn(`[assignExpertToPackage] patch CustomerPackages failed (continuing): ${err?.message}`);
+    }
 
-  const url = `${await getSiteListUrlAsync("Sessions")}?$expand=fields&$filter=fields/${SESS_COL.packageId} eq '${packageId}'`;
-  const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, any> }> }>(url);
-  const unassigned = res.value.filter((item) => !item.fields[SESS_COL.expertId]);
-  await Promise.all(
-    unassigned.map(async (item) =>
-      graphPatch(`${await getSiteListUrlAsync("Sessions")}/${item.id}/fields`, {
-        [SESS_COL.expertId]: expertId,
-        [SESS_COL.expertName]: expertName,
-      })
-    )
-  );
+    try {
+      const url = `${await getSiteListUrlAsync("Sessions")}?$expand=fields&$filter=fields/${SESS_COL.packageId} eq '${packageId}'`;
+      const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, any> }> }>(url);
+      const unassigned = res.value.filter((item) => !item.fields[SESS_COL.expertId]);
+      await Promise.all(
+        unassigned.map(async (item) =>
+          graphPatch(`${await getSiteListUrlAsync("Sessions")}/${item.id}/fields`, {
+            [SESS_COL.expertId]: expertId,
+            [SESS_COL.expertName]: expertName,
+          }).catch(() => {})
+        )
+      );
+    } catch {}
+  });
 }
 
 // ============================================================
@@ -1674,6 +1682,33 @@ export async function getAllSessions(): Promise<Session[]> {
     });
   }, () => []);
 }
+
+export async function createSession(data: Omit<Session, "id">): Promise<Session> {
+  return runSafe(async () => {
+    const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
+    const fields: Record<string, any> = {
+      [SESS_COL.packageId]: data.customerPackageId,
+      [SESS_COL.customerId]: data.customerId,
+      [SESS_COL.clientName]: data.customerName || "",
+      [SESS_COL.partnerId]: data.partnerId,
+      [SESS_COL.sessionNumber]: data.sessionNumber,
+      [SESS_COL.totalSessions]: data.totalSessions,
+      [SESS_COL.status]: data.status || "pending",
+      [SESS_COL.createdAt]: data.createdAt || new Date().toISOString(),
+    };
+    if (data.expertId) fields[SESS_COL.expertId] = data.expertId;
+    if (data.expertName) fields[SESS_COL.expertName] = data.expertName;
+    if (data.scheduledAt) fields[SESS_COL.scheduledAt] = data.scheduledAt;
+    if (data.durationMinutes) fields[SESS_COL.durationMinutes] = data.durationMinutes;
+    if (data.candidateType) fields[SESS_COL.candidateType] = data.candidateType;
+    if (data.sessionDetailsOverride) fields[SESS_COL.sessionDetailsOverride] = data.sessionDetailsOverride;
+    if (data.meetingUrl) fields[SESS_COL.meetingUrl] = data.meetingUrl;
+
+    const res = await graphPost<{ id: string }>(await getSiteListUrlAsync("Sessions"), { fields });
+    return { ...data, id: String(res.id) } as Session;
+  });
+}
+
 
 /** Update a session's schedule/meeting-link/status/expert assignment in one PATCH. */
 export async function updateSessionSchedule(

@@ -14,6 +14,17 @@ export const SERVICE_PRICING_DATA: ServicePricing[] = [
     sortOrder: 1,
   },
   {
+    id: "sp-training-job-001",
+    workflowCategory: "Training & Language",
+    serviceName: "Professional Job Training",
+    packageType: "add-on",
+    basePrice: 190,
+    currency: "EUR",
+    description: "Professional job training and preparation",
+    isActive: true,
+    sortOrder: 1.5,
+  },
+  {
     id: "sp-training-002",
     workflowCategory: "Training & Language",
     serviceName: "Advanced Job Application Training",

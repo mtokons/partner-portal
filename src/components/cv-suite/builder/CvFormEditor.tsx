@@ -140,7 +140,7 @@ export function CvFormEditor({ data, onChange }: CvFormEditorProps) {
   };
 
   const SECTIONS = [
-    { key: "personal", label: "Personal", icon: User },
+    { key: "personal", label: "Personal", icon: User, count: 0 },
     { key: "experience", label: "Experience", icon: Briefcase, count: data.workExperience.length },
     { key: "education", label: "Education", icon: GraduationCap, count: data.education.length },
     { key: "skills", label: "Skills", icon: Code, count: data.skills.length },

@@ -128,18 +128,24 @@ export default function AssignExpertClient({
   function handleSessionNoChange(no: number) {
     setFormSessionNo(no);
     const sessionObj = selectedCandidateSessions.find(s => s.sessionNumber === no);
-    if (sessionObj) {
-      let cType = sessionObj.candidateType;
-      if (cType && (SESSION_LOGIC as any)[cType]?.[no]) {
-        const logic = (SESSION_LOGIC as any)[cType][no];
-        setFormSessionTitle(logic.title);
-        // Map details array to bullet points string
-        const bulletPoints = logic.details.map((d: string) => `• ${d}`).join("\n");
-        setFormSessionDetailsOverride(sessionObj.sessionDetailsOverride || bulletPoints);
-      } else {
-        setFormSessionTitle(`Session ${no}`);
-        setFormSessionDetailsOverride(sessionObj.sessionDetailsOverride || "");
-      }
+    
+    let cType = sessionObj?.candidateType;
+    if (!cType) {
+      const pkg = packages.find(p => p.id === formCandidatePkgId);
+      if (pkg?.workflowCategory === "ausbildung") cType = "Ausbildung";
+      else if (pkg?.workflowCategory === "opportunity-card") cType = "Opportunity Card";
+      else cType = "Student Visa";
+    }
+
+    if (cType && (SESSION_LOGIC as any)[cType]?.[no]) {
+      const logic = (SESSION_LOGIC as any)[cType][no];
+      setFormSessionTitle(logic.title);
+      // Map details array to bullet points string
+      const bulletPoints = logic.details.map((d: string) => `• ${d}`).join("\n");
+      setFormSessionDetailsOverride(sessionObj?.sessionDetailsOverride || bulletPoints);
+    } else {
+      setFormSessionTitle(`Session ${no}`);
+      setFormSessionDetailsOverride(sessionObj?.sessionDetailsOverride || "");
     }
   }
 
@@ -195,14 +201,16 @@ export default function AssignExpertClient({
 
   function handleAssignSessionSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!selectedSessionObj) {
-      setBanner({ type: "error", message: "Please select a valid Candidate and Session No. (Sessions must be loaded)" });
+    if (!formCandidatePkgId || !formSessionNo) {
+      setBanner({ type: "error", message: "Please select a valid Candidate and Session No." });
       return;
     }
     
     startTransition(async () => {
       const formData = new FormData();
-      formData.append("sessionId", selectedSessionObj.id);
+      formData.append("sessionId", selectedSessionObj?.id || "0");
+      formData.append("candidatePkgId", formCandidatePkgId);
+      formData.append("sessionNumber", formSessionNo.toString());
       formData.append("expertId", formExpertId);
       if (formSessionTitle) formData.append("sessionTitle", formSessionTitle);
       if (formSessionDetailsOverride) formData.append("sessionDetailsOverride", formSessionDetailsOverride);
@@ -301,11 +309,14 @@ export default function AssignExpertClient({
                   className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
                 >
                   <option value={0}>Select Session...</option>
-                  {selectedCandidateSessions.map(s => (
-                    <option key={s.sessionNumber} value={s.sessionNumber}>
-                      Session {s.sessionNumber} {s.status === "scheduled" ? "(Already Scheduled)" : ""}
-                    </option>
-                  ))}
+                  {[1, 2, 3, 4, 5].map(num => {
+                    const existing = selectedCandidateSessions.find(s => s.sessionNumber === num);
+                    return (
+                      <option key={num} value={num}>
+                        Session {num} {existing && existing.status === "scheduled" ? "(Already Scheduled)" : ""}
+                      </option>
+                    );
+                  })}
                 </select>
                 {!formCandidatePkgId && <p className="text-xs text-muted-foreground">Select candidate first to load sessions.</p>}
               </div>

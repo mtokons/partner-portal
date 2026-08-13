@@ -44,7 +44,9 @@ export interface WizardState {
   paymentOption: "pay-now" | "pay-later";
   paymentMethod?: string;
   paymentReference?: string;
-  uploadedDocuments: { documentType: string; fileUrl: string; fileName: string }[];
+  paymentDate?: string;
+  uploadedDocuments: Array<{ id: string; name: string; url: string; size: number }>;
+  selectedPartnerId?: string;
   submissionResult?: { candidateId: string; submissionId?: string };
 }
 
@@ -92,6 +94,8 @@ interface WizardShellProps {
   prefill?: { name: string; email: string; phone: string; notes: string };
   /** Partner's payment details (bKash, Nagad, bank) to show in payment step */
   partnerPaymentInfo?: PartnerPaymentData;
+  /** If provided (admin mode), allows staff to select a partner */
+  availablePartners?: Array<{ id: string; companyName: string }>;
 }
 
 export function WizardShell({
@@ -105,6 +109,7 @@ export function WizardShell({
   routeBase,
   prefill,
   partnerPaymentInfo,
+  availablePartners,
 }: WizardShellProps) {
   const candidatesPath = routeBase || (adminMode ? "/admin/candidates" : "/partner/candidates");
   const newCandidatePath = `${candidatesPath}/new`;
@@ -139,9 +144,30 @@ export function WizardShell({
     selectedServices: [],
     paymentOption: "pay-later",
     uploadedDocuments: [],
+    selectedPartnerId: partnerId,
   };
 
   const [state, setState] = useState<WizardState>(initialState);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    const saved = sessionStorage.getItem(`sccg_wizard_${existingCandidate?.id || 'new'}`);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') {
+          setState((prev) => ({ ...prev, ...parsed, step: parsed.step || prev.step }));
+        }
+      } catch (e) {}
+    }
+  }, [existingCandidate?.id]);
+
+  useEffect(() => {
+    if (mounted) {
+      sessionStorage.setItem(`sccg_wizard_${existingCandidate?.id || 'new'}`, JSON.stringify(state));
+    }
+  }, [state, mounted, existingCandidate?.id]);
 
   function onNext(partial: Partial<WizardState> & { targetStep?: number }) {
     setState((prev) => {
@@ -252,10 +278,12 @@ export function WizardShell({
           <Step4FinancialSplit
             selectedServices={state.selectedServices}
             partnerMargin={partnerMargin}
-            onNext={(financialSplit) => onNext({ financialSplit })}
-            onBack={onBack}
             secondaryCurrency={secondaryCurrency}
             exchangeRate={exchangeRate}
+            availablePartners={availablePartners}
+            initialPartnerId={state.selectedPartnerId}
+            onNext={(splitRes, selectedPartnerId) => onNext({ financialSplit: splitRes, selectedPartnerId })}
+            onBack={onBack}
           />
         )}
         {currentStep === 4 && (
@@ -273,10 +301,15 @@ export function WizardShell({
             state={state}
             partnerMargin={partnerMargin}
             partnerId={partnerId}
-            onDone={(result) => {
+            onDone={async () => {
+              const res = await saveCandidateRegistrationAction({
+                ...state,
+                partnerId: state.selectedPartnerId || partnerId,
+              } as any);
+              sessionStorage.removeItem(`sccg_wizard_${existingCandidate?.id || 'new'}`);
               // Existing candidates skip documents → go straight to success (step 7)
               const nextStep = isExisting ? 7 : 6;
-              setState((prev) => ({ ...prev, submissionResult: result, step: nextStep }));
+              setState((prev) => ({ ...prev, submissionResult: res, step: nextStep }));
             }}
             onBack={onBack}
             secondaryCurrency={secondaryCurrency}

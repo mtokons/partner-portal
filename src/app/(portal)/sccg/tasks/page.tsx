@@ -12,5 +12,5 @@ export default async function SccgTasksPage() {
   const result = await fetchSccgTaskBoardDataAction();
   if (!result.success || !result.data) redirect("/sccg/dashboard");
 
-  return <SccgTaskBoardClient initialTasks={result.data.tasks} candidates={result.data.candidates} />;
+  return <SccgTaskBoardClient initialTasks={result.data.tasks} candidates={result.data.candidates} partners={result.data.partners} staff={result.data.staff} />;
 }

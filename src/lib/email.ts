@@ -17,6 +17,7 @@ export interface SendEmailParams {
   attachments?: EmailAttachment[];
   senderUserId?: string; // Override sender mailbox
   cc?: Array<{ email: string; name?: string }>;
+  bcc?: Array<{ email: string; name?: string }>;
   saveToSentItems?: boolean;
 }
 
@@ -45,6 +46,10 @@ export async function sendEmailViaGraph(params: SendEmailParams): Promise<void> 
     emailAddress: { address: c.email, name: c.name || c.email },
   }));
 
+  const bccRecipients = (params.bcc || []).map((c) => ({
+    emailAddress: { address: c.email, name: c.name || c.email },
+  }));
+
   const attachmentsList = (params.attachments || []).map((a) => ({
     "@odata.type": "#microsoft.graph.fileAttachment",
     name: a.name,
@@ -61,6 +66,7 @@ export async function sendEmailViaGraph(params: SendEmailParams): Promise<void> 
       },
       toRecipients,
       ...(ccRecipients.length > 0 && { ccRecipients }),
+      ...(bccRecipients.length > 0 && { bccRecipients }),
       ...(attachmentsList.length > 0 && { attachments: attachmentsList }),
     },
     saveToSentItems: params.saveToSentItems !== false,
@@ -94,7 +100,11 @@ export function buildWelcomeCustomerEmail(data: {
             <tr><td style="padding: 8px 0; color: #64748b;">Login URL</td><td style="padding: 8px 0;"><a href="${data.loginUrl}">${data.loginUrl}</a></td></tr>
             <tr><td style="padding: 8px 0; color: #64748b;">Temporary Password</td><td style="padding: 8px 0; font-family: monospace; background: #f1f5f9; padding: 4px 8px; border-radius: 4px;">${data.tempPassword}</td></tr>
           </table>
-          <p style="color: #ef4444; font-size: 14px;">⚠️ Please change your password after first login.</p>
+          <p style="text-align: center; margin-top: 24px;">
+             <a href="${data.loginUrl}" style="background-color: #2563eb; color: #ffffff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">Login to SCCG Portal</a>
+          </p>
+          <p style="color: #ef4444; font-size: 14px; text-align: center;">⚠️ Please change your password after first login.</p>
+          <p style="font-size: 14px;">If you have any questions, please contact <a href="mailto:info@mysccg.de" style="color: #2563eb;">info@mysccg.de</a>.</p>
           <p style="color: #64748b; font-size: 13px; margin-top: 24px;">— SCCG Portal Team</p>
         </div>
       </div>

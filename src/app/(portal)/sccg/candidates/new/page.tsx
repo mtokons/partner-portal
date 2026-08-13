@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { requirePermission } from "@/lib/permissions";
 import { getCandidateById, getCandidateServices, getProducts } from "@/lib/sharepoint";
 import { WizardShell } from "@/app/partner/candidates/new/WizardShell";
+import { Repository } from "@/lib/repository";
 
 export default async function SccgRegisterCandidatePage({
   searchParams,
@@ -10,7 +11,10 @@ export default async function SccgRegisterCandidatePage({
 }) {
   await requirePermission("candidate.create");
   const { candidateId, email, name } = await searchParams;
-  const products = await getProducts();
+  const [products, partners] = await Promise.all([
+    getProducts(),
+    Repository.partners.getAll(),
+  ]);
   const existingCandidate = candidateId ? await getCandidateById(candidateId) : null;
   if (candidateId && !existingCandidate) notFound();
   const existingServices = existingCandidate ? await getCandidateServices(existingCandidate.id) : [];
@@ -25,6 +29,7 @@ export default async function SccgRegisterCandidatePage({
         partnerMargin={existingCandidate?.marginPercentage || 15}
         partnerId={existingCandidate?.partnerId || "SCCG-DIRECT"}
         products={products}
+        availablePartners={partners.map(p => ({ id: p.id, companyName: p.companyName }))}
         routeBase="/sccg/candidates"
         secondaryCurrency="EUR"
         exchangeRate={1}
