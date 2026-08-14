@@ -353,12 +353,13 @@ const SCCG_MENU: MenuItem[] = [
   { key: "sccg.hr.employees", label: "Employees", href: "/sccg/hr/employees", icon: "Users", group: "hr", groupLabel: "Human Resource", groupOrder: 8, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
 
   // 8. Language School
-  { key: "sccg.school", label: "Language School", href: "/sccg/school", icon: "GraduationCap", group: "school", groupLabel: "Language School", groupOrder: 9, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.school", label: "School Dashboard", href: "/sccg/school", icon: "GraduationCap", group: "school", groupLabel: "Language School", groupOrder: 9, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
   { key: "sccg.school.courses", label: "Courses", href: "/sccg/school/courses", icon: "BookOpen", group: "school", groupLabel: "Language School", groupOrder: 9, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
   { key: "sccg.school.batches", label: "Batches", href: "/sccg/school/batches", icon: "Layers", group: "school", groupLabel: "Language School", groupOrder: 9, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
-  { key: "sccg.school.enrollments", label: "Enrollments", href: "/sccg/school/enrollments", icon: "ClipboardList", group: "school", groupLabel: "Language School", groupOrder: 9, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false },
-  { key: "sccg.school.teachers", label: "Teachers", href: "/sccg/school/teachers", icon: "UserCheck", group: "school", groupLabel: "Language School", groupOrder: 9, itemOrder: 5, isEnabled: true, isDefault: true, isLocked: false },
-  { key: "sccg.school.certificates", label: "Certificates", href: "/sccg/school/certificates", icon: "Award", group: "school", groupLabel: "Language School", groupOrder: 9, itemOrder: 6, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.school.students", label: "Students", href: "/sccg/school/students", icon: "Users", group: "school", groupLabel: "Language School", groupOrder: 9, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.school.waiting-list", label: "Waiting List", href: "/sccg/school/waiting-list", icon: "Hourglass", group: "school", groupLabel: "Language School", groupOrder: 9, itemOrder: 5, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.school.team", label: "Language Team", href: "/sccg/school/team", icon: "UserCheck", group: "school", groupLabel: "Language School", groupOrder: 9, itemOrder: 6, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.school.certificates", label: "Certificates", href: "/sccg/school/certificates", icon: "Award", group: "school", groupLabel: "Language School", groupOrder: 9, itemOrder: 7, isEnabled: true, isDefault: true, isLocked: false },
 
   // 9. Wallet & Rewards
   { key: "sccg.wallets",    label: "Manage Wallets", href: "/admin/wallets",    icon: "Wallet",     group: "wallet", groupLabel: "Wallet & Rewards", groupOrder: 10, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
@@ -400,8 +401,8 @@ export function getAllAvailableMenuItems(): MenuItem[] {
 /** Given a user's roles array, determine their primary console */
 export function resolveConsole(roles: string[]): ConsoleType {
   const lower = roles.map((r) => r.toLowerCase());
-  if (lower.includes("sccg-admin") || lower.includes("sccg-staff")) return "sccg";
   if (lower.includes("admin") || lower.includes("project-admin")) return "admin";
+  if (lower.includes("sccg-admin") || lower.includes("sccg-staff")) return "sccg";
   if (lower.includes("school-manager")) return "school-admin";
   if (lower.includes("project-partner") || lower.includes("project-partner-admin")) return "project-partner";
   if (lower.includes("job-seeker")) return "job-seeker";

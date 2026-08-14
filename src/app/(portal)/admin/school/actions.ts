@@ -15,3 +15,10 @@ export const deleteCertificateAction = async (...args: any[]): Promise<any> => {
 export const issueCertificate = async (...args: any[]): Promise<any> => { throw new Error("Not implemented"); };
 export const fetchEnrollments = async (...args: any[]): Promise<any> => { return []; };
 export const sendPaymentReminderAction = async (...args: any[]): Promise<any> => { throw new Error("Not implemented"); };
+export const deleteEnrollment = async (...args: any[]): Promise<any> => { throw new Error("Not implemented"); };
+export const updateEnrollment = async (...args: any[]): Promise<any> => { throw new Error("Not implemented"); };
+export const assignBatchToEnrollmentAction = async (...args: any[]): Promise<any> => { throw new Error("Not implemented"); };
+export const confirmEnrollmentPaymentAction = async (...args: any[]): Promise<any> => { throw new Error("Not implemented"); };
+export const fetchAvailableBatches = async (...args: any[]): Promise<any> => { return []; };
+export const requestTeacherWithdrawalAction = async (...args: any[]): Promise<any> => { throw new Error("Not implemented"); };
+export const updateTeacherEarningPaymentAction = async (...args: any[]): Promise<any> => { throw new Error("Not implemented"); };

@@ -1,4 +1,19 @@
 import { requirePermission } from "@/lib/permissions";
 import { getSchoolBatches, getSchoolCourses, getSchoolTeachers } from "@/lib/firestore-services";
-import { createBatchAction } from "../actions";
-export default async function BatchesPage(){await requirePermission("school.batch.manage");const[batches,courses,teachers]=await Promise.all([getSchoolBatches(),getSchoolCourses(),getSchoolTeachers()]);return <div className="space-y-6 max-w-7xl mx-auto"><h1 className="text-2xl font-bold">Batches</h1><form action={createBatchAction} className="grid gap-3 border rounded-lg p-5 md:grid-cols-3"><select required name="courseId" className="h-10 border rounded-md bg-background px-3"><option value="">Select course</option>{courses.map(course=><option key={course.id} value={course.id}>{course.courseName}</option>)}</select><select required name="teacherId" className="h-10 border rounded-md bg-background px-3"><option value="">Select teacher</option>{teachers.filter(t=>t.status==="active").map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select><input required name="batchCode" placeholder="Batch code" className="h-10 border rounded-md bg-background px-3"/><input required name="batchName" placeholder="Batch name" className="h-10 border rounded-md bg-background px-3"/><input required name="startDate" type="date" className="h-10 border rounded-md bg-background px-3"/><input required name="endDate" type="date" className="h-10 border rounded-md bg-background px-3"/><input required name="schedule" placeholder="Schedule" className="h-10 border rounded-md bg-background px-3"/><input name="classroomOrLink" placeholder="Classroom or link" className="h-10 border rounded-md bg-background px-3"/><input name="maxStudents" type="number" min="1" defaultValue="20" className="h-10 border rounded-md bg-background px-3"/><button className="h-10 rounded-md bg-primary text-primary-foreground md:col-span-3">Create Batch</button></form><div className="border rounded-lg divide-y">{batches.map(batch=><div key={batch.id} className="p-4 flex justify-between gap-3"><div><p className="font-medium">{batch.batchName}</p><p className="text-sm text-muted-foreground">{batch.courseName} · {batch.teacherName} · {batch.startDate} to {batch.endDate}</p></div><span className="text-sm">{batch.enrolledStudents}/{batch.maxStudents} · {batch.status}</span></div>)}</div></div>}
+import BatchesClient from "./BatchesClient";
+
+export const metadata = {
+  title: "Training Batches | SCCG Language School",
+  description: "Manage German Language cohorts, instructors, coordinators, and automated revenue shares.",
+};
+
+export default async function BatchesPage() {
+  await requirePermission("school.batch.manage");
+  const [batches, courses, teachers] = await Promise.all([
+    getSchoolBatches().catch(() => []),
+    getSchoolCourses().catch(() => []),
+    getSchoolTeachers().catch(() => []),
+  ]);
+
+  return <BatchesClient initialBatches={batches} courses={courses} teachers={teachers} />;
+}

@@ -10,7 +10,14 @@ export const metadata = {
 export default async function SccgTasksPage() {
   await requireSccgAccess();
   const result = await fetchSccgTaskBoardDataAction();
-  if (!result.success || !result.data) redirect("/sccg/dashboard");
+  const data = result.success && result.data ? result.data : { tasks: [], candidates: [], partners: [], staff: [] };
 
-  return <SccgTaskBoardClient initialTasks={result.data.tasks} candidates={result.data.candidates} partners={result.data.partners} staff={result.data.staff} />;
+  return (
+    <SccgTaskBoardClient
+      initialTasks={data.tasks || []}
+      candidates={data.candidates || []}
+      partners={data.partners || []}
+      staff={data.staff || []}
+    />
+  );
 }

@@ -1,11 +1,98 @@
 import Link from "next/link";
-import { Award, BookOpen, GraduationCap, Layers, Users } from "lucide-react";
+import {
+  Award,
+  BookOpen,
+  Calendar,
+  CreditCard,
+  DollarSign,
+  GraduationCap,
+  Hourglass,
+  Layers,
+  Plus,
+  Sparkles,
+  TrendingUp,
+  UserCheck,
+  Users,
+  AlertCircle,
+  Clock,
+  ArrowUpRight,
+  CheckCircle2,
+} from "lucide-react";
 import { requirePermission } from "@/lib/permissions";
-import { getSchoolBatches, getSchoolCertificates, getSchoolCourses, getSchoolEnrollments } from "@/lib/firestore-services";
+import {
+  getSchoolBatches,
+  getSchoolCertificates,
+  getSchoolCourses,
+  getSchoolEnrollments,
+  getSchoolTeachers,
+} from "@/lib/firestore-services";
+import SchoolDashboardClient from "./SchoolDashboardClient";
 
-export default async function SccgSchoolPage() {
+export const metadata = {
+  title: "German Language School CRM | SCCG Career Lab",
+  description: "Manage courses, batches, students, waiting lists, and revenue distribution.",
+};
+
+export default async function SccgSchoolDashboardPage() {
   await requirePermission("school.report");
-  const [courses, batches, enrollments, certificates] = await Promise.all([getSchoolCourses(), getSchoolBatches(), getSchoolEnrollments(), getSchoolCertificates()]);
-  const metrics = [{ label: "Courses", value: courses.length, href: "/sccg/school/courses", icon: BookOpen }, { label: "Active Batches", value: batches.filter((batch) => ["active", "in-progress", "enrollment-open"].includes(batch.status)).length, href: "/sccg/school/batches", icon: Layers }, { label: "Enrollments", value: enrollments.length, href: "/sccg/school/enrollments", icon: Users }, { label: "Certificates", value: certificates.filter((certificate) => certificate.status === "issued").length, href: "/sccg/school/certificates", icon: Award }];
-  return <div className="space-y-6 max-w-7xl mx-auto"><div className="flex items-center gap-3"><GraduationCap className="w-6 h-6 text-primary" /><div><h1 className="text-2xl font-bold">Language School</h1><p className="text-sm text-muted-foreground">Courses, cohorts, students and credentials</p></div></div><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{metrics.map(({ label, value, href, icon: Icon }) => <Link key={label} href={href} className="border rounded-lg p-5 bg-card hover:border-primary"><Icon className="w-5 h-5 text-primary mb-4" /><p className="text-3xl font-semibold">{value}</p><p className="text-sm text-muted-foreground">{label}</p></Link>)}</div></div>;
+
+  const [courses, batches, enrollments, certificates, teachers] = await Promise.all([
+    getSchoolCourses().catch(() => []),
+    getSchoolBatches().catch(() => []),
+    getSchoolEnrollments().catch(() => []),
+    getSchoolCertificates().catch(() => []),
+    getSchoolTeachers().catch(() => []),
+  ]);
+
+  // KPI Calculations
+  const enrolledStudents = enrollments.filter((e) => e.status !== "waiting-list");
+  const totalStudents = enrollments.length;
+  
+  const activeBatches = batches.filter((b) =>
+    ["running", "in-progress", "active", "enrollment-open"].includes(b.status)
+  ).length;
+
+  const completedBatches = batches.filter((b) => b.status === "completed").length;
+
+  const waitingListStudents = enrollments.filter(
+    (e) => e.status === "waiting-list" || (!e.batchId || e.batchId === "" || e.batchId === "waiting-list")
+  ).length;
+
+  const totalRevenue = enrollments.reduce((sum, e) => sum + (e.netFee || e.totalFee || 0), 0);
+  
+  const outstandingPayments = enrollments
+    .filter((e) => e.paymentStatus === "pending" || e.paymentStatus === "unpaid" || e.paymentStatus === "partial")
+    .reduce((sum, e) => sum + (e.amountRemaining || e.netFee || e.totalFee || 0), 0);
+
+  const pendingPaymentsCount = enrollments.filter(
+    (e) => e.paymentStatus === "pending" || e.paymentStatus === "unpaid" || e.paymentStatus === "partial"
+  ).length;
+
+  // Level Distribution
+  const levelCounts: Record<string, number> = { A1: 0, A2: 0, B1: 0, B2: 0, C1: 0 };
+  enrollments.forEach((e) => {
+    const lvl = (e.desiredLevel || "A1").toUpperCase();
+    if (levelCounts[lvl] !== undefined) levelCounts[lvl]++;
+    else levelCounts.A1++;
+  });
+
+  return (
+    <SchoolDashboardClient
+      kpis={{
+        totalStudents,
+        activeBatches,
+        waitingListStudents,
+        totalRevenue,
+        completedBatches,
+        outstandingPayments,
+        pendingPaymentsCount,
+      }}
+      courses={courses}
+      batches={batches}
+      enrollments={enrollments}
+      certificates={certificates}
+      teachers={teachers}
+      levelCounts={levelCounts}
+    />
+  );
 }

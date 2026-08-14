@@ -379,4 +379,12 @@ export const Repository = {
       return createHelpdeskMessage(data);
     },
   },
+
+  // --- Users ---
+  users: {
+    async getAll() {
+      const { getAllManagedUsers } = await import("@/lib/admin-users");
+      return getAllManagedUsers();
+    },
+  },
 };

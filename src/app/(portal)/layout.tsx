@@ -26,7 +26,7 @@ export default async function PortalLayout({ children }: { children: React.React
 
   // Determine which console to show
   const consoleName = resolveConsole(effectiveRoles);
-  const isAdmin = userRoles.includes("admin") || userRoles.includes("project-admin");
+  const isAdmin = userRoles.some((r) => ["admin", "project-admin", "sccg-admin"].includes(r.toLowerCase()));
 
   const [installments, invoices, spInfo, partnerData] = await Promise.all([
     getInstallments(isAdmin ? undefined : user.partnerId),

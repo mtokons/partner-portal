@@ -9,26 +9,35 @@ export async function fetchSccgTaskBoardDataAction() {
   try {
     await requirePermission("candidate.view.all");
     const [candidates, tasks, partners, users] = await Promise.all([
-      Repository.candidates.getAll(),
-      Repository.candidates.getAllTasks(),
-      Repository.partners.getAll(),
-      Repository.users.getAll(),
+      Repository.candidates.getAll().catch(() => []),
+      Repository.candidates.getAllTasks().catch(() => []),
+      Repository.partners.getAll().catch(() => []),
+      Repository.users.getAll().catch(() => []),
     ]);
 
     return {
       success: true,
       data: {
-        tasks,
-        candidates: candidates.map((candidate) => ({
+        tasks: tasks || [],
+        candidates: (candidates || []).map((candidate) => ({
           id: candidate.id,
           fullName: candidate.fullName,
           sccgId: candidate.sccgId,
         })),
-        partners: partners.map(p => ({ id: p.id, companyName: p.companyName, email: p.email })),
-        staff: users.map(u => ({ id: u.id, name: u.name, email: u.email })),
+        partners: (partners || []).map((p: any) => ({
+          id: p.id,
+          companyName: p.company || p.companyName || p.name || "",
+          email: p.email,
+        })),
+        staff: (users || []).map((u: any) => ({
+          id: u.id,
+          name: u.displayName || u.name || u.email,
+          email: u.email,
+        })),
       },
     };
   } catch (error) {
+    console.error("[fetchSccgTaskBoardDataAction] Error:", error);
     return { success: false, error: error instanceof Error ? error.message : "Failed to load task board" };
   }
 }

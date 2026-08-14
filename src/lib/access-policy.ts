@@ -8,9 +8,9 @@ export type AccessPolicy = {
 };
 
 const POLICIES: AccessPolicy[] = [
+  { roles: ["admin", "project-admin"], console: "admin", dashboard: "/admin/overview", routePrefixes: ["/admin"] },
   { roles: ["sccg-admin", "sccg-staff"], console: "sccg", dashboard: "/sccg/dashboard", routePrefixes: ["/sccg"] },
   { roles: ["school-manager"], console: "school-admin", dashboard: "/admin/school", routePrefixes: ["/admin/school"] },
-  { roles: ["admin", "project-admin"], console: "admin", dashboard: "/admin/overview", routePrefixes: ["/admin"] },
   { roles: ["project-partner", "project-partner-admin"], console: "project-partner", dashboard: "/project-partner/dashboard", routePrefixes: ["/project-partner"] },
   { roles: ["job-seeker"], console: "job-seeker", dashboard: "/job-seeker/dashboard", routePrefixes: ["/job-seeker"] },
   { roles: ["job-partner"], console: "job-partner", dashboard: "/job-partner/dashboard", routePrefixes: ["/job-partner"] },

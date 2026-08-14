@@ -562,6 +562,119 @@ export async function getGradingScale(courseId?: string): Promise<SchoolGradingS
   return snap.docs.map((d) => toPlainObject<SchoolGradingScale>({ id: d.id, ...d.data() }));
 }
 
+// ── Smart Waiting List & Batch Operations ──
+
+export async function getSchoolWaitingList(level?: string): Promise<SchoolEnrollment[]> {
+  const allEnrollments = await getSchoolEnrollments();
+  let list = allEnrollments.filter(
+    (e) => e.status === "waiting-list" || (!e.batchId || e.batchId === "" || e.batchId === "waiting-list")
+  );
+  if (level) {
+    const l = level.trim().toUpperCase();
+    list = list.filter((e) => (e.desiredLevel || "").toUpperCase() === l || (e.courseName || "").toUpperCase().includes(l));
+  }
+  return list.sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
+}
+
+export async function fillBatchFromWaitingList(batchId: string): Promise<{ addedCount: number; assignedStudents: string[] }> {
+  const batch = await getSchoolBatchById(batchId);
+  if (!batch) throw new Error("Batch not found");
+  if (["completed", "cancelled", "archived"].includes(batch.status)) {
+    throw new Error("Batch is not open for adding students");
+  }
+
+  const availableSlots = Math.max(0, (batch.maxStudents || 20) - (batch.enrolledStudents || 0));
+  if (availableSlots <= 0) {
+    return { addedCount: 0, assignedStudents: [] };
+  }
+
+  const course = await getSchoolCourseById(batch.courseId);
+  const level = batch.level || course?.level;
+  const waitingStudents = await getSchoolWaitingList(level);
+  const candidatesToAssign = waitingStudents.slice(0, availableSlots);
+
+  const assignedStudents: string[] = [];
+
+  for (const student of candidatesToAssign) {
+    await db().collection("schoolEnrollments").doc(student.id).update({
+      batchId: batch.id,
+      batchCode: batch.batchCode,
+      courseId: batch.courseId,
+      courseName: batch.courseName,
+      status: "enrolled",
+      batchConfirmed: true,
+      updatedAt: now(),
+    });
+    assignedStudents.push(student.studentName);
+  }
+
+  if (candidatesToAssign.length > 0) {
+    await db().collection("schoolBatches").doc(batch.id).update({
+      enrolledStudents: admin.firestore.FieldValue.increment(candidatesToAssign.length),
+      updatedAt: now(),
+    });
+  }
+
+  return { addedCount: candidatesToAssign.length, assignedStudents };
+}
+
+export async function creditBatchWallets(batchId: string): Promise<{ teacherCredit: number; coordinatorCredit: number; sccgCredit: number }> {
+  const batch = await getSchoolBatchById(batchId);
+  if (!batch) throw new Error("Batch not found");
+
+  const enrollments = await getSchoolEnrollments({ batchId });
+  const totalRevenue = enrollments.reduce((sum, e) => sum + (e.netFee || e.totalFee || 0), 0);
+
+  const teacherPercent = batch.teacherSharePercent ?? 70;
+  const coordinatorPercent = batch.coordinatorSharePercent ?? 5;
+  const sccgPercent = batch.sccgSharePercent ?? 25;
+
+  const teacherAmount = Math.round((totalRevenue * teacherPercent) / 100);
+  const coordinatorAmount = Math.round((totalRevenue * coordinatorPercent) / 100);
+  const sccgAmount = totalRevenue - teacherAmount - coordinatorAmount;
+
+  // Credit Teacher wallet
+  if (batch.teacherId) {
+    const teacherDoc = await db().collection("schoolTeachers").doc(batch.teacherId).get();
+    if (teacherDoc.exists) {
+      await db().collection("schoolTeachers").doc(batch.teacherId).update({
+        walletBalance: admin.firestore.FieldValue.increment(teacherAmount),
+        updatedAt: now(),
+      });
+    }
+
+    await createTeacherEarning({
+      teacherId: batch.teacherId,
+      teacherName: batch.teacherName,
+      teacherEmail: teacherDoc.exists ? (teacherDoc.data()?.email || "") : "",
+      batchId: batch.id,
+      batchCode: batch.batchCode,
+      courseName: batch.courseName,
+      enrollmentId: batch.id,
+      studentName: `Batch ${batch.batchCode} (${enrollments.length} students)`,
+      grossAmount: totalRevenue,
+      revenueSharePercent: teacherPercent,
+      earningAmount: teacherAmount,
+      currency: "EUR",
+      status: "eligible",
+      notes: `Batch completed revenue share (70%)`,
+    });
+  }
+
+  // Credit Coordinator wallet if assigned
+  if (batch.coordinatorId) {
+    const coordDoc = await db().collection("schoolTeachers").doc(batch.coordinatorId).get();
+    if (coordDoc.exists) {
+      await db().collection("schoolTeachers").doc(batch.coordinatorId).update({
+        walletBalance: admin.firestore.FieldValue.increment(coordinatorAmount),
+        updatedAt: now(),
+      });
+    }
+  }
+
+  return { teacherCredit: teacherAmount, coordinatorCredit: coordinatorAmount, sccgCredit: sccgAmount };
+}
+
 // ============================================================
 // Payment Module
 // ============================================================

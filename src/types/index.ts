@@ -1331,12 +1331,14 @@ export interface SchoolCourse {
 
 export type BatchStatus =
   | "planned"
+  | "running"
+  | "on-hold"
+  | "cancelled"
+  | "completed"
   | "enrollment-open"
   | "in-progress"
   | "active"
-  | "completed"
   | "results-published"
-  | "cancelled"
   | "archived";
 
 export interface SchoolBatch {
@@ -1344,10 +1346,13 @@ export interface SchoolBatch {
   sccgId: string;
   courseId: string;
   courseName: string;
+  level?: string;
   batchCode: string;
   batchName: string;
   teacherId: string;
   teacherName: string;
+  coordinatorId?: string;
+  coordinatorName?: string;
   startDate: string;
   endDate: string;
   schedule: string;
@@ -1356,6 +1361,11 @@ export interface SchoolBatch {
   status: BatchStatus;
   classroomOrLink?: string;
   notes?: string;
+  courseFeeEur?: number;
+  totalRevenueEur?: number;
+  teacherSharePercent?: number; // default 70
+  coordinatorSharePercent?: number; // default 5
+  sccgSharePercent?: number; // default 25
   createdBy: string;
   createdAt: string;
   updatedAt?: string;
@@ -1365,6 +1375,7 @@ export type SchoolStudentStatus =
   | "applied"
   | "enrolled"
   | "active"
+  | "waiting-list"
   | "on-hold"
   | "completed"
   | "dropped"
@@ -1377,6 +1388,10 @@ export interface SchoolEnrollment {
   studentName: string;
   studentEmail: string;
   studentPhone?: string;
+  mobileNumber?: string;
+  desiredLevel?: string;
+  remarks?: string;
+  waitingListNotes?: string;
   batchId: string;
   batchCode: string;
   courseId: string;
@@ -1387,7 +1402,7 @@ export interface SchoolEnrollment {
   netFee: number;
   amountPaid: number;
   amountRemaining: number;
-  paymentStatus: "unpaid" | "partial" | "paid" | "refunded";
+  paymentStatus: "unpaid" | "partial" | "paid" | "refunded" | "pending";
   enrolledAt: string;
   status: SchoolStudentStatus;
   completedAt?: string;
@@ -1398,7 +1413,7 @@ export interface SchoolEnrollment {
   participationCertId?: string;
   completionCertId?: string;
   // Enrollment source + context
-  enrollmentSource?: "direct" | "partner" | "referral" | "new-student";
+  enrollmentSource?: "direct" | "partner" | "referral" | "new-student" | "online";
   partnerId?: string;
   partnerName?: string;
   referrerId?: string;
@@ -1440,6 +1455,8 @@ export interface SchoolContent {
   updatedAt?: string;
 }
 
+export type SchoolTeamRole = "leader" | "instructor" | "coordinator" | "staff";
+
 export interface SchoolTeacher {
   id: string;
   sccgId: string;
@@ -1450,7 +1467,10 @@ export interface SchoolTeacher {
   specialization?: string;
   language?: string;
   bio?: string;
-  revenueSharePercent?: number; // % of course netFee teacher earns after batch completes
+  roleCategory?: SchoolTeamRole;
+  revenueSharePercent?: number; // % of course netFee teacher earns after batch completes (default 70)
+  walletBalance?: number;
+  assignedBatches?: string[];
   status: "active" | "inactive";
   createdAt: string;
   updatedAt?: string;

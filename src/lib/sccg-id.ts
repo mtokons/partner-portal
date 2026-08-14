@@ -27,6 +27,7 @@ export type SccgEntityPrefix =
   | "BCH"  // Batch
   | "ENR"  // Enrollment
   | "TCH"  // Teacher
+  | "TEA"  // Teacher Earning
   | "CERT" // Certificate
   | "CND"  // Candidate
   | "HLP"; // Helpdesk Ticket

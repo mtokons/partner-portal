@@ -27,7 +27,7 @@ export default async function SharedLayout({ children }: { children: React.React
   // Determine which console to show
   const consoleName = resolveConsole(effectiveRoles);
 
-  const isAdmin = userRoles.includes("admin");
+  const isAdmin = userRoles.some((r) => ["admin", "project-admin", "sccg-admin"].includes(r.toLowerCase()));
 
   const [installments, invoices, spInfo, partnerData] = await Promise.all([
     getInstallments(isAdmin ? undefined : user.partnerId),
@@ -68,6 +68,7 @@ export default async function SharedLayout({ children }: { children: React.React
         roleMenuOverrides={roleOverrides}
         userMenuOverrides={userOverrides}
         impersonating={!!impersonation}
+        isAdmin={isAdmin}
       >
         <NotificationsLiveBridge />
         {children}

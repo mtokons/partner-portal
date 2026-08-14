@@ -18,7 +18,7 @@ export default async function PartnerLayout({ children }: { children: React.Reac
   if (!isPartner) redirect("/login");
 
   // Real admin (not impersonating) can always access partner console
-  const isAdmin = userRoles.some((r) => r.toLowerCase() === "admin");
+  const isAdmin = userRoles.some((r) => ["admin", "project-admin", "sccg-admin"].includes(r.toLowerCase()));
 
   // Resolve partnerId: session value, else look up by the effective user's email.
   // Impersonated partner targets have no session partnerId, so resolve via email.
@@ -49,19 +49,20 @@ export default async function PartnerLayout({ children }: { children: React.Reac
       <ImpersonationBannerServer />
       <ConsoleShell
         console="partner"
-      roles={userRoles}
-      userName={user.name || "Partner"}
-      company={user.company}
-      overdueCount={overdueCount}
-      unpaidInvoicesCount={unpaidInvoicesCount}
-      siteUrl={spInfo.siteUrl}
-      listUrls={spInfo.listUrls}
-      tierStatus={partnerData?.tierStatus}
-      marginPercentage={partnerData?.marginPercentage}
-      partnerLogoUrl={partnerData?.logoUrl}
-      roleMenuOverrides={roleOverrides}
-      userMenuOverrides={userOverrides}
-    >
+        roles={userRoles}
+        userName={user.name || "Partner"}
+        company={user.company}
+        overdueCount={overdueCount}
+        unpaidInvoicesCount={unpaidInvoicesCount}
+        siteUrl={spInfo.siteUrl}
+        listUrls={spInfo.listUrls}
+        tierStatus={partnerData?.tierStatus}
+        marginPercentage={partnerData?.marginPercentage}
+        partnerLogoUrl={partnerData?.logoUrl}
+        roleMenuOverrides={roleOverrides}
+        userMenuOverrides={userOverrides}
+        isAdmin={isAdmin}
+      >
         <NotificationsLiveBridge />
         {children}
       </ConsoleShell>
