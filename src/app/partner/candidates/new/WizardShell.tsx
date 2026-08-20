@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2 } from "lucide-react";
 import type { WorkflowCategory, PartnerMargin, Product } from "@/types";
@@ -45,7 +45,7 @@ export interface WizardState {
   paymentMethod?: string;
   paymentReference?: string;
   paymentDate?: string;
-  uploadedDocuments: Array<{ id: string; name: string; url: string; size: number }>;
+  uploadedDocuments: Array<{ documentType: string; fileUrl: string; fileName: string }>;
   selectedPartnerId?: string;
   submissionResult?: { candidateId: string; submissionId?: string };
 }
@@ -321,7 +321,7 @@ export function WizardShell({
             workflowCategory={state.personalInfo.workflowCategory}
             candidateId={state.existingCandidateId || state.submissionResult?.candidateId}
             candidateName={state.personalInfo.fullName}
-            existingDocuments={state.existingCandidateId ? state.uploadedDocuments : undefined}
+            existingDocuments={state.uploadedDocuments?.length > 0 ? state.uploadedDocuments : undefined}
             onNext={(uploadedDocuments) => onNext({ uploadedDocuments })}
           />
         )}

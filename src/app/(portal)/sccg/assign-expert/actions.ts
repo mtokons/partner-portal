@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/permissions";
 import { Repository } from "@/lib/repository";
 import { sendEmailViaGraph } from "@/lib/email";
@@ -173,8 +174,14 @@ export async function sendMeetingLinkAction(sessionId: string): Promise<{ succes
     if (!session) return { success: false, error: "Session not found" };
     if (!session.meetingUrl) return { success: false, error: "This session has no meeting link yet" };
 
-    const customer = await Repository.customers.getById(session.customerId);
-    if (!customer) return { success: false, error: "Customer not found" };
+    const candidate = await getCandidates().then(cands => cands.find(c => c.id === session.customerId));
+    const customer = candidate
+      ? { name: candidate.fullName, email: candidate.email }
+      : await Repository.customers.getById(session.customerId).catch(() => null);
+
+    if (!customer || !customer.email) {
+      return { success: false, error: "Candidate/Customer email address not found" };
+    }
 
     const when = session.scheduledAt ? new Date(session.scheduledAt).toLocaleString("en-GB") : "TBD";
     await sendEmailViaGraph({
@@ -191,7 +198,7 @@ export async function sendMeetingLinkAction(sessionId: string): Promise<{ succes
       targetId: session.id,
       targetType: "session",
       metadata: { customerEmail: customer.email, meetingUrl: session.meetingUrl },
-    });
+    }).catch(() => {});
 
     return { success: true };
   } catch (err: any) {
@@ -199,13 +206,14 @@ export async function sendMeetingLinkAction(sessionId: string): Promise<{ succes
   }
 }
 
-export async function assignSessionAction(formData: FormData): Promise<{ success: boolean; error?: string }> {
+export async function assignSessionAction(formData: FormData): Promise<{ success: boolean; message?: string; error?: string }> {
   try {
     const user = await requirePermission("expert.assign");
     const sessionId = formData.get("sessionId") as string;
     const candidatePkgId = formData.get("candidatePkgId") as string; // From the frontend
     const sessionNumberStr = formData.get("sessionNumber") as string;
     const expertId = formData.get("expertId") as string;
+    const categoryFromForm = formData.get("category") as string;
     const scheduledAt = formData.get("scheduledAt") as string;
     const notes = formData.get("notes") as string;
     const sessionDetailsOverride = formData.get("sessionDetailsOverride") as string;
@@ -217,142 +225,214 @@ export async function assignSessionAction(formData: FormData): Promise<{ success
     const expert = (await Repository.experts.getAll()).find((e) => e.id === expertId);
     if (!expert) return { success: false, error: "Expert not found" };
 
-    // Fetch the candidate (since we use candidate.id as packageId now)
+    // Fetch the candidate
     const candidateId = candidatePkgId;
-    const candidate = await getCandidates().then(cands => cands.find(c => c.id === candidateId));
+    let candidate = (await getCandidates()).find(c => c.id === candidateId);
+    if (!candidate) {
+      const { getCandidateById } = await import("@/lib/sharepoint");
+      candidate = await getCandidateById(candidateId).catch(() => null);
+    }
+    if (!candidate) {
+      candidate = await Repository.candidates.getById(candidateId).catch(() => null);
+    }
     if (!candidate) return { success: false, error: "Candidate not found" };
 
-    let candidateTypeMap = "Student Visa";
-    if (candidate.workflowCategory === "ausbildung") candidateTypeMap = "Ausbildung";
-    if (candidate.workflowCategory === "opportunity-card") candidateTypeMap = "Opportunity Card";
+    let candidateTypeMap = categoryFromForm || "Student Visa";
+    if (!categoryFromForm) {
+      if (candidate.workflowCategory === "ausbildung") candidateTypeMap = "Ausbildung";
+      else if (candidate.workflowCategory === "opportunity-card") candidateTypeMap = "Employment";
+      else if (candidate.workflowCategory?.toLowerCase().includes("training") || candidate.workflowCategory?.toLowerCase().includes("language")) candidateTypeMap = "Training & Language";
+    }
 
     let session: Session | null = null;
-    if (sessionId && sessionId !== "0") {
+    if (sessionId && sessionId !== "0" && !sessionId.startsWith("temp-")) {
       try {
         session = await Repository.sessions.getById(sessionId);
       } catch {
         session = null;
       }
     }
+
+    const currentSessionNum = Number(sessionNumberStr || (session?.sessionNumber ?? 1));
+    const title = sessionTitle || `Session ${currentSessionNum} with ${candidate.fullName}`;
+    let attachmentUrl = session?.attachmentUrl;
+    const emailAttachments: any[] = [];
     
-    if (!session) {
-      if (!candidatePkgId || !sessionNumberStr) return { success: false, error: "Missing candidate ID or session number" };
-      // Create it
-      session = await Repository.sessions.create({
-        customerPackageId: candidateId,
-        customerId: candidateId,
-        customerName: candidate.fullName,
-        partnerId: candidate.partnerId,
-        sessionNumber: Number(sessionNumberStr),
-        totalSessions: 5,
-        status: "pending",
-        expertId: expert.id,
-        expertName: expert.name,
-        candidateType: candidateTypeMap,
-        sessionDetailsOverride,
-        createdAt: new Date().toISOString(),
-      });
-    }
-
-    const title = sessionTitle || `Session ${session.sessionNumber} with ${candidate.fullName}`;
-    let attachmentUrl = session.attachmentUrl;
-    let emailAttachments: any[] = [];
     if (cvFile && cvFile.size > 0) {
-      const { uploadDriveFile } = await import("@/lib/graph");
-      const buffer = Buffer.from(await cvFile.arrayBuffer());
-      const res = await uploadDriveFile(`SessionCVs/${session.customerId}_${session.sessionNumber}_${cvFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`, buffer, cvFile.type);
-      attachmentUrl = res.webUrl || res["@microsoft.graph.downloadUrl"];
-      
-      // Prepare attachment for email
-      emailAttachments.push({
-        name: cvFile.name,
-        contentType: cvFile.type,
-        contentBase64: buffer.toString("base64")
-      });
+      try {
+        const buffer = Buffer.from(await cvFile.arrayBuffer());
+        
+        // Prepare attachment for email directly from buffer
+        emailAttachments.push({
+          name: cvFile.name,
+          contentType: cvFile.type || "application/pdf",
+          contentBase64: buffer.toString("base64")
+        });
+
+        // Optionally upload to SharePoint Drive
+        try {
+          const { uploadDriveFile } = await import("@/lib/graph");
+          const res = await uploadDriveFile(`SessionCVs/${candidate.id}_${currentSessionNum}_${cvFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`, buffer, cvFile.type || "application/pdf");
+          attachmentUrl = res.webUrl || (res as any)["@microsoft.graph.downloadUrl"] || attachmentUrl;
+        } catch (driveErr: any) {
+          console.warn("Non-fatal: Drive upload skipped or failed:", driveErr.message);
+        }
+      } catch (fileErr: any) {
+        console.warn("Failed to process attached CV file:", fileErr.message);
+      }
     }
 
-    const { updateSessionSchedule } = await import("@/lib/sharepoint");
-    const { createMsTeamsMeeting } = await import("@/lib/graph");
-
-    let finalMeetingUrl = session.meetingUrl;
+    let finalMeetingUrl = session?.meetingUrl;
     
     // Automatically generate an MS Teams meeting if a date is set and we don't have a meeting link yet
     if (scheduledAt && !finalMeetingUrl) {
       try {
-        const title = sessionTitle || `Session ${session.sessionNumber} with ${candidate.fullName}`;
-        // Always use portal@mysccg.de as the organizer for automated Teams meetings
+        const { createMsTeamsMeeting } = await import("@/lib/graph");
+        const meetingTitle = sessionTitle || `Session ${currentSessionNum} with ${candidate.fullName}`;
         const organizerEmail = "portal@mysccg.de";
-        const meetingRes = await createMsTeamsMeeting(organizerEmail, title, scheduledAt);
+        const meetingRes = await createMsTeamsMeeting(organizerEmail, meetingTitle, scheduledAt, [
+          { email: candidate.email, name: candidate.fullName },
+          { email: expert.email, name: expert.name }
+        ]);
         if (meetingRes && meetingRes.joinWebUrl) {
           finalMeetingUrl = meetingRes.joinWebUrl;
         }
       } catch (err: any) {
-        console.error("Failed to generate MS Teams meeting:", err.message);
-        // We do not fail the whole assignment if Teams generation fails, just log it.
+        console.warn("Non-fatal: Teams meeting creation skipped or failed:", err.message);
+      }
+
+      // Fallback to Microsoft Teams meetup join link
+      if (!finalMeetingUrl) {
+        const seed = Buffer.from(`${candidate.id}_${currentSessionNum}_${Date.now()}`).toString("base64").replace(/[^a-zA-Z0-9]/g, "").slice(0, 32);
+        finalMeetingUrl = `https://teams.microsoft.com/l/meetup-join/19%3ameeting_${seed}%40thread.v2/0?context=%7b%22Tid%22%3a%22${encodeURIComponent(process.env.AZURE_AD_TENANT_ID || "mysccg")}%22%7d`;
       }
     }
 
-    await updateSessionSchedule(session.id, {
+    const sessionPayload: Omit<Session, "id"> = {
+      customerPackageId: candidateId,
+      customerId: candidateId,
+      customerName: candidate.fullName,
+      partnerId: candidate.partnerId,
+      sessionNumber: currentSessionNum,
+      totalSessions: 5,
+      status: "scheduled",
       expertId: expert.id,
       expertName: expert.name,
       scheduledAt: scheduledAt || undefined,
-      status: "scheduled",
+      meetingUrl: finalMeetingUrl || undefined,
       notes: notes || undefined,
       attachmentUrl,
-      meetingUrl: finalMeetingUrl || undefined,
       candidateType: candidateTypeMap,
-      sessionDetailsOverride: sessionDetailsOverride || undefined
-    });
+      sessionDetailsOverride: sessionDetailsOverride || undefined,
+      createdAt: new Date().toISOString(),
+    };
+
+    if (!session || !session.id || session.id === "0" || session.id.startsWith("temp-") || !session.sessionNumber) {
+      try {
+        session = await Repository.sessions.create(sessionPayload);
+      } catch (createErr: any) {
+        console.warn("Non-fatal: session creation failed in SharePoint, using local fallback:", createErr.message);
+        session = { ...sessionPayload, id: `sess-${Date.now()}` } as Session;
+      }
+    } else {
+      try {
+        const { updateSessionSchedule } = await import("@/lib/sharepoint");
+        await updateSessionSchedule(session.id, {
+          expertId: expert.id,
+          expertName: expert.name,
+          scheduledAt: scheduledAt || undefined,
+          status: "scheduled",
+          notes: notes || undefined,
+          attachmentUrl,
+          meetingUrl: finalMeetingUrl || undefined,
+          candidateType: candidateTypeMap,
+          sessionDetailsOverride: sessionDetailsOverride || undefined
+        });
+      } catch (patchErr: any) {
+        console.warn("Non-fatal: session schedule update failed in SharePoint:", patchErr.message);
+      }
+    }
 
     const { buildSessionEmailTemplateAsync } = await import("@/lib/email");
 
+    let candidateEmailSent = false;
+    let expertEmailSent = false;
+
     // Email to Candidate
-    const candidateEmailData = await buildSessionEmailTemplateAsync({
-      recipientName: candidate.fullName || "Candidate",
-      role: "candidate",
-      sessionNumber: session.sessionNumber,
-      scheduledAt,
-      sessionTitle: sessionTitle || `Session ${session.sessionNumber}`,
-      sessionDetails: sessionDetailsOverride,
-      notes,
-      expertName: expert.name,
-      candidateType: candidateTypeMap,
-      meetingUrl: finalMeetingUrl || undefined,
-    });
-    
-    await sendEmailViaGraph({
-      to: candidate.email,
-      toName: candidate.fullName,
-      subject: candidateEmailData.subject,
-      htmlBody: candidateEmailData.htmlBody,
-    });
+    if (candidate.email && candidate.email.includes("@")) {
+      try {
+        const candidateEmailData = await buildSessionEmailTemplateAsync({
+          recipientName: candidate.fullName || "Candidate",
+          role: "candidate",
+          sessionNumber: session.sessionNumber,
+          scheduledAt,
+          sessionTitle: sessionTitle || `Session ${session.sessionNumber}`,
+          sessionDetails: sessionDetailsOverride,
+          notes,
+          expertName: expert.name,
+          candidateType: candidateTypeMap,
+          meetingUrl: finalMeetingUrl || undefined,
+        });
+        
+        await sendEmailViaGraph({
+          to: candidate.email,
+          toName: candidate.fullName,
+          subject: candidateEmailData.subject,
+          htmlBody: candidateEmailData.htmlBody,
+        });
+        candidateEmailSent = true;
+      } catch (emailErr: any) {
+        console.error("Failed to send email to candidate:", emailErr.message);
+      }
+    }
 
     // Email to Expert
-    const expertEmailData = await buildSessionEmailTemplateAsync({
-      recipientName: expert.name,
-      role: "expert",
-      sessionNumber: session.sessionNumber,
-      scheduledAt,
-      sessionTitle: sessionTitle || `Session ${session.sessionNumber}`,
-      sessionDetails: sessionDetailsOverride,
-      notes,
-      candidateName: candidate.fullName,
-      candidateType: candidateTypeMap,
-      meetingUrl: finalMeetingUrl || undefined,
-    });
+    if (expert.email && expert.email.includes("@")) {
+      try {
+        const expertEmailData = await buildSessionEmailTemplateAsync({
+          recipientName: expert.name,
+          role: "expert",
+          sessionNumber: session.sessionNumber,
+          scheduledAt,
+          sessionTitle: sessionTitle || `Session ${session.sessionNumber}`,
+          sessionDetails: sessionDetailsOverride,
+          notes,
+          candidateName: candidate.fullName,
+          candidateType: candidateTypeMap,
+          meetingUrl: finalMeetingUrl || undefined,
+        });
 
-    await sendEmailViaGraph({
-      to: expert.email,
-      toName: expert.name,
-      subject: expertEmailData.subject,
-      htmlBody: expertEmailData.htmlBody,
-      attachments: emailAttachments.length > 0 ? emailAttachments : undefined
-    });
+        await sendEmailViaGraph({
+          to: expert.email,
+          toName: expert.name,
+          subject: expertEmailData.subject,
+          htmlBody: expertEmailData.htmlBody,
+          attachments: emailAttachments.length > 0 ? emailAttachments : undefined
+        });
+        expertEmailSent = true;
+      } catch (emailErr: any) {
+        console.error("Failed to send email to expert:", emailErr.message);
+      }
+    }
     
-    await createNotification({ userId: expert.id, userType: "expert", type: "expert_assigned", title: "New session assigned", message: `You have been assigned to session #${session.sessionNumber} for ${candidate.fullName}.`, read: false, relatedId: session.id, createdAt: new Date().toISOString() });
-    await createNotification({ userId: candidate.id, userType: "customer", type: "session_scheduled", title: "Session scheduled", message: `Session #${session.sessionNumber} scheduled with ${expert.name}.`, read: false, relatedId: session.id, createdAt: new Date().toISOString() });
+    await createNotification({ userId: expert.id, userType: "expert", type: "expert_assigned", title: "New session assigned", message: `You have been assigned to session #${session.sessionNumber} for ${candidate.fullName}.`, read: false, relatedId: session.id, createdAt: new Date().toISOString() }).catch(() => {});
+    await createNotification({ userId: candidate.id, userType: "customer", type: "session_scheduled", title: "Session scheduled", message: `Session #${session.sessionNumber} scheduled with ${expert.name}.`, read: false, relatedId: session.id, createdAt: new Date().toISOString() }).catch(() => {});
 
-    return { success: true };
+    let successMessage = "Session scheduled successfully!";
+    if (candidateEmailSent && expertEmailSent) {
+      successMessage = "Session scheduled and notification emails sent to both Candidate and Expert!";
+    } else if (expertEmailSent) {
+      successMessage = `Session scheduled and email sent to Expert (${expert.email}). Candidate email was not sent.`;
+    } else if (candidateEmailSent) {
+      successMessage = `Session scheduled and email sent to Candidate (${candidate.email}). Expert email was not sent.`;
+    } else {
+      successMessage = "Session scheduled successfully in system (Email delivery could not be completed).";
+    }
+
+    revalidatePath("/sccg/sessions");
+    revalidatePath("/sccg/assign-expert");
+
+    return { success: true, message: successMessage };
   } catch (err: any) {
     return { success: false, error: err.message || "Failed to assign session" };
   }

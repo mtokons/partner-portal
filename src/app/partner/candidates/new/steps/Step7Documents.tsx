@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Upload, CheckCircle2, Loader2 } from "lucide-react";
 import type { WorkflowCategory } from "@/types";
 
@@ -53,11 +53,11 @@ export function Step7Documents({
   existingDocuments,
   onNext,
 }: Step7DocumentsProps) {
-  const requiredDocs = REQUIRED_DOCS[workflowCategory];
+  const requiredDocs = REQUIRED_DOCS[workflowCategory] || ["Passport Copy"];
   const optionalDocs = OPTIONAL_DOCS[workflowCategory] || [];
   const allDocs = [...requiredDocs, ...optionalDocs];
   const [uploaded, setUploaded] = useState<Map<string, UploadedDoc>>(() => {
-    // Pre-populate with existing documents from a returning candidate
+    // Pre-populate with existing documents from props
     const initial = new Map<string, UploadedDoc>();
     if (existingDocuments) {
       for (const doc of existingDocuments) {
@@ -67,7 +67,48 @@ export function Step7Documents({
     return initial;
   });
   const [uploading, setUploading] = useState<string | null>(null);
+  const [loadingExisting, setLoadingExisting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Auto-fetch existing documents from drive if candidateId is present
+  useEffect(() => {
+    if (!candidateId) return;
+    let isCancelled = false;
+    async function loadDocs() {
+      try {
+        setLoadingExisting(true);
+        const res = await fetch(`/api/partner/candidates/${candidateId}/documents`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.success && Array.isArray(data.documents) && !isCancelled) {
+          setUploaded((prev) => {
+            const next = new Map(prev);
+            for (const doc of data.documents) {
+              const docName = doc.name || "";
+              // Match document type by prefix or name
+              for (const targetDoc of allDocs) {
+                const cleanTarget = targetDoc.replace(/[^a-zA-Z0-9_-]/g, "_").toLowerCase();
+                if (docName.toLowerCase().includes(cleanTarget) || docName.toLowerCase().includes(targetDoc.toLowerCase())) {
+                  next.set(targetDoc, {
+                    documentType: targetDoc,
+                    fileUrl: doc.webUrl || doc.downloadUrl,
+                    fileName: doc.name,
+                  });
+                }
+              }
+            }
+            return next;
+          });
+        }
+      } catch (err) {
+        console.warn("Failed to load existing candidate documents:", err);
+      } finally {
+        if (!isCancelled) setLoadingExisting(false);
+      }
+    }
+    loadDocs();
+    return () => { isCancelled = true; };
+  }, [candidateId]);
 
   async function handleFile(docType: string, file: File) {
     if (file.size > 5 * 1024 * 1024) {

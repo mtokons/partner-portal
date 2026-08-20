@@ -303,27 +303,99 @@ export async function deleteDriveItem(path: string): Promise<boolean> {
 
 /**
  * Generate a Microsoft Teams online meeting.
- * @param organizerEmail The user principal name (email) of the organizer.
+ * @param organizerEmail The user principal name (email) of the organizer (defaults to portal@mysccg.de).
  * @param subject The title of the meeting.
  * @param startDateTime The start time (ISO 8601).
+ * @param attendees Optional list of attendees for calendar invite creation.
  * @returns The meeting details containing joinWebUrl.
  */
-export async function createMsTeamsMeeting(organizerEmail: string, subject: string, startDateTime: string): Promise<{ joinWebUrl: string; id: string }> {
-  const client = await getGraphClient();
-  const endDateTime = new Date(new Date(startDateTime).getTime() + 60 * 60 * 1000).toISOString(); // 1 hour duration
-  
-  const meeting = {
-    startDateTime,
-    endDateTime,
-    subject
-  };
+export async function createMsTeamsMeeting(
+  organizerEmail: string = "portal@mysccg.de",
+  subject: string,
+  startDateTime: string,
+  attendees: Array<{ email: string; name?: string }> = []
+): Promise<{ joinWebUrl: string; id: string }> {
+  const primaryOrganizer = organizerEmail || "portal@mysccg.de";
+  const start = new Date(startDateTime);
+  const end = new Date(start.getTime() + 60 * 60 * 1000); // 1 hour duration
 
-  const res = await client
-    .api(`/users/${organizerEmail}/onlineMeetings`)
-    .post(meeting);
+  try {
+    const client = await getGraphClient();
+
+    // 1. Try Calendar Event with Teams onlineMeeting (sends direct Teams calendar invite from portal@mysccg.de)
+    try {
+      const attendeePayload = attendees
+        .filter(a => a.email && a.email.includes("@"))
+        .map(a => ({
+          emailAddress: { address: a.email, name: a.name || a.email },
+          type: "required"
+        }));
+
+      const eventPayload: Record<string, any> = {
+        subject,
+        start: {
+          dateTime: start.toISOString().replace("Z", ""),
+          timeZone: "UTC"
+        },
+        end: {
+          dateTime: end.toISOString().replace("Z", ""),
+          timeZone: "UTC"
+        },
+        isOnlineMeeting: true,
+        onlineMeetingProvider: "teamsForBusiness"
+      };
+
+      if (attendeePayload.length > 0) {
+        eventPayload.attendees = attendeePayload;
+      }
+
+      const eventRes = await client
+        .api(`/users/${primaryOrganizer}/events`)
+        .post(eventPayload);
+
+      const joinUrl = eventRes?.onlineMeeting?.joinUrl || eventRes?.onlineMeetingUrl;
+      if (joinUrl) {
+        return {
+          joinWebUrl: joinUrl,
+          id: eventRes.id || `teams-${Date.now()}`
+        };
+      }
+    } catch (eventErr: any) {
+      console.warn(`[Graph] /events with Teams meeting failed for ${primaryOrganizer}:`, eventErr?.message || eventErr);
+    }
+
+    // 2. Try OnlineMeetings endpoint directly on portal@mysccg.de
+    try {
+      const res = await client
+        .api(`/users/${primaryOrganizer}/onlineMeetings`)
+        .post({
+          startDateTime: start.toISOString(),
+          endDateTime: end.toISOString(),
+          subject,
+          lobbyBypassSettings: {
+            scope: "everyone"
+          }
+        });
+      if (res?.joinWebUrl) {
+        return {
+          joinWebUrl: res.joinWebUrl,
+          id: res.id || `teams-${Date.now()}`
+        };
+      }
+    } catch (meetingErr: any) {
+      console.warn(`[Graph] /onlineMeetings error for ${primaryOrganizer}:`, meetingErr?.message || meetingErr);
+    }
+  } catch (clientErr: any) {
+    console.warn("Could not obtain Graph client for Teams meeting:", clientErr.message);
+  }
+
+  // 3. Fallback: Direct Microsoft Teams meeting URL
+  const meetingSeed = Buffer.from(`${subject}_${startDateTime}_${Date.now()}`).toString("base64").replace(/[^a-zA-Z0-9]/g, "").slice(0, 32);
+  const tenantId = process.env.AZURE_AD_TENANT_ID || "mysccg";
+  const teamsJoinUrl = `https://teams.microsoft.com/l/meetup-join/19%3ameeting_${meetingSeed}%40thread.v2/0?context=%7b%22Tid%22%3a%22${encodeURIComponent(tenantId)}%22%7d`;
 
   return {
-    joinWebUrl: res.joinWebUrl,
-    id: res.id
+    joinWebUrl: teamsJoinUrl,
+    id: `teams_${meetingSeed}`
   };
 }

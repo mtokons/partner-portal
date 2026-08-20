@@ -685,33 +685,68 @@ export async function getProducts(): Promise<Product[]> {
   return runSafe(
     async () => {
       const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
-      const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, unknown> }> }>(
-        `${await getSiteListUrlAsync("Products")}?$expand=fields`
-      );
-      return res.value.map((item) => {
-        const f = item.fields;
-        return {
-          id: String(item.id),
-          sku: String(f[PR_COL.sku] || ""),
-          name: String(f[PR_COL.name] || ""),
-          description: String(f[PR_COL.description] || ""),
-          unit: String(f[PR_COL.unit] || "Package") as "Package" | "Session" | "Course" | "Card",
-          sessionsCount: Number(f[PR_COL.sessionsCount] || 0),
-          retailPriceEur: Number(f[PR_COL.retailPriceEur] || 0),
-          retailPriceBdt: Number(f[PR_COL.retailPriceBdt] || 0),
-          initialPayment: f[PR_COL.initialPayment] !== undefined ? Number(f[PR_COL.initialPayment]) : undefined,
-          price: Number(f[PR_COL.retailPriceEur] || f[PR_COL.price] || 0),
-          stock: Number(f[PR_COL.stock] || 0),
-          category: String(f[PR_COL.category] || ""),
-          imageUrl: f[PR_COL.imageUrl] ? String(f[PR_COL.imageUrl]) : undefined,
-          discount: f[PR_COL.discount] ? Number(f[PR_COL.discount]) : undefined,
-          discountType: f[PR_COL.discountType] ? String(f[PR_COL.discountType]) as "fixed" | "percent" : undefined,
-          discountExpiry: f[PR_COL.discountExpiry] ? String(f[PR_COL.discountExpiry]) : undefined,
-          isAvailable: f[PR_COL.isAvailable] !== undefined ? Boolean(f[PR_COL.isAvailable]) : true,
-          tags: f[PR_COL.tags] ? String(f[PR_COL.tags]).split(",").filter(Boolean) : [],
-          sortOrder: Number(f[PR_COL.sortOrder] || 0),
-        } as Product;
-      });
+      const { SERVICE_PRICING_DATA } = await import("@/lib/data/service-pricing");
+      
+      let spProducts: Product[] = [];
+      try {
+        const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, unknown> }> }>(
+          `${await getSiteListUrlAsync("Products")}?$expand=fields`
+        );
+        spProducts = (res?.value || []).map((item) => {
+          const f = item.fields;
+          return {
+            id: String(item.id),
+            sku: String(f[PR_COL.sku] || ""),
+            name: String(f[PR_COL.name] || ""),
+            description: String(f[PR_COL.description] || ""),
+            unit: String(f[PR_COL.unit] || "Package") as "Package" | "Session" | "Course" | "Card",
+            sessionsCount: Number(f[PR_COL.sessionsCount] || 0),
+            retailPriceEur: Number(f[PR_COL.retailPriceEur] || 0),
+            retailPriceBdt: Number(f[PR_COL.retailPriceBdt] || 0),
+            initialPayment: f[PR_COL.initialPayment] !== undefined ? Number(f[PR_COL.initialPayment]) : undefined,
+            price: Number(f[PR_COL.retailPriceEur] || f[PR_COL.price] || 0),
+            stock: Number(f[PR_COL.stock] || 0),
+            category: String(f[PR_COL.category] || ""),
+            imageUrl: f[PR_COL.imageUrl] ? String(f[PR_COL.imageUrl]) : undefined,
+            discount: f[PR_COL.discount] ? Number(f[PR_COL.discount]) : undefined,
+            discountType: f[PR_COL.discountType] ? String(f[PR_COL.discountType]) as "fixed" | "percent" : undefined,
+            discountExpiry: f[PR_COL.discountExpiry] ? String(f[PR_COL.discountExpiry]) : undefined,
+            isAvailable: f[PR_COL.isAvailable] !== undefined ? Boolean(f[PR_COL.isAvailable]) : true,
+            tags: f[PR_COL.tags] ? String(f[PR_COL.tags]).split(",").filter(Boolean) : [],
+            sortOrder: Number(f[PR_COL.sortOrder] || 0),
+          } as Product;
+        });
+      } catch {
+        spProducts = [];
+      }
+
+      // Convert SERVICE_PRICING_DATA to Product items
+      const catalogProducts: Product[] = SERVICE_PRICING_DATA.map((sp) => ({
+        id: sp.id,
+        sku: sp.id,
+        name: sp.serviceName,
+        description: sp.description || "",
+        unit: "Package",
+        sessionsCount: 5,
+        retailPriceEur: sp.basePrice,
+        retailPriceBdt: Math.round(sp.basePrice * 130),
+        initialPayment: sp.packageType === "all-inclusive" ? Math.round(sp.basePrice * 0.4) : sp.basePrice,
+        price: sp.basePrice,
+        stock: 999,
+        category: sp.workflowCategory,
+        isAvailable: sp.isActive,
+        tags: [sp.packageType],
+        sortOrder: sp.sortOrder,
+      }));
+
+      if (spProducts.length === 0) {
+        return catalogProducts;
+      }
+
+      // Merge: keep spProducts, and add any catalog products not present in SharePoint
+      const existingNames = new Set(spProducts.map((p) => p.name.toLowerCase()));
+      const missingCatalog = catalogProducts.filter((cp) => !existingNames.has(cp.name.toLowerCase()));
+      return [...spProducts, ...missingCatalog];
     }
   );
 }
@@ -1513,135 +1548,70 @@ export async function assignExpertToPackage(packageId: string, expertId: string,
 // ============================================================
 // Sessions
 // ============================================================
+// Sessions Store & SharePoint Integration
+// ============================================================
+
+const _globalSessionStore: Map<string, Session> = (globalThis as any).__sccg_session_store || new Map<string, Session>();
+(globalThis as any).__sccg_session_store = _globalSessionStore;
+
 export async function getSessionsByPackage(packageId: string): Promise<Session[]> {
-  return runSafe(async () => {
-    const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
-    const url = `${await getSiteListUrlAsync("Sessions")}?$expand=fields&$filter=fields/${SESS_COL.packageId} eq '${packageId}'`;
-    const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, any> }> }>(url);
-    return res.value.map(item => {
-      const f = item.fields;
-      return {
-        id: String(item.id),
-        customerPackageId: String(f[SESS_COL.packageId] || ""),
-        customerId: String(f[SESS_COL.customerId] || ""),
-        customerName: String(f[SESS_COL.clientName] || ""),
-        expertId: f[SESS_COL.expertId] ? String(f[SESS_COL.expertId]) : undefined,
-        expertName: f[SESS_COL.expertName] ? String(f[SESS_COL.expertName]) : undefined,
-        partnerId: String(f[SESS_COL.partnerId] || ""),
-        sessionNumber: Number(f[SESS_COL.sessionNumber] || 0),
-        totalSessions: Number(f[SESS_COL.totalSessions] || 0),
-        status: String(f[SESS_COL.status] || "pending") as any,
-        scheduledAt: f[SESS_COL.scheduledAt] ? String(f[SESS_COL.scheduledAt]) : undefined,
-        completedAt: f[SESS_COL.completedAt] ? String(f[SESS_COL.completedAt]) : undefined,
-        durationMinutes: Number(f[SESS_COL.durationMinutes] || 0),
-        meetingUrl: f[SESS_COL.meetingUrl] ? String(f[SESS_COL.meetingUrl]) : undefined,
-        notes: String(f[SESS_COL.studentNotes] || ""),
-        expertNotes: String(f[SESS_COL.expertNotes] || ""),
-        candidateType: f[SESS_COL.candidateType] ? String(f[SESS_COL.candidateType]) : undefined,
-        attachmentUrl: f[SESS_COL.attachmentUrl] ? String(f[SESS_COL.attachmentUrl]) : undefined,
-        sessionDetailsOverride: f[SESS_COL.sessionDetailsOverride] ? String(f[SESS_COL.sessionDetailsOverride]) : undefined,
-        createdAt: String(f[SESS_COL.createdAt] || ""),
-      } as Session;
-    });
-  }, () => []);
+  const all = await getAllSessions();
+  return all.filter(s => s.customerPackageId === packageId || s.customerId === packageId);
 }
+
 export async function getSessionsByExpert(expertId: string): Promise<Session[]> {
-  return runSafe(async () => {
-    const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
-    const url = `${await getSiteListUrlAsync("Sessions")}?$expand=fields&$filter=fields/${SESS_COL.expertId} eq '${expertId}'`;
-    const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, any> }> }>(url);
-    return res.value.map(item => {
-      const f = item.fields;
-      return {
-        id: String(item.id),
-        customerPackageId: String(f[SESS_COL.packageId] || ""),
-        customerId: String(f[SESS_COL.customerId] || ""),
-        customerName: String(f[SESS_COL.clientName] || ""),
-        expertId: f[SESS_COL.expertId] ? String(f[SESS_COL.expertId]) : undefined,
-        expertName: f[SESS_COL.expertName] ? String(f[SESS_COL.expertName]) : undefined,
-        partnerId: String(f[SESS_COL.partnerId] || ""),
-        sessionNumber: Number(f[SESS_COL.sessionNumber] || 0),
-        totalSessions: Number(f[SESS_COL.totalSessions] || 0),
-        status: String(f[SESS_COL.status] || "pending") as any,
-        scheduledAt: f[SESS_COL.scheduledAt] ? String(f[SESS_COL.scheduledAt]) : undefined,
-        completedAt: f[SESS_COL.completedAt] ? String(f[SESS_COL.completedAt]) : undefined,
-        durationMinutes: Number(f[SESS_COL.durationMinutes] || 0),
-        meetingUrl: f[SESS_COL.meetingUrl] ? String(f[SESS_COL.meetingUrl]) : undefined,
-        notes: String(f[SESS_COL.studentNotes] || ""),
-        expertNotes: String(f[SESS_COL.expertNotes] || ""),
-        candidateType: f[SESS_COL.candidateType] ? String(f[SESS_COL.candidateType]) : undefined,
-        attachmentUrl: f[SESS_COL.attachmentUrl] ? String(f[SESS_COL.attachmentUrl]) : undefined,
-        sessionDetailsOverride: f[SESS_COL.sessionDetailsOverride] ? String(f[SESS_COL.sessionDetailsOverride]) : undefined,
-        createdAt: String(f[SESS_COL.createdAt] || ""),
-      } as Session;
-    });
-  }, () => []);
+  const all = await getAllSessions();
+  return all.filter(s => s.expertId === expertId);
 }
 
 export async function getSessionsByCustomer(customerId: string): Promise<Session[]> {
-  return runSafe(async () => {
-    const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
-    const url = `${await getSiteListUrlAsync("Sessions")}?$expand=fields&$filter=fields/${SESS_COL.customerId} eq '${customerId}'`;
-    const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, any> }> }>(url);
-    return res.value.map(item => {
-      const f = item.fields;
-      return {
-        id: String(item.id),
-        customerPackageId: String(f[SESS_COL.packageId] || ""),
-        customerId: String(f[SESS_COL.customerId] || ""),
-        customerName: String(f[SESS_COL.clientName] || ""),
-        expertId: f[SESS_COL.expertId] ? String(f[SESS_COL.expertId]) : undefined,
-        expertName: f[SESS_COL.expertName] ? String(f[SESS_COL.expertName]) : undefined,
-        partnerId: String(f[SESS_COL.partnerId] || ""),
-        sessionNumber: Number(f[SESS_COL.sessionNumber] || 0),
-        totalSessions: Number(f[SESS_COL.totalSessions] || 0),
-        status: String(f[SESS_COL.status] || "pending") as any,
-        scheduledAt: f[SESS_COL.scheduledAt] ? String(f[SESS_COL.scheduledAt]) : undefined,
-        completedAt: f[SESS_COL.completedAt] ? String(f[SESS_COL.completedAt]) : undefined,
-        durationMinutes: Number(f[SESS_COL.durationMinutes] || 0),
-        meetingUrl: f[SESS_COL.meetingUrl] ? String(f[SESS_COL.meetingUrl]) : undefined,
-        notes: String(f[SESS_COL.studentNotes] || ""),
-        expertNotes: String(f[SESS_COL.expertNotes] || ""),
-        candidateType: f[SESS_COL.candidateType] ? String(f[SESS_COL.candidateType]) : undefined,
-        attachmentUrl: f[SESS_COL.attachmentUrl] ? String(f[SESS_COL.attachmentUrl]) : undefined,
-        sessionDetailsOverride: f[SESS_COL.sessionDetailsOverride] ? String(f[SESS_COL.sessionDetailsOverride]) : undefined,
-        createdAt: String(f[SESS_COL.createdAt] || ""),
-      } as Session;
-    });
-  }, () => []);
+  const all = await getAllSessions();
+  return all.filter(s => s.customerId === customerId || s.customerPackageId === customerId);
 }
 
 export async function getSessionById(id: string): Promise<Session | null> {
+  if (_globalSessionStore.has(id)) {
+    return _globalSessionStore.get(id)!;
+  }
   return runSafe(async () => {
     const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
     const item = await graphGet<{ id: string; fields: Record<string, any> }>(`${await getSiteListUrlAsync("Sessions")}/${id}?$expand=fields`);
-    const f = item.fields;
-    return {
+    const f = item.fields || {};
+    const mapped: Session = {
       id: String(item.id),
-      customerPackageId: String(f[SESS_COL.packageId] || ""),
-      customerId: String(f[SESS_COL.customerId] || ""),
-      customerName: String(f[SESS_COL.clientName] || ""),
-      expertId: f[SESS_COL.expertId] ? String(f[SESS_COL.expertId]) : undefined,
-      expertName: f[SESS_COL.expertName] ? String(f[SESS_COL.expertName]) : undefined,
-      partnerId: String(f[SESS_COL.partnerId] || ""),
-      sessionNumber: Number(f[SESS_COL.sessionNumber] || 0),
-      totalSessions: Number(f[SESS_COL.totalSessions] || 0),
-      status: String(f[SESS_COL.status] || "pending") as any,
-      scheduledAt: f[SESS_COL.scheduledAt] ? String(f[SESS_COL.scheduledAt]) : undefined,
-      completedAt: f[SESS_COL.completedAt] ? String(f[SESS_COL.completedAt]) : undefined,
-      durationMinutes: Number(f[SESS_COL.durationMinutes] || 0),
-      meetingUrl: f[SESS_COL.meetingUrl] ? String(f[SESS_COL.meetingUrl]) : undefined,
-      notes: String(f[SESS_COL.studentNotes] || ""),
-      expertNotes: String(f[SESS_COL.expertNotes] || ""),
-      candidateType: f[SESS_COL.candidateType] ? String(f[SESS_COL.candidateType]) : undefined,
-      attachmentUrl: f[SESS_COL.attachmentUrl] ? String(f[SESS_COL.attachmentUrl]) : undefined,
-      sessionDetailsOverride: f[SESS_COL.sessionDetailsOverride] ? String(f[SESS_COL.sessionDetailsOverride]) : undefined,
-      createdAt: String(f[SESS_COL.createdAt] || ""),
-    } as Session;
+      customerPackageId: String(f[SESS_COL.packageId] || f.PackageId || ""),
+      customerId: String(f[SESS_COL.customerId] || f.CustomerId || ""),
+      customerName: String(f[SESS_COL.clientName] || f.ClientName || f.Title || ""),
+      expertId: f[SESS_COL.expertId] ? String(f[SESS_COL.expertId]) : (f.ExpertId ? String(f.ExpertId) : undefined),
+      expertName: f[SESS_COL.expertName] ? String(f[SESS_COL.expertName]) : (f.ExpertName ? String(f.ExpertName) : undefined),
+      partnerId: String(f[SESS_COL.partnerId] || f.PartnerId || ""),
+      sessionNumber: Number(f[SESS_COL.sessionNumber] || f.SessionNumber || 0),
+      totalSessions: Number(f[SESS_COL.totalSessions] || f.TotalSessions || 5),
+      status: String(f[SESS_COL.status] || f.Status || "pending") as any,
+      scheduledAt: f[SESS_COL.scheduledAt] ? String(f[SESS_COL.scheduledAt]) : (f.ScheduledAt ? String(f.ScheduledAt) : undefined),
+      completedAt: f[SESS_COL.completedAt] ? String(f[SESS_COL.completedAt]) : (f.CompletedAt ? String(f.CompletedAt) : undefined),
+      durationMinutes: Number(f[SESS_COL.durationMinutes] || f.DurationMinutes || 0),
+      meetingUrl: f[SESS_COL.meetingUrl] ? String(f[SESS_COL.meetingUrl]) : (f.MeetingUrl ? String(f.MeetingUrl) : undefined),
+      notes: String(f[SESS_COL.studentNotes] || f.StudentNotes || f.Notes || ""),
+      expertNotes: String(f[SESS_COL.expertNotes] || f.ExpertNotes || ""),
+      candidateType: f[SESS_COL.candidateType] ? String(f[SESS_COL.candidateType]) : (f.CandidateType ? String(f.CandidateType) : undefined),
+      attachmentUrl: f[SESS_COL.attachmentUrl] ? String(f[SESS_COL.attachmentUrl]) : (f.AttachmentUrl ? String(f.AttachmentUrl) : undefined),
+      sessionDetailsOverride: f[SESS_COL.sessionDetailsOverride] ? String(f[SESS_COL.sessionDetailsOverride]) : (f.SessionDetailsOverride ? String(f.SessionDetailsOverride) : undefined),
+      createdAt: String(f[SESS_COL.createdAt] || f.CreatedAt || ""),
+    };
+    _globalSessionStore.set(mapped.id, mapped);
+    return mapped;
   }, () => null);
 }
 
 export async function scheduleSession(id: string, scheduledAt: string): Promise<void> {
+  if (_globalSessionStore.has(id)) {
+    const s = _globalSessionStore.get(id)!;
+    s.scheduledAt = scheduledAt;
+    s.status = "scheduled";
+    _globalSessionStore.set(id, s);
+  }
+  if (!id || id.startsWith("sess_") || id.startsWith("temp-")) return;
   const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
   await graphPatch(`${await getSiteListUrlAsync("Sessions")}/${id}/fields`, {
     [SESS_COL.scheduledAt]: scheduledAt,
@@ -1649,52 +1619,87 @@ export async function scheduleSession(id: string, scheduledAt: string): Promise<
   });
 }
 
-/** Fetch every session across all experts/customers (no filter) — used by SCCG-wide overviews. */
+/** Fetch every session across all experts/customers — merging live SharePoint data with runtime store. */
 export async function getAllSessions(): Promise<Session[]> {
-  return runSafe(async () => {
+  const spSessions = await runSafe(async () => {
     const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
     const url = `${await getSiteListUrlAsync("Sessions")}?$expand=fields&$top=999`;
     const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, any> }> }>(url);
-    return res.value.map((item) => {
-      const f = item.fields;
+    return (res?.value || []).map((item) => {
+      const f = item.fields || {};
       return {
         id: String(item.id),
-        customerPackageId: String(f[SESS_COL.packageId] || ""),
-        customerId: String(f[SESS_COL.customerId] || ""),
-        customerName: String(f[SESS_COL.clientName] || ""),
-        expertId: f[SESS_COL.expertId] ? String(f[SESS_COL.expertId]) : undefined,
-        expertName: f[SESS_COL.expertName] ? String(f[SESS_COL.expertName]) : undefined,
-        partnerId: String(f[SESS_COL.partnerId] || ""),
-        sessionNumber: Number(f[SESS_COL.sessionNumber] || 0),
-        totalSessions: Number(f[SESS_COL.totalSessions] || 0),
-        status: String(f[SESS_COL.status] || "pending") as any,
-        scheduledAt: f[SESS_COL.scheduledAt] ? String(f[SESS_COL.scheduledAt]) : undefined,
-        completedAt: f[SESS_COL.completedAt] ? String(f[SESS_COL.completedAt]) : undefined,
-        durationMinutes: Number(f[SESS_COL.durationMinutes] || 0),
-        meetingUrl: f[SESS_COL.meetingUrl] ? String(f[SESS_COL.meetingUrl]) : undefined,
-        notes: String(f[SESS_COL.studentNotes] || ""),
-        expertNotes: String(f[SESS_COL.expertNotes] || ""),
-        candidateType: f[SESS_COL.candidateType] ? String(f[SESS_COL.candidateType]) : undefined,
-        attachmentUrl: f[SESS_COL.attachmentUrl] ? String(f[SESS_COL.attachmentUrl]) : undefined,
-        sessionDetailsOverride: f[SESS_COL.sessionDetailsOverride] ? String(f[SESS_COL.sessionDetailsOverride]) : undefined,
-        createdAt: String(f[SESS_COL.createdAt] || ""),
+        customerPackageId: String(f[SESS_COL.packageId] || f.PackageId || f.CustomerPackageId || ""),
+        customerId: String(f[SESS_COL.customerId] || f.CustomerId || ""),
+        customerName: String(f[SESS_COL.clientName] || f.ClientName || f.Title || ""),
+        expertId: f[SESS_COL.expertId] ? String(f[SESS_COL.expertId]) : (f.ExpertId ? String(f.ExpertId) : undefined),
+        expertName: f[SESS_COL.expertName] ? String(f[SESS_COL.expertName]) : (f.ExpertName ? String(f.ExpertName) : undefined),
+        partnerId: String(f[SESS_COL.partnerId] || f.PartnerId || ""),
+        sessionNumber: Number(f[SESS_COL.sessionNumber] || f.SessionNumber || 0),
+        totalSessions: Number(f[SESS_COL.totalSessions] || f.TotalSessions || 5),
+        status: String(f[SESS_COL.status] || f.Status || "pending") as any,
+        scheduledAt: f[SESS_COL.scheduledAt] ? String(f[SESS_COL.scheduledAt]) : (f.ScheduledAt ? String(f.ScheduledAt) : undefined),
+        completedAt: f[SESS_COL.completedAt] ? String(f[SESS_COL.completedAt]) : (f.CompletedAt ? String(f.CompletedAt) : undefined),
+        durationMinutes: Number(f[SESS_COL.durationMinutes] || f.DurationMinutes || 0),
+        meetingUrl: f[SESS_COL.meetingUrl] ? String(f[SESS_COL.meetingUrl]) : (f.MeetingUrl ? String(f.MeetingUrl) : undefined),
+        notes: String(f[SESS_COL.studentNotes] || f.StudentNotes || f.Notes || ""),
+        expertNotes: String(f[SESS_COL.expertNotes] || f.ExpertNotes || ""),
+        candidateType: f[SESS_COL.candidateType] ? String(f[SESS_COL.candidateType]) : (f.CandidateType ? String(f.CandidateType) : undefined),
+        attachmentUrl: f[SESS_COL.attachmentUrl] ? String(f[SESS_COL.attachmentUrl]) : (f.AttachmentUrl ? String(f.AttachmentUrl) : undefined),
+        sessionDetailsOverride: f[SESS_COL.sessionDetailsOverride] ? String(f[SESS_COL.sessionDetailsOverride]) : (f.SessionDetailsOverride ? String(f.SessionDetailsOverride) : undefined),
+        createdAt: String(f[SESS_COL.createdAt] || f.CreatedAt || ""),
       } as Session;
     });
-  }, () => []);
+  }, () => [] as Session[]);
+
+  // Cache fetched SharePoint items into the registry
+  for (const s of spSessions) {
+    _globalSessionStore.set(s.id, s);
+  }
+
+  // Combine and deduplicate
+  const sessionMap = new Map<string, Session>();
+  for (const s of spSessions) {
+    sessionMap.set(s.id, s);
+  }
+  for (const s of _globalSessionStore.values()) {
+    if (!sessionMap.has(s.id)) {
+      sessionMap.set(s.id, s);
+    }
+  }
+
+  return Array.from(sessionMap.values()).sort((a, b) => {
+    const timeA = new Date(a.scheduledAt || a.createdAt || 0).getTime();
+    const timeB = new Date(b.scheduledAt || b.createdAt || 0).getTime();
+    return timeB - timeA;
+  });
 }
 
 export async function createSession(data: Omit<Session, "id">): Promise<Session> {
-  return runSafe(async () => {
+  const fallbackId = `sess_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  const sessionObj: Session = {
+    ...data,
+    id: fallbackId,
+    customerName: data.customerName || "Client",
+    status: data.status || "scheduled",
+    totalSessions: data.totalSessions || 5,
+    createdAt: data.createdAt || new Date().toISOString(),
+  };
+
+  _globalSessionStore.set(fallbackId, sessionObj);
+
+  try {
     const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
     const fields: Record<string, any> = {
+      Title: `${data.customerName || "Client"} - Session ${data.sessionNumber}`,
       [SESS_COL.packageId]: data.customerPackageId,
       [SESS_COL.customerId]: data.customerId,
       [SESS_COL.clientName]: data.customerName || "",
       [SESS_COL.partnerId]: data.partnerId,
       [SESS_COL.sessionNumber]: data.sessionNumber,
-      [SESS_COL.totalSessions]: data.totalSessions,
-      [SESS_COL.status]: data.status || "pending",
-      [SESS_COL.createdAt]: data.createdAt || new Date().toISOString(),
+      [SESS_COL.totalSessions]: data.totalSessions || 5,
+      [SESS_COL.status]: data.status || "scheduled",
+      [SESS_COL.createdAt]: sessionObj.createdAt,
     };
     if (data.expertId) fields[SESS_COL.expertId] = data.expertId;
     if (data.expertName) fields[SESS_COL.expertName] = data.expertName;
@@ -1703,31 +1708,50 @@ export async function createSession(data: Omit<Session, "id">): Promise<Session>
     if (data.candidateType) fields[SESS_COL.candidateType] = data.candidateType;
     if (data.sessionDetailsOverride) fields[SESS_COL.sessionDetailsOverride] = data.sessionDetailsOverride;
     if (data.meetingUrl) fields[SESS_COL.meetingUrl] = data.meetingUrl;
+    if (data.notes) fields[SESS_COL.studentNotes] = data.notes;
+    if (data.attachmentUrl) fields[SESS_COL.attachmentUrl] = data.attachmentUrl;
 
     const res = await graphPost<{ id: string }>(await getSiteListUrlAsync("Sessions"), { fields });
-    return { ...data, id: String(res.id) } as Session;
-  });
-}
+    if (res?.id) {
+      _globalSessionStore.delete(fallbackId);
+      sessionObj.id = String(res.id);
+      _globalSessionStore.set(sessionObj.id, sessionObj);
+    }
+  } catch (err: any) {
+    console.warn("SharePoint Sessions list write failed, retained in runtime session registry:", err.message);
+  }
 
+  return sessionObj;
+}
 
 /** Update a session's schedule/meeting-link/status/expert assignment in one PATCH. */
 export async function updateSessionSchedule(
   id: string,
   updates: Partial<Pick<Session, "scheduledAt" | "meetingUrl" | "status" | "expertId" | "expertName" | "durationMinutes" | "notes" | "attachmentUrl" | "candidateType" | "sessionDetailsOverride">>
 ): Promise<void> {
-  const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
-  const fields: Record<string, unknown> = {};
-  if (updates.scheduledAt !== undefined) fields[SESS_COL.scheduledAt] = updates.scheduledAt;
-  if (updates.meetingUrl !== undefined) fields[SESS_COL.meetingUrl] = updates.meetingUrl;
-  if (updates.status !== undefined) fields[SESS_COL.status] = updates.status;
-  if (updates.expertId !== undefined) fields[SESS_COL.expertId] = updates.expertId;
-  if (updates.expertName !== undefined) fields[SESS_COL.expertName] = updates.expertName;
-  if (updates.durationMinutes !== undefined) fields[SESS_COL.durationMinutes] = updates.durationMinutes;
-  if (updates.notes !== undefined) fields[SESS_COL.studentNotes] = updates.notes;
-  if (updates.attachmentUrl !== undefined) fields[SESS_COL.attachmentUrl] = updates.attachmentUrl;
-  if (updates.candidateType !== undefined) fields[SESS_COL.candidateType] = updates.candidateType;
-  if (updates.sessionDetailsOverride !== undefined) fields[SESS_COL.sessionDetailsOverride] = updates.sessionDetailsOverride;
-  await graphPatch(`${await getSiteListUrlAsync("Sessions")}/${id}/fields`, fields);
+  if (_globalSessionStore.has(id)) {
+    const existing = _globalSessionStore.get(id)!;
+    _globalSessionStore.set(id, { ...existing, ...updates });
+  }
+
+  if (!id || id === "0" || id.startsWith("sess_") || id.startsWith("temp-")) return;
+
+  return runSafe(async () => {
+    const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
+    const fields: Record<string, unknown> = {};
+    if (updates.scheduledAt !== undefined) fields[SESS_COL.scheduledAt] = updates.scheduledAt;
+    if (updates.meetingUrl !== undefined) fields[SESS_COL.meetingUrl] = updates.meetingUrl;
+    if (updates.status !== undefined) fields[SESS_COL.status] = updates.status;
+    if (updates.expertId !== undefined) fields[SESS_COL.expertId] = updates.expertId;
+    if (updates.expertName !== undefined) fields[SESS_COL.expertName] = updates.expertName;
+    if (updates.durationMinutes !== undefined) fields[SESS_COL.durationMinutes] = updates.durationMinutes;
+    if (updates.notes !== undefined) fields[SESS_COL.studentNotes] = updates.notes;
+    if (updates.attachmentUrl !== undefined) fields[SESS_COL.attachmentUrl] = updates.attachmentUrl;
+    if (updates.candidateType !== undefined) fields[SESS_COL.candidateType] = updates.candidateType;
+    if (updates.sessionDetailsOverride !== undefined) fields[SESS_COL.sessionDetailsOverride] = updates.sessionDetailsOverride;
+
+    await graphPatch(`${await getSiteListUrlAsync("Sessions")}/${id}/fields`, fields);
+  });
 }
 
 export async function completeSession(

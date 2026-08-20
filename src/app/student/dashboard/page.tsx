@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSchoolEnrollments } from "@/lib/firestore-services";
 import type { SessionUser, SchoolEnrollment } from "@/types";

@@ -311,19 +311,21 @@ const SCCG_MENU: MenuItem[] = [
   { key: "sccg.offers",               label: "Create Offer",            href: "/sccg/offers",          icon: "Handshake",group: "candidates", groupLabel: "Candidate Gallery", groupOrder: 2, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
   { key: "sccg.candidates.successful",label: "Successful Candidates",   href: "/sccg/candidates/successful", icon: "Trophy", group: "candidates", groupLabel: "Candidate Gallery", groupOrder: 2, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false },
 
-  // 2. Operation
-  { key: "sccg.cv-maker",       label: "Create CV",             href: "/admin/cv-maker",       icon: "FileEdit",     group: "operation", groupLabel: "Operation", groupOrder: 3, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
-  { key: "sccg.cover-letters",  label: "Cover Letters",         href: "/admin/cover-letters",  icon: "FileText",     group: "operation", groupLabel: "Operation", groupOrder: 3, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
-  { key: "sccg.cv-tailor",      label: "CV Tailor (AI)",        href: "/admin/cv-tailor",      icon: "FilePen",      group: "operation", groupLabel: "Operation", groupOrder: 3, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
-  { key: "sccg.timeline",       label: "Client Service Timeline",href: "/sccg/timeline",       icon: "GanttChartSquare", group: "operation", groupLabel: "Operation", groupOrder: 3, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false },
-  { key: "sccg.assign-expert",  label: "Assign Expert",         href: "/sccg/assign-expert",   icon: "UserCheck",    group: "operation", groupLabel: "Operation", groupOrder: 3, itemOrder: 5, isEnabled: true, isDefault: true, isLocked: false },
-  { key: "sccg.sessions",       label: "Expert Session Overview",href: "/sccg/sessions",       icon: "CalendarClock",group: "operation", groupLabel: "Operation", groupOrder: 3, itemOrder: 6, isEnabled: true, isDefault: true, isLocked: false },
+  // 2. CV Module
+  { key: "sccg.cv-maker",       label: "Create CV",             href: "/admin/cv-maker",       icon: "FileEdit",     group: "cv", groupLabel: "CV Module", groupOrder: 2.5, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.cover-letters",  label: "Cover Letters",         href: "/admin/cover-letters",  icon: "FileText",     group: "cv", groupLabel: "CV Module", groupOrder: 2.5, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.cv-tailor",      label: "CV Tailor (AI)",        href: "/admin/cv-tailor",      icon: "FilePen",      group: "cv", groupLabel: "CV Module", groupOrder: 2.5, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.cv-bank",        label: "CV Master Bank",        href: "/admin/cv-bank",        icon: "Database",     group: "cv", groupLabel: "CV Module", groupOrder: 2.5, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.cv-suite",       label: "CV Suite Variations",   href: "/admin/cv-suite",       icon: "Layers",       group: "cv", groupLabel: "CV Module", groupOrder: 2.5, itemOrder: 5, isEnabled: true, isDefault: true, isLocked: false },
 
-  // 3. Candidate Bank
-  { key: "sccg.cv-bank",   label: "CV Master Bank",        href: "/admin/cv-bank",  icon: "Database",    group: "bank", groupLabel: "Candidate Bank", groupOrder: 4, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
-  { key: "sccg.cv-suite",  label: "CV Suite Variations",   href: "/admin/cv-suite", icon: "Layers",      group: "bank", groupLabel: "Candidate Bank", groupOrder: 4, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
-  { key: "sccg.gdpr",      label: "GDPR Compliance",       href: "/admin/gdpr",     icon: "ShieldAlert", group: "bank", groupLabel: "Candidate Bank", groupOrder: 4, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
-  { key: "sccg.sharing",   label: "Share with Partner",    href: "/sccg/share",     icon: "Share2",      group: "bank", groupLabel: "Candidate Bank", groupOrder: 4, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false },
+  // 3. Operation
+  { key: "sccg.timeline",       label: "Client Service Timeline",href: "/sccg/timeline",       icon: "GanttChartSquare", group: "operation", groupLabel: "Operation", groupOrder: 3, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.assign-expert",  label: "Assign Expert",         href: "/sccg/assign-expert",   icon: "UserCheck",    group: "operation", groupLabel: "Operation", groupOrder: 3, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.sessions",       label: "Expert Session Overview",href: "/sccg/sessions",       icon: "CalendarClock",group: "operation", groupLabel: "Operation", groupOrder: 3, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
+
+  // 4. Candidate Bank
+  { key: "sccg.gdpr",      label: "GDPR Compliance",       href: "/admin/gdpr",     icon: "ShieldAlert", group: "bank", groupLabel: "Candidate Bank", groupOrder: 4, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.sharing",   label: "Share with Partner",    href: "/sccg/share",     icon: "Share2",      group: "bank", groupLabel: "Candidate Bank", groupOrder: 4, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
 
   // 4. Partner Management (Admin only)
   { key: "sccg.partners",    label: "Manage Partner",     href: "/admin/partners",  icon: "Shield",         group: "partners", groupLabel: "Partner Management", groupOrder: 5, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false, adminOnly: true },

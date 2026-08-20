@@ -141,7 +141,7 @@ export default function OffersListClient({ offers, secCur, rate }: Props) {
                 <span className={`text-xs px-2 py-0.5 rounded-full font-semibold uppercase border ${STATUS_STYLES[confirmOffer.status] || STATUS_STYLES.draft}`}>
                   {confirmOffer.status}
                 </span>
-                <span className="text-xs text-muted-foreground">{formatAmount(confirmOffer.totalAmount)}</span>
+                <span className="text-xs text-muted-foreground">{dual(confirmOffer.totalAmount, secCur, rate)}</span>
               </div>
             </div>
 

@@ -86,7 +86,7 @@ export function PaymentNotificationModal({
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <div className="flex items-center gap-2">
             <Banknote className="w-5 h-5 text-emerald-600" />
-            <h2 className="font-semibold text-foreground">Payment Notification</h2>
+            <h2 className="font-semibold text-foreground">Add Payment / Record Due Payment</h2>
           </div>
           <button
             onClick={onClose}
@@ -103,7 +103,7 @@ export function PaymentNotificationModal({
             <p className="font-semibold text-foreground">{candidateName}</p>
             <p className="text-xs text-muted-foreground">
               Service: <span className="font-medium text-foreground">{serviceName}</span>
-              <span className="ml-2">· €{serviceTotal.toFixed(2)}</span>
+              {serviceTotal > 0 && <span className="ml-2">· €{serviceTotal.toFixed(2)}</span>}
             </p>
           </div>
 
@@ -113,24 +113,45 @@ export function PaymentNotificationModal({
               <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Total Fee</p>
               <p className="font-bold text-foreground text-sm mt-0.5">€{totalServiceFee.toFixed(2)}</p>
             </div>
-            <div className="bg-amber-50 dark:bg-amber-500/10 rounded-xl px-3 py-2.5 text-center">
-              <p className="text-[10px] text-amber-700 dark:text-amber-400 uppercase tracking-wide">Min. Deposit</p>
-              <p className="font-bold text-amber-800 dark:text-amber-300 text-sm mt-0.5">€{depositRequired.toFixed(2)}</p>
-              {showSec && (
-                <p className="text-[10px] text-amber-600 dark:text-amber-500">
-                  ≈ {secSym}{Math.round(depositRequired * exchangeRate).toLocaleString()}
-                </p>
-              )}
-            </div>
-            <div className={`rounded-xl px-3 py-2.5 text-center ${alreadyPaid > 0 ? "bg-emerald-50 dark:bg-emerald-500/10" : "bg-red-50 dark:bg-red-500/10"}`}>
-              <p className={`text-[10px] uppercase tracking-wide ${alreadyPaid > 0 ? "text-emerald-700 dark:text-emerald-400" : "text-red-700 dark:text-red-400"}`}>
+            <div className={`rounded-xl px-3 py-2.5 text-center ${alreadyPaid > 0 ? "bg-emerald-50 dark:bg-emerald-500/10" : "bg-muted/40"}`}>
+              <p className={`text-[10px] uppercase tracking-wide ${alreadyPaid > 0 ? "text-emerald-700 dark:text-emerald-400" : "text-muted-foreground"}`}>
                 Already Paid
               </p>
-              <p className={`font-bold text-sm mt-0.5 ${alreadyPaid > 0 ? "text-emerald-800 dark:text-emerald-300" : "text-red-800 dark:text-red-300"}`}>
+              <p className={`font-bold text-sm mt-0.5 ${alreadyPaid > 0 ? "text-emerald-800 dark:text-emerald-300" : "text-foreground"}`}>
                 €{alreadyPaid.toFixed(2)}
               </p>
             </div>
+            <div className={`rounded-xl px-3 py-2.5 text-center ${remaining > 0 ? "bg-amber-50 dark:bg-amber-500/10" : "bg-emerald-50 dark:bg-emerald-500/10"}`}>
+              <p className={`text-[10px] uppercase tracking-wide ${remaining > 0 ? "text-amber-700 dark:text-amber-400" : "text-emerald-700 dark:text-emerald-400"}`}>
+                {remaining > 0 ? "Due Balance" : "Fully Settled"}
+              </p>
+              <p className={`font-bold text-sm mt-0.5 ${remaining > 0 ? "text-amber-800 dark:text-amber-300" : "text-emerald-800 dark:text-emerald-300"}`}>
+                €{remaining.toFixed(2)}
+              </p>
+            </div>
           </div>
+
+          {/* Quick autofill buttons */}
+          {remaining > 0 && (
+            <div className="flex flex-wrap gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setAmount(remaining.toFixed(2))}
+                className="px-2.5 py-1 rounded-lg text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+              >
+                Pay Full Due (€{remaining.toFixed(2)})
+              </button>
+              {remainingDeposit > 0 && remainingDeposit < remaining && (
+                <button
+                  type="button"
+                  onClick={() => setAmount(remainingDeposit.toFixed(2))}
+                  className="px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 hover:bg-amber-200 transition-colors"
+                >
+                  Pay Deposit (€{remainingDeposit.toFixed(2)})
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Amount input */}
           <div className="space-y-1.5">
@@ -167,7 +188,7 @@ export function PaymentNotificationModal({
               className="w-full px-4 py-2.5 rounded-xl border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
               disabled={isPending || done}
             >
-              {["Bank Transfer", "Cash", "Card", "PayPal", "bKash", "Nagad", "Other"].map((m) => (
+              {["Bank Transfer", "Cash", "Card / Stripe", "PayPal", "bKash", "Nagad", "Cheque", "Other"].map((m) => (
                 <option key={m} value={m}>{m}</option>
               ))}
             </select>

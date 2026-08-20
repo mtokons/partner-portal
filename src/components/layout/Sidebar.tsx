@@ -59,6 +59,7 @@ const allLinks: LinkItem[] = [
   { href: "/shop", label: "Offer Builder", icon: Store, group: "sales", roles: ["partner", "admin"] },
   { href: "/sales/offers", label: "Quotations", icon: Handshake, group: "sales", roles: ["partner", "admin"] },
   { href: "/sales/orders", label: "Sales Orders", icon: ClipboardList, group: "sales", roles: ["partner", "admin"] },
+  { href: "/sales/reports", label: "Sales Reports", icon: BarChart3, group: "sales", roles: ["admin"] },
   { href: "/orders", label: "Orders", icon: ShoppingCart, group: "sales", roles: ["partner"] },
   { href: "/clients", label: "Clients", icon: Users, group: "sales", roles: ["partner"] },
   { href: "/admin/products", label: "Manage Products", icon: Package, group: "sales", roles: ["admin"] },
@@ -105,6 +106,19 @@ const allLinks: LinkItem[] = [
   { href: "/admin/school/certificate-generator", label: "Certificate Tool", icon: Layers, group: "school", roles: ["admin", "school-manager"] },
   { href: "/admin/school/reports", label: "School Reports", icon: BarChart3, group: "school", roles: ["admin", "school-manager"] },
   
+  // Operations
+  { href: "/sccg/timeline", label: "Client Service Timeline", icon: Activity, group: "operations", roles: ["admin", "expert"] },
+  { href: "/sccg/assign-expert", label: "Assign Expert", icon: UserCheck, group: "operations", roles: ["admin"] },
+  { href: "/sccg/sessions", label: "Expert Session Overview", icon: Calendar, group: "operations", roles: ["admin", "expert"] },
+
+  // CV Module
+  { href: "/admin/cv-suite", label: "CV Suite", icon: FileText, group: "cv", roles: ["admin"] },
+  { href: "/admin/cv-bank", label: "CV Bank", icon: Database, group: "cv", roles: ["admin"] },
+  { href: "/admin/cv-maker", label: "CV Maker", icon: FileText, group: "cv", roles: ["admin"] },
+  { href: "/admin/cv-wizard", label: "CV Wizard", icon: FileText, group: "cv", roles: ["admin"] },
+  { href: "/admin/cv-tailor", label: "CV Tailor", icon: FileText, group: "cv", roles: ["admin"] },
+  { href: "/admin/cover-letters", label: "Cover Letters", icon: FileText, group: "cv", roles: ["admin"] },
+
   // Administration
   { href: "/admin/overview", label: "Admin Overview", icon: BarChart3, group: "admin", roles: ["admin"] },
   { href: "/admin/approvals", label: "Approvals", icon: ClipboardCheck, group: "admin", roles: ["admin"] },
@@ -113,11 +127,9 @@ const allLinks: LinkItem[] = [
   { href: "/admin/currency", label: "Currency Management", icon: DollarSign, group: "admin", roles: ["admin"] },
   { href: "/admin/customers", label: "Customers", icon: Users, group: "admin", roles: ["admin"] },
   { href: "/admin/experts", label: "Experts", icon: UserCheck, group: "admin", roles: ["admin"] },
-  { href: "/admin/sessions", label: "All Sessions", icon: Calendar, group: "admin", roles: ["admin"] },
   { href: "/admin/orders", label: "All Orders", icon: ShoppingCart, group: "admin", roles: ["admin"] },
   { href: "/admin/send-email", label: "Send Email", icon: Mail, group: "admin", roles: ["admin"] },
   { href: "/activity", label: "Activity Logs", icon: Activity, group: "admin", roles: ["admin"] },
-  { href: "/admin/cv-suite", label: "CV Suite", icon: FileText, group: "admin", roles: ["admin"] },
   { href: "/admin/onedrive-to-telegram", label: "OneDrive to Telegram", icon: Send, group: "admin", roles: ["admin"] },
   { href: "/admin/candidates", label: "All Candidates", icon: Users, group: "admin", roles: ["admin"] },
   { href: "/admin/helpdesk", label: "Helpdesk", icon: LifeBuoy, group: "admin", roles: ["admin"] },
@@ -137,6 +149,8 @@ const groupLabels: Record<string, string> = {
   marketing: "Promotion & Marketing",
   hr: "Human Resources",
   school: "Language School",
+  operations: "Operations",
+  cv: "CV Module",
   admin: "Administration",
   account: "Account Setting",
 };

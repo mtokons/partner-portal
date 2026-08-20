@@ -6,6 +6,9 @@ import { getEurToRate } from "@/lib/currency";
 import { DollarSign } from "lucide-react";
 import FinanceOverviewClient from "./FinanceOverviewClient";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function PartnerFinancePage() {
   const session = await getEffectiveSession();
   if (!session?.user) redirect("/login");

@@ -610,7 +610,34 @@ export async function advanceServiceStatusAction(
         toName: candidate.fullName,
         subject: `SCCG — Service Status Update: ${toLabel}`,
         htmlBody: statusEmailHtml,
+        cc: [{ email: "info@mysccg.de", name: "SCCG" }],
+        bcc: [{ email: "admin@mysccg.de" }, { email: "faria@mysccg.de" }, { email: "portal@mysccg.de" }],
       }).catch(() => {/* best-effort */});
+    }
+
+    // Email to the acting user (partner/admin/staff)
+    if (user.email) {
+      sendEmailViaGraph({
+        to: user.email,
+        toName: user.name || user.email,
+        subject: `SCCG — Candidate ${candidate.fullName} service moved to: ${toLabel}`,
+        htmlBody: statusEmailHtml,
+      }).catch(() => {/* best-effort */});
+    }
+
+    // Always notify the candidate's owning partner
+    if (candidate.partnerId) {
+      try {
+        const owningPartner = await getPartnerById(candidate.partnerId);
+        if (owningPartner?.email && owningPartner.email !== user.email) {
+          sendEmailViaGraph({
+            to: owningPartner.email,
+            toName: owningPartner.name || owningPartner.email,
+            subject: `SCCG — Candidate ${candidate.fullName} service moved to: ${toLabel}`,
+            htmlBody: statusEmailHtml,
+          }).catch(() => {/* best-effort */});
+        }
+      } catch {/* best-effort */}
     }
 
     revalidatePath(`/partner/candidates/${candidateId}`);
@@ -700,12 +727,28 @@ export async function buyAdditionalServicesAction(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await requirePermission("candidate.create");
-    const partner = await getPartnerByEmail(user.email!);
-    if (!partner) return { success: false, error: "Partner not found" };
-
+    const roles = (user.roles || [user.role]) as string[];
+    
     const candidate = await getCandidateById(candidateId);
-    if (!candidate || candidate.partnerId !== partner.id) {
-      return { success: false, error: "Candidate not found or unauthorized" };
+    if (!candidate) {
+      return { success: false, error: "Candidate not found" };
+    }
+
+    let partner = null;
+    const partnerId = candidate.partnerId;
+    const isDirectSale = partnerId === "SCCG-DIRECT";
+
+    if (!isAdminEquivalent(roles)) {
+      const currentPartner = await getPartnerByEmail(user.email!);
+      if (!currentPartner || candidate.partnerId !== currentPartner.id) {
+        return { success: false, error: "Candidate not found or unauthorized" };
+      }
+      partner = currentPartner;
+    } else {
+      if (!isDirectSale) {
+        partner = await getPartnerById(partnerId);
+        if (!partner) return { success: false, error: "Candidate's partner not found" };
+      }
     }
 
     // Get existing services
@@ -726,6 +769,7 @@ export async function buyAdditionalServicesAction(
     }
 
     // Calculate financial split strictly for the NEW services using the PARTNER's current margin
+    const margin = isDirectSale ? 0 : (partner?.marginPercentage || 15);
     const split = calculateFinancialSplit({
       services: services.map((s) => ({
         servicePricingId: s.servicePricingId,
@@ -733,7 +777,7 @@ export async function buyAdditionalServicesAction(
         basePrice: s.basePrice,
         quantity: s.quantity,
       })),
-      partnerMarginPercentage: partner.marginPercentage as any || 15,
+      partnerMarginPercentage: margin as any,
     });
 
     // Update candidate details by adding the new splits to the existing totals
@@ -759,12 +803,12 @@ export async function buyAdditionalServicesAction(
       orderNumber,
       salesOfferId: "direct",
       offerNumber: "direct",
-      partnerId: partner.id,
-      partnerName: partner.name,
+      partnerId: isDirectSale ? "SCCG-DIRECT" : partner!.id,
+      partnerName: isDirectSale ? "SCCG Direct" : partner!.name,
       clientId: candidate.sccgId || candidate.id,
       clientName: candidate.fullName,
       clientEmail: candidate.email,
-      status: "completed",
+      status: "pending",
       totalAmount: newlyBoughtTotal,
       notes: `Additional services purchased for candidate ${candidate.fullName} (${candidate.sccgId})`,
       createdBy: user.id,
@@ -784,10 +828,37 @@ export async function buyAdditionalServicesAction(
       });
     }
 
+    // Send confirmation email to client if they are buying directly from SCCG
+    if (isDirectSale && candidate.email) {
+      const { sendEmailViaGraph } = await import("@/lib/email");
+      const serviceListHtml = services.map(s => `<li>${s.quantity}x <strong>${s.serviceName}</strong> — €${(s.basePrice * s.quantity).toFixed(2)}</li>`).join("");
+      const htmlBody = `
+        <div style="font-family: sans-serif; color: #333;">
+          <h2 style="color: #0F4C81;">Order Confirmation</h2>
+          <p>Dear ${candidate.fullName},</p>
+          <p>Thank you for your purchase. We have successfully processed your order for the following services:</p>
+          <ul>${serviceListHtml}</ul>
+          <p><strong>Total Amount:</strong> €${newlyBoughtTotal.toFixed(2)}</p>
+          <p>Your order number is <strong>${orderNumber}</strong>.</p>
+          <p>If you have any questions, please contact our support team.</p>
+          <br/>
+          <p>Best regards,<br/>SCCG Team</p>
+        </div>
+      `;
+
+      await sendEmailViaGraph({
+        to: candidate.email,
+        toName: candidate.fullName,
+        subject: `SCCG — Order Confirmation ${orderNumber}`,
+        htmlBody,
+        cc: [{ email: "info@mysccg.de", name: "SCCG" }]
+      }).catch(console.error); // Best effort email sending
+    }
+
     revalidatePath(`/partner/candidates/${candidateId}`);
     revalidatePath("/partner/finance");
 
-    return { success: true };
+    return { success: true, orderId: salesOrder.id };
   } catch (err: any) {
     console.error("buyAdditionalServicesAction error:", err);
     return { success: false, error: err.message || "Failed to buy services" };
@@ -1118,6 +1189,10 @@ function buildStatusChangeEmailHtml(data: {
           <tr><td style="padding: 8px 0; color: #64748b;">New Status</td><td style="padding: 8px 0; font-weight: bold; color: #2563eb;">${data.toStatus}</td></tr>
         </table>
         ${commentBlock}
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="https://portal.mysccg.de/login" style="display: inline-block; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #ffffff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 14px;">Open SCCG Portal →</a>
+          <p style="font-size: 12px; color: #64748b; margin-top: 8px;">Direct link: <a href="https://portal.mysccg.de/login" style="color: #2563eb;">https://portal.mysccg.de/login</a></p>
+        </div>
         <p>If you have any questions, please contact your partner or reach us at <a href="mailto:info@mysccg.de">info@mysccg.de</a>.</p>
         <p style="color: #64748b; font-size: 13px; margin-top: 24px;">— SCCG Portal Team</p>
       </div>

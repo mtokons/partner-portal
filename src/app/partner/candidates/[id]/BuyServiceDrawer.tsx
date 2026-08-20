@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
+import { useState, useTransition, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { createPortal } from "react-dom";
 import { 
   X, Search, Plus, ShoppingBag, 
-  Check, Loader2, ArrowRight, DollarSign 
+  Check, Loader2, ArrowRight, Euro 
 } from "lucide-react";
 import { buyAdditionalServicesAction } from "../actions";
 import type { Product, PartnerMargin } from "@/types";
@@ -33,9 +35,10 @@ export default function BuyServiceDrawer({
   candidateSccgId,
   candidateMargin,
   products,
-  secondaryCurrency = "EUR",
+  secondaryCurrency = "BDT",
   exchangeRate = 1,
 }: BuyServiceDrawerProps) {
+  const router = useRouter();
   const d = (v: number) => `€${v.toLocaleString("en", { minimumFractionDigits: 2 })}`;
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -101,20 +104,22 @@ export default function BuyServiceDrawer({
       }];
 
       const res = await buyAdditionalServicesAction(candidateId, servicePayload);
-      if (res.success) {
+      if (res.success && res.orderId) {
         onClose();
-        // hot reload page
-        window.location.reload();
+        router.push(`/financials/orders/${res.orderId}`);
       } else {
         alert(res.error || "Failed to purchase additional service.");
       }
     });
   };
 
-  if (!isOpen) return null;
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
-  return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex justify-end animate-in fade-in duration-200">
+  if (!isOpen || !mounted) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex justify-end animate-in fade-in duration-200" style={{ zIndex: 99999 }}>
       <div 
         className="bg-card border-l border-white/10 w-full max-w-xl h-full flex flex-col shadow-2xl animate-in slide-in-from-right duration-300"
         onClick={(e) => e.stopPropagation()}
@@ -190,7 +195,7 @@ export default function BuyServiceDrawer({
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Base Price (EUR)</label>
                   <div className="relative">
-                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Euro className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <input
                       type="number"
                       value={customPrice}
@@ -207,10 +212,12 @@ export default function BuyServiceDrawer({
                     <span className="text-muted-foreground">Base Subtotal</span>
                     <span className="font-semibold text-foreground">{d(finalPrice * quantity)}</span>
                   </div>
-                  <div className="p-4 flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">Partner Markup ({candidateMargin}%)</span>
-                    <span className="font-semibold text-emerald-400">{d(finalPrice * quantity * marginPercentage / 100)}</span>
-                  </div>
+                  {marginPercentage > 0 && (
+                    <div className="p-4 flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Partner Markup ({candidateMargin}%)</span>
+                      <span className="font-semibold text-emerald-400">{d(finalPrice * quantity * marginPercentage / 100)}</span>
+                    </div>
+                  )}
                   <div className="p-4 flex items-center justify-between text-sm font-bold bg-primary/10">
                     <span className="text-foreground">Total Client Amount</span>
                     <span className="text-primary text-base">{d(finalPrice * quantity)}</span>
@@ -329,6 +336,7 @@ export default function BuyServiceDrawer({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

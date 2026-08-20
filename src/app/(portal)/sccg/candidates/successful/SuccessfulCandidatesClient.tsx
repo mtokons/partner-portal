@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
+import { Star, Plus, Award, Trash2, Search, Loader2 } from "lucide-react";
 import type { Candidate, WorkflowCategory, SuccessStory } from "@/types";
 import { createSuccessStoryAction, deleteSuccessStoryAction } from "./actions";
 import { recordPaymentAction } from "@/app/partner/candidates/actions";

@@ -179,9 +179,9 @@ export default function CandidateListClient({
 
                 return (
                   <div key={c.id} className="bg-card border rounded-2xl overflow-hidden">
-                    <button
+                    <div
                       onClick={() => setExpandedId(isExpanded ? null : c.id)}
-                      className="w-full flex items-center gap-4 px-5 py-4 hover:bg-muted/20 transition-colors text-left"
+                      className="w-full flex items-center gap-4 px-5 py-4 hover:bg-muted/20 transition-colors text-left cursor-pointer"
                     >
                       <div className="shrink-0">
                         {isExpanded ? (
@@ -249,7 +249,7 @@ export default function CandidateListClient({
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
-                    </button>
+                    </div>
 
                     {isExpanded && (
                       <div className="border-t bg-muted/10">
@@ -397,7 +397,7 @@ export default function CandidateListClient({
           candidateId={serviceDrawer.id}
           candidateName={serviceDrawer.fullName}
           candidateSccgId={serviceDrawer.sccgId}
-          candidateMargin={serviceDrawer.marginPercentage || partnerMargin}
+          candidateMargin={serviceDrawer.partnerId === "SCCG-DIRECT" ? 0 : (serviceDrawer.marginPercentage || partnerMargin)}
           products={products}
           secondaryCurrency={secondaryCurrency}
           exchangeRate={exchangeRate}

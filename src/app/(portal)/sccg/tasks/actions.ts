@@ -45,31 +45,38 @@ export async function fetchSccgTaskBoardDataAction() {
 export async function saveSccgTaskAction(taskData: Partial<CandidateTask>) {
   try {
     const user = await requirePermission("candidate.create");
-    const candidate = taskData.candidateId ? await Repository.candidates.getById(taskData.candidateId) : null;
-    if (!candidate) return { success: false, error: "Select a valid candidate" };
-
     const allowedFlows: CandidateTaskFlow[] = ["candidate", "partner", "staff", "sccg"];
     const taskFlow: CandidateTaskFlow = allowedFlows.includes(taskData.taskFlow as CandidateTaskFlow)
       ? (taskData.taskFlow as CandidateTaskFlow)
       : "sccg";
+
+    let candidate = null;
+    if (taskData.candidateId) {
+      candidate = await Repository.candidates.getById(taskData.candidateId).catch(() => null);
+    }
+    
+    if (taskFlow === "candidate" && !candidate) {
+      return { success: false, error: "Please select a valid candidate for Candidate Tasks" };
+    }
+
     const payload: CandidateTask = {
       id: taskData.id || "",
       title: taskData.title?.trim() || "",
       description: taskData.description?.trim() || undefined,
-      status: taskData.status || "todo",
+      status: taskData.status || "backlog",
       priority: taskData.priority || "medium",
       dueDate: taskData.dueDate,
       assignedTo: taskData.assignedTo,
       assignedToName: taskData.assignedToName,
       assignedToEmail: taskData.assignedToEmail,
-      partnerId: candidate.partnerId,
+      partnerId: candidate?.partnerId || taskData.partnerId,
       tags: taskData.tags || [],
       createdBy: taskData.createdBy || user.id,
       createdAt: taskData.createdAt || new Date().toISOString(),
-      candidateId: candidate.id,
-      candidateName: candidate.fullName,
+      candidateId: candidate?.id || taskData.candidateId || "",
+      candidateName: candidate?.fullName || taskData.candidateName || "",
       taskCategory: taskData.taskCategory || "General Task",
-      workflowCategory: taskData.workflowCategory || candidate.workflowCategory || "Others",
+      workflowCategory: taskData.workflowCategory || candidate?.workflowCategory || "Others",
       taskFlow,
     };
     if (!payload.title) return { success: false, error: "Enter a task title" };
@@ -77,13 +84,13 @@ export async function saveSccgTaskAction(taskData: Partial<CandidateTask>) {
     let saved: CandidateTask;
     if (payload.id) {
       const existing = (await Repository.candidates.getAllTasks()).find((task) => task.id === payload.id);
-      if (!existing || existing.taskFlow !== taskFlow) return { success: false, error: "Task not found" };
+      if (!existing) return { success: false, error: "Task not found" };
       await Repository.candidates.updateTask(payload.id, payload);
       saved = { ...existing, ...payload };
     } else {
       const { id: _id, ...newTask } = payload;
       saved = await Repository.candidates.addTask(newTask);
-      await notifyTaskCreated(saved, candidate.email);
+      await notifyTaskCreated(saved, candidate?.email);
     }
 
     revalidatePath("/sccg/tasks");

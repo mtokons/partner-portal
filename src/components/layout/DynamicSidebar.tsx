@@ -190,7 +190,7 @@ export default function DynamicSidebar({
                 }}
                 className="text-[10px] text-white/75 hover:text-white transition-colors cursor-pointer font-semibold"
               >
-                Alle erweitern
+                Expand All
               </button>
               <button 
                 onClick={() => {
@@ -200,7 +200,7 @@ export default function DynamicSidebar({
                 }}
                 className="text-[10px] text-white/75 hover:text-white transition-colors cursor-pointer font-semibold"
               >
-                Alle einklappen
+                Collapse All
               </button>
             </div>
           )}
@@ -215,7 +215,7 @@ export default function DynamicSidebar({
           )}
 
           {groups.map(({ group, label, items }) => {
-            const isCollapsed = !searchQuery.trim() && !isMini && collapsedGroups[group] !== false;
+            const isCollapsed = !searchQuery.trim() && !isMini && collapsedGroups[group] === true;
 
             return (
               <div key={group} className="flex flex-col">
@@ -224,7 +224,7 @@ export default function DynamicSidebar({
                     onClick={() => {
                       setCollapsedGroups(prev => ({
                         ...prev,
-                        [group]: prev[group] === false ? true : false
+                        [group]: prev[group] === true ? false : true
                       }));
                     }}
                     className="flex items-center justify-between w-full px-3 mb-1.5 focus:outline-none group/btn transition-all cursor-pointer"

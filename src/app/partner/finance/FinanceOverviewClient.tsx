@@ -174,8 +174,8 @@ export default function FinanceOverviewClient({
         c.fullName,
         c.email,
         t.amount,
-        t.paymentMethod || "Bank Transfer",
-        c.serviceId || "SCCG Plan",
+        (t as any).paymentMethod || (t as any).method || "Bank Transfer",
+        (c as any).serviceId || c.workflowCategory || "SCCG Plan",
         t.date || new Date().toISOString()
       );
       setConfirmSent((prev) => new Set(prev).add(t.id));

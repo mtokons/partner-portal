@@ -337,6 +337,7 @@ export function buildCandidateLoginEmail(data: {
 
           <div style="text-align: center; margin: 24px 0;">
             <a href="${data.loginUrl}" style="display: inline-block; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #ffffff; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px;">Log In to Your Portal</a>
+            <p style="font-size: 13px; color: #64748b; margin-top: 10px;">Portal Link: <a href="${data.loginUrl}" style="color: #2563eb; font-weight: 500;">${data.loginUrl}</a></p>
           </div>
 
           <p>After logging in, you can:</p>
@@ -621,18 +622,17 @@ export async function buildSessionEmailTemplateAsync(data: {
   candidateName?: string;
   candidateType: string;
 }): Promise<{ subject: string; htmlBody: string }> {
-  const { Repository } = await import("@/lib/repository");
-  
-  // Construct the template key (e.g. session-student visa-1, session-expert-1)
-  // We'll create distinct templates for experts and candidates
-  const normalizedType = data.candidateType.toLowerCase().replace(/[^a-z0-9]/g, "-");
-  let templateKey = `session-${data.role}-${normalizedType}-${data.sessionNumber}`;
-  
-  let template = await Repository.emailTemplates.getByTemplateKey(templateKey);
-  
-  // Fallback to a generic session template if the specific one is missing
-  if (!template) {
-    template = await Repository.emailTemplates.getByTemplateKey(`session-${data.role}-default`);
+  let template: import("@/types").EmailTemplate | null = null;
+  try {
+    const { Repository } = await import("@/lib/repository");
+    const normalizedType = data.candidateType.toLowerCase().replace(/[^a-z0-9]/g, "-");
+    let templateKey = `session-${data.role}-${normalizedType}-${data.sessionNumber}`;
+    template = await Repository.emailTemplates.getByTemplateKey(templateKey);
+    if (!template) {
+      template = await Repository.emailTemplates.getByTemplateKey(`session-${data.role}-default`);
+    }
+  } catch {
+    template = null;
   }
 
   const when = data.scheduledAt ? new Date(data.scheduledAt).toLocaleString("en-GB") : "TBD";
@@ -649,41 +649,97 @@ export async function buildSessionEmailTemplateAsync(data: {
     AdditionalNotes: data.notes || "None",
   };
 
-  if (template) {
-    return {
-      subject: injectTemplateVariables(template.subjectTemplate, variables),
-      htmlBody: injectTemplateVariables(template.htmlBodyTemplate, variables)
-    };
+  if (template && template.subjectTemplate?.trim() && template.htmlBodyTemplate?.trim()) {
+    const subj = injectTemplateVariables(template.subjectTemplate, variables).trim();
+    const body = injectTemplateVariables(template.htmlBodyTemplate, variables).trim();
+    if (subj && body) {
+      return { subject: subj, htmlBody: body };
+    }
   }
 
-  // HARDCODED FALLBACK IF NO SHAREPOINT TEMPLATE IS FOUND AT ALL
-  const subjectRole = data.role === "expert" ? `New Session Assigned: Session #${data.sessionNumber} with ${data.candidateName}` : `Your Session #${data.sessionNumber} has been scheduled`;
-  const intro = data.role === "expert" 
-    ? `<p>You have been assigned to conduct session #${data.sessionNumber} for <strong>${data.candidateName}</strong>.</p>`
-    : `<p>Your session #${data.sessionNumber} has been assigned to expert <strong>${data.expertName}</strong>.</p>`;
+  // ROBUST, FULLY-STYLED EMAIL TEMPLATE (used whenever custom template is absent or blank)
+  const sessionHeading = data.sessionTitle || `Session ${data.sessionNumber} Consultation`;
+  const subjectRole = data.role === "expert"
+    ? `SCCG Expert Assignment — Session #${data.sessionNumber}: ${sessionHeading} (${data.candidateName || "Candidate"})`
+    : `SCCG Career Lab Germany — Session #${data.sessionNumber}: ${sessionHeading} Scheduled`;
 
-  const notesHtml = data.notes ? `<div style="background:#f8fafc;border-left:3px solid #cbd5e1;padding:12px 16px;border-radius:6px;margin:16px 0;"><p style="margin:0;font-size:13px;color:#475569;"><strong>Additional Notes:</strong> ${data.notes}</p></div>` : "";
-  const detailsHtml = `
-    <div style="background:#f1f5f9; padding: 16px; border-radius: 8px; margin: 16px 0;">
-      <h3 style="margin-top:0; color: #334155;">Agenda: ${data.sessionTitle}</h3>
-      <div style="color: #475569; font-size: 14px;">${data.sessionDetails}</div>
+  const intro = data.role === "expert"
+    ? `<p style="font-size: 15px; color: #1e293b; margin: 0 0 16px;">You have been assigned to conduct <strong>Session #${data.sessionNumber}</strong> for candidate <strong>${data.candidateName || "Candidate"}</strong> (${data.candidateType}).</p>`
+    : `<p style="font-size: 15px; color: #1e293b; margin: 0 0 16px;">Your <strong>Session #${data.sessionNumber}</strong> (${data.candidateType}) has been scheduled with expert advisor <strong>${data.expertName || "SCCG Expert Advisor"}</strong>.</p>`;
+
+  const notesHtml = data.notes
+    ? `<div style="background: #f8fafc; border-left: 4px solid #3b82f6; padding: 14px 16px; border-radius: 0 8px 8px 0; margin: 16px 0;">
+        <p style="margin: 0 0 4px; font-size: 12px; font-weight: bold; color: #3b82f6; text-transform: uppercase; letter-spacing: 0.5px;">Advisor Notes / Instructions</p>
+        <p style="margin: 0; font-size: 14px; color: #334155;">${data.notes}</p>
+      </div>`
+    : "";
+
+  const detailsHtml = data.sessionDetails
+    ? `<div style="background: #f1f5f9; padding: 16px 20px; border-radius: 8px; margin: 16px 0;">
+        <h4 style="margin: 0 0 8px; color: #0f172a; font-size: 14px;">📋 Session Agenda & Topics</h4>
+        <div style="color: #334155; font-size: 14px; line-height: 1.6;">${data.sessionDetails}</div>
+      </div>`
+    : "";
+
+  const meetingUrl = data.meetingUrl || "https://portal.mysccg.de/customer/sessions";
+  const meetingHtml = `
+    <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 18px; margin: 20px 0; text-align: center;">
+      <h4 style="margin: 0 0 8px; color: #1e40af; font-size: 15px;">🌐 Online Meeting Link</h4>
+      <div style="margin: 12px 0;">
+        <a href="${meetingUrl}" style="display: inline-block; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #ffffff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 15px;">Join Online Meeting</a>
+      </div>
+      <p style="font-size: 12px; color: #64748b; margin: 8px 0 0; word-break: break-all;">Direct Link: <a href="${meetingUrl}" style="color: #2563eb;">${meetingUrl}</a></p>
     </div>
   `;
-  const meetingHtml = data.meetingUrl ? `<p><strong>Meeting Link:</strong> <a href="${data.meetingUrl}">${data.meetingUrl}</a></p>` : "";
 
   return {
     subject: subjectRole,
     htmlBody: `
-    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#ffffff;padding:20px;border:1px solid #e2e8f0;border-radius:8px;">
-      <h2 style="color: #0f172a;">Session #${data.sessionNumber} Scheduled</h2>
-      <p>Dear <strong>${data.recipientName}</strong>,</p>
-      ${intro}
-      <p><strong>Scheduled Date & Time:</strong> ${when}</p>
-      ${meetingHtml}
-      ${detailsHtml}
-      ${notesHtml}
-      ${data.role === "expert" ? `<p><em>Please find the candidate's CV/documents attached to this email.</em></p>` : ""}
-      <p style="color: #64748b; font-size: 13px; margin-top: 24px;">— SCCG Portal Team</p>
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+      <div style="background: linear-gradient(135deg, #0a1628, #1a2a4a); padding: 28px 32px; color: #ffffff;">
+        <h1 style="margin: 0; font-size: 22px; font-weight: bold; color: #ffffff;">SCCG Career Lab Germany</h1>
+        <p style="margin: 6px 0 0; color: #94a3b8; font-size: 14px;">Session #${data.sessionNumber} — ${sessionHeading}</p>
+      </div>
+      <div style="padding: 28px 32px;">
+        <p style="font-size: 15px; color: #334155; margin-top: 0;">Dear <strong>${data.recipientName}</strong>,</p>
+        ${intro}
+        
+        <table style="width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px;">
+          <tr style="border-bottom: 1px solid #f1f5f9;">
+            <td style="padding: 8px 0; color: #64748b; width: 140px;">Program Track</td>
+            <td style="padding: 8px 0; font-weight: 600; color: #0f172a;">${data.candidateType}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #f1f5f9;">
+            <td style="padding: 8px 0; color: #64748b;">Session</td>
+            <td style="padding: 8px 0; font-weight: 600; color: #0f172a;">Session #${data.sessionNumber}: ${sessionHeading}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #f1f5f9;">
+            <td style="padding: 8px 0; color: #64748b;">Date & Time</td>
+            <td style="padding: 8px 0; font-weight: 600; color: #2563eb;">${when}</td>
+          </tr>
+          ${data.role === "candidate" && data.expertName ? `
+          <tr style="border-bottom: 1px solid #f1f5f9;">
+            <td style="padding: 8px 0; color: #64748b;">Assigned Expert</td>
+            <td style="padding: 8px 0; font-weight: 600; color: #0f172a;">${data.expertName}</td>
+          </tr>` : ""}
+          ${data.role === "expert" && data.candidateName ? `
+          <tr style="border-bottom: 1px solid #f1f5f9;">
+            <td style="padding: 8px 0; color: #64748b;">Candidate Name</td>
+            <td style="padding: 8px 0; font-weight: 600; color: #0f172a;">${data.candidateName}</td>
+          </tr>` : ""}
+        </table>
+
+        ${meetingHtml}
+        ${detailsHtml}
+        ${notesHtml}
+
+        ${data.role === "expert" ? `<div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 6px; padding: 10px 14px; font-size: 13px; color: #166534; margin-top: 14px;">📎 Candidate CV and documents are attached to this email.</div>` : ""}
+
+        <div style="border-top: 1px solid #e2e8f0; margin-top: 24px; padding-top: 16px; font-size: 13px; color: #64748b;">
+          <p style="margin: 0 0 4px;">For assistance, visit your <a href="https://portal.mysccg.de/login" style="color: #2563eb; font-weight: 600;">SCCG Portal</a> or contact <a href="mailto:info@mysccg.de" style="color: #2563eb;">info@mysccg.de</a>.</p>
+          <p style="margin: 8px 0 0; color: #94a3b8;">SCCG Career Lab Germany · www.mysccg.de</p>
+        </div>
+      </div>
     </div>
     `
   };
