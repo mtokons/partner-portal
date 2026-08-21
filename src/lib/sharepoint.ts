@@ -343,6 +343,7 @@ const UP_COL = { // SCCG User Profiles
   company: "Company",
   specialization: "Specialization",
   status: "Status",
+  category: "Category",
   firebaseUid: "FirebaseUid",
   createdAt: "CreatedAt",
   updatedAt: "UpdatedAt",
@@ -3046,14 +3047,31 @@ export async function updateUserProfile(email: string, data: Partial<any>): Prom
     `${listUrl}?$expand=fields&$filter=fields/${UP_COL.email} eq '${escapeOData(email)}'&$top=1`
   );
   const spItemId = lookup.value[0]?.id;
-  if (!spItemId) return;
+  if (!spItemId) {
+    if (data.role || data.category) {
+      await createUserProfile({
+        email,
+        displayName: data.displayName || email.split("@")[0],
+        role: data.role || "customer",
+        company: data.company || "",
+        category: data.category || "",
+        status: data.status || "active",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      } as any);
+    }
+    return;
+  }
 
   const fields: Record<string, any> = { [UP_COL.updatedAt]: new Date().toISOString() };
   if (data.displayName) fields[UP_COL.displayName] = data.displayName;
   if (data.phone) fields[UP_COL.phone] = data.phone;
-  if (data.company) fields[UP_COL.company] = data.company;
-  if (data.specialization) fields[UP_COL.specialization] = data.specialization;
-  if (data.status) fields[UP_COL.status] = data.status;
+  if (data.role !== undefined) fields[UP_COL.role] = data.role;
+  if (data.company !== undefined) fields[UP_COL.company] = data.company;
+  if (data.specialization !== undefined) fields[UP_COL.specialization] = data.specialization;
+  if (data.status !== undefined) fields[UP_COL.status] = data.status;
+  if (data.category !== undefined) fields[UP_COL.category] = data.category;
+  if (data.firebaseUid !== undefined) fields[UP_COL.firebaseUid] = data.firebaseUid;
 
   await graphPatch(`${listUrl}/${spItemId}/fields`, fields);
 }
@@ -3838,6 +3856,7 @@ export async function getAllUserProfiles(): Promise<(UserProfile & { roles: stri
       role: String(f[UP_COL.role]) as any,
       company: String(f[UP_COL.company] || ""),
       specialization: String(f[UP_COL.specialization] || ""),
+      category: String(f[UP_COL.category] || ""),
       status: String(f[UP_COL.status]) as any,
       createdAt: String(f[UP_COL.createdAt] || ""),
       updatedAt: String(f[UP_COL.updatedAt] || ""),
@@ -3855,6 +3874,7 @@ export async function createUserProfile(data: Omit<UserProfile, "id">): Promise<
       [UP_COL.phone]: data.phone,
       [UP_COL.role]: data.role,
       [UP_COL.company]: data.company,
+      [UP_COL.category]: (data as any).category || "",
       [UP_COL.status]: data.status,
       [UP_COL.firebaseUid]: data.firebaseUid,
       [UP_COL.createdAt]: data.createdAt,

@@ -20,6 +20,7 @@ export interface ManagedUserItem {
   sources?: string[];
   /** Admin-assigned landing dashboard path that overrides role-based routing. */
   dashboardOverride?: string;
+  category?: string;
 }
 
 /** Record that a user was also found in another store (deduped). */
@@ -75,6 +76,7 @@ async function fetchFirestoreRestUsers(): Promise<ManagedUserItem[]> {
         const primaryRole = normalizeRole(fields.role?.stringValue || "customer");
         const status = (fields.status?.stringValue || "active").toLowerCase() as ManagedUserItem["status"];
         const company = fields.company?.stringValue || fields.orgName?.stringValue || "";
+        const category = fields.category?.stringValue || "";
         const phone = fields.phone?.stringValue || "";
         const id = docSnap.name ? docSnap.name.split("/").pop() : email;
 
@@ -86,6 +88,7 @@ async function fetchFirestoreRestUsers(): Promise<ManagedUserItem[]> {
           primaryRole,
           status: status === "suspended" ? "suspended" : "active",
           company,
+          category,
           phone,
           dashboardOverride: fields.dashboardOverride?.stringValue || undefined,
           source: "firestore-rest",
@@ -129,6 +132,7 @@ export async function getAllManagedUsers(): Promise<ManagedUserItem[]> {
         primaryRole: normPrimaryRole,
         status: (String(data.status || "active").toLowerCase() as ManagedUserItem["status"]) || "active",
         company: String(data.company || data.orgName || ""),
+        category: String(data.category || ""),
         phone: String(data.phone || ""),
         createdAt: String(data.createdAt || new Date().toISOString()),
         updatedAt: String(data.updatedAt || new Date().toISOString()),
@@ -189,6 +193,7 @@ export async function getAllManagedUsers(): Promise<ManagedUserItem[]> {
       const existing = userMap.get(email);
       if (existing) {
         if (p.company && !existing.company) existing.company = p.company;
+        if ((p as any).category && !existing.category) existing.category = (p as any).category;
         addSource(existing, "sharepoint-userprofiles");
       } else {
         const normPrimary = normalizeRole(p.role || "customer");
@@ -200,6 +205,7 @@ export async function getAllManagedUsers(): Promise<ManagedUserItem[]> {
           primaryRole: normPrimary,
           status: p.status === "suspended" ? "suspended" : "active",
           company: p.company || "",
+          category: (p as any).category || "",
           phone: p.phone || "",
           source: "sharepoint-userprofiles",
           sources: ["sharepoint-userprofiles"],

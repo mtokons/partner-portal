@@ -253,6 +253,7 @@ export async function updateUserRoleAction(data: {
   company?: string;
   /** Optional landing dashboard path; empty string clears the override. */
   dashboardOverride?: string;
+  category?: string;
 }): Promise<{ success: boolean; error?: string; note?: string }> {
   try {
     const actor = await assertAdmin();
@@ -263,7 +264,12 @@ export async function updateUserRoleAction(data: {
       return { success: false, error: "Email and role are required." };
     }
 
-    const db = getAdminFirestore();
+    let db: FirebaseFirestore.Firestore | null = null;
+    try {
+      db = getAdminFirestore();
+    } catch {
+      // Allow proceeding for SharePoint-only updates in local mock mode
+    }
     const app = getAdminApp();
 
     // 1. Resolve the Firebase Auth UID (the key login uses for users/{uid}).
@@ -276,27 +282,29 @@ export async function updateUserRoleAction(data: {
       }
     }
 
-    // 2. Locate the authoritative Firestore users doc.
-    let docRef: FirebaseFirestore.DocumentReference;
+    // 2. Locate the authoritative Firestore users doc (if db is available).
+    let docRef: FirebaseFirestore.DocumentReference | null = null;
     let before: Record<string, any> | undefined;
 
-    const byEmail = await db
-      .collection("users")
-      .where("email", "==", emailNorm)
-      .limit(1)
-      .get();
+    if (db) {
+      const byEmail = await db
+        .collection("users")
+        .where("email", "==", emailNorm)
+        .limit(1)
+        .get();
 
-    if (!byEmail.empty) {
-      docRef = byEmail.docs[0].ref;
-      before = byEmail.docs[0].data();
-    } else if (uid) {
-      docRef = db.collection("users").doc(uid);
-      before = (await docRef.get()).data();
-    } else if (data.userId) {
-      docRef = db.collection("users").doc(data.userId);
-      before = (await docRef.get()).data();
-    } else {
-      docRef = db.collection("users").doc(emailNorm);
+      if (!byEmail.empty) {
+        docRef = byEmail.docs[0].ref;
+        before = byEmail.docs[0].data();
+      } else if (uid) {
+        docRef = db.collection("users").doc(uid);
+        before = (await docRef.get()).data();
+      } else if (data.userId) {
+        docRef = db.collection("users").doc(data.userId);
+        before = (await docRef.get()).data();
+      } else {
+        docRef = db.collection("users").doc(emailNorm);
+      }
     }
 
     // 3. Write the role + optional profile fields (merge so we never clobber).
@@ -309,6 +317,7 @@ export async function updateUserRoleAction(data: {
     if (uid) payload.uid = uid;
     if (data.displayName?.trim()) payload.displayName = data.displayName.trim();
     if (data.company !== undefined) payload.company = (data.company || "").trim();
+    if (data.category !== undefined) payload.category = (data.category || "").trim();
     if (data.dashboardOverride !== undefined) {
       const dash = (data.dashboardOverride || "").trim();
       payload.dashboardOverride = dash.startsWith("/") ? dash : "";
@@ -317,7 +326,9 @@ export async function updateUserRoleAction(data: {
       payload.status = "active";
       payload.createdAt = new Date().toISOString();
     }
-    await docRef.set(payload, { merge: true });
+    if (docRef) {
+      await docRef.set(payload, { merge: true });
+    }
 
     // 4. Sync Firebase Auth custom claims so token-based checks agree.
     if (uid) {
@@ -331,7 +342,9 @@ export async function updateUserRoleAction(data: {
     // 5. Best-effort mirror to SharePoint UserProfiles (non-fatal).
     try {
       const { updateUserProfile } = await import("@/lib/sharepoint");
-      await updateUserProfile(emailNorm, { role });
+      const profileUpdate: any = { role };
+      if (data.category !== undefined) profileUpdate.category = (data.category || "").trim();
+      await updateUserProfile(emailNorm, profileUpdate);
     } catch {
       /* SharePoint unavailable or no profile — Firestore remains authoritative */
     }

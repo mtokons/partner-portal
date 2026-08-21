@@ -170,6 +170,7 @@ export default function UserManagementClient({
   // Edit Role Modal State
   const [editingUser, setEditingUser] = useState<ManagedUserItem | null>(null);
   const [editRole, setEditRole] = useState("");
+  const [editCategory, setEditCategory] = useState("");
   const [editName, setEditName] = useState("");
   const [editCompany, setEditCompany] = useState("");
   const [editDashboard, setEditDashboard] = useState("");
@@ -305,6 +306,7 @@ export default function UserManagementClient({
         displayName: editName.trim() || editingUser.displayName,
         company: editCompany,
         dashboardOverride: editDashboard,
+        category: editCategory === "none" ? "" : editCategory,
       });
 
       if (res.success) {
@@ -336,6 +338,7 @@ export default function UserManagementClient({
   const openEditUser = (user: ManagedUserItem) => {
     setEditingUser(user);
     setEditRole(user.primaryRole);
+    setEditCategory(user.category || "none");
     setEditName(user.displayName || "");
     setEditCompany(user.company || "");
     setEditDashboard(user.dashboardOverride || "");
@@ -620,6 +623,7 @@ export default function UserManagementClient({
               <TableHead className="font-semibold">User</TableHead>
               <TableHead className="font-semibold">Role</TableHead>
               <TableHead className="font-semibold">Company / Org</TableHead>
+              <TableHead className="font-semibold">Category</TableHead>
               <TableHead className="font-semibold">Status</TableHead>
               <TableHead className="font-semibold">Source</TableHead>
               <TableHead className="text-right font-semibold">Actions</TableHead>
@@ -669,6 +673,10 @@ export default function UserManagementClient({
 
                     <TableCell className="text-sm text-slate-600 dark:text-slate-400">
                       {user.company || "—"}
+                    </TableCell>
+
+                    <TableCell className="text-sm text-slate-600 dark:text-slate-400 capitalize">
+                      {user.category ? user.category.replace("sccg-", "SCCG-") : "—"}
                     </TableCell>
 
                     <TableCell>
@@ -889,6 +897,22 @@ export default function UserManagementClient({
                 onChange={(e) => setEditCompany(e.target.value)}
                 placeholder="Company (optional)"
               />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Category</Label>
+              <Select value={editCategory} onValueChange={setEditCategory}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  <SelectItem value="sccg-admin">SCCG-Admin</SelectItem>
+                  <SelectItem value="sccg-staff">SCCG-Staff</SelectItem>
+                  <SelectItem value="partner">Partner</SelectItem>
+                  <SelectItem value="candidate">Candidate</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-1.5">

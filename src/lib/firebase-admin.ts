@@ -39,7 +39,7 @@ export function getAdminApp() {
       });
     }
 
-    console.error(
+    console.warn(
       "Firebase Admin SDK is not configured. Set FIREBASE_PROJECT_ID (or NEXT_PUBLIC_FIREBASE_PROJECT_ID), FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY/FIREBASE_PRIVATE_KEY_BASE64, or configure GOOGLE_APPLICATION_CREDENTIALS."
     );
     return null;

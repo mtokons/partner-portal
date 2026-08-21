@@ -23,8 +23,8 @@ import {
 } from "./actions";
 
 const FLOWS: Array<{ id: CandidateTaskFlow; label: string; description: string }> = [
-  { id: "sccg", label: "Task for SCCG", description: "General SCCG internal operational task." },
-  { id: "staff", label: "Task for Staff", description: "Assigned to a specific SCCG staff member (in-app + email notification)." },
+  { id: "sccg", label: "Task for SCCG-Admin", description: "General SCCG internal operational task." },
+  { id: "staff", label: "Task for SCCG-Staff", description: "Assigned to a specific SCCG staff member (in-app + email notification)." },
   { id: "partner", label: "Task for Partner", description: "Assigned to a partner (sends automatic email with partner portal link)." },
   { id: "candidate", label: "Task for Candidate", description: "Assigned to a candidate (sends automatic email with portal link)." },
 ];
