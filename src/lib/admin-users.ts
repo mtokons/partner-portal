@@ -324,6 +324,17 @@ export async function getAllManagedUsers(): Promise<ManagedUserItem[]> {
     }
   });
 
-  const allUsers = Array.from(userMap.values());
+  const allUsers = Array.from(userMap.values()).filter((user) => {
+    // Keep fallback admins or users with no explicit sources
+    if (!user.sources || user.sources.length === 0) return true;
+    // Keep user if they exist in Firebase (Firestore or Auth)
+    return user.sources.some((s) => !s.startsWith("sharepoint"));
+  }).map(user => {
+    // Enforce max one category
+    if (user.category && user.category.includes(",")) {
+      user.category = user.category.split(",")[0].trim();
+    }
+    return user;
+  });
   return allUsers.sort((a, b) => a.displayName.localeCompare(b.displayName));
 }

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/permissions";
 import { Repository } from "@/lib/repository";
+import { getAllManagedUsers } from "@/lib/admin-users";
 import type { CandidateTask, CandidateTaskFlow, TaskStatus } from "@/types";
 
 export async function fetchSccgTaskBoardDataAction() {
@@ -12,27 +13,72 @@ export async function fetchSccgTaskBoardDataAction() {
       Repository.candidates.getAll().catch(() => []),
       Repository.candidates.getAllTasks().catch(() => []),
       Repository.partners.getAll().catch(() => []),
-      Repository.users.getAll().catch(() => []),
+      getAllManagedUsers().catch(() => []),
     ]);
+
+    const usersList = users || [];
+
+    const partnerRoles = ["partner", "project-partner", "project-partner-admin", "job-partner", "ausbildung-partner"];
+    const staffRoles = ["admin", "sccg-admin", "sccg-staff", "finance", "hr", "school-manager", "project-admin"];
+
+    const partnerUsers = usersList.filter((u: any) => {
+      const cat = (u.category || "").toLowerCase();
+      if (cat === "partner") return true;
+      if (u.roles && u.roles.some((r: string) => partnerRoles.includes(r))) return true;
+      return false;
+    });
+
+    const staffUsers = usersList.filter((u: any) => {
+      const cat = (u.category || "").toLowerCase();
+      if (cat === "sccg-staff" || cat === "sccg-admin" || cat === "admin") return true;
+      if (u.roles && u.roles.some((r: string) => staffRoles.includes(r))) return true;
+      return false;
+    });
+
+    const combinedPartners = [
+      ...(partners || []).map((p: any) => ({
+        id: p.id,
+        companyName: p.company || p.companyName || p.name || "",
+        email: p.email,
+      })),
+      ...partnerUsers.map((u: any) => ({
+        id: u.id,
+        companyName: u.company || u.displayName || u.name || u.email,
+        email: u.email,
+      }))
+    ];
+
+    const uniquePartners = Array.from(new Map(combinedPartners.map(p => [p.email || p.id, p])).values());
+
+    const staffMap = new Map(usersList.map((u: any) => [u.id, u.displayName || u.name || u.email]));
+    const partnerMap = new Map(uniquePartners.map(p => [p.id, p.companyName || p.email]));
+
+    const enrichedTasks = (tasks || []).map((t) => {
+      let assignedToName = t.assignedToName;
+      if (!assignedToName && t.assignedTo) {
+        assignedToName = staffMap.get(t.assignedTo) || partnerMap.get(t.assignedTo) || t.assignedTo;
+      }
+      return {
+        ...t,
+        assignedToName,
+      };
+    });
 
     return {
       success: true,
       data: {
-        tasks: tasks || [],
+        tasks: enrichedTasks,
         candidates: (candidates || []).map((candidate) => ({
           id: candidate.id,
           fullName: candidate.fullName,
           sccgId: candidate.sccgId,
         })),
-        partners: (partners || []).map((p: any) => ({
-          id: p.id,
-          companyName: p.company || p.companyName || p.name || "",
-          email: p.email,
-        })),
-        staff: (users || []).map((u: any) => ({
+        partners: uniquePartners,
+        staff: staffUsers.map((u: any) => ({
           id: u.id,
           name: u.displayName || u.name || u.email,
           email: u.email,
+          category: u.category || "",
         })),
       },
     };

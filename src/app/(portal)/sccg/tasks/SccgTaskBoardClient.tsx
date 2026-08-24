@@ -46,8 +46,8 @@ const PRIORITIES: Array<{ id: TaskPriority; label: string; className: string }> 
 interface Props {
   initialTasks: CandidateTask[];
   candidates: Array<{ id: string; fullName: string; sccgId: string }>;
-  partners: Array<{ id: string; companyName: string; email: string }>;
-  staff: Array<{ id: string; name: string; email: string }>;
+  partners: Array<{ id: string; companyName: string; email: string; category?: string }>;
+  staff: Array<{ id: string; name: string; email: string; category?: string }>;
 }
 
 export default function SccgTaskBoardClient({ initialTasks, candidates, partners, staff }: Props) {
@@ -95,12 +95,16 @@ export default function SccgTaskBoardClient({ initialTasks, candidates, partners
 
   const staffOptions: ComboboxOption[] = useMemo(() => {
     const uniqueStaff = Array.from(new Map(staff.map((s) => [s.id, s])).values());
-    return uniqueStaff.map((s) => ({
-      id: s.id,
-      label: s.name || s.email || "Staff Member",
-      subLabel: s.email !== s.name ? s.email : undefined,
-      badge: "Staff",
-    }));
+    return uniqueStaff.map((s) => {
+      let cat = (s.category || "").trim();
+      if (cat.toLowerCase() === "staff") cat = "sccg-staff";
+      return {
+        id: s.id,
+        label: s.name || s.email || "Staff Member",
+        subLabel: s.email !== s.name ? s.email : undefined,
+        badge: cat || "sccg-staff",
+      };
+    });
   }, [staff]);
 
   const visibleTasks = useMemo(() => {
@@ -386,7 +390,12 @@ export default function SccgTaskBoardClient({ initialTasks, candidates, partners
             {(createData.taskFlow === "staff" || createData.taskFlow === "sccg") && (
               <Field label={createData.taskFlow === "staff" ? "Assign To (Staff Member) *" : "Assign To Staff (Optional)"}>
                 <SearchableCombobox
-                  options={staffOptions}
+                  options={staffOptions.filter(opt => {
+                    const b = String(opt.badge || "").toLowerCase();
+                    if (createData.taskFlow === "sccg") return b === "sccg-admin" || b === "admin";
+                    if (createData.taskFlow === "staff") return b === "sccg-staff";
+                    return true;
+                  })}
                   value={createData.assignedTo || ""}
                   onChange={(val, opt) => {
                     const selected = staff.find((s) => s.id === val);
@@ -576,7 +585,12 @@ export default function SccgTaskBoardClient({ initialTasks, candidates, partners
             {(editingTask.taskFlow === "staff" || editingTask.taskFlow === "sccg") && (
               <Field label={editingTask.taskFlow === "staff" ? "Assign To (Staff Member) *" : "Assign To Staff (Optional)"}>
                 <SearchableCombobox
-                  options={staffOptions}
+                  options={staffOptions.filter(opt => {
+                    const b = String(opt.badge || "").toLowerCase();
+                    if (editingTask.taskFlow === "sccg") return b === "sccg-admin" || b === "admin";
+                    if (editingTask.taskFlow === "staff") return b === "sccg-staff";
+                    return true;
+                  })}
                   value={editingTask.assignedTo || ""}
                   onChange={(val) => {
                     const selected = staff.find((s) => s.id === val);

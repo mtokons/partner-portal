@@ -4559,15 +4559,31 @@ export async function createCandidateTask(data: Omit<CandidateTask, "id">): Prom
     [CANDTASK_COL.workflowCategory]: data.workflowCategory,
     [CANDTASK_COL.taskFlow]: data.taskFlow,
   };
+
+  // Clean undefined / null values
+  for (const k of Object.keys(fields)) {
+    if (fields[k] === undefined || fields[k] === null) {
+      delete fields[k];
+    }
+  }
+
   let res: { id: string; fields: Record<string, unknown> };
-  try {
-    res = await graphPost<{ id: string; fields: Record<string, unknown> }>(listUrl, { fields });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    if (msg.includes("WorkflowCategory") || msg.includes("not recognized")) {
-      const { [CANDTASK_COL.workflowCategory]: _drop, ...safeFields } = fields;
-      res = await graphPost<{ id: string; fields: Record<string, unknown> }>(listUrl, { fields: safeFields });
-    } else {
+  while (true) {
+    try {
+      res = await graphPost<{ id: string; fields: Record<string, unknown> }>(listUrl, { fields });
+      break;
+    } catch (err: any) {
+      const msg = err?.message || String(err);
+      const match = msg.match(/Field '([^']+)' is not recognized/i) || msg.match(/Field '([^']+)' does not exist/i);
+      if (match && match[1] && match[1] in fields) {
+        delete fields[match[1]];
+        continue;
+      }
+      // If WorkflowCategory is rejected
+      if (msg.includes("WorkflowCategory") && CANDTASK_COL.workflowCategory in fields) {
+        delete fields[CANDTASK_COL.workflowCategory];
+        continue;
+      }
       throw err;
     }
   }
@@ -4594,14 +4610,28 @@ export async function updateCandidateTask(
     if (data.workflowCategory !== undefined) fields[CANDTASK_COL.workflowCategory] = data.workflowCategory;
     if (data.taskFlow !== undefined) fields[CANDTASK_COL.taskFlow] = data.taskFlow;
     fields[CANDTASK_COL.updatedAt] = new Date().toISOString();
-    try {
-      await graphPatch(`${listUrl}/${id}/fields`, fields);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes("WorkflowCategory") || msg.includes("not recognized")) {
-        delete fields[CANDTASK_COL.workflowCategory];
+
+    for (const k of Object.keys(fields)) {
+      if (fields[k] === undefined || fields[k] === null) {
+        delete fields[k];
+      }
+    }
+
+    while (Object.keys(fields).length > 0) {
+      try {
         await graphPatch(`${listUrl}/${id}/fields`, fields);
-      } else {
+        break;
+      } catch (err: any) {
+        const msg = err?.message || String(err);
+        const match = msg.match(/Field '([^']+)' is not recognized/i) || msg.match(/Field '([^']+)' does not exist/i);
+        if (match && match[1] && match[1] in fields) {
+          delete fields[match[1]];
+          continue;
+        }
+        if (msg.includes("WorkflowCategory") && CANDTASK_COL.workflowCategory in fields) {
+          delete fields[CANDTASK_COL.workflowCategory];
+          continue;
+        }
         throw err;
       }
     }
