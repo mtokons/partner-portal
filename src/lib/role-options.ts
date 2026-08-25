@@ -1,7 +1,7 @@
 import type { UserRoleType } from "@/types";
 
 export type AdminRoleOption = {
-  id: UserRoleType;
+  id: UserRoleType | string;
   label: string;
 };
 

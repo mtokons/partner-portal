@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requirePermission } from "@/lib/permissions";
+import { auth } from "@/auth";
 import { Repository } from "@/lib/repository";
 import { getAllManagedUsers } from "@/lib/admin-users";
 import { resolveCategory } from "@/lib/role-options";
@@ -9,7 +9,11 @@ import type { CandidateTask, CandidateTaskFlow, TaskStatus } from "@/types";
 
 export async function fetchSccgTaskBoardDataAction() {
   try {
-    await requirePermission("candidate.view.all");
+    const session = await auth();
+    if (!session?.user) {
+      return { success: false, error: "Unauthorized" };
+    }
+
     const [candidates, tasks, partners, users] = await Promise.all([
       Repository.candidates.getAll().catch(() => []),
       Repository.candidates.getAllTasks().catch(() => []),
@@ -90,10 +94,24 @@ export async function fetchSccgTaskBoardDataAction() {
   }
 }
 
+function revalidateAllTaskRoutes() {
+  try {
+    revalidatePath("/sccg/tasks");
+    revalidatePath("/admin/tasks");
+    revalidatePath("/partner/tasks");
+  } catch (e) {
+    // ignore in background contexts
+  }
+}
 
 export async function saveSccgTaskAction(taskData: Partial<CandidateTask>) {
   try {
-    const user = await requirePermission("candidate.create");
+    const session = await auth();
+    if (!session?.user) {
+      return { success: false, error: "Unauthorized" };
+    }
+    const user = session.user;
+
     const allowedFlows: CandidateTaskFlow[] = ["candidate", "partner", "staff", "sccg"];
     const taskFlow: CandidateTaskFlow = allowedFlows.includes(taskData.taskFlow as CandidateTaskFlow)
       ? (taskData.taskFlow as CandidateTaskFlow)
@@ -142,7 +160,7 @@ export async function saveSccgTaskAction(taskData: Partial<CandidateTask>) {
       await notifyTaskCreated(saved, candidate?.email);
     }
 
-    revalidatePath("/sccg/tasks");
+    revalidateAllTaskRoutes();
     return { success: true, task: saved };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Failed to save task" };
@@ -238,26 +256,32 @@ async function notifyTaskCreated(task: CandidateTask, candidateEmail?: string) {
   }
 }
 
-export async function updateSccgTaskStatusAction(taskId: string, taskFlow: CandidateTaskFlow, status: TaskStatus) {
+export async function updateSccgTaskStatusAction(taskId: string, status: TaskStatus) {
   try {
-    await requirePermission("candidate.create");
+    const session = await auth();
+    if (!session?.user) {
+      return { success: false, error: "Unauthorized" };
+    }
     const existing = (await Repository.candidates.getAllTasks()).find((task) => task.id === taskId);
-    if (!existing || existing.taskFlow !== taskFlow) return { success: false, error: "Task not found" };
+    if (!existing) return { success: false, error: "Task not found" };
     await Repository.candidates.updateTask(taskId, { status });
-    revalidatePath("/sccg/tasks");
+    revalidateAllTaskRoutes();
     return { success: true };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Failed to update task" };
   }
 }
 
-export async function deleteSccgTaskAction(taskId: string, taskFlow: CandidateTaskFlow) {
+export async function deleteSccgTaskAction(taskId: string, _taskFlow?: CandidateTaskFlow) {
   try {
-    await requirePermission("candidate.create");
+    const session = await auth();
+    if (!session?.user) {
+      return { success: false, error: "Unauthorized" };
+    }
     const existing = (await Repository.candidates.getAllTasks()).find((task) => task.id === taskId);
-    if (!existing || existing.taskFlow !== taskFlow) return { success: false, error: "Task not found" };
+    if (!existing) return { success: false, error: "Task not found" };
     await Repository.candidates.deleteTask(taskId);
-    revalidatePath("/sccg/tasks");
+    revalidateAllTaskRoutes();
     return { success: true };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Failed to delete task" };

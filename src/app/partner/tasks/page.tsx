@@ -1,11 +1,11 @@
 import { getEffectiveSession } from "@/lib/effective-user";
 import { redirect } from "next/navigation";
 import type { SessionUser } from "@/types";
-import { fetchPartnerTaskBoardDataAction } from "./actions";
-import TaskBoardClient from "./TaskBoardClient";
+import { fetchSccgTaskBoardDataAction } from "@/app/(portal)/sccg/tasks/actions";
+import SccgTaskBoardClient from "@/app/(portal)/sccg/tasks/SccgTaskBoardClient";
 
 export const metadata = {
-  title: "Task Board | SCCG Partner Portal",
+  title: "My Tasks | SCCG Partner Portal",
   description: "Manage, assign, and track operations for your candidate milestones.",
 };
 
@@ -15,21 +15,22 @@ export default async function PartnerTasksPage() {
 
   const user = session.user as SessionUser;
   
-  // Call server action to fetch data
-  const result = await fetchPartnerTaskBoardDataAction();
-  if (!result.success || !result.data) {
-    // If not found or unauthorised, redirect
-    redirect("/partner-pending");
-  }
-
-  const { tasks, candidates, partner } = result.data;
+  // Fetch unified task board data
+  const result = await fetchSccgTaskBoardDataAction();
+  const data = result.success && result.data ? result.data : { tasks: [], candidates: [], partners: [], staff: [] };
 
   return (
     <div className="space-y-6">
-      <TaskBoardClient
-        initialTasks={tasks}
-        candidates={candidates}
-        partner={partner}
+      <SccgTaskBoardClient
+        initialTasks={data.tasks || []}
+        candidates={data.candidates || []}
+        partners={data.partners || []}
+        staff={data.staff || []}
+        viewMode="personal"
+        currentUserEmail={user.email}
+        currentUserId={user.id}
+        title="Partner Task Board"
+        subtitle="Track and manage operational tasks, candidate milestones, and partner actions."
       />
     </div>
   );

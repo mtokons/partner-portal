@@ -93,9 +93,10 @@ export async function getBookingAppointments(): Promise<BookingsResult> {
  */
 export async function getBookingServices(): Promise<BookingService[]> {
   try {
-    const res = await graphGetSafe<GraphBookingServicesResponse>(
-      `/solutions/bookingBusinesses/${encodeURIComponent(BOOKINGS_BUSINESS_ID)}/services`
-    );
+    const client = await import("./graph").then((m) => m.getGraphClient());
+    const res = await client
+      .api(`/solutions/bookingBusinesses/${encodeURIComponent(BOOKINGS_BUSINESS_ID)}/services`)
+      .get() as { value?: BookingService[] };
     return res?.value ?? [];
   } catch {
     return [];
