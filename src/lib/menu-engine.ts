@@ -100,6 +100,7 @@ const ADMIN_MENU: MenuItem[] = [
   { key: "admin.dashboard",         label: "Dashboard",          href: "/admin/dashboard",           icon: "LayoutDashboard", group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: true },
   { key: "admin.overview",          label: "System Overview",    href: "/admin/overview",            icon: "BarChart3",       group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
   { key: "admin.tasks",             label: "Task Board",         href: "/admin/tasks",               icon: "ClipboardList",   group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.dev-board",         label: "Project Dev Board",  href: "/admin/dev-board",           icon: "FolderGit2",      group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false },
 
   // Job & Ausbildung Systems
   { key: "admin.cv-bank",            label: "CV Master Bank",       href: "/admin/cv-bank",             icon: "Database",        group: "jobs",       groupLabel: "Job & Ausbildung",   groupOrder: 1.5, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
@@ -302,8 +303,9 @@ const AUSBILDUNG_PARTNER_MENU: MenuItem[] = [
 // ============================================================
 const SCCG_MENU: MenuItem[] = [
   // Main Console
-  { key: "sccg.dashboard",   label: "Dashboard",  href: "/sccg/dashboard", icon: "LayoutDashboard", group: "main", groupLabel: "Main Console", groupOrder: 1, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: true },
-  { key: "sccg.tasks",       label: "Task Board", href: "/sccg/tasks",     icon: "ClipboardList",   group: "main", groupLabel: "Main Console", groupOrder: 1, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.dashboard",   label: "Dashboard",         href: "/sccg/dashboard", icon: "LayoutDashboard", group: "main", groupLabel: "Main Console", groupOrder: 1, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: true },
+  { key: "sccg.tasks",       label: "Task Board",        href: "/sccg/tasks",     icon: "ClipboardList",   group: "main", groupLabel: "Main Console", groupOrder: 1, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.dev-board",   label: "Project Dev Board", href: "/sccg/dev-board", icon: "FolderGit2",      group: "main", groupLabel: "Main Console", groupOrder: 1, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
 
   // 1. Candidate Gallery
   { key: "sccg.candidates",           label: "Candidate Gallery",       href: "/sccg/candidates",     icon: "Users",    group: "candidates", groupLabel: "Candidate Gallery", groupOrder: 2, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },

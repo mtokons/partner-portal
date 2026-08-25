@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import Link from "next/link";
 import {
   CalendarDays,
   ClipboardList,
@@ -19,6 +20,7 @@ import {
   ArrowRight,
   ArrowLeft,
   AlertTriangle,
+  FolderGit2,
 } from "lucide-react";
 import type { CandidateTask, CandidateTaskFlow, TaskPriority, TaskStatus } from "@/types";
 import { SearchableCombobox, ComboboxOption } from "@/components/ui/SearchableCombobox";
@@ -358,6 +360,23 @@ export default function SccgTaskBoardClient({
 
   return (
     <div className="space-y-6">
+      {/* Top Portal Switcher (Candidate Tasks vs DevOps Board) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-3">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-primary text-primary-foreground shadow-xs">
+            <CheckCircle2 className="h-4 w-4" />
+            Operations & Candidate Tasks
+          </div>
+          <Link
+            href={title.toLowerCase().includes("admin") ? "/admin/dev-board" : "/sccg/dev-board"}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+          >
+            <FolderGit2 className="h-4 w-4 text-purple-500" />
+            Project Dev Board (DevOps / Jira)
+          </Link>
+        </div>
+      </div>
+
       {/* Header */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
