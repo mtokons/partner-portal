@@ -54,7 +54,7 @@ import {
   saveUserMenuOverridesAction,
 } from "@/app/actions/menu-overrides";
 import { startImpersonationAction } from "@/app/actions/impersonation";
-import { AVAILABLE_ROLES, DASHBOARD_OPTIONS } from "@/lib/role-options";
+import { AVAILABLE_ROLES, DASHBOARD_OPTIONS, USER_CATEGORIES, resolveCategory } from "@/lib/role-options";
 import {
   DEFAULT_MENUS,
   resolveConsole,
@@ -338,7 +338,7 @@ export default function UserManagementClient({
   const openEditUser = (user: ManagedUserItem) => {
     setEditingUser(user);
     setEditRole(user.primaryRole);
-    setEditCategory(user.category || "none");
+    setEditCategory(resolveCategory(user.category, user.primaryRole));
     setEditName(user.displayName || "");
     setEditCompany(user.company || "");
     setEditDashboard(user.dashboardOverride || "");
@@ -676,7 +676,11 @@ export default function UserManagementClient({
                     </TableCell>
 
                     <TableCell className="text-sm text-slate-600 dark:text-slate-400 capitalize">
-                      {user.category ? user.category.replace("sccg-", "SCCG-") : "—"}
+                      {(() => {
+                        const cat = resolveCategory(user.category, user.primaryRole);
+                        const found = USER_CATEGORIES.find(c => c.id === cat);
+                        return found ? found.label : cat;
+                      })()}
                     </TableCell>
 
                     <TableCell>
@@ -906,11 +910,11 @@ export default function UserManagementClient({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  <SelectItem value="sccg-admin">SCCG-Admin</SelectItem>
-                  <SelectItem value="sccg-staff">SCCG-Staff</SelectItem>
-                  <SelectItem value="partner">Partner</SelectItem>
-                  <SelectItem value="candidate">Candidate</SelectItem>
+                  {USER_CATEGORIES.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

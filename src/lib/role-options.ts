@@ -49,3 +49,45 @@ export const DASHBOARD_OPTIONS: DashboardOption[] = [
   { path: "/ausbildung/seeker/dashboard", label: "Ausbildung Seeker Dashboard" },
   { path: "/ausbildung/partner/dashboard", label: "Ausbildung Partner Dashboard" },
 ];
+
+/** The 4 valid user categories. */
+export type UserCategory = "sccg-admin" | "sccg-staff" | "partner" | "candidate";
+
+export const USER_CATEGORIES: Array<{ id: UserCategory; label: string }> = [
+  { id: "sccg-admin", label: "SCCG-Admin" },
+  { id: "sccg-staff", label: "SCCG-Staff" },
+  { id: "partner", label: "Partner" },
+  { id: "candidate", label: "Candidate" },
+];
+
+/**
+ * Derive the user category from their role when the category field is empty.
+ * This is the single source of truth for role → category mapping.
+ */
+export function categoryForRole(role: string): UserCategory {
+  const r = (role || "").toLowerCase().trim();
+  // Admin-tier roles → sccg-admin
+  if (["admin", "sccg-admin"].includes(r)) return "sccg-admin";
+  // Internal staff roles → sccg-staff
+  if (["sccg-staff", "finance", "hr", "school-manager", "project-admin", "teacher"].includes(r))
+    return "sccg-staff";
+  // Partner-tier roles → partner
+  if (["partner", "project-partner", "project-partner-admin", "job-partner", "ausbildung-partner", "expert"].includes(r))
+    return "partner";
+  // Everything else → candidate
+  return "candidate";
+}
+
+/**
+ * Resolve a user's effective category: use the stored category if it is one
+ * of the 4 valid values, otherwise derive it from the user's primary role.
+ */
+export function resolveCategory(storedCategory: string | undefined, role: string): UserCategory {
+  const cat = (storedCategory || "").toLowerCase().trim();
+  if (cat === "sccg-admin" || cat === "sccg-staff" || cat === "partner" || cat === "candidate")
+    return cat;
+  // Legacy "staff" → sccg-staff
+  if (cat === "staff") return "sccg-staff";
+  // Derive from role
+  return categoryForRole(role);
+}

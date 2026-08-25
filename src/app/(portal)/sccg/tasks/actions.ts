@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/permissions";
 import { Repository } from "@/lib/repository";
 import { getAllManagedUsers } from "@/lib/admin-users";
+import { resolveCategory } from "@/lib/role-options";
 import type { CandidateTask, CandidateTaskFlow, TaskStatus } from "@/types";
 
 export async function fetchSccgTaskBoardDataAction() {
@@ -18,22 +19,19 @@ export async function fetchSccgTaskBoardDataAction() {
 
     const usersList = users || [];
 
-    const partnerRoles = ["partner", "project-partner", "project-partner-admin", "job-partner", "ausbildung-partner"];
-    const staffRoles = ["admin", "sccg-admin", "sccg-staff", "finance", "hr", "school-manager", "project-admin"];
+    // Every user now has a guaranteed category from resolveCategory in admin-users.ts.
+    // Build separate lists for each of the 4 categories.
+    const adminUsers = usersList.filter((u: any) =>
+      resolveCategory(u.category, u.primaryRole) === "sccg-admin"
+    );
 
-    const partnerUsers = usersList.filter((u: any) => {
-      const cat = (u.category || "").toLowerCase();
-      if (cat === "partner") return true;
-      if (u.roles && u.roles.some((r: string) => partnerRoles.includes(r))) return true;
-      return false;
-    });
+    const staffUsers = usersList.filter((u: any) =>
+      resolveCategory(u.category, u.primaryRole) === "sccg-staff"
+    );
 
-    const staffUsers = usersList.filter((u: any) => {
-      const cat = (u.category || "").toLowerCase();
-      if (cat === "sccg-staff" || cat === "sccg-admin" || cat === "admin") return true;
-      if (u.roles && u.roles.some((r: string) => staffRoles.includes(r))) return true;
-      return false;
-    });
+    const partnerUsers = usersList.filter((u: any) =>
+      resolveCategory(u.category, u.primaryRole) === "partner"
+    );
 
     const combinedPartners = [
       ...(partners || []).map((p: any) => ({
@@ -64,6 +62,10 @@ export async function fetchSccgTaskBoardDataAction() {
       };
     });
 
+    // Combine admin + staff into a single "staff" array (sent to client),
+    // each entry carries its resolved category so the client can filter.
+    const allInternalStaff = [...adminUsers, ...staffUsers];
+
     return {
       success: true,
       data: {
@@ -74,11 +76,11 @@ export async function fetchSccgTaskBoardDataAction() {
           sccgId: candidate.sccgId,
         })),
         partners: uniquePartners,
-        staff: staffUsers.map((u: any) => ({
+        staff: allInternalStaff.map((u: any) => ({
           id: u.id,
           name: u.displayName || u.name || u.email,
           email: u.email,
-          category: u.category || "",
+          category: resolveCategory(u.category, u.primaryRole),
         })),
       },
     };
@@ -87,6 +89,7 @@ export async function fetchSccgTaskBoardDataAction() {
     return { success: false, error: error instanceof Error ? error.message : "Failed to load task board" };
   }
 }
+
 
 export async function saveSccgTaskAction(taskData: Partial<CandidateTask>) {
   try {

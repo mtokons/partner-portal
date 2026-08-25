@@ -95,16 +95,12 @@ export default function SccgTaskBoardClient({ initialTasks, candidates, partners
 
   const staffOptions: ComboboxOption[] = useMemo(() => {
     const uniqueStaff = Array.from(new Map(staff.map((s) => [s.id, s])).values());
-    return uniqueStaff.map((s) => {
-      let cat = (s.category || "").trim();
-      if (cat.toLowerCase() === "staff") cat = "sccg-staff";
-      return {
-        id: s.id,
-        label: s.name || s.email || "Staff Member",
-        subLabel: s.email !== s.name ? s.email : undefined,
-        badge: cat || "sccg-staff",
-      };
-    });
+    return uniqueStaff.map((s) => ({
+      id: s.id,
+      label: s.name || s.email || "Staff Member",
+      subLabel: s.email !== s.name ? s.email : undefined,
+      badge: s.category || "sccg-staff",
+    }));
   }, [staff]);
 
   const visibleTasks = useMemo(() => {

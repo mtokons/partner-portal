@@ -3,6 +3,7 @@ import { getAdminFirestore, getAdminApp } from "@/lib/firebase-admin";
 import * as admin from "firebase-admin";
 import { Repository } from "@/lib/repository";
 import { getAllUserProfiles } from "@/lib/sharepoint";
+import { resolveCategory } from "@/lib/role-options";
 
 export interface ManagedUserItem {
   id: string;
@@ -132,7 +133,7 @@ export async function getAllManagedUsers(): Promise<ManagedUserItem[]> {
         primaryRole: normPrimaryRole,
         status: (String(data.status || "active").toLowerCase() as ManagedUserItem["status"]) || "active",
         company: String(data.company || data.orgName || ""),
-        category: String(data.category || ""),
+        category: resolveCategory(String(data.category || ""), normPrimaryRole),
         phone: String(data.phone || ""),
         createdAt: String(data.createdAt || new Date().toISOString()),
         updatedAt: String(data.updatedAt || new Date().toISOString()),
@@ -330,10 +331,8 @@ export async function getAllManagedUsers(): Promise<ManagedUserItem[]> {
     // Keep user if they exist in Firebase (Firestore or Auth)
     return user.sources.some((s) => !s.startsWith("sharepoint"));
   }).map(user => {
-    // Enforce max one category
-    if (user.category && user.category.includes(",")) {
-      user.category = user.category.split(",")[0].trim();
-    }
+    // Enforce max one category — always resolve to one of the 4 valid values
+    user.category = resolveCategory(user.category, user.primaryRole);
     return user;
   });
   return allUsers.sort((a, b) => a.displayName.localeCompare(b.displayName));
