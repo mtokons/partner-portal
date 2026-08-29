@@ -25,6 +25,7 @@ export default async function SccgTasksPage() {
       viewMode="admin"
       currentUserEmail={session.user.email}
       currentUserId={session.user.id}
+      currentUserName={(session.user as any).name || session.user.email}
       title="Task Board"
       subtitle="Manage all operational and automated tasks across candidates, partners, and staff."
     />

@@ -29,6 +29,7 @@ export default async function PartnerTasksPage() {
         viewMode="personal"
         currentUserEmail={user.email}
         currentUserId={user.id}
+        currentUserName={(user as any).name || user.email}
         title="Partner Task Board"
         subtitle="Track and manage operational tasks, candidate milestones, and partner actions."
       />

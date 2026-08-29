@@ -36,12 +36,13 @@ echo "🚀 Starting deployment to SCCG Oracle VPS ($VPS_IP)..."
 # If the public import file is being used, derive Admin SDK variables from the
 # local Firebase service-account JSON. The generated file is temporary and is
 # removed on exit; the JSON is never uploaded.
-FIREBASE_SERVICE_ACCOUNT_JSON="./FirebaseDetails/sccgport-firebase-adminsdk-fbsvc-269e2c4da4.json"
+FIREBASE_SERVICE_ACCOUNT_JSON="./SCCGFirebase.json"
+[ ! -f "${FIREBASE_SERVICE_ACCOUNT_JSON}" ] && FIREBASE_SERVICE_ACCOUNT_JSON="./FirebaseDetails/sccgport-firebase-adminsdk-fbsvc-269e2c4da4.json"
 if [ "${ENV_FILE}" = "./import.env" ] && [ -f "${FIREBASE_SERVICE_ACCOUNT_JSON}" ] && \
    ! grep -Eq '^FIREBASE_CLIENT_EMAIL=.+$' "${ENV_FILE}"; then
   GENERATED_ENV_FILE="${TMPDIR:-/tmp}/partner-portal-production-env-$$"
   cp "${ENV_FILE}" "${GENERATED_ENV_FILE}"
-  node -e 'const fs=require("fs"); const j=JSON.parse(fs.readFileSync(process.argv[1], "utf8")); if (!j.project_id || !j.client_email || !j.private_key) process.exit(2); fs.appendFileSync(process.argv[2], `\nFIREBASE_PROJECT_ID=${JSON.stringify(j.project_id)}\nFIREBASE_CLIENT_EMAIL=${JSON.stringify(j.client_email)}\nFIREBASE_PRIVATE_KEY=${JSON.stringify(j.private_key)}\n`);' "${FIREBASE_SERVICE_ACCOUNT_JSON}" "${GENERATED_ENV_FILE}"
+  node scripts/extract-firebase-env.mjs "${FIREBASE_SERVICE_ACCOUNT_JSON}" "${GENERATED_ENV_FILE}"
   ENV_FILE="${GENERATED_ENV_FILE}"
   chmod 600 "${ENV_FILE}"
   echo "🔐 Firebase Admin configuration loaded from local service-account JSON (private key hidden)."

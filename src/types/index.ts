@@ -1603,6 +1603,15 @@ export interface SchoolGradingScale {
 export type TaskStatus = "backlog" | "todo" | "in-progress" | "review" | "done";
 export type TaskPriority = "low" | "medium" | "high";
 
+export interface TaskComment {
+  id: string;
+  authorId: string;
+  authorName: string;
+  authorEmail: string;
+  text: string;
+  createdAt: string;
+}
+
 export interface KanbanTask {
   id: string;
   title: string;
@@ -1616,8 +1625,11 @@ export interface KanbanTask {
   partnerId?: string;
   tags?: string[];
   createdBy: string;
+  createdByName?: string;
+  createdByEmail?: string;
   createdAt: string;
   updatedAt?: string;
+  comments?: TaskComment[];
 }
 
 // ============================================================

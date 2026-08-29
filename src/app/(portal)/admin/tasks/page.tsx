@@ -23,6 +23,7 @@ export default async function AdminTasksPage() {
       viewMode="admin"
       currentUserEmail={session.user.email}
       currentUserId={session.user.id}
+      currentUserName={(session.user as any).name || session.user.email}
       title="Admin Task Board"
       subtitle="Manage all operational and automated tasks across candidates, partners, and staff."
     />

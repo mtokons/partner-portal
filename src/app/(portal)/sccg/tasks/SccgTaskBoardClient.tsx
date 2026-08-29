@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useRef, useTransition } from "react";
 import Link from "next/link";
 import {
   CalendarDays,
@@ -21,13 +21,17 @@ import {
   ArrowLeft,
   AlertTriangle,
   FolderGit2,
+  Edit3,
+  MessageCircle,
+  Send,
 } from "lucide-react";
-import type { CandidateTask, CandidateTaskFlow, TaskPriority, TaskStatus } from "@/types";
+import type { CandidateTask, CandidateTaskFlow, TaskPriority, TaskStatus, TaskComment } from "@/types";
 import { SearchableCombobox, ComboboxOption } from "@/components/ui/SearchableCombobox";
 import {
   deleteSccgTaskAction,
   saveSccgTaskAction,
   updateSccgTaskStatusAction,
+  addTaskCommentAction,
 } from "./actions";
 
 export const FLOWS: Array<{ id: CandidateTaskFlow; label: string; description: string }> = [
@@ -59,6 +63,7 @@ export interface TaskBoardProps {
   viewMode?: "admin" | "personal";
   currentUserEmail?: string;
   currentUserId?: string;
+  currentUserName?: string;
   title?: string;
   subtitle?: string;
 }
@@ -71,6 +76,7 @@ export default function SccgTaskBoardClient({
   viewMode = "admin",
   currentUserEmail = "",
   currentUserId = "",
+  currentUserName = "",
   title = "Task Board",
   subtitle = "Manage all operational and automated tasks across candidates, partners, and staff.",
 }: TaskBoardProps) {
@@ -99,7 +105,13 @@ export default function SccgTaskBoardClient({
   });
 
   const [editingTask, setEditingTask] = useState<CandidateTask | null>(null);
+  const [editTab, setEditTab] = useState<"details" | "comments">("details");
+  const [commentText, setCommentText] = useState("");
+  const commentEndRef = useRef<HTMLDivElement>(null);
   const [isPending, startTransition] = useTransition();
+
+  // Determine if current user is admin
+  const isAdmin = viewMode === "admin";
 
   // Searchable combobox options
   const candidateOptions: ComboboxOption[] = useMemo(() => {
@@ -132,11 +144,22 @@ export default function SccgTaskBoardClient({
 
   const normalizedUserEmail = currentUserEmail.trim().toLowerCase();
 
-  // Filter tasks based on search, flow category, priority, and user scope
+  // Filter tasks based on search, flow category, priority, user scope, and visibility rules
   const visibleTasks = useMemo(() => {
     return tasks.filter((task) => {
-      // 1. User scope filter (Mine vs All)
-      if (scopeFilter === "mine" && normalizedUserEmail) {
+      // Visibility rule: Non-admin users can only see tasks they created or are assigned to
+      if (!isAdmin && normalizedUserEmail) {
+        const isAssignedEmail = (task.assignedToEmail || "").toLowerCase() === normalizedUserEmail;
+        const isAssignedId = currentUserId && task.assignedTo === currentUserId;
+        const isCreatedBy = currentUserId && task.createdBy === currentUserId;
+        const isCreatedByEmail = (task.createdByEmail || "").toLowerCase() === normalizedUserEmail;
+        if (!isAssignedEmail && !isAssignedId && !isCreatedBy && !isCreatedByEmail) {
+          return false;
+        }
+      }
+
+      // 1. User scope filter (Mine vs All) — for admin users
+      if (isAdmin && scopeFilter === "mine" && normalizedUserEmail) {
         const isAssignedEmail = (task.assignedToEmail || "").toLowerCase() === normalizedUserEmail;
         const isAssignedId = currentUserId && task.assignedTo === currentUserId;
         const isCreatedBy = currentUserId && task.createdBy === currentUserId;
@@ -174,14 +197,13 @@ export default function SccgTaskBoardClient({
 
       return true;
     });
-  }, [tasks, query, selectedFlowFilter, selectedPriorityFilter, scopeFilter, normalizedUserEmail, currentUserId]);
+  }, [tasks, query, selectedFlowFilter, selectedPriorityFilter, scopeFilter, normalizedUserEmail, currentUserId, isAdmin]);
 
   function openCreateModal(initialFlow: CandidateTaskFlow = "sccg", initialStatus: TaskStatus = "backlog") {
     let defaultAssignedTo = "";
     let defaultAssignedToName = "";
     let defaultAssignedToEmail = "";
 
-    // If user is in personal mode, assign to self by default if matching flow
     if (viewMode === "personal" && normalizedUserEmail) {
       const matchStaff = staff.find((s) => s.email.toLowerCase() === normalizedUserEmail);
       const matchPartner = partners.find((p) => p.email.toLowerCase() === normalizedUserEmail);
@@ -278,6 +300,27 @@ export default function SccgTaskBoardClient({
     });
   }
 
+  function handleAddComment() {
+    if (!editingTask || !commentText.trim()) return;
+
+    startTransition(async () => {
+      const result = await addTaskCommentAction(editingTask.id, commentText.trim());
+      if (!result.success || !result.comment) {
+        alert(result.error || "Failed to add comment");
+        return;
+      }
+
+      const updatedComments = [...(editingTask.comments || []), result.comment];
+      const updatedTask = { ...editingTask, comments: updatedComments };
+      setEditingTask(updatedTask);
+      setTasks((current) =>
+        current.map((t) => (t.id === editingTask.id ? updatedTask : t))
+      );
+      setCommentText("");
+      setTimeout(() => commentEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+    });
+  }
+
   function deleteTask(taskId: string, taskFlow?: CandidateTaskFlow) {
     if (!confirm("Are you sure you want to delete this task?")) return;
     startTransition(async () => {
@@ -297,12 +340,10 @@ export default function SccgTaskBoardClient({
 
     if (nextIdx !== idx) {
       const nextStatus = stageOrder[nextIdx];
-      // Optimistic update
       setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, status: nextStatus } : t)));
       startTransition(async () => {
         const result = await updateSccgTaskStatusAction(task.id, nextStatus);
         if (!result.success) {
-          // Revert on error
           alert(result.error || "Failed to move task");
           setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, status: task.status } : t)));
         }
@@ -335,7 +376,6 @@ export default function SccgTaskBoardClient({
 
     const previousStatus = targetTask.status;
 
-    // Optimistic update
     setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, status: targetStatus } : t)));
 
     startTransition(async () => {
@@ -350,13 +390,13 @@ export default function SccgTaskBoardClient({
   // Flow counts for quick badge stats
   const flowCounts = useMemo(() => {
     return {
-      all: tasks.length,
-      sccg: tasks.filter((t) => t.taskFlow === "sccg").length,
-      staff: tasks.filter((t) => t.taskFlow === "staff").length,
-      partner: tasks.filter((t) => t.taskFlow === "partner").length,
-      candidate: tasks.filter((t) => t.taskFlow === "candidate").length,
+      all: visibleTasks.length,
+      sccg: visibleTasks.filter((t) => t.taskFlow === "sccg").length,
+      staff: visibleTasks.filter((t) => t.taskFlow === "staff").length,
+      partner: visibleTasks.filter((t) => t.taskFlow === "partner").length,
+      candidate: visibleTasks.filter((t) => t.taskFlow === "candidate").length,
     };
-  }, [tasks]);
+  }, [visibleTasks]);
 
   return (
     <div className="space-y-6">
@@ -392,8 +432,8 @@ export default function SccgTaskBoardClient({
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* Scope Toggle (All Tasks vs My Tasks) */}
-          {normalizedUserEmail && (
+          {/* Scope Toggle (All Tasks vs My Tasks) — only for admin */}
+          {isAdmin && normalizedUserEmail && (
             <div className="inline-flex rounded-lg border border-border bg-muted/30 p-1 text-xs font-semibold">
               <button
                 type="button"
@@ -531,7 +571,7 @@ export default function SccgTaskBoardClient({
                     <TaskCard
                       key={task.id}
                       task={task}
-                      onEdit={() => setEditingTask(task)}
+                      onEdit={() => { setEditingTask(task); setEditTab("details"); setCommentText(""); }}
                       onMove={(dir) => handleMoveStage(task, dir)}
                       onDragStart={(e) => handleDragStart(e, task.id)}
                     />
@@ -551,7 +591,7 @@ export default function SccgTaskBoardClient({
       </div>
 
       {/* ========================================================================= */}
-      {/* 1. CREATE TASK MODAL (Streamlined, Flow Selector & Assignee Filter)        */}
+      {/* 1. CREATE TASK MODAL                                                      */}
       {/* ========================================================================= */}
       {isCreateOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in-0">
@@ -765,215 +805,343 @@ export default function SccgTaskBoardClient({
       )}
 
       {/* ========================================================================= */}
-      {/* 2. EDIT TASK MODAL (Full Control, Status Selector, Delete Action)        */}
+      {/* 2. EDIT TASK MODAL (with Comments tab)                                     */}
       {/* ========================================================================= */}
       {editingTask && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in-0">
-          <form
-            onSubmit={handleEditSubmit}
-            className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-xl border border-border bg-card p-6 shadow-2xl space-y-5"
-          >
-            {/* Header */}
-            <div className="flex items-start justify-between border-b border-border pb-4">
-              <div>
-                <h2 className="text-lg font-bold text-foreground">Edit Task</h2>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Update task details, stage status, assignees, or remove task.
-                </p>
+          <div className="max-h-[92vh] w-full max-w-2xl overflow-hidden rounded-xl border border-border bg-card shadow-2xl flex flex-col">
+            {/* Header with highlighted title */}
+            <div className="flex items-start justify-between border-b border-border p-5 pb-4">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-500">
+                    <Edit3 className="h-5 w-5" />
+                  </div>
+                  <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
+                    {editingTask.taskCategory || "General Task"}
+                  </span>
+                  <span className={`rounded-md px-1.5 py-0.5 text-[10px] uppercase font-bold ${PRIORITIES.find(p => p.id === editingTask.priority)?.className || ""}`}>
+                    {editingTask.priority}
+                  </span>
+                </div>
+                {/* Highlighted task title */}
+                <h2 className="text-lg font-bold text-foreground bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border-l-4 border-indigo-500 pl-3 py-1.5 rounded-r-lg">
+                  {editingTask.title}
+                </h2>
+                <div className="mt-1.5 flex items-center gap-3 text-[11px] text-muted-foreground">
+                  {editingTask.createdByName && <span>Created by <strong>{editingTask.createdByName}</strong></span>}
+                  {editingTask.assignedToName && <span>• Assigned to <strong>{editingTask.assignedToName}</strong></span>}
+                  {editingTask.dueDate && (
+                    <span className="flex items-center gap-0.5">
+                      • <CalendarDays className="h-3 w-3" /> {editingTask.dueDate}
+                    </span>
+                  )}
+                </div>
               </div>
               <button
                 type="button"
                 onClick={() => setEditingTask(null)}
-                className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+                className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer ml-2"
                 aria-label="Close"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            {/* Who is this task for? */}
-            <Field label="Who is this task for?">
-              <select
-                value={editingTask.taskFlow || "sccg"}
-                onChange={(event) =>
-                  setEditingTask({
-                    ...editingTask,
-                    taskFlow: event.target.value as CandidateTaskFlow,
-                    assignedTo: "",
-                    assignedToName: "",
-                    assignedToEmail: "",
-                  })
-                }
-                className="input font-medium"
-              >
-                {FLOWS.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.label}
-                  </option>
-                ))}
-              </select>
-            </Field>
-
-            {/* Assignee Searchable Dropdown */}
-            {editingTask.taskFlow === "partner" && (
-              <Field label="Assign To (Partner) *">
-                <SearchableCombobox
-                  options={partnerOptions}
-                  value={editingTask.assignedTo || ""}
-                  onChange={(val) => {
-                    const selected = partners.find((p) => p.id === val);
-                    setEditingTask({
-                      ...editingTask,
-                      assignedTo: selected?.id || "",
-                      assignedToName: selected?.companyName || "",
-                      assignedToEmail: selected?.email || "",
-                    });
-                  }}
-                  placeholder="Search and select partner..."
-                  searchPlaceholder="Type partner company name or email..."
-                  emptyMessage="No matching partners found."
-                  required
-                />
-              </Field>
-            )}
-
-            {(editingTask.taskFlow === "staff" || editingTask.taskFlow === "sccg") && (
-              <Field label={editingTask.taskFlow === "staff" ? "Assign To (Staff Member) *" : "Assign To Staff (Optional)"}>
-                <SearchableCombobox
-                  options={staffOptions.filter((opt) => {
-                    const b = String(opt.badge || "").toLowerCase();
-                    if (editingTask.taskFlow === "sccg") return b === "sccg-admin" || b === "admin";
-                    if (editingTask.taskFlow === "staff") return b === "sccg-staff";
-                    return true;
-                  })}
-                  value={editingTask.assignedTo || ""}
-                  onChange={(val) => {
-                    const selected = staff.find((s) => s.id === val);
-                    setEditingTask({
-                      ...editingTask,
-                      assignedTo: selected?.id || "",
-                      assignedToName: selected?.name || "",
-                      assignedToEmail: selected?.email || "",
-                    });
-                  }}
-                  placeholder="Search and select staff member..."
-                  searchPlaceholder="Type staff name or email..."
-                  emptyMessage="No matching staff found."
-                  required={editingTask.taskFlow === "staff"}
-                />
-              </Field>
-            )}
-
-            {/* Candidate & Priority Row */}
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label={editingTask.taskFlow === "candidate" ? "Candidate *" : "Candidate (Optional)"}>
-                <SearchableCombobox
-                  options={candidateOptions}
-                  value={editingTask.candidateId || ""}
-                  onChange={(val) => setEditingTask({ ...editingTask, candidateId: val })}
-                  placeholder={editingTask.taskFlow === "candidate" ? "Select candidate..." : "None / General Task"}
-                  searchPlaceholder="Search candidate name or SCCG ID..."
-                  emptyMessage="No matching candidates found."
-                  required={editingTask.taskFlow === "candidate"}
-                />
-              </Field>
-
-              <Field label="Priority">
-                <select
-                  value={editingTask.priority || "medium"}
-                  onChange={(event) =>
-                    setEditingTask({ ...editingTask, priority: event.target.value as TaskPriority })
-                  }
-                  className="input"
-                >
-                  {PRIORITIES.map((priority) => (
-                    <option key={priority.id} value={priority.id}>
-                      {priority.label}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            </div>
-
-            {/* Task Title */}
-            <Field label="Task title *">
-              <input
-                required
-                value={editingTask.title || ""}
-                onChange={(event) => setEditingTask({ ...editingTask, title: event.target.value })}
-                className="input"
-              />
-            </Field>
-
-            {/* Details / comment */}
-            <Field label="Details / comment">
-              <textarea
-                rows={3}
-                value={editingTask.description || ""}
-                onChange={(event) =>
-                  setEditingTask({ ...editingTask, description: event.target.value })
-                }
-                className="input resize-y"
-              />
-            </Field>
-
-            {/* Deadline & Status Row */}
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Deadline">
-                <input
-                  type="date"
-                  value={editingTask.dueDate || ""}
-                  onChange={(event) => setEditingTask({ ...editingTask, dueDate: event.target.value })}
-                  className="input"
-                />
-              </Field>
-              <Field label="Status">
-                <select
-                  value={editingTask.status || "todo"}
-                  onChange={(event) =>
-                    setEditingTask({ ...editingTask, status: event.target.value as TaskStatus })
-                  }
-                  className="input font-medium"
-                >
-                  {STATUSES.map((status) => (
-                    <option key={status.id} value={status.id}>
-                      {status.label}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            </div>
-
-            {/* Footer */}
-            <div className="flex items-center justify-between border-t border-border pt-4">
+            {/* Tab switcher: Details | Comments */}
+            <div className="flex border-b border-border px-5">
               <button
                 type="button"
-                disabled={isPending}
-                onClick={() => deleteTask(editingTask.id, editingTask.taskFlow as CandidateTaskFlow)}
-                className="inline-flex items-center gap-1.5 text-sm font-semibold text-destructive hover:text-destructive/80 transition-colors cursor-pointer"
+                onClick={() => setEditTab("details")}
+                className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors cursor-pointer ${
+                  editTab === "details"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
               >
-                <Trash2 className="h-4 w-4" />
-                Delete Task
+                <Edit3 className="h-3.5 w-3.5 inline mr-1" />
+                Details & Edit
               </button>
-
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setEditingTask(null)}
-                  className="rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  disabled={isPending}
-                  type="submit"
-                  className="rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground shadow hover:bg-primary/90 transition-colors disabled:opacity-50 cursor-pointer"
-                >
-                  {isPending ? "Saving..." : "Save Changes"}
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => setEditTab("comments")}
+                className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 ${
+                  editTab === "comments"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <MessageCircle className="h-3.5 w-3.5" />
+                Comments
+                {(editingTask.comments?.length || 0) > 0 && (
+                  <span className="bg-primary/10 text-primary text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                    {editingTask.comments?.length}
+                  </span>
+                )}
+              </button>
             </div>
-          </form>
+
+            {/* Tab content */}
+            <div className="flex-1 overflow-y-auto p-5">
+              {editTab === "details" ? (
+                <form onSubmit={handleEditSubmit} className="space-y-5">
+                  {/* Who is this task for? */}
+                  <Field label="Who is this task for?">
+                    <select
+                      value={editingTask.taskFlow || "sccg"}
+                      onChange={(event) =>
+                        setEditingTask({
+                          ...editingTask,
+                          taskFlow: event.target.value as CandidateTaskFlow,
+                          assignedTo: "",
+                          assignedToName: "",
+                          assignedToEmail: "",
+                        })
+                      }
+                      className="input font-medium"
+                    >
+                      {FLOWS.map((f) => (
+                        <option key={f.id} value={f.id}>
+                          {f.label}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+
+                  {/* Assignee Searchable Dropdown */}
+                  {editingTask.taskFlow === "partner" && (
+                    <Field label="Assign To (Partner) *">
+                      <SearchableCombobox
+                        options={partnerOptions}
+                        value={editingTask.assignedTo || ""}
+                        onChange={(val) => {
+                          const selected = partners.find((p) => p.id === val);
+                          setEditingTask({
+                            ...editingTask,
+                            assignedTo: selected?.id || "",
+                            assignedToName: selected?.companyName || "",
+                            assignedToEmail: selected?.email || "",
+                          });
+                        }}
+                        placeholder="Search and select partner..."
+                        searchPlaceholder="Type partner company name or email..."
+                        emptyMessage="No matching partners found."
+                        required
+                      />
+                    </Field>
+                  )}
+
+                  {(editingTask.taskFlow === "staff" || editingTask.taskFlow === "sccg") && (
+                    <Field label={editingTask.taskFlow === "staff" ? "Assign To (Staff Member) *" : "Assign To Staff (Optional)"}>
+                      <SearchableCombobox
+                        options={staffOptions.filter((opt) => {
+                          const b = String(opt.badge || "").toLowerCase();
+                          if (editingTask.taskFlow === "sccg") return b === "sccg-admin" || b === "admin";
+                          if (editingTask.taskFlow === "staff") return b === "sccg-staff";
+                          return true;
+                        })}
+                        value={editingTask.assignedTo || ""}
+                        onChange={(val) => {
+                          const selected = staff.find((s) => s.id === val);
+                          setEditingTask({
+                            ...editingTask,
+                            assignedTo: selected?.id || "",
+                            assignedToName: selected?.name || "",
+                            assignedToEmail: selected?.email || "",
+                          });
+                        }}
+                        placeholder="Search and select staff member..."
+                        searchPlaceholder="Type staff name or email..."
+                        emptyMessage="No matching staff found."
+                        required={editingTask.taskFlow === "staff"}
+                      />
+                    </Field>
+                  )}
+
+                  {/* Candidate & Priority Row */}
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label={editingTask.taskFlow === "candidate" ? "Candidate *" : "Candidate (Optional)"}>
+                      <SearchableCombobox
+                        options={candidateOptions}
+                        value={editingTask.candidateId || ""}
+                        onChange={(val) => setEditingTask({ ...editingTask, candidateId: val })}
+                        placeholder={editingTask.taskFlow === "candidate" ? "Select candidate..." : "None / General Task"}
+                        searchPlaceholder="Search candidate name or SCCG ID..."
+                        emptyMessage="No matching candidates found."
+                        required={editingTask.taskFlow === "candidate"}
+                      />
+                    </Field>
+
+                    <Field label="Priority">
+                      <select
+                        value={editingTask.priority || "medium"}
+                        onChange={(event) =>
+                          setEditingTask({ ...editingTask, priority: event.target.value as TaskPriority })
+                        }
+                        className="input"
+                      >
+                        {PRIORITIES.map((priority) => (
+                          <option key={priority.id} value={priority.id}>
+                            {priority.label}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                  </div>
+
+                  {/* Task Title */}
+                  <Field label="Task title *">
+                    <input
+                      required
+                      value={editingTask.title || ""}
+                      onChange={(event) => setEditingTask({ ...editingTask, title: event.target.value })}
+                      className="input"
+                    />
+                  </Field>
+
+                  {/* Details / comment */}
+                  <Field label="Details / description">
+                    <textarea
+                      rows={3}
+                      value={editingTask.description || ""}
+                      onChange={(event) =>
+                        setEditingTask({ ...editingTask, description: event.target.value })
+                      }
+                      className="input resize-y"
+                    />
+                  </Field>
+
+                  {/* Deadline & Status Row */}
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label="Deadline">
+                      <input
+                        type="date"
+                        value={editingTask.dueDate || ""}
+                        onChange={(event) => setEditingTask({ ...editingTask, dueDate: event.target.value })}
+                        className="input"
+                      />
+                    </Field>
+                    <Field label="Status">
+                      <select
+                        value={editingTask.status || "todo"}
+                        onChange={(event) =>
+                          setEditingTask({ ...editingTask, status: event.target.value as TaskStatus })
+                        }
+                        className="input font-medium"
+                      >
+                        {STATUSES.map((status) => (
+                          <option key={status.id} value={status.id}>
+                            {status.label}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                  </div>
+
+                  {/* Footer */}
+                  <div className="flex items-center justify-between border-t border-border pt-4">
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => deleteTask(editingTask.id, editingTask.taskFlow as CandidateTaskFlow)}
+                      className="inline-flex items-center gap-1.5 text-sm font-semibold text-destructive hover:text-destructive/80 transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Delete Task
+                    </button>
+
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setEditingTask(null)}
+                        className="rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        disabled={isPending}
+                        type="submit"
+                        className="rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground shadow hover:bg-primary/90 transition-colors disabled:opacity-50 cursor-pointer"
+                      >
+                        {isPending ? "Saving..." : "Save Changes"}
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              ) : (
+                /* Comments Tab */
+                <div className="flex flex-col h-full">
+                  <div className="flex-1 space-y-3 max-h-[400px] overflow-y-auto pr-1">
+                    {(!editingTask.comments || editingTask.comments.length === 0) ? (
+                      <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground/60">
+                        <MessageCircle className="h-10 w-10 mb-2 opacity-30" />
+                        <p className="text-sm font-medium">No comments yet</p>
+                        <p className="text-xs mt-1">Be the first to comment on this task</p>
+                      </div>
+                    ) : (
+                      editingTask.comments.map((comment) => (
+                        <div
+                          key={comment.id}
+                          className={`p-3 rounded-xl border text-sm ${
+                            comment.authorEmail?.toLowerCase() === normalizedUserEmail
+                              ? "bg-primary/5 border-primary/20 ml-6"
+                              : "bg-muted/30 border-border/60 mr-6"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-xs font-bold text-foreground flex items-center gap-1">
+                              <User className="h-3 w-3 text-muted-foreground" />
+                              {comment.authorName}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">
+                              {new Date(comment.createdAt).toLocaleString("en-US", {
+                                month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"
+                              })}
+                            </span>
+                          </div>
+                          <p className="text-xs text-foreground/90 whitespace-pre-wrap leading-relaxed">
+                            {comment.text}
+                          </p>
+                        </div>
+                      ))
+                    )}
+                    <div ref={commentEndRef} />
+                  </div>
+
+                  {/* Comment input */}
+                  <div className="mt-4 border-t border-border pt-4">
+                    <div className="flex items-end gap-2">
+                      <textarea
+                        rows={2}
+                        placeholder="Write a comment..."
+                        value={commentText}
+                        onChange={(e) => setCommentText(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                            e.preventDefault();
+                            handleAddComment();
+                          }
+                        }}
+                        className="input flex-1 resize-none"
+                      />
+                      <button
+                        type="button"
+                        disabled={isPending || !commentText.trim()}
+                        onClick={handleAddComment}
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow hover:bg-primary/90 disabled:opacity-40 transition-colors cursor-pointer shrink-0"
+                        title="Send comment (Ctrl+Enter)"
+                      >
+                        <Send className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-1.5">
+                      Press <kbd className="px-1 py-0.5 bg-muted border border-border rounded text-[9px]">Ctrl+Enter</kbd> to send • Task owner & assignee will be notified via email & Teams
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
@@ -1012,6 +1180,7 @@ function TaskCard({
 }) {
   const priority = PRIORITIES.find((item) => item.id === task.priority) || PRIORITIES[1];
   const isOverdue = task.dueDate && task.status !== "done" && new Date(task.dueDate) < new Date(new Date().toDateString());
+  const commentCount = task.comments?.length || 0;
 
   return (
     <div
@@ -1031,8 +1200,11 @@ function TaskCard({
           </span>
         </div>
 
-        <button onClick={onEdit} className="text-left w-full hover:opacity-80 mt-1 cursor-pointer">
-          <h3 className="font-semibold text-xs text-foreground leading-snug">{task.title}</h3>
+        {/* Highlighted task title */}
+        <button onClick={onEdit} className="text-left w-full mt-1.5 cursor-pointer group/title">
+          <h3 className="font-bold text-sm text-foreground leading-snug bg-gradient-to-r from-indigo-500/8 to-transparent border-l-2 border-indigo-500/60 pl-2 py-0.5 rounded-r group-hover/title:border-indigo-500 group-hover/title:from-indigo-500/15 transition-all">
+            {task.title}
+          </h3>
         </button>
 
         {task.description && (
@@ -1065,17 +1237,39 @@ function TaskCard({
           <ArrowLeft className="h-3 w-3" />
         </button>
 
-        {task.dueDate && (
-          <span
-            className={`flex items-center gap-1 text-[10px] font-medium ${
-              isOverdue ? "text-red-600 dark:text-red-400 font-bold" : "text-muted-foreground"
-            }`}
+        <div className="flex items-center gap-2">
+          {commentCount > 0 && (
+            <button
+              onClick={onEdit}
+              className="flex items-center gap-0.5 text-[10px] font-medium text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+              title={`${commentCount} comment${commentCount > 1 ? "s" : ""}`}
+            >
+              <MessageCircle className="h-3 w-3" />
+              {commentCount}
+            </button>
+          )}
+
+          {task.dueDate && (
+            <span
+              className={`flex items-center gap-1 text-[10px] font-medium ${
+                isOverdue ? "text-red-600 dark:text-red-400 font-bold" : "text-muted-foreground"
+              }`}
+            >
+              {isOverdue && <AlertTriangle className="h-3 w-3 text-red-600 dark:text-red-400" />}
+              <CalendarDays className="h-3 w-3 opacity-70" />
+              {task.dueDate}
+            </span>
+          )}
+
+          {/* Edit button */}
+          <button
+            onClick={onEdit}
+            className="p-1 rounded bg-muted/40 border border-border/40 text-muted-foreground hover:bg-indigo-500/10 hover:text-indigo-500 hover:border-indigo-500/30 transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
+            title="Edit task"
           >
-            {isOverdue && <AlertTriangle className="h-3 w-3 text-red-600 dark:text-red-400" />}
-            <CalendarDays className="h-3 w-3 opacity-70" />
-            {task.dueDate}
-          </span>
-        )}
+            <Edit3 className="h-3 w-3" />
+          </button>
+        </div>
 
         <button
           onClick={() => onMove("next")}

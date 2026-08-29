@@ -49,3 +49,5 @@ ProjectPartner/geminiAPIKey.text
 **/geminiAPIKey.text
 **/*apikey*.text
 FirebaseDetails/*.json
+SCCGFirebase.json
+*firebase-adminsdk*.json
