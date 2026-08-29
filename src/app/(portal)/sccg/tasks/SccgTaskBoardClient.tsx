@@ -42,7 +42,7 @@ export const FLOWS: Array<{ id: CandidateTaskFlow; label: string; description: s
 ];
 
 export const STATUSES: Array<{ id: TaskStatus; label: string; color: string; dot: string }> = [
-  { id: "backlog", label: "Backlog", color: "border-t-slate-500 bg-slate-500/5 text-slate-500 dark:text-slate-400", dot: "bg-slate-400" },
+  { id: "backlog", label: "Task List", color: "border-t-slate-500 bg-slate-500/5 text-slate-500 dark:text-slate-400", dot: "bg-slate-400" },
   { id: "todo", label: "To Do", color: "border-t-indigo-500 bg-indigo-500/5 text-indigo-500 dark:text-indigo-400", dot: "bg-indigo-500" },
   { id: "in-progress", label: "In Progress", color: "border-t-amber-500 bg-amber-500/5 text-amber-500 dark:text-amber-400", dot: "bg-amber-500" },
   { id: "review", label: "In Review", color: "border-t-violet-500 bg-violet-500/5 text-violet-500 dark:text-violet-400", dot: "bg-violet-500" },
@@ -1181,52 +1181,79 @@ function TaskCard({
   const priority = PRIORITIES.find((item) => item.id === task.priority) || PRIORITIES[1];
   const isOverdue = task.dueDate && task.status !== "done" && new Date(task.dueDate) < new Date(new Date().toDateString());
   const commentCount = task.comments?.length || 0;
+  const creatorName = task.createdByName || (task.createdByEmail ? task.createdByEmail.split("@")[0] : "Admin");
 
   return (
     <div
       draggable
       onDragStart={onDragStart}
-      className="bg-card border border-border/60 p-3.5 rounded-xl space-y-2.5 shadow-xs hover:border-primary/50 hover:shadow-md transition-all flex flex-col justify-between group cursor-grab active:cursor-grabbing"
+      className="bg-card border border-border/70 p-3.5 rounded-xl space-y-2.5 shadow-xs hover:border-indigo-500/60 hover:shadow-md transition-all flex flex-col justify-between group cursor-grab active:cursor-grabbing"
     >
       <div>
-        <div className="flex justify-between items-start gap-2">
+        {/* Card Header with Category, Priority & Always Visible Edit Button */}
+        <div className="flex justify-between items-center gap-2">
           <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider truncate">
             {task.taskCategory || "General Task"}
           </span>
-          <span
-            className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] uppercase font-bold ${priority.className}`}
-          >
-            {priority.label}
-          </span>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span
+              className={`rounded-md px-1.5 py-0.5 text-[10px] uppercase font-bold ${priority.className}`}
+            >
+              {priority.label}
+            </span>
+            {/* Always-visible Edit Button */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit();
+              }}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30 text-[10px] font-bold transition-colors cursor-pointer shadow-2xs"
+              title="Click to open task editor & comments"
+            >
+              <Edit3 className="h-3 w-3" />
+              Edit
+            </button>
+          </div>
         </div>
 
         {/* Highlighted task title */}
         <button onClick={onEdit} className="text-left w-full mt-1.5 cursor-pointer group/title">
-          <h3 className="font-bold text-sm text-foreground leading-snug bg-gradient-to-r from-indigo-500/8 to-transparent border-l-2 border-indigo-500/60 pl-2 py-0.5 rounded-r group-hover/title:border-indigo-500 group-hover/title:from-indigo-500/15 transition-all">
+          <h3 className="font-bold text-sm text-foreground leading-snug bg-gradient-to-r from-indigo-500/10 via-purple-500/5 to-transparent border-l-3 border-indigo-500 pl-2.5 py-1 rounded-r group-hover/title:border-indigo-600 group-hover/title:from-indigo-500/20 transition-all">
             {task.title}
           </h3>
         </button>
 
-        {task.description && (
-          <p className="mt-1 text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
-            {task.description}
-          </p>
-        )}
+        {/* Creator & Assignment Metadata */}
+        <div className="mt-1.5 flex flex-col gap-1 text-[11px]">
+          <div className="flex items-center gap-1 text-muted-foreground">
+            <User className="h-3 w-3 text-indigo-500/80" />
+            <span>Created by: <strong className="text-foreground font-semibold">{creatorName}</strong></span>
+          </div>
 
+          {task.description && (
+            <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed mt-0.5">
+              {task.description}
+            </p>
+          )}
+        </div>
+
+        {/* Badges for Candidate & Assignee */}
         <div className="mt-2.5 flex flex-wrap gap-1.5">
           {task.candidateName && (
-            <div className="flex items-center space-x-1 text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-md font-medium">
+            <div className="flex items-center space-x-1 text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-md font-medium border border-primary/20">
               <span className="truncate max-w-[140px]">👤 {task.candidateName}</span>
             </div>
           )}
           {task.assignedToName && (
-            <div className="flex items-center space-x-1 text-[10px] bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-md font-medium">
+            <div className="flex items-center space-x-1 text-[10px] bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-md font-medium border border-emerald-500/20">
               <span className="truncate max-w-[140px]">✓ {task.assignedToName}</span>
             </div>
           )}
         </div>
       </div>
 
+      {/* Card Footer */}
       <div className="border-t border-border/40 pt-2.5 flex justify-between items-center mt-1">
         <button
           onClick={() => onMove("prev")}
@@ -1238,14 +1265,22 @@ function TaskCard({
         </button>
 
         <div className="flex items-center gap-2">
-          {commentCount > 0 && (
+          {commentCount > 0 ? (
             <button
               onClick={onEdit}
-              className="flex items-center gap-0.5 text-[10px] font-medium text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+              className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 text-[10px] font-bold hover:bg-primary/20 transition-colors cursor-pointer"
               title={`${commentCount} comment${commentCount > 1 ? "s" : ""}`}
             >
               <MessageCircle className="h-3 w-3" />
               {commentCount}
+            </button>
+          ) : (
+            <button
+              onClick={onEdit}
+              className="flex items-center gap-0.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              title="Add comment"
+            >
+              <MessageCircle className="h-3 w-3 opacity-60" />
             </button>
           )}
 
@@ -1260,15 +1295,6 @@ function TaskCard({
               {task.dueDate}
             </span>
           )}
-
-          {/* Edit button */}
-          <button
-            onClick={onEdit}
-            className="p-1 rounded bg-muted/40 border border-border/40 text-muted-foreground hover:bg-indigo-500/10 hover:text-indigo-500 hover:border-indigo-500/30 transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
-            title="Edit task"
-          >
-            <Edit3 className="h-3 w-3" />
-          </button>
         </div>
 
         <button

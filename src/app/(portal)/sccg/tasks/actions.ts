@@ -53,14 +53,27 @@ export async function fetchSccgTaskBoardDataAction() {
     const staffMap = new Map(usersList.map((u: any) => [u.id, u.displayName || u.name || u.email]));
     const partnerMap = new Map(uniquePartners.map(p => [p.id, p.companyName || p.email]));
 
+    const userMap = new Map(usersList.map((u: any) => [u.id, u.displayName || u.name || u.email]));
+    const userEmailMap = new Map(usersList.map((u: any) => [u.id, u.email]));
+
     const enrichedTasks = (tasks || []).map((t) => {
       let assignedToName = t.assignedToName;
       if (!assignedToName && t.assignedTo) {
-        assignedToName = staffMap.get(t.assignedTo) || partnerMap.get(t.assignedTo) || t.assignedTo;
+        assignedToName = staffMap.get(t.assignedTo) || partnerMap.get(t.assignedTo) || userMap.get(t.assignedTo) || t.assignedTo;
+      }
+      let createdByName = t.createdByName;
+      if (!createdByName && t.createdBy) {
+        createdByName = userMap.get(t.createdBy) || staffMap.get(t.createdBy) || partnerMap.get(t.createdBy) || t.createdBy;
+      }
+      let createdByEmail = t.createdByEmail;
+      if (!createdByEmail && t.createdBy) {
+        createdByEmail = userEmailMap.get(t.createdBy);
       }
       return {
         ...t,
         assignedToName,
+        createdByName: createdByName || "Admin",
+        createdByEmail,
       };
     });
 
