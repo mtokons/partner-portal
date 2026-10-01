@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { getEffectiveSession } from "@/lib/effective-user";
 import type { SessionUser } from "@/types";
-import { getSalesOrderById, getSalesOrderItems, getServiceTasks } from "@/lib/sharepoint";
+import { getSalesOrderById, getSalesOrderItems, getServiceTasks, getExperts } from "@/lib/sharepoint";
+import { isAdministrativeUser } from "@/lib/permissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -12,6 +13,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import OrderActions from "./OrderActions";
 import ServiceTasksSection from "./ServiceTasksSection";
+import AssignExpertCard from "./AssignExpertCard";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   pending:       { label: "Pending",      variant: "secondary" },
@@ -26,10 +28,11 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
   const user = session.user as SessionUser;
   const { id } = await params;
 
-  const [order, items, tasks] = await Promise.all([
+  const [order, items, tasks, experts] = await Promise.all([
     getSalesOrderById(id),
     getSalesOrderItems(id),
     getServiceTasks(id),
+    getExperts(),
   ]);
 
   // Friendly "not found" — don't call notFound() as it renders blank
@@ -66,17 +69,22 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
     );
   }
 
-  if (user.role !== "admin" && order.createdBy !== user.id) redirect("/sales/orders");
+  const isAdminOrStaff = isAdministrativeUser(user);
+  if (!isAdminOrStaff && order.createdBy !== user.id && order.partnerId !== user.partnerId && order.clientId !== user.id) {
+    redirect("/sales/orders");
+  }
 
   const cfg = statusConfig[order.status] || statusConfig.pending;
   const requiresPaymentVerification = order.notes?.includes("Payment verification: pending-admin-verification") || false;
   const isVerified = order.notes?.includes("Payment verification: verified") || false;
 
-  // Parse payment info from notes
+  // Parse payment info and assigned expert from notes
   const notesLines = (order.notes || "").split("\n");
   const paymentMethod = notesLines.find(l => l.startsWith("Marketplace payment method:"))?.replace("Marketplace payment method:", "").trim() || "";
   const paymentReference = notesLines.find(l => l.startsWith("Payment reference:"))?.replace("Payment reference:", "").trim() || "";
   const submittedAt = notesLines.find(l => l.startsWith("Payment submitted at:"))?.replace("Payment submitted at:", "").trim() || "";
+  const assignedExpertLine = notesLines.find(l => l.trim().startsWith("Assigned Expert:"));
+  const assignedExpertName = assignedExpertLine ? assignedExpertLine.replace("Assigned Expert:", "").trim() : undefined;
 
   return (
     <div className="space-y-6 page-enter">
@@ -104,7 +112,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
             </p>
           </div>
         </div>
-        <OrderActions order={order} isAdmin={user.role === "admin"} requiresPaymentVerification={requiresPaymentVerification} />
+        <OrderActions order={order} isAdmin={isAdminOrStaff} requiresPaymentVerification={requiresPaymentVerification} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -229,8 +237,21 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
             </CardContent>
           </Card>
 
+          {/* Service Expert Assignment */}
+          <AssignExpertCard
+            orderId={order.id}
+            notes={order.notes}
+            experts={experts}
+            isAdmin={isAdminOrStaff}
+          />
+
           {/* Service Tasks */}
-          <ServiceTasksSection orderId={order.id} tasks={tasks} />
+          <ServiceTasksSection
+            orderId={order.id}
+            tasks={tasks}
+            experts={experts}
+            defaultAssignedExpert={assignedExpertName}
+          />
 
           {/* Notes */}
           {order.notes && (

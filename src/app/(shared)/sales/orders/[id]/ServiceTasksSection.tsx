@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Plus, ClipboardList, CheckCircle2, Play, XCircle } from "lucide-react";
-import type { ServiceTask } from "@/types";
+import type { ServiceTask, Expert } from "@/types";
 import { createServiceTaskAction, updateServiceTaskStatusAction } from "../../actions";
 
 const taskStatusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -17,13 +17,23 @@ const taskStatusConfig: Record<string, { label: string; variant: "default" | "se
   cancelled:     { label: "Cancelled",   variant: "destructive" },
 };
 
-export default function ServiceTasksSection({ orderId, tasks }: { orderId: string; tasks: ServiceTask[] }) {
+export default function ServiceTasksSection({
+  orderId,
+  tasks,
+  experts = [],
+  defaultAssignedExpert,
+}: {
+  orderId: string;
+  tasks: ServiceTask[];
+  experts?: Expert[];
+  defaultAssignedExpert?: string;
+}) {
   const router = useRouter();
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState("");
-  const [assignedTo, setAssignedTo] = useState("");
+  const [assignedTo, setAssignedTo] = useState(defaultAssignedExpert || "");
   const [saving, setSaving] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
@@ -41,7 +51,7 @@ export default function ServiceTasksSection({ orderId, tasks }: { orderId: strin
       setTitle("");
       setDescription("");
       setDueDate("");
-      setAssignedTo("");
+      setAssignedTo(defaultAssignedExpert || "");
       setShowForm(false);
       router.refresh();
     } finally {
@@ -78,8 +88,26 @@ export default function ServiceTasksSection({ orderId, tasks }: { orderId: strin
           <div className="p-4 border rounded-xl bg-muted/30 space-y-3">
             <Input placeholder="Task title" value={title} onChange={(e) => setTitle(e.target.value)} />
             <Input placeholder="Description (optional)" value={description} onChange={(e) => setDescription(e.target.value)} />
-            <div className="grid grid-cols-2 gap-3">
-              <Input placeholder="Assigned to (optional)" value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {experts.length > 0 ? (
+                <select
+                  value={assignedTo}
+                  onChange={(e) => setAssignedTo(e.target.value)}
+                  className="h-9 px-3 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="">-- Assign To (Optional) --</option>
+                  {experts.map((exp) => (
+                    <option key={exp.id} value={exp.name}>
+                      {exp.name} {exp.specialization ? `(${exp.specialization})` : ""}
+                    </option>
+                  ))}
+                  {defaultAssignedExpert && !experts.some((e) => e.name === defaultAssignedExpert) && (
+                    <option value={defaultAssignedExpert}>{defaultAssignedExpert}</option>
+                  )}
+                </select>
+              ) : (
+                <Input placeholder="Assigned to (optional)" value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} />
+              )}
               <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
             </div>
             <div className="flex gap-2">

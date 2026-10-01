@@ -22,7 +22,6 @@ interface TaskBoardClientProps {
 }
 
 const COLUMNS: Array<{ id: TaskStatus; label: string; bg: string; border: string; text: string; dot: string; topBorder: string }> = [
-  { id: "backlog", label: "Backlog", bg: "bg-slate-500/5", border: "border-slate-500/10", text: "text-slate-400", dot: "bg-slate-400", topBorder: "border-t-slate-500" },
   { id: "todo", label: "To Do", bg: "bg-indigo-500/5", border: "border-indigo-500/10", text: "text-indigo-400", dot: "bg-indigo-500", topBorder: "border-t-indigo-500" },
   { id: "in-progress", label: "In Progress", bg: "bg-amber-500/5", border: "border-amber-500/10", text: "text-amber-400", dot: "bg-amber-500", topBorder: "border-t-amber-500" },
   { id: "review", label: "In Review", bg: "bg-violet-500/5", border: "border-violet-500/10", text: "text-violet-400", dot: "bg-violet-500", topBorder: "border-t-violet-500" },
@@ -99,7 +98,7 @@ export default function TaskBoardClient({ initialTasks, candidates, partner }: T
 
   const handleMoveStage = async (e: React.MouseEvent, taskId: string, currentStatus: TaskStatus, direction: "next" | "prev") => {
     e.stopPropagation();
-    const stageOrder: TaskStatus[] = ["backlog", "todo", "in-progress", "review", "done"];
+    const stageOrder: TaskStatus[] = ["todo", "in-progress", "review", "done"];
     const idx = stageOrder.indexOf(currentStatus);
     let nextIdx = idx;
     if (direction === "next" && idx < stageOrder.length - 1) nextIdx = idx + 1;
@@ -152,6 +151,17 @@ export default function TaskBoardClient({ initialTasks, candidates, partner }: T
         candidateId: selectedCandidate.id,
         candidateName: selectedCandidate.fullName,
       };
+
+      if (payload.assignedTo) {
+        payload.assignees = [{
+          id: payload.assignedTo,
+          name: payload.assignedToName || "",
+          email: payload.assignedToEmail || "",
+          category: payload.assignedTo === partner.id ? "partner" : "candidate"
+        }];
+      } else {
+        payload.assignees = [];
+      }
 
       const res = await savePartnerTaskAction(payload);
       if (res.success && res.task) {
@@ -213,7 +223,7 @@ export default function TaskBoardClient({ initialTasks, candidates, partner }: T
             />
           </div>
           <button
-            onClick={() => handleAddTask("backlog")}
+            onClick={() => handleAddTask("todo")}
             className="flex items-center gap-1.5 px-4 py-2 bg-primary hover:bg-primary/95 text-primary-foreground font-semibold rounded-xl text-sm shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4" /> Add Task
@@ -312,11 +322,19 @@ export default function TaskBoardClient({ initialTasks, candidates, partner }: T
                         )}
 
                         {/* Assignee Indicator */}
-                        {task.assignedToName && (
-                          <div className="mt-2 flex items-center justify-end">
+                        {task.assignees && task.assignees.length > 0 ? (
+                          task.assignees.map(assignee => (
+                            <div key={assignee.id} className="flex items-center space-x-1.5 px-2 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-md">
+                              <span className="truncate max-w-[150px]" title={`Assigned to: ${assignee.name}`}>
+                                ✓ Assig: {assignee.name.split(" ")[0]}
+                              </span>
+                            </div>
+                          ))
+                        ) : task.assignedToName && (
+                          <div className="flex items-center space-x-1.5 px-2 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-md">
                             <span 
+                              className="truncate max-w-[150px]"
                               title={`Assigned to: ${task.assignedToName}`} 
-                              className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold"
                             >
                               ✓ Assig: {task.assignedToName.split(" ")[0]}
                             </span>
@@ -325,12 +343,12 @@ export default function TaskBoardClient({ initialTasks, candidates, partner }: T
 
                         {/* Kanban Arrow Move Buttons */}
                         <div className="border-t border-white/5 pt-3 mt-3 flex justify-between items-center" onClick={(e) => e.stopPropagation()}>
-                          <button 
+                          <button
                             onClick={(e) => handleMoveStage(e, task.id, task.status, "prev")}
-                            disabled={task.status === "backlog"}
-                            className="text-[10px] font-semibold px-2 py-1 bg-muted/40 border border-border/50 rounded text-muted-foreground hover:bg-muted disabled:opacity-30 transition-colors cursor-pointer"
-                          >
-                            ◀
+                            disabled={task.status === "todo"}
+                            className="p-1 rounded bg-slate-800 text-slate-400 hover:text-foreground disabled:opacity-20 transition-colors"
+                            title="Move to previous stage"
+                          >      ◀
                           </button>
                           <button 
                             onClick={(e) => handleMoveStage(e, task.id, task.status, "next")}

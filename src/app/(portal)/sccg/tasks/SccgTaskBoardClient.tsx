@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import type { CandidateTask, CandidateTaskFlow, TaskPriority, TaskStatus, TaskComment } from "@/types";
 import { SearchableCombobox, ComboboxOption } from "@/components/ui/SearchableCombobox";
+import { MultiSelectCombobox } from "@/components/ui/MultiSelectCombobox";
 import {
   deleteSccgTaskAction,
   saveSccgTaskAction,
@@ -42,7 +43,6 @@ export const FLOWS: Array<{ id: CandidateTaskFlow; label: string; description: s
 ];
 
 export const STATUSES: Array<{ id: TaskStatus; label: string; color: string; dot: string }> = [
-  { id: "backlog", label: "Task List", color: "border-t-slate-500 bg-slate-500/5 text-slate-500 dark:text-slate-400", dot: "bg-slate-400" },
   { id: "todo", label: "To Do", color: "border-t-indigo-500 bg-indigo-500/5 text-indigo-500 dark:text-indigo-400", dot: "bg-indigo-500" },
   { id: "in-progress", label: "In Progress", color: "border-t-amber-500 bg-amber-500/5 text-amber-500 dark:text-amber-400", dot: "bg-amber-500" },
   { id: "review", label: "In Review", color: "border-t-violet-500 bg-violet-500/5 text-violet-500 dark:text-violet-400", dot: "bg-violet-500" },
@@ -92,16 +92,14 @@ export default function SccgTaskBoardClient({
   const [createData, setCreateData] = useState<Partial<CandidateTask>>({
     title: "",
     description: "",
-    status: "backlog",
+    status: "todo",
     priority: "medium",
     taskFlow: "sccg",
     taskCategory: "General Task",
     workflowCategory: "Others",
     dueDate: new Date().toISOString().slice(0, 10),
     candidateId: "",
-    assignedTo: "",
-    assignedToName: "",
-    assignedToEmail: "",
+    assignees: [], // Changed to assignees
   });
 
   const [editingTask, setEditingTask] = useState<CandidateTask | null>(null);
@@ -199,22 +197,16 @@ export default function SccgTaskBoardClient({
     });
   }, [tasks, query, selectedFlowFilter, selectedPriorityFilter, scopeFilter, normalizedUserEmail, currentUserId, isAdmin]);
 
-  function openCreateModal(initialFlow: CandidateTaskFlow = "sccg", initialStatus: TaskStatus = "backlog") {
-    let defaultAssignedTo = "";
-    let defaultAssignedToName = "";
-    let defaultAssignedToEmail = "";
+  function openCreateModal(initialFlow: CandidateTaskFlow = "sccg", initialStatus: TaskStatus = "todo") {
+    let initialAssignees: Array<{id: string, name: string, email: string, category: string}> = [];
 
     if (viewMode === "personal" && normalizedUserEmail) {
       const matchStaff = staff.find((s) => s.email.toLowerCase() === normalizedUserEmail);
       const matchPartner = partners.find((p) => p.email.toLowerCase() === normalizedUserEmail);
       if (initialFlow === "staff" && matchStaff) {
-        defaultAssignedTo = matchStaff.id;
-        defaultAssignedToName = matchStaff.name;
-        defaultAssignedToEmail = matchStaff.email;
+        initialAssignees = [{ id: matchStaff.id, name: matchStaff.name, email: matchStaff.email, category: "sccg-staff" }];
       } else if (initialFlow === "partner" && matchPartner) {
-        defaultAssignedTo = matchPartner.id;
-        defaultAssignedToName = matchPartner.companyName;
-        defaultAssignedToEmail = matchPartner.email;
+        initialAssignees = [{ id: matchPartner.id, name: matchPartner.companyName, email: matchPartner.email, category: "partner" }];
       }
     }
 
@@ -228,9 +220,7 @@ export default function SccgTaskBoardClient({
       workflowCategory: "Others",
       dueDate: new Date().toISOString().slice(0, 10),
       candidateId: "",
-      assignedTo: defaultAssignedTo,
-      assignedToName: defaultAssignedToName,
-      assignedToEmail: defaultAssignedToEmail,
+      assignees: initialAssignees,
     });
     setIsCreateOpen(true);
   }
@@ -332,7 +322,7 @@ export default function SccgTaskBoardClient({
   }
 
   function handleMoveStage(task: CandidateTask, direction: "next" | "prev") {
-    const stageOrder: TaskStatus[] = ["backlog", "todo", "in-progress", "review", "done"];
+    const stageOrder: TaskStatus[] = ["todo", "in-progress", "review", "done"];
     const idx = stageOrder.indexOf(task.status);
     let nextIdx = idx;
     if (direction === "next" && idx < stageOrder.length - 1) nextIdx = idx + 1;
@@ -656,19 +646,21 @@ export default function SccgTaskBoardClient({
             {/* Dynamic Assignee Searchable Dropdown */}
             {createData.taskFlow === "partner" && (
               <Field label="Assign To (Partner) *">
-                <SearchableCombobox
+                <MultiSelectCombobox
                   options={partnerOptions}
-                  value={createData.assignedTo || ""}
-                  onChange={(val) => {
-                    const selected = partners.find((p) => p.id === val);
+                  values={(createData.assignees || []).map(a => a.id)}
+                  onChange={(vals, selectedOpts) => {
                     setCreateData({
                       ...createData,
-                      assignedTo: selected?.id || "",
-                      assignedToName: selected?.companyName || "",
-                      assignedToEmail: selected?.email || "",
+                      assignees: selectedOpts.map(opt => ({
+                        id: opt.id,
+                        name: opt.label,
+                        email: opt.subLabel || "",
+                        category: "partner"
+                      }))
                     });
                   }}
-                  placeholder="Search and select partner..."
+                  placeholder="Search and select partners..."
                   searchPlaceholder="Type partner company name or email..."
                   emptyMessage="No matching partners found."
                   required
@@ -678,24 +670,26 @@ export default function SccgTaskBoardClient({
 
             {(createData.taskFlow === "staff" || createData.taskFlow === "sccg") && (
               <Field label={createData.taskFlow === "staff" ? "Assign To (Staff Member) *" : "Assign To Staff (Optional)"}>
-                <SearchableCombobox
+                <MultiSelectCombobox
                   options={staffOptions.filter((opt) => {
                     const b = String(opt.badge || "").toLowerCase();
                     if (createData.taskFlow === "sccg") return b === "sccg-admin" || b === "admin";
                     if (createData.taskFlow === "staff") return b === "sccg-staff";
                     return true;
                   })}
-                  value={createData.assignedTo || ""}
-                  onChange={(val) => {
-                    const selected = staff.find((s) => s.id === val);
+                  values={(createData.assignees || []).map(a => a.id)}
+                  onChange={(vals, selectedOpts) => {
                     setCreateData({
                       ...createData,
-                      assignedTo: selected?.id || "",
-                      assignedToName: selected?.name || "",
-                      assignedToEmail: selected?.email || "",
+                      assignees: selectedOpts.map(opt => ({
+                        id: opt.id,
+                        name: opt.label,
+                        email: opt.subLabel || "",
+                        category: opt.badge || "sccg-staff"
+                      }))
                     });
                   }}
-                  placeholder="Search and select staff member..."
+                  placeholder="Search and select staff..."
                   searchPlaceholder="Type staff name or email..."
                   emptyMessage="No matching staff found."
                   required={createData.taskFlow === "staff"}
@@ -848,42 +842,8 @@ export default function SccgTaskBoardClient({
               </button>
             </div>
 
-            {/* Tab switcher: Details | Comments */}
-            <div className="flex border-b border-border px-5">
-              <button
-                type="button"
-                onClick={() => setEditTab("details")}
-                className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors cursor-pointer ${
-                  editTab === "details"
-                    ? "border-primary text-primary"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <Edit3 className="h-3.5 w-3.5 inline mr-1" />
-                Details & Edit
-              </button>
-              <button
-                type="button"
-                onClick={() => setEditTab("comments")}
-                className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 ${
-                  editTab === "comments"
-                    ? "border-primary text-primary"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <MessageCircle className="h-3.5 w-3.5" />
-                Comments
-                {(editingTask.comments?.length || 0) > 0 && (
-                  <span className="bg-primary/10 text-primary text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                    {editingTask.comments?.length}
-                  </span>
-                )}
-              </button>
-            </div>
-
-            {/* Tab content */}
+            {/* Content */}
             <div className="flex-1 overflow-y-auto p-5">
-              {editTab === "details" ? (
                 <form onSubmit={handleEditSubmit} className="space-y-5">
                   {/* Who is this task for? */}
                   <Field label="Who is this task for?">
@@ -1068,11 +1028,16 @@ export default function SccgTaskBoardClient({
                     </div>
                   </div>
                 </form>
-              ) : (
-                /* Comments Tab */
-                <div className="flex flex-col h-full">
-                  <div className="flex-1 space-y-3 max-h-[400px] overflow-y-auto pr-1">
-                    {(!editingTask.comments || editingTask.comments.length === 0) ? (
+
+                {/* Comments Section */}
+                <div className="mt-8 border-t border-border pt-6">
+                  <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
+                    <MessageCircle className="h-4 w-4" />
+                    Comments
+                  </h3>
+                  <div className="flex flex-col">
+                    <div className="flex-1 space-y-3 max-h-[300px] overflow-y-auto pr-1">
+                      {(!editingTask.comments || editingTask.comments.length === 0) ? (
                       <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground/60">
                         <MessageCircle className="h-10 w-10 mb-2 opacity-30" />
                         <p className="text-sm font-medium">No comments yet</p>
@@ -1135,15 +1100,16 @@ export default function SccgTaskBoardClient({
                       </button>
                     </div>
                     <p className="text-[10px] text-muted-foreground mt-1.5">
-                      Press <kbd className="px-1 py-0.5 bg-muted border border-border rounded text-[9px]">Ctrl+Enter</kbd> to send • Task owner & assignee will be notified via email & Teams
+                      Press <kbd className="px-1 py-0.5 bg-muted border border-border rounded text-[9px]">Ctrl+Enter</kbd> to send • You can use <kbd className="px-1 py-0.5 bg-muted border border-border rounded text-[9px]">@</kbd> to notify specific users.
                     </p>
                   </div>
                 </div>
-              )}
+              </div>
             </div>
           </div>
         </div>
       )}
+
 
       <style jsx>{`
         .input {
@@ -1238,16 +1204,22 @@ function TaskCard({
           )}
         </div>
 
-        {/* Badges for Candidate & Assignee */}
+        {/* Badges for Candidate & Assignees */}
         <div className="mt-2.5 flex flex-wrap gap-1.5">
           {task.candidateName && (
             <div className="flex items-center space-x-1 text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-md font-medium border border-primary/20">
               <span className="truncate max-w-[140px]">👤 {task.candidateName}</span>
             </div>
           )}
-          {task.assignedToName && (
+          {task.assignees && task.assignees.length > 0 ? (
+            task.assignees.map((assignee) => (
+              <div key={assignee.id} className="flex items-center space-x-1 text-[10px] bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-md font-medium border border-emerald-500/20">
+                <span className="truncate max-w-[140px]">✓ {assignee.name.split(" ")[0]}</span>
+              </div>
+            ))
+          ) : task.assignedToName && (
             <div className="flex items-center space-x-1 text-[10px] bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-md font-medium border border-emerald-500/20">
-              <span className="truncate max-w-[140px]">✓ {task.assignedToName}</span>
+              <span className="truncate max-w-[140px]">✓ {task.assignedToName.split(" ")[0]}</span>
             </div>
           )}
         </div>
@@ -1257,7 +1229,7 @@ function TaskCard({
       <div className="border-t border-border/40 pt-2.5 flex justify-between items-center mt-1">
         <button
           onClick={() => onMove("prev")}
-          disabled={task.status === "backlog"}
+          disabled={task.status === "todo"}
           className="text-[10px] font-semibold p-1 bg-muted/40 border border-border/40 rounded text-muted-foreground hover:bg-muted disabled:opacity-20 transition-colors cursor-pointer"
           title="Move to previous stage"
         >

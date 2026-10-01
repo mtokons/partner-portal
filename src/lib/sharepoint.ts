@@ -241,6 +241,8 @@ const PR_COL = { // SCCG Products
   isAvailable: "IsAvailable",
   tags: "SalesTags",
   sortOrder: "SortOrder",
+  hasInstallment: "Instalment",
+  installmentQty: "InstalmentQty",
 };
 
 const SO_COL_EXT = { // SCCG Sales Offers — extended fields
@@ -695,30 +697,45 @@ export async function getProducts(): Promise<Product[]> {
         );
         spProducts = (res?.value || []).map((item) => {
           const f = item.fields;
-          return {
-            id: String(item.id),
-            sku: String(f[PR_COL.sku] || ""),
-            name: String(f[PR_COL.name] || ""),
-            description: String(f[PR_COL.description] || ""),
-            unit: String(f[PR_COL.unit] || "Package") as "Package" | "Session" | "Course" | "Card",
-            sessionsCount: Number(f[PR_COL.sessionsCount] || 0),
-            retailPriceEur: Number(f[PR_COL.retailPriceEur] || 0),
-            retailPriceBdt: Number(f[PR_COL.retailPriceBdt] || 0),
-            initialPayment: f[PR_COL.initialPayment] !== undefined ? Number(f[PR_COL.initialPayment]) : undefined,
-            price: Number(f[PR_COL.retailPriceEur] || f[PR_COL.price] || 0),
-            stock: Number(f[PR_COL.stock] || 0),
-            category: String(f[PR_COL.category] || ""),
-            imageUrl: f[PR_COL.imageUrl] ? String(f[PR_COL.imageUrl]) : undefined,
-            discount: f[PR_COL.discount] ? Number(f[PR_COL.discount]) : undefined,
-            discountType: f[PR_COL.discountType] ? String(f[PR_COL.discountType]) as "fixed" | "percent" : undefined,
-            discountExpiry: f[PR_COL.discountExpiry] ? String(f[PR_COL.discountExpiry]) : undefined,
-            isAvailable: f[PR_COL.isAvailable] !== undefined ? Boolean(f[PR_COL.isAvailable]) : true,
-            tags: f[PR_COL.tags] ? String(f[PR_COL.tags]).split(",").filter(Boolean) : [],
-            sortOrder: Number(f[PR_COL.sortOrder] || 0),
-          } as Product;
-        });
+          const hasInstRaw = f["Instalment"] ?? f["instalment"] ?? f["Installment"] ?? f["installment"] ?? f[PR_COL.hasInstallment];
+          const instQtyRaw = f["InstalmentQty"] ?? f["instalmentQty"] ?? f["InstallmentQty"] ?? f["installmentQty"] ?? f[PR_COL.installmentQty];
+          const hasInstallment = hasInstRaw === true || hasInstRaw === "Yes" || hasInstRaw === "true" || hasInstRaw === 1 || hasInstRaw === "1";
+          const installmentQty = instQtyRaw !== undefined && instQtyRaw !== null && !isNaN(Number(instQtyRaw)) && Number(instQtyRaw) > 0 ? Number(instQtyRaw) : undefined;
+
+            return {
+              id: String(item.id),
+              sku: String(f[PR_COL.sku] || ""),
+              name: String(f[PR_COL.name] || ""),
+              description: String(f[PR_COL.description] || ""),
+              unit: String(f[PR_COL.unit] || "Package") as "Package" | "Session" | "Course" | "Card",
+              sessionsCount: Number(f[PR_COL.sessionsCount] || 0),
+              retailPriceEur: Number(f[PR_COL.retailPriceEur] || 0),
+              retailPriceBdt: Number(f[PR_COL.retailPriceBdt] || 0),
+              initialPayment: f[PR_COL.initialPayment] !== undefined ? Number(f[PR_COL.initialPayment]) : undefined,
+              price: Number(f[PR_COL.retailPriceEur] || f[PR_COL.price] || 0),
+              stock: Number(f[PR_COL.stock] || 0),
+              category: String(f[PR_COL.category] || ""),
+              imageUrl: f[PR_COL.imageUrl] ? String(f[PR_COL.imageUrl]) : undefined,
+              discount: f[PR_COL.discount] ? Number(f[PR_COL.discount]) : undefined,
+              discountType: f[PR_COL.discountType] ? String(f[PR_COL.discountType]) as "fixed" | "percent" : undefined,
+              discountExpiry: f[PR_COL.discountExpiry] ? String(f[PR_COL.discountExpiry]) : undefined,
+              isAvailable: f[PR_COL.isAvailable] !== undefined ? Boolean(f[PR_COL.isAvailable]) : true,
+              tags: f[PR_COL.tags] ? String(f[PR_COL.tags]).split(",").filter(Boolean) : [],
+              sortOrder: Number(f[PR_COL.sortOrder] || 0),
+              hasInstallment,
+              installmentQty,
+            } as Product;
+          });
+        } catch {
+          spProducts = [];
+        }
+
+      let liveBdtRate = 140.2;
+      try {
+        const { getEurToRate } = await import("@/lib/currency");
+        liveBdtRate = await getEurToRate("BDT");
       } catch {
-        spProducts = [];
+        liveBdtRate = 140.2;
       }
 
       // Convert SERVICE_PRICING_DATA to Product items
@@ -730,7 +747,7 @@ export async function getProducts(): Promise<Product[]> {
         unit: "Package",
         sessionsCount: 5,
         retailPriceEur: sp.basePrice,
-        retailPriceBdt: Math.round(sp.basePrice * 130),
+        retailPriceBdt: Math.round(sp.basePrice * liveBdtRate),
         initialPayment: sp.packageType === "all-inclusive" ? Math.round(sp.basePrice * 0.4) : sp.basePrice,
         price: sp.basePrice,
         stock: 999,
@@ -738,16 +755,61 @@ export async function getProducts(): Promise<Product[]> {
         isAvailable: sp.isActive,
         tags: [sp.packageType],
         sortOrder: sp.sortOrder,
+        hasInstallment: sp.packageType === "all-inclusive" || sp.packageType === "installment",
+        installmentQty: 4,
       }));
 
-      if (spProducts.length === 0) {
-        return catalogProducts;
+      let allProducts: Product[] = [];
+      if (spProducts.length > 0) {
+        // SharePoint 'Products' list is the single source of truth for all marketplace products
+        const seen = new Set<string>();
+        allProducts = [];
+        for (const p of spProducts) {
+          const key = (p.id || p.sku || p.name).trim().toLowerCase();
+          if (!seen.has(key)) {
+            seen.add(key);
+            allProducts.push(p);
+          }
+        }
+      } else {
+        // Fallback only if SharePoint is completely empty or offline
+        allProducts = catalogProducts;
       }
 
-      // Merge: keep spProducts, and add any catalog products not present in SharePoint
-      const existingNames = new Set(spProducts.map((p) => p.name.toLowerCase()));
-      const missingCatalog = catalogProducts.filter((cp) => !existingNames.has(cp.name.toLowerCase()));
-      return [...spProducts, ...missingCatalog];
+      // Merge Firestore product_overrides for custom positioning (sortOrder), logoText, and custom logoUrl
+      try {
+        const { getAdminFirestore } = await import("@/lib/firebase-admin");
+        const firestore = getAdminFirestore();
+        const snap = await firestore.collection("product_overrides").get();
+        if (!snap.empty) {
+          const overridesMap = new Map<string, Record<string, any>>();
+          snap.docs.forEach((doc) => {
+            overridesMap.set(doc.id, doc.data());
+          });
+          allProducts = allProducts.map((p) => {
+            const ovr = overridesMap.get(p.id) || overridesMap.get(p.sku);
+            if (ovr) {
+              return {
+                ...p,
+                ...ovr,
+                sortOrder: ovr.sortOrder !== undefined ? Number(ovr.sortOrder) : p.sortOrder,
+                logoText: ovr.logoText !== undefined ? String(ovr.logoText) : p.logoText,
+                logoUrl: ovr.logoUrl !== undefined ? String(ovr.logoUrl) : p.logoUrl,
+                retailPriceEur: ovr.retailPriceEur !== undefined ? Number(ovr.retailPriceEur) : p.retailPriceEur,
+                retailPriceBdt: ovr.retailPriceBdt !== undefined ? Number(ovr.retailPriceBdt) : p.retailPriceBdt,
+                hasInstallment: ovr.hasInstallment !== undefined ? Boolean(ovr.hasInstallment) : p.hasInstallment,
+                installmentQty: ovr.installmentQty !== undefined ? Number(ovr.installmentQty) : p.installmentQty,
+              };
+            }
+            return p;
+          });
+        }
+      } catch {
+        // Fallback gracefully if Firestore is offline
+      }
+
+      // Default sort by sortOrder (product positioning)
+      return allProducts.sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999));
     }
   );
 }
@@ -774,26 +836,57 @@ export async function createProduct(data: Omit<Product, "id">): Promise<Product>
   if (data.unit) body[PR_COL.unit] = data.unit;
   if (data.sku) body[PR_COL.sku] = data.sku;
   if (data.initialPayment !== undefined) body[PR_COL.initialPayment] = data.initialPayment;
-  const res = await graphPost<{ id: string }>(`${await getSiteListUrlAsync("Products")}`, { fields: body });
-  return { ...data, id: res.id };
+  if (data.hasInstallment !== undefined) body[PR_COL.hasInstallment] = data.hasInstallment;
+  if (data.installmentQty !== undefined) body[PR_COL.installmentQty] = data.installmentQty;
+  try {
+    const res = await graphPost<{ id: string }>(`${await getSiteListUrlAsync("Products")}`, { fields: body });
+    return { ...data, id: res.id };
+  } catch {
+    const newId = `prod-${Date.now()}`;
+    await updateProduct(newId, data);
+    return { ...data, id: newId };
+  }
 }
 
 export async function updateProduct(id: string, data: Partial<Product>): Promise<void> {
-  const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
-  const body: Record<string, unknown> = {};
-  if (data.name !== undefined) body[PR_COL.name] = data.name;
-  if (data.category !== undefined) body[PR_COL.category] = data.category;
-  if (data.price !== undefined) body[PR_COL.price] = data.price;
-  if (data.description !== undefined) body[PR_COL.description] = data.description;
-  if (data.stock !== undefined) body[PR_COL.stock] = data.stock;
-  if (data.imageUrl !== undefined) body[PR_COL.imageUrl] = data.imageUrl;
-  if (data.discount !== undefined) body[PR_COL.discount] = data.discount;
-  if (data.discountType !== undefined) body[PR_COL.discountType] = data.discountType;
-  if (data.discountExpiry !== undefined) body[PR_COL.discountExpiry] = data.discountExpiry;
-  if (data.isAvailable !== undefined) body[PR_COL.isAvailable] = data.isAvailable;
-  if (data.tags !== undefined) body[PR_COL.tags] = data.tags.join(",");
-  if (data.sortOrder !== undefined) body[PR_COL.sortOrder] = data.sortOrder;
-  await graphPatch(`${await getSiteListUrlAsync("Products")}/${id}/fields`, body);
+  // 1. Persist to Firestore product_overrides
+  try {
+    const { getAdminFirestore } = await import("@/lib/firebase-admin");
+    const firestore = getAdminFirestore();
+    await firestore.collection("product_overrides").doc(id).set(
+      {
+        ...data,
+        id,
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true }
+    );
+  } catch (err) {
+    console.warn("Could not save to firestore product_overrides:", err);
+  }
+
+  // 2. Also try SharePoint patch if available
+  try {
+    const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
+    const body: Record<string, unknown> = {};
+    if (data.name !== undefined) body[PR_COL.name] = data.name;
+    if (data.category !== undefined) body[PR_COL.category] = data.category;
+    if (data.price !== undefined) body[PR_COL.price] = data.price;
+    if (data.description !== undefined) body[PR_COL.description] = data.description;
+    if (data.stock !== undefined) body[PR_COL.stock] = data.stock;
+    if (data.imageUrl !== undefined) body[PR_COL.imageUrl] = data.imageUrl;
+    if (data.discount !== undefined) body[PR_COL.discount] = data.discount;
+    if (data.discountType !== undefined) body[PR_COL.discountType] = data.discountType;
+    if (data.discountExpiry !== undefined) body[PR_COL.discountExpiry] = data.discountExpiry;
+    if (data.isAvailable !== undefined) body[PR_COL.isAvailable] = data.isAvailable;
+    if (data.tags !== undefined) body[PR_COL.tags] = data.tags.join(",");
+    if (data.sortOrder !== undefined) body[PR_COL.sortOrder] = data.sortOrder;
+    if (data.hasInstallment !== undefined) body[PR_COL.hasInstallment] = data.hasInstallment;
+    if (data.installmentQty !== undefined) body[PR_COL.installmentQty] = data.installmentQty;
+    await graphPatch(`${await getSiteListUrlAsync("Products")}/${id}/fields`, body);
+  } catch {
+    // SharePoint may be offline in dev
+  }
 }
 
 export async function deleteProduct(id: string): Promise<void> {
@@ -1082,14 +1175,17 @@ export async function getTransactions(partnerId?: string): Promise<Transaction[]
 }
 
 export async function getTransactionsByClient(clientId: string): Promise<Transaction[]> {
-  const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
-  const url = `${await getSiteListUrlAsync("Transactions")}?$expand=fields&$filter=fields/ClientId eq '${clientId}'`;
-  const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, unknown> }> }>(url);
-  return res.value.map((item) => {
-    const f = item.fields;
-    return { id: String(item.id), clientId: String(f.ClientId), partnerId: String(f.PartnerId), type: String(f.Type), amount: Number(f.Amount), amountEur: f.AmountEUR ? Number(f.AmountEUR) : undefined, conversionRate: f.ConversionRate ? Number(f.ConversionRate) : undefined, reference: String(f.Reference), orderId: f.OrderId ? String(f.OrderId) : undefined, description: f.Description ? String(f.Description) : undefined, date: String(f.Date) } as Transaction;
-  });
+  return runSafe(async () => {
+    const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
+    const url = `${await getSiteListUrlAsync("Transactions")}?$expand=fields&$filter=fields/ClientId eq '${encodeURIComponent(clientId)}'`;
+    const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, unknown> }> }>(url);
+    return res.value.map((item) => {
+      const f = item.fields;
+      return { id: String(item.id), clientId: String(f.ClientId), partnerId: String(f.PartnerId), type: String(f.Type), amount: Number(f.Amount), amountEur: f.AmountEUR ? Number(f.AmountEUR) : undefined, conversionRate: f.ConversionRate ? Number(f.ConversionRate) : undefined, reference: String(f.Reference), orderId: f.OrderId ? String(f.OrderId) : undefined, description: f.Description ? String(f.Description) : undefined, date: String(f.Date) } as Transaction;
+    });
+  }, () => []);
 }
+
 
 export async function createTransaction(tx: Omit<Transaction, "id">): Promise<Transaction> {
   const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
@@ -1232,26 +1328,27 @@ export async function createCustomer(data: Omit<Customer, "id" | "createdAt">): 
   const createdAt = new Date().toISOString();
   const listName = await getClientsListName();
   const isLegacy = listName === "SCCG Client";
+  const fields: Record<string, unknown> = {
+    Title: data.name || data.email,
+    ...(isLegacy
+      ? {
+          [LEGACY_SCCG_CLIENT_COL.name]: data.name,
+          [LEGACY_SCCG_CLIENT_COL.email]: data.email,
+          [LEGACY_SCCG_CLIENT_COL.phone]: data.phone || "",
+          [LEGACY_SCCG_CLIENT_COL.address]: (data as any).address || "",
+        }
+      : {
+          [CL_COL.name]: data.name,
+          [CL_COL.email]: data.email,
+          [CL_COL.phone]: data.phone || "",
+          [CL_COL.address]: (data as any).address || "",
+        }),
+    [CL_COL.company]: data.company || "",
+    [CL_COL.partnerId]: data.partnerId || "",
+    [CL_COL.createdAt]: createdAt,
+  };
   const res = await graphPost<{ id: string }>(await getSiteListUrlAsync(encodeListName(listName)), {
-    fields: {
-      ...(isLegacy
-        ? {
-            [LEGACY_SCCG_CLIENT_COL.name]: data.name,
-            [LEGACY_SCCG_CLIENT_COL.email]: data.email,
-            [LEGACY_SCCG_CLIENT_COL.phone]: data.phone,
-            [LEGACY_SCCG_CLIENT_COL.address]: (data as any).address || "",
-          }
-        : {
-            [CL_COL.name]: data.name,
-            [CL_COL.email]: data.email,
-            [CL_COL.phone]: data.phone,
-            [CL_COL.address]: (data as any).address || "",
-          }),
-      [CL_COL.company]: data.company,
-      [CL_COL.partnerId]: data.partnerId,
-      [CL_COL.createdAt]: createdAt,
-      Status: data.status || "active",
-    },
+    fields,
   });
   return { ...data, id: String(res.id), createdAt };
 }
@@ -1397,6 +1494,32 @@ export async function getExpertByEmail(email: string): Promise<Expert | null> {
 }
 
 export async function updateExpertStatus(id: string, status: Expert["status"]): Promise<void> {
+  return updateExpert(id, { status });
+}
+
+export async function updateExpert(id: string, updates: Partial<Expert>): Promise<void> {
+  return runSafe(async () => {
+    const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
+    const fields: Record<string, unknown> = {};
+    if (updates.name !== undefined) fields[EXP_COL.name] = updates.name;
+    if (updates.email !== undefined) fields[EXP_COL.email] = updates.email;
+    if (updates.phone !== undefined) fields[EXP_COL.phone] = updates.phone;
+    if (updates.specialization !== undefined) fields[EXP_COL.specialization] = updates.specialization;
+    if (updates.bio !== undefined) fields[EXP_COL.bio] = updates.bio;
+    if (updates.status !== undefined) fields[EXP_COL.status] = updates.status;
+    if (updates.ratePerSession !== undefined) fields[EXP_COL.ratePerSession] = updates.ratePerSession;
+    if (updates.totalSessionsCompleted !== undefined) fields[EXP_COL.totalSessionsCompleted] = updates.totalSessionsCompleted;
+    if (updates.rating !== undefined) fields[EXP_COL.rating] = updates.rating;
+
+    await graphPatch(`${await getSiteListUrlAsync("Experts")}/${id}/fields`, fields);
+  });
+}
+
+export async function deleteExpert(id: string): Promise<void> {
+  return runSafe(async () => {
+    const { graphDelete, getSiteListUrlAsync } = await import("@/lib/graph");
+    await graphDelete(`${await getSiteListUrlAsync("Experts")}/${id}`);
+  });
 }
 
 // ============================================================
@@ -4233,30 +4356,44 @@ export async function createCandidate(data: Omit<Candidate, "id">): Promise<Cand
     [CAND_COL.workflowCategory]: data.workflowCategory,
     [CAND_COL.currentStatus]: data.currentStatus,
     [CAND_COL.fullName]: data.fullName,
-    [CAND_COL.dateOfBirth]: data.dateOfBirth,
     [CAND_COL.email]: data.email,
     [CAND_COL.phone]: data.phone,
-    [CAND_COL.address]: data.address,
-    [CAND_COL.passportNumber]: data.passportNumber,
-    [CAND_COL.nationalId]: data.nationalId,
     [CAND_COL.nationality]: data.nationality,
     [CAND_COL.country]: data.country,
-    [CAND_COL.totalServiceFee]: data.totalServiceFee,
-    [CAND_COL.sccgShare]: data.sccgShare,
-    [CAND_COL.partnerShare]: data.partnerShare,
-    [CAND_COL.depositAmount]: data.depositAmount,
-    [CAND_COL.marginPercentage]: data.marginPercentage,
+    [CAND_COL.totalServiceFee]: Number(data.totalServiceFee) || 0,
+    [CAND_COL.sccgShare]: Number(data.sccgShare) || 0,
+    [CAND_COL.partnerShare]: Number(data.partnerShare) || 0,
+    [CAND_COL.depositAmount]: Number(data.depositAmount) || 0,
+    [CAND_COL.marginPercentage]: Number(data.marginPercentage) || 0,
     [CAND_COL.paymentStatus]: data.paymentStatus,
-    [CAND_COL.paymentMethod]: data.paymentMethod,
-    [CAND_COL.paymentReference]: data.paymentReference,
-    [CAND_COL.isOnHold]: data.isOnHold ?? false,
-    [CAND_COL.serviceUnlocked]: data.serviceUnlocked ?? false,
-    [CAND_COL.notes]: data.notes,
+    [CAND_COL.isOnHold]: Boolean(data.isOnHold),
+    [CAND_COL.serviceUnlocked]: Boolean(data.serviceUnlocked),
     [CAND_COL.createdBy]: data.createdBy,
-    [CAND_COL.createdAt]: data.createdAt,
-    [CAND_COL.updatedAt]: data.updatedAt,
-    [CAND_COL.submittedAt]: data.submittedAt,
+    [CAND_COL.createdAt]: data.createdAt || new Date().toISOString(),
+    [CAND_COL.submittedAt]: data.submittedAt || new Date().toISOString(),
   };
+
+  // DateOfBirth in SharePoint is a DateTime column. Only send if valid non-empty date.
+  if (data.dateOfBirth && typeof data.dateOfBirth === "string" && data.dateOfBirth.trim()) {
+    try {
+      const d = new Date(data.dateOfBirth);
+      if (!isNaN(d.getTime())) {
+        fields[CAND_COL.dateOfBirth] = d.toISOString();
+      }
+    } catch {
+      // omit invalid date to prevent SharePoint 400 badArgument error
+    }
+  }
+
+  // Only include optional text fields when non-empty
+  if (data.address && data.address.trim()) fields[CAND_COL.address] = data.address.trim();
+  if (data.passportNumber && data.passportNumber.trim()) fields[CAND_COL.passportNumber] = data.passportNumber.trim();
+  if (data.nationalId && data.nationalId.trim()) fields[CAND_COL.nationalId] = data.nationalId.trim();
+  if (data.paymentMethod && data.paymentMethod.trim()) fields[CAND_COL.paymentMethod] = data.paymentMethod.trim();
+  if (data.paymentReference && data.paymentReference.trim()) fields[CAND_COL.paymentReference] = data.paymentReference.trim();
+  if (data.notes && data.notes.trim()) fields[CAND_COL.notes] = data.notes.trim();
+  if (data.updatedAt) fields[CAND_COL.updatedAt] = data.updatedAt;
+
   const res = await graphPost<{ id: string; fields: Record<string, unknown> }>(listUrl, { fields });
   return mapCandidate(res);
 }
@@ -4390,6 +4527,17 @@ function mapCandidateService(item: { id: string; fields: Record<string, unknown>
   };
 }
 
+export async function getAllCandidateServices(): Promise<CandidateService[]> {
+  return runSafe(async () => {
+    const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
+    const listUrl = await getSiteListUrlAsync("CandidateServices");
+    const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, unknown> }> }>(
+      `${listUrl}?$expand=fields&$top=999`
+    );
+    return res.value.map(mapCandidateService);
+  }, () => []);
+}
+
 export async function getCandidateServices(candidateId: string): Promise<CandidateService[]> {
   return runSafe(async () => {
     const { graphGet, getSiteListUrlAsync, escapeOData } = await import("@/lib/graph");
@@ -4482,16 +4630,54 @@ const CANDTASK_COL = {
 
 function mapCandidateTask(item: { id: string; fields: Record<string, unknown> }): CandidateTask {
   const f = item.fields;
+  let rawDesc = f[CANDTASK_COL.description] ? String(f[CANDTASK_COL.description]) : undefined;
+  let metaAssignees: CandidateTask["assignees"] = undefined;
+  let metaComments: CandidateTask["comments"] = undefined;
+
+  if (rawDesc && rawDesc.includes("<!-- METADATA:")) {
+    const metaMatch = rawDesc.match(/<!-- METADATA:(.*?) -->/s);
+    if (metaMatch && metaMatch[1]) {
+      try {
+        const parsed = JSON.parse(metaMatch[1]);
+        if (Array.isArray(parsed.assignees)) metaAssignees = parsed.assignees;
+        if (Array.isArray(parsed.comments)) metaComments = parsed.comments;
+        rawDesc = rawDesc.replace(/<!-- METADATA:.*? -->/s, "").trim();
+        if (!rawDesc) rawDesc = undefined;
+      } catch (e) {
+        // ignore JSON parse error
+      }
+    }
+  }
+
+  // Determine assignees array: prefer metadata, fallback to single legacy assignedTo
+  let assignees = metaAssignees;
+  if (!assignees || assignees.length === 0) {
+    if (f[CANDTASK_COL.assignedTo]) {
+      assignees = [
+        {
+          id: String(f[CANDTASK_COL.assignedTo]),
+          name: f[CANDTASK_COL.assignedToName] ? String(f[CANDTASK_COL.assignedToName]) : String(f[CANDTASK_COL.assignedTo]),
+          email: f[CANDTASK_COL.assignedToEmail] ? String(f[CANDTASK_COL.assignedToEmail]) : "",
+          category: "sccg-staff",
+        },
+      ];
+    } else {
+      assignees = [];
+    }
+  }
+
   return {
     id: String(item.id),
     title: String(f[CANDTASK_COL.title] || ""),
-    description: f[CANDTASK_COL.description] ? String(f[CANDTASK_COL.description]) : undefined,
+    description: rawDesc,
     status: String(f[CANDTASK_COL.status] || "todo") as CandidateTask["status"],
     priority: String(f[CANDTASK_COL.priority] || "medium") as CandidateTask["priority"],
     dueDate: f[CANDTASK_COL.dueDate] ? String(f[CANDTASK_COL.dueDate]) : undefined,
     assignedTo: f[CANDTASK_COL.assignedTo] ? String(f[CANDTASK_COL.assignedTo]) : undefined,
     assignedToName: f[CANDTASK_COL.assignedToName] ? String(f[CANDTASK_COL.assignedToName]) : undefined,
     assignedToEmail: f[CANDTASK_COL.assignedToEmail] ? String(f[CANDTASK_COL.assignedToEmail]) : undefined,
+    assignees,
+    comments: metaComments || [],
     partnerId: f[CANDTASK_COL.partnerId] ? String(f[CANDTASK_COL.partnerId]) : undefined,
     tags: f[CANDTASK_COL.tags] ? (String(f[CANDTASK_COL.tags])).split(",").filter(Boolean) : [],
     createdBy: String(f[CANDTASK_COL.createdBy] || ""),
@@ -4541,15 +4727,29 @@ export async function getAllCandidateTasks(): Promise<CandidateTask[]> {
 export async function createCandidateTask(data: Omit<CandidateTask, "id">): Promise<CandidateTask> {
   const { graphPost, getSiteListUrlAsync } = await import("@/lib/graph");
   const listUrl = await getSiteListUrlAsync("CandidateTasks");
+
+  // Construct description with metadata for assignees & comments
+  let baseDesc = (data.description || "").replace(/<!-- METADATA:.*? -->/s, "").trim();
+  const meta: Record<string, unknown> = {};
+  if (data.assignees && data.assignees.length > 0) meta.assignees = data.assignees;
+  if (data.comments && data.comments.length > 0) meta.comments = data.comments;
+
+  let finalDesc = baseDesc;
+  if (Object.keys(meta).length > 0) {
+    finalDesc = (finalDesc ? finalDesc + "\n\n" : "") + `<!-- METADATA:${JSON.stringify(meta)} -->`;
+  }
+
+  const primaryAssignee = (data.assignees && data.assignees.length > 0) ? data.assignees[0] : null;
+
   const fields: Record<string, unknown> = {
     [CANDTASK_COL.title]: data.title,
-    [CANDTASK_COL.description]: data.description,
+    [CANDTASK_COL.description]: finalDesc || undefined,
     [CANDTASK_COL.status]: data.status,
     [CANDTASK_COL.priority]: data.priority,
     [CANDTASK_COL.dueDate]: data.dueDate,
-    [CANDTASK_COL.assignedTo]: data.assignedTo,
-    [CANDTASK_COL.assignedToName]: data.assignedToName,
-    [CANDTASK_COL.assignedToEmail]: data.assignedToEmail,
+    [CANDTASK_COL.assignedTo]: primaryAssignee?.id || data.assignedTo,
+    [CANDTASK_COL.assignedToName]: primaryAssignee?.name || data.assignedToName,
+    [CANDTASK_COL.assignedToEmail]: primaryAssignee?.email || data.assignedToEmail,
     [CANDTASK_COL.partnerId]: data.partnerId,
     [CANDTASK_COL.createdBy]: data.createdBy,
     [CANDTASK_COL.createdAt]: data.createdAt,
@@ -4579,7 +4779,6 @@ export async function createCandidateTask(data: Omit<CandidateTask, "id">): Prom
         delete fields[match[1]];
         continue;
       }
-      // If WorkflowCategory is rejected
       if (msg.includes("WorkflowCategory") && CANDTASK_COL.workflowCategory in fields) {
         delete fields[CANDTASK_COL.workflowCategory];
         continue;
@@ -4595,16 +4794,48 @@ export async function updateCandidateTask(
   data: Partial<CandidateTask>
 ): Promise<void> {
   return runSafe(async () => {
-    const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
+    const { graphPatch, getSiteListUrlAsync, graphGet } = await import("@/lib/graph");
     const listUrl = await getSiteListUrlAsync("CandidateTasks");
+
+    let finalDesc: string | undefined = undefined;
+    if (data.description !== undefined || data.assignees !== undefined || data.comments !== undefined) {
+      let baseDesc = (data.description || "").replace(/<!-- METADATA:.*? -->/s, "").trim();
+      
+      // If description wasn't explicitly provided, fetch existing description
+      if (data.description === undefined) {
+        try {
+          const cur = await graphGet<{ fields: Record<string, unknown> }>(`${listUrl}/${id}?$expand=fields`);
+          baseDesc = (String(cur?.fields?.[CANDTASK_COL.description] || "")).replace(/<!-- METADATA:.*? -->/s, "").trim();
+        } catch(e) {}
+      }
+
+      const meta: Record<string, unknown> = {};
+      if (data.assignees && data.assignees.length > 0) meta.assignees = data.assignees;
+      if (data.comments && data.comments.length > 0) meta.comments = data.comments;
+
+      finalDesc = baseDesc;
+      if (Object.keys(meta).length > 0) {
+        finalDesc = (finalDesc ? finalDesc + "\n\n" : "") + `<!-- METADATA:${JSON.stringify(meta)} -->`;
+      }
+    }
+
+    const primaryAssignee = (data.assignees && data.assignees.length > 0) ? data.assignees[0] : null;
+
     const fields: Record<string, unknown> = {};
     if (data.status !== undefined) fields[CANDTASK_COL.status] = data.status;
-    if (data.assignedTo !== undefined) fields[CANDTASK_COL.assignedTo] = data.assignedTo;
-    if (data.assignedToName !== undefined) fields[CANDTASK_COL.assignedToName] = data.assignedToName;
-    if (data.assignedToEmail !== undefined) fields[CANDTASK_COL.assignedToEmail] = data.assignedToEmail;
+    if (primaryAssignee) {
+      fields[CANDTASK_COL.assignedTo] = primaryAssignee.id;
+      fields[CANDTASK_COL.assignedToName] = primaryAssignee.name;
+      fields[CANDTASK_COL.assignedToEmail] = primaryAssignee.email;
+    } else if (data.assignedTo !== undefined) {
+      fields[CANDTASK_COL.assignedTo] = data.assignedTo;
+      if (data.assignedToName !== undefined) fields[CANDTASK_COL.assignedToName] = data.assignedToName;
+      if (data.assignedToEmail !== undefined) fields[CANDTASK_COL.assignedToEmail] = data.assignedToEmail;
+    }
+
     if (data.dueDate !== undefined) fields[CANDTASK_COL.dueDate] = data.dueDate;
     if (data.title !== undefined) fields[CANDTASK_COL.title] = data.title;
-    if (data.description !== undefined) fields[CANDTASK_COL.description] = data.description;
+    if (finalDesc !== undefined) fields[CANDTASK_COL.description] = finalDesc;
     if (data.priority !== undefined) fields[CANDTASK_COL.priority] = data.priority;
     if (data.taskCategory !== undefined) fields[CANDTASK_COL.taskCategory] = data.taskCategory;
     if (data.workflowCategory !== undefined) fields[CANDTASK_COL.workflowCategory] = data.workflowCategory;
@@ -4999,11 +5230,14 @@ export async function getB2BCompanyByCertCode(certCode: string): Promise<B2BComp
 // ============================================================
 
 function mapActivityLog(id: string, f: Record<string, any>): ActivityLog {
+  const actorEmail = f[ACTLOG_COL.actorEmail] || f.Title || f.LinkTitle || "";
+  const actorName = f[ACTLOG_COL.actorName] || (actorEmail ? actorEmail.split("@")[0] : undefined);
+  const createdAt = f[ACTLOG_COL.createdAt] || f.Created || f.Modified || "";
   return {
     id: String(id),
-    actorEmail: f[ACTLOG_COL.actorEmail] || "",
+    actorEmail,
     actorId: f[ACTLOG_COL.actorId] || undefined,
-    actorName: f[ACTLOG_COL.actorName] || undefined,
+    actorName,
     actorRole: f[ACTLOG_COL.actorRole] || undefined,
     action: (f[ACTLOG_COL.action] || "other") as ActivityLog["action"],
     description: f[ACTLOG_COL.description] || "",
@@ -5013,7 +5247,7 @@ function mapActivityLog(id: string, f: Record<string, any>): ActivityLog {
     console: f[ACTLOG_COL.console] || undefined,
     ipAddress: f[ACTLOG_COL.ipAddress] || undefined,
     userAgent: f[ACTLOG_COL.userAgent] || undefined,
-    createdAt: f[ACTLOG_COL.createdAt] || "",
+    createdAt,
   };
 }
 
@@ -5058,7 +5292,7 @@ export async function getActivityLogs(opts?: {
   return runSafe(async () => {
     const { graphGet, getSiteListUrlAsync, escapeOData } = await import("@/lib/graph");
     const top = Math.min(Math.max(opts?.limit ?? 500, 1), 2000);
-    let url = `${await getSiteListUrlAsync("ActivityLog")}?$expand=fields&$orderby=fields/${ACTLOG_COL.createdAt} desc&$top=${top}`;
+    const baseUrl = await getSiteListUrlAsync("ActivityLog");
 
     const filters: string[] = [];
     if (opts?.actorEmail) {
@@ -5067,10 +5301,27 @@ export async function getActivityLogs(opts?: {
     if (opts?.action) {
       filters.push(`fields/${ACTLOG_COL.action} eq '${escapeOData(opts.action)}'`);
     }
-    if (filters.length > 0) url += `&$filter=${filters.join(" and ")}`;
+    const filterParam = filters.length > 0 ? `&$filter=${filters.join(" and ")}` : "";
 
-    const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, any> }> }>(url);
-    return res.value.map((it) => mapActivityLog(it.id, it.fields));
+    let items: Array<{ id: string; fields: Record<string, any> }> = [];
+    try {
+      const url = `${baseUrl}?$expand=fields&$orderby=fields/${ACTLOG_COL.createdAt} desc&$top=${top}${filterParam}`;
+      const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, any> }> }>(url);
+      items = res.value || [];
+    } catch {
+      // Fallback without orderby if non-indexed sorting is rejected by SharePoint
+      const fallbackUrl = `${baseUrl}?$expand=fields&$top=${top}${filterParam}`;
+      const res = await graphGet<{ value: Array<{ id: string; fields: Record<string, any> }> }>(fallbackUrl);
+      items = res.value || [];
+    }
+
+    const mapped = items.map((it) => mapActivityLog(it.id, it.fields));
+    mapped.sort((a, b) => {
+      const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return tb - ta;
+    });
+    return mapped;
   }, () => []);
 }
 

@@ -162,7 +162,19 @@ async function sendTeamsChatNotification(recipientEmail: string, subject: string
 }
 
 /**
- * Notify owner (task creator) and assignee when a task is created, edited, or commented on.
+ * Helper to extract email addresses from text mentions like "@user@domain.com"
+ * or match "@username" with a list of known users.
+ * For simplicity here, we assume users might type actual emails after @,
+ * or we can just send to assignees and owners. Let's extract any emails.
+ */
+function extractMentionedEmails(text: string): string[] {
+  if (!text) return [];
+  const emails = text.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/gi);
+  return emails ? Array.from(new Set(emails)) : [];
+}
+
+/**
+ * Notify owner (task creator) and assignee(s) when a task is created, edited, or commented on.
  * Sends email + Teams chat (if account available).
  */
 async function notifyTaskActivity(
@@ -176,24 +188,44 @@ async function notifyTaskActivity(
     const portalUrl = getPortalUrl();
     const { sendEmailViaGraph } = await import("@/lib/email");
 
-    const recipients: Array<{ email: string; name: string }> = [];
+    const recipientsMap = new Map<string, string>(); // email -> name
 
+    // 1. Task Owner
     if (task.createdByEmail) {
-      recipients.push({ email: task.createdByEmail, name: task.createdByName || "Task Owner" });
+      recipientsMap.set(task.createdByEmail.toLowerCase(), task.createdByName || "Task Owner");
     }
-    if (task.assignedToEmail && task.assignedToEmail !== task.createdByEmail) {
-      recipients.push({ email: task.assignedToEmail, name: task.assignedToName || "Assignee" });
+
+    // 2. Assignee (Legacy single)
+    if (task.assignedToEmail) {
+      recipientsMap.set(task.assignedToEmail.toLowerCase(), task.assignedToName || "Assignee");
     }
+
+    // 3. Assignees (Multiple)
+    if (task.assignees && Array.isArray(task.assignees)) {
+      task.assignees.forEach(assignee => {
+        if (assignee.email) {
+          recipientsMap.set(assignee.email.toLowerCase(), assignee.name || "Assignee");
+        }
+      });
+    }
+
+    // 4. Mentions in extraHtml (comments) or description
+    const mentionedEmails = extractMentionedEmails((extraHtml || "") + " " + (task.description || ""));
+    mentionedEmails.forEach(email => {
+      if (!recipientsMap.has(email.toLowerCase())) {
+        recipientsMap.set(email.toLowerCase(), "Mentioned User");
+      }
+    });
 
     const actionLabel = action === "created" ? "New Task Created" : action === "edited" ? "Task Updated" : "New Comment on Task";
     const subject = `SCCG — ${actionLabel}: ${task.title}`;
 
-    for (const recipient of recipients) {
-      if (excludeEmail && recipient.email.toLowerCase() === excludeEmail.toLowerCase()) continue;
+    for (const [email, name] of Array.from(recipientsMap.entries())) {
+      if (excludeEmail && email === excludeEmail.toLowerCase()) continue;
 
       const htmlBody = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <p>Hi ${recipient.name},</p>
+          <p>Hi ${name},</p>
           <p><strong>${actorName}</strong> ${
             action === "created" ? "created a new task" :
             action === "edited" ? "updated a task" :
@@ -211,16 +243,16 @@ async function notifyTaskActivity(
       `;
 
       await sendEmailViaGraph({
-        to: recipient.email,
-        toName: recipient.name,
+        to: email,
+        toName: name,
         subject,
         htmlBody,
       }).catch((e: any) => console.warn("[sccg-tasks] Email failed:", e?.message));
 
       await sendTeamsChatNotification(
-        recipient.email,
+        email,
         `${actionLabel}: ${task.title}`,
-        `<p>${actorName} ${action === "commented" ? "commented" : action} this task.${extraHtml ? " " + extraHtml.replace(/<[^>]+>/g, "") : ""}</p><a href="${portalUrl}/sccg/tasks">Open Task Board</a>`
+        `<p>${actorName} ${action === "commented" ? "commented on" : action} this task.${extraHtml ? " " + extraHtml.replace(/<[^>]+>/g, "") : ""}</p><a href="${portalUrl}/sccg/tasks">Open Task Board</a>`
       );
     }
   } catch (err) {
@@ -254,12 +286,13 @@ export async function saveSccgTaskAction(taskData: Partial<CandidateTask>) {
       id: taskData.id || "",
       title: taskData.title?.trim() || "",
       description: taskData.description?.trim() || undefined,
-      status: taskData.status || "backlog",
+      status: (taskData.status === "backlog" || !taskData.status) ? "todo" : (taskData.status as any), // Default to todo instead of backlog
       priority: taskData.priority || "medium",
       dueDate: taskData.dueDate,
-      assignedTo: taskData.assignedTo,
-      assignedToName: taskData.assignedToName,
-      assignedToEmail: taskData.assignedToEmail,
+      assignedTo: taskData.assignedTo, // Legacy
+      assignedToName: taskData.assignedToName, // Legacy
+      assignedToEmail: taskData.assignedToEmail, // Legacy
+      assignees: taskData.assignees || [], // New multi-assignees
       partnerId: candidate?.partnerId || taskData.partnerId,
       tags: taskData.tags || [],
       createdBy: taskData.createdBy || user.id,

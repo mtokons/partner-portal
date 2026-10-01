@@ -187,6 +187,29 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+/* Multi-Color Typography & Brand Accents (German Flag + SCCG Palette) */
+.text-multicolor-brand {
+  background: linear-gradient(135deg, #111827 0%, #0F4C81 35%, #DC2626 70%, #F59E0B 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-multicolor-germany {
+  background: linear-gradient(90deg, #111827 0%, #DC2626 50%, #F59E0B 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-multicolor-sccg {
+  background: linear-gradient(135deg, #0F4C81 0%, #1D4ED8 50%, #DC2626 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.german-flag-ribbon {
+  background: linear-gradient(90deg, #111827 0%, #0F4C81 33%, #DC2626 66%, #F59E0B 100%);
+}
+
 @layer utilities {
   .console-theme {
     position: relative;
@@ -566,14 +589,29 @@
     background: linear-gradient(180deg, rgba(99,102,241,0.2) 0%, transparent 100%);
   }
 
+  /* ── German Flag & SCCG Brand 4-Color Signature ── */
+  .german-flag-ribbon {
+    height: 3px;
+    width: 100%;
+    background: linear-gradient(90deg, #0F172A 0%, #0F4C81 25%, #DC2626 50%, #F59E0B 75%, #0F4C81 100%);
+  }
+
+  .german-flag-tri {
+    height: 3px;
+    width: 100%;
+    background: linear-gradient(90deg, #111827 0%, #111827 33.33%, #DC2626 33.33%, #DC2626 66.66%, #F59E0B 66.66%, #F59E0B 100%);
+  }
+
   .portal-shell {
     position: relative;
     min-height: 100vh;
     isolation: isolate;
-    overflow: clip;
-    background:
-      linear-gradient(180deg, rgba(255,255,255,0.68), rgba(255,255,255,0.28)),
-      var(--portal-bg, linear-gradient(135deg, #edf4ff 0%, #f8fafc 50%, #eef8f7 100%));
+    overflow-x: clip;
+    background-color: #F8FAFC;
+    background-image:
+      radial-gradient(ellipse at 15% 0%, rgba(15, 76, 129, 0.04) 0%, transparent 50%),
+      radial-gradient(ellipse at 85% 0%, rgba(245, 158, 11, 0.04) 0%, transparent 40%),
+      radial-gradient(ellipse at 50% 100%, rgba(220, 38, 38, 0.02) 0%, transparent 50%);
   }
 
   .portal-shell::before {
@@ -581,39 +619,23 @@
     position: absolute;
     inset: 0;
     background-image:
-      linear-gradient(rgba(255,255,255,0.22) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255,255,255,0.22) 1px, transparent 1px);
-    background-size: 72px 72px;
-    mask-image: linear-gradient(180deg, rgba(0,0,0,0.28), transparent 75%);
+      linear-gradient(rgba(15, 76, 129, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(15, 76, 129, 0.03) 1px, transparent 1px);
+    background-size: 64px 64px;
     pointer-events: none;
   }
 
   .portal-orbs {
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 0;
-    background-image:
-      radial-gradient(circle at 10% 18%, var(--portal-orb-a, rgba(56,189,248,0.22)) 0%, transparent 28%),
-      radial-gradient(circle at 84% 12%, var(--portal-orb-b, rgba(244,114,182,0.18)) 0%, transparent 24%),
-      radial-gradient(circle at 70% 78%, var(--portal-orb-c, rgba(45,212,191,0.2)) 0%, transparent 28%);
-    filter: blur(8px);
-    /* animation removed — was causing blinking */
+    display: none;
   }
 
   .portal-content-frame {
     position: relative;
     min-height: calc(100vh - 6.5rem);
-    border-radius: 2rem;
-    border: 1px solid rgba(255,255,255,0.62);
-    background:
-      linear-gradient(180deg, rgba(255,255,255,0.84), rgba(255,255,255,0.72)),
-      var(--portal-panel, rgba(255,255,255,0.7));
-    box-shadow:
-      0 30px 80px -52px rgba(15, 23, 42, 0.42),
-      inset 0 1px 0 rgba(255,255,255,0.6);
-    backdrop-filter: blur(20px) saturate(155%);
-    -webkit-backdrop-filter: blur(20px) saturate(155%);
+    border-radius: 1.5rem;
+    border: 1px solid #E2E8F0;
+    background: #FFFFFF;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.03);
     padding: 1rem;
   }
 
@@ -898,23 +920,22 @@
 
 /* ─── PRINT ENGINE STYLES (CRITICAL FOR BROWSER PRINT / PRINT TO PDF) ─── */
 @media print {
-  /* Hide all portal headers, sidebars, navigation, forms, and backgrounds */
+  /* Clean print background & typography */
   html, body {
     background: #ffffff !important;
     color: #000000 !important;
     margin: 0 !important;
     padding: 0 !important;
     width: 100% !important;
-    height: 100% !important;
+    min-height: 100% !important;
   }
 
-  body * {
+  /* When CV preview canvas is active, only show the CV canvas */
+  body:has(#cv-preview-canvas) * {
     visibility: hidden !important;
   }
-
-  /* Show ONLY the CV Preview Canvas */
-  #cv-preview-canvas,
-  #cv-preview-canvas * {
+  body:has(#cv-preview-canvas) #cv-preview-canvas,
+  body:has(#cv-preview-canvas) #cv-preview-canvas * {
     visibility: visible !important;
   }
 
@@ -936,8 +957,66 @@
     color-adjust: exact !important;
   }
 
+  /* Printable Receipt Styles (Marketplace, Orders, Invoices) */
+  #printable-receipt {
+    display: block !important;
+    visibility: visible !important;
+    position: relative !important;
+    width: 100% !important;
+    margin: 0 auto !important;
+    padding: 8mm 12mm !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+  #printable-receipt * {
+    visibility: visible !important;
+  }
+
+  /* Printable Certificates & generic printable areas */
+  .printable-area,
+  .printable-area * {
+    visibility: visible !important;
+  }
+
+  /* Hide screen-only interactive elements */
+  .screen-only, header, nav, footer, button, .no-print {
+    display: none !important;
+  }
+
   @page {
     size: A4 portrait;
-    margin: 0;
+    margin: 6mm;
   }
+}
+
+/* ── Movable Banner Poster Animations ────────────────────── */
+@keyframes floatGentle {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(0.4deg);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    opacity: 0.35;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.75;
+    transform: scale(1.03);
+  }
+}
+
+.animate-float-gentle {
+  animation: floatGentle 5s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 4s ease-in-out infinite;
 }

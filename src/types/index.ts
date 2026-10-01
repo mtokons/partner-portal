@@ -1600,7 +1600,7 @@ export interface SchoolGradingScale {
 // Task Board (Kanban)
 // ============================================================
 
-export type TaskStatus = "backlog" | "todo" | "in-progress" | "review" | "done";
+export type TaskStatus = "todo" | "in-progress" | "review" | "done";
 export type TaskPriority = "low" | "medium" | "high";
 
 export interface TaskComment {
@@ -1619,9 +1619,15 @@ export interface KanbanTask {
   status: TaskStatus;
   priority: TaskPriority;
   dueDate?: string;
-  assignedTo?: string;
-  assignedToName?: string;
-  assignedToEmail?: string;
+  assignedTo?: string; // Kept for backward compatibility
+  assignedToName?: string; // Kept for backward compatibility
+  assignedToEmail?: string; // Kept for backward compatibility
+  assignees?: Array<{
+    id: string;
+    name: string;
+    email: string;
+    category?: string;
+  }>;
   partnerId?: string;
   tags?: string[];
   createdBy: string;

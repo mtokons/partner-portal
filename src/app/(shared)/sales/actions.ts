@@ -16,6 +16,7 @@ import {
 import { calculateCommission } from "@/lib/engine/commission";
 import { sendClientEmail } from "@/lib/powerautomate";
 import { revalidatePath } from "next/cache";
+import { isAdministrativeUser } from "@/lib/permissions";
 
 // ── Helpers ──
 
@@ -26,108 +27,136 @@ async function requireUser(): Promise<SessionUser> {
 }
 
 function canAccessRecord(user: SessionUser, record: { partnerId: string; createdBy: string }): boolean {
-  if (user.role === "admin") return true;
+  if (isAdministrativeUser(user)) return true;
   if (user.role === "partner") return record.createdBy === user.id;
   return user.partnerId === record.partnerId;
 }
 
 function isPendingMarketplacePaymentVerification(notes?: string): boolean {
   if (!notes) return false;
-  return notes.includes("Payment verification: pending-admin-verification");
+  return (
+    notes.includes("Payment verification: pending-admin-verification") ||
+    notes.includes("Payment Status: Pending Admin Verification")
+  );
 }
 
 function markMarketplacePaymentVerified(notes: string | undefined, adminName: string): string {
   const baseNotes = notes || "";
-  if (baseNotes.includes("Payment verification: verified")) return baseNotes;
-  const updated = baseNotes.replace(
+  if (baseNotes.includes("Payment verification: verified") || baseNotes.includes("Payment Status: Verified")) return baseNotes;
+  let updated = baseNotes.replace(
     "Payment verification: pending-admin-verification",
     `Payment verification: verified\nVerified by: ${adminName}\nVerified at: ${new Date().toISOString()}`
+  );
+  if (updated !== baseNotes) return updated;
+  updated = baseNotes.replace(
+    "Payment Status: Pending Admin Verification",
+    `Payment Status: Verified\nVerified by: ${adminName}\nVerified at: ${new Date().toISOString()}`
   );
   if (updated !== baseNotes) return updated;
   return `${baseNotes}${baseNotes ? "\n" : ""}Payment verification: verified\nVerified by: ${adminName}\nVerified at: ${new Date().toISOString()}`;
 }
 
 async function confirmMarketplacePaymentAndActivateServices(order: NonNullable<Awaited<ReturnType<typeof getSalesOrderById>>>) {
-  const existingTx = await getTransactionsByClient(order.clientId);
-  if (existingTx.some((tx) => tx.orderId === order.id && tx.type === "payment")) return;
+  try {
+    const existingTx = await getTransactionsByClient(order.clientId);
+    if (existingTx && existingTx.some((tx) => tx.orderId === order.id && tx.type === "payment")) return;
 
-  const now = new Date().toISOString();
-  const referenceMatch = order.notes?.match(/Payment reference:\s*(.+)/i);
-  const paymentReference = referenceMatch?.[1]?.trim() || `Direct-Order-${order.orderNumber}`;
-  const items = await getSalesOrderItems(order.id);
+    const now = new Date().toISOString();
+    const referenceMatch = order.notes?.match(/Payment reference:\s*(.+)/i) || order.notes?.match(/Payment Reference \/ TrxID:\s*(.+)/i);
+    const paymentReference = referenceMatch?.[1]?.trim() || `Direct-Order-${order.orderNumber}`;
+    const items = await getSalesOrderItems(order.id);
 
-  await createInvoice({
-    partnerId: order.partnerId,
-    clientId: order.clientId,
-    clientName: order.clientName,
-    orderId: order.id,
-    amount: order.totalAmount,
-    status: "paid",
-    dueDate: now,
-    createdAt: now,
-  });
-
-  await createTransaction({
-    clientId: order.clientId,
-    partnerId: order.partnerId,
-    type: "payment",
-    amount: order.totalAmount,
-    reference: paymentReference,
-    orderId: order.id,
-    description: `Marketplace manual payment verified for order ${order.orderNumber}`,
-    date: now,
-  });
-
-  const products = await getProducts();
-  for (const item of items) {
-    const product = products.find((p) => p.id === item.productId);
-    if (product && (product.category === "service" || product.unit === "Package")) {
-      await createCustomerPackage({
-        customerId: order.clientId,
-        customerName: order.clientName || "",
+    try {
+      await createInvoice({
         partnerId: order.partnerId,
-        servicePackageId: product.id,
-        packageName: product.name,
+        clientId: order.clientId,
+        clientName: order.clientName,
         orderId: order.id,
-        totalSessions: product.sessionsCount || 1,
-        completedSessions: 0,
-        totalAmount: item.totalPrice,
-        amountPaid: item.totalPrice,
-        startDate: now,
-        endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-        status: "active",
+        amount: order.totalAmount,
+        status: "paid",
+        dueDate: now,
         createdAt: now,
       });
+    } catch (invErr) {
+      console.warn("Could not create invoice during payment confirmation:", invErr);
     }
 
-    if (product && product.category === "Gift Card") {
-      for (let q = 0; q < item.quantity; q++) {
-        const { hash: __pinHash } = (await import("@/lib/pin")).generateGiftCardPinWithHash(4);
-        await createGiftCard({
-          sccgId: `GC-${order.orderNumber}-${q + 1}`,
-          cardNumber: generateGiftCardNumber(),
-          pinHash: __pinHash,
-          pinAttempts: 0,
-          issuedToUserId: order.clientId,
-          issuedToName: order.clientName || "",
-          issuedToEmail: order.clientEmail || "",
-          issuedByUserId: order.createdBy,
-          issuedBy: order.partnerName || "SCCG",
-          initialBalance: item.unitPrice,
-          currentBalance: item.unitPrice,
-          balance: item.unitPrice,
-          currency: "EUR",
-          tier: "standard",
-          status: "active",
-          designTemplate: "standard",
-          notes: `Purchased via Order ${order.orderNumber}`,
-          activatedAt: now,
-          expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-          issuedAt: now,
-          createdAt: now,
-        });
+    try {
+      await createTransaction({
+        clientId: order.clientId,
+        partnerId: order.partnerId,
+        type: "payment",
+        amount: order.totalAmount,
+        reference: paymentReference,
+        orderId: order.id,
+        description: `Marketplace payment verified for order ${order.orderNumber}`,
+        date: now,
+      });
+    } catch (txErr) {
+      console.warn("Could not create transaction during payment confirmation:", txErr);
+    }
+
+    const products = await getProducts();
+    for (const item of items) {
+      const product = products.find((p) => p.id === item.productId);
+      if (product && (product.category === "service" || product.unit === "Package")) {
+        try {
+          await createCustomerPackage({
+            customerId: order.clientId,
+            customerName: order.clientName || "",
+            partnerId: order.partnerId,
+            servicePackageId: product.id,
+            packageName: product.name,
+            orderId: order.id,
+            totalSessions: product.sessionsCount || 1,
+            completedSessions: 0,
+            totalAmount: item.totalPrice,
+            amountPaid: item.totalPrice,
+            startDate: now,
+            endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+            status: "active",
+            createdAt: now,
+          });
+        } catch (pkgErr) {
+          console.warn("Could not create customer package:", pkgErr);
+        }
+      }
+
+      if (product && product.category === "Gift Card") {
+        for (let q = 0; q < item.quantity; q++) {
+          try {
+            const { hash: __pinHash } = (await import("@/lib/pin")).generateGiftCardPinWithHash(4);
+            await createGiftCard({
+              sccgId: `GC-${order.orderNumber}-${q + 1}`,
+              cardNumber: generateGiftCardNumber(),
+              pinHash: __pinHash,
+              pinAttempts: 0,
+              issuedToUserId: order.clientId,
+              issuedToName: order.clientName || "",
+              issuedToEmail: order.clientEmail || "",
+              issuedByUserId: order.createdBy,
+              issuedBy: order.partnerName || "SCCG",
+              initialBalance: item.unitPrice,
+              currentBalance: item.unitPrice,
+              balance: item.unitPrice,
+              currency: "EUR",
+              tier: "standard",
+              status: "active",
+              designTemplate: "standard",
+              notes: `Purchased via Order ${order.orderNumber}`,
+              activatedAt: now,
+              expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+              issuedAt: now,
+              createdAt: now,
+            });
+          } catch (gcErr) {
+            console.warn("Could not create gift card:", gcErr);
+          }
+        }
       }
     }
+  } catch (err) {
+    console.error("Error confirming payment and activating services:", err);
   }
 }
 
@@ -380,30 +409,144 @@ export async function sendOfferEmailAction(offerId: string) {
 // ── Sales Order actions ──
 
 export async function updateOrderStatusAction(orderId: string, status: "pending" | "in-progress" | "completed" | "cancelled") {
-  const user = await requireUser();
-  const order = await getSalesOrderById(orderId);
-  if (!order) return { success: false, message: "Order not found" };
-  if (!canAccessRecord(user, order)) return { success: false, message: "Forbidden" };
+  try {
+    const user = await requireUser();
+    const order = await getSalesOrderById(orderId);
+    if (!order) return { success: false, message: "Order not found" };
+    if (!canAccessRecord(user, order)) return { success: false, message: "Forbidden: You do not have permission to modify this order" };
 
-  const needsMarketplaceVerification = isPendingMarketplacePaymentVerification(order.notes);
-  if (needsMarketplaceVerification && (status === "in-progress" || status === "completed")) {
-    if (user.role !== "admin") {
-      return { success: false, message: "Only admin can verify this marketplace payment." };
+    const needsMarketplaceVerification = isPendingMarketplacePaymentVerification(order.notes);
+    if (needsMarketplaceVerification && (status === "in-progress" || status === "completed")) {
+      if (!isAdministrativeUser(user)) {
+        return { success: false, message: "Only admin and operation staff can verify this marketplace payment." };
+      }
+      await confirmMarketplacePaymentAndActivateServices(order);
     }
-    await confirmMarketplacePaymentAndActivateServices(order);
+
+    const updates: Partial<typeof order> = {
+      status,
+      notes: needsMarketplaceVerification ? markMarketplacePaymentVerified(order.notes, user.name) : order.notes,
+    };
+    if (status === "completed") updates.completedAt = new Date().toISOString();
+
+    await updateSalesOrder(orderId, updates);
+    revalidatePath("/sales/orders");
+    revalidatePath(`/sales/orders/${orderId}`);
+    revalidatePath("/admin/orders");
+    revalidatePath(`/admin/orders/${orderId}`);
+    return { success: true };
+  } catch (err: any) {
+    console.error("Error in updateOrderStatusAction:", err);
+    return { success: false, message: err?.message || "Failed to update order status" };
   }
-
-  const updates: Partial<typeof order> = {
-    status,
-    notes: needsMarketplaceVerification ? markMarketplacePaymentVerified(order.notes, user.name) : order.notes,
-  };
-  if (status === "completed") updates.completedAt = new Date().toISOString();
-
-  await updateSalesOrder(orderId, updates);
-  revalidatePath("/sales/orders");
-  revalidatePath(`/sales/orders/${orderId}`);
-  return { success: true };
 }
+
+export async function assignExpertToOrderAction(data: {
+  orderId: string;
+  expertName: string;
+  expertEmail?: string;
+  expertSpecialization?: string;
+}) {
+  try {
+    const user = await requireUser();
+    if (!isAdministrativeUser(user)) {
+      return { success: false, message: "Unauthorized: Administrative role required to assign experts." };
+    }
+    const order = await getSalesOrderById(data.orderId);
+    if (!order) return { success: false, message: "Order not found" };
+
+    const now = new Date().toISOString();
+    const expertLine = `Assigned Expert: ${data.expertName}${data.expertEmail ? ` (${data.expertEmail})` : ""}${data.expertSpecialization ? ` - ${data.expertSpecialization}` : ""}`;
+    
+    // Replace existing Assigned Expert line if present, else prepend
+    const notesLines = (order.notes || "").split("\n");
+    const filtered = notesLines.filter(l => !l.startsWith("Assigned Expert:"));
+    const updatedNotes = `${expertLine}\n${filtered.join("\n")}`.trim();
+
+    await updateSalesOrder(data.orderId, {
+      notes: updatedNotes,
+    });
+
+    // Also create or ensure a service delivery task exists for this expert
+    try {
+      const existingTasks = await getServiceTasks(data.orderId);
+      const existingForExpert = existingTasks.find(t => t.assignedTo?.toLowerCase() === data.expertName.toLowerCase());
+      if (!existingForExpert) {
+        await createServiceTask({
+          salesOrderId: data.orderId,
+          orderNumber: order.orderNumber,
+          title: `Service Delivery: ${order.clientName || "Client"}`,
+          description: `Deliver ordered services for ${order.clientName || "Client"} (${order.clientEmail || ""})`,
+          assignedTo: data.expertName,
+          status: "in-progress",
+          dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+          createdAt: now,
+        });
+      }
+    } catch (taskErr) {
+      console.warn("Could not auto-create service task for expert:", taskErr);
+    }
+
+    revalidatePath("/sales/orders");
+    revalidatePath(`/sales/orders/${data.orderId}`);
+    revalidatePath("/admin/orders");
+    revalidatePath(`/admin/orders/${data.orderId}`);
+    return { success: true };
+  } catch (err: any) {
+    console.error("Error in assignExpertToOrderAction:", err);
+    return { success: false, message: err?.message || "Failed to assign expert" };
+  }
+}
+
+export async function updateSalesOrderFullAction(data: {
+  orderId: string;
+  status: "pending" | "in-progress" | "completed" | "cancelled";
+  clientName?: string;
+  clientEmail?: string;
+  notes?: string;
+  assignedExpert?: string;
+}) {
+  try {
+    const user = await requireUser();
+    const order = await getSalesOrderById(data.orderId);
+    if (!order) return { success: false, message: "Order not found" };
+
+    if (!isAdministrativeUser(user) && order.createdBy !== user.id && order.partnerId !== user.partnerId) {
+      return { success: false, message: "Unauthorized: Insufficient permissions to edit this order." };
+    }
+
+    let updatedNotes = data.notes || "";
+    if (data.assignedExpert && !updatedNotes.includes(`Assigned Expert: ${data.assignedExpert}`)) {
+      const lines = updatedNotes.split("\n").filter(l => !l.startsWith("Assigned Expert:"));
+      updatedNotes = `Assigned Expert: ${data.assignedExpert}\n${lines.join("\n")}`.trim();
+    }
+
+    const updates: Partial<typeof order> = {
+      status: data.status,
+      clientName: data.clientName?.trim() || order.clientName,
+      clientEmail: data.clientEmail?.trim() || order.clientEmail,
+      notes: updatedNotes,
+    };
+    if (data.status === "completed" && !order.completedAt) {
+      updates.completedAt = new Date().toISOString();
+    }
+
+    await updateSalesOrder(data.orderId, updates);
+
+    revalidatePath("/sales/orders");
+    revalidatePath(`/sales/orders/${data.orderId}`);
+    revalidatePath(`/sales/orders/${data.orderId}/edit`);
+    revalidatePath("/admin/orders");
+    revalidatePath(`/admin/orders/${data.orderId}`);
+    revalidatePath(`/admin/orders/${data.orderId}/edit`);
+
+    return { success: true };
+  } catch (err: any) {
+    console.error("Error in updateSalesOrderFullAction:", err);
+    return { success: false, message: err?.message || "Failed to update order" };
+  }
+}
+
 
 // ── Service Task actions ──
 

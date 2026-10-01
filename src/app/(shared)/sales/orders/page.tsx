@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getEffectiveSession } from "@/lib/effective-user";
 import type { SessionUser } from "@/types";
 import { getSalesOrders } from "@/lib/sharepoint";
+import { isAdministrativeUser } from "@/lib/permissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -25,7 +26,8 @@ export default async function SalesOrdersPage() {
   if (!session?.user) redirect("/login");
   const user = session.user as SessionUser;
 
-  const orders = await getSalesOrders(user.role === "admin" ? undefined : user.partnerId);
+  const isAdminOrStaff = isAdministrativeUser(user);
+  const orders = await getSalesOrders(isAdminOrStaff ? undefined : user.partnerId);
 
   const pending = orders.filter((o) => o.status === "pending").length;
   const inProgress = orders.filter((o) => o.status === "in-progress").length;
@@ -41,7 +43,9 @@ export default async function SalesOrdersPage() {
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Sales</p>
         </div>
         <h1 className="text-3xl font-black text-foreground tracking-tight">Sales Orders</h1>
-        <p className="text-sm text-muted-foreground mt-1.5">{orders.length} orders from accepted offers</p>
+        <p className="text-sm text-muted-foreground mt-1.5">
+          {orders.length} orders {isAdminOrStaff ? "across all clients and services" : "from accepted offers"}
+        </p>
       </div>
 
       {/* Stats */}
@@ -72,7 +76,7 @@ export default async function SalesOrdersPage() {
             All Sales Orders
           </CardTitle>
         </CardHeader>
-        <CardContent className="px-0 pb-0">
+        <CardContent className="px-0 pb-0 overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/30">
