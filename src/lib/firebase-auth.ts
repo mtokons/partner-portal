@@ -116,7 +116,7 @@ export function getSpecificAuthErrorMessage(
     return {
       category: "api",
       code: code || "auth/api-key-not-valid",
-      message: "API error: Firebase authentication service is misconfigured or API key is invalid. Please contact portal administrator.",
+      message: "API Error: Firebase authentication service is misconfigured or API key is invalid. Please contact portal administrator.",
     };
   }
 
@@ -134,7 +134,7 @@ export function getSpecificAuthErrorMessage(
     return {
       category: "server",
       code: code || "auth/network-request-failed",
-      message: "Server error: Unable to reach authentication server. Please check your internet connection and try again.",
+      message: "Server Error: Unable to reach authentication server. Please check your internet connection and try again.",
     };
   }
 
@@ -148,7 +148,7 @@ export function getSpecificAuthErrorMessage(
     return {
       category: "duplicate_email",
       code: code || "auth/email-already-in-use",
-      message: "Duplicate email error: An account with this email address already exists. Please sign in instead.",
+      message: "Duplicate Email Error: An account with this email address already exists. Please sign in instead.",
     };
   }
 
@@ -161,7 +161,7 @@ export function getSpecificAuthErrorMessage(
     return {
       category: "password",
       code: code || "auth/wrong-password",
-      message: "Password error: The password you entered is incorrect. Please double check and try again.",
+      message: "Password Error: The password you entered is incorrect. Please double check and try again.",
     };
   }
 
@@ -173,7 +173,7 @@ export function getSpecificAuthErrorMessage(
     return {
       category: "password",
       code: code || "auth/weak-password",
-      message: "Password error: Password is too weak. Please use at least 6 characters.",
+      message: "Password Error: Password is too weak. Please use at least 6 characters.",
     };
   }
 
@@ -185,7 +185,7 @@ export function getSpecificAuthErrorMessage(
     return {
       category: "user",
       code: code || "auth/user-not-found",
-      message: "User error: No account found registered with this email address. Please check your email or register.",
+      message: "User Error: No registered account found with this email address. Please check your email or create an account.",
     };
   }
 
@@ -196,7 +196,7 @@ export function getSpecificAuthErrorMessage(
     return {
       category: "user",
       code: code || "auth/user-disabled",
-      message: "User error: This account has been disabled or suspended. Please contact portal administrator.",
+      message: "User Error: This account has been disabled or suspended. Please contact the portal administrator.",
     };
   }
 
@@ -208,7 +208,7 @@ export function getSpecificAuthErrorMessage(
     return {
       category: "security",
       code: code || "auth/too-many-requests",
-      message: "Security error: Too many failed login attempts. Access is temporarily locked. Please wait a few minutes or reset your password.",
+      message: "Security Error: Too many failed login attempts. Access is temporarily locked. Please wait a few minutes or reset your password.",
     };
   }
 
@@ -220,7 +220,7 @@ export function getSpecificAuthErrorMessage(
     return {
       category: "validation",
       code: code || "auth/invalid-email",
-      message: "Email error: Invalid email address format. Please enter a valid email address.",
+      message: "Validation Error: Invalid email address format. Please enter a valid email address.",
     };
   }
 
@@ -233,8 +233,8 @@ export function getSpecificAuthErrorMessage(
       category: "user",
       code: code || "auth/invalid-credential",
       message: context === "login"
-        ? "Authentication error: Incorrect password or user account not found. Please verify your credentials or register."
-        : "Authentication error: Invalid registration credentials.",
+        ? "User Error: Incorrect password or user account not found. Please verify your credentials or register."
+        : "Validation Error: Invalid registration credentials.",
     };
   }
 
@@ -247,7 +247,7 @@ export function getSpecificAuthErrorMessage(
     return {
       category: "generic",
       code: code || "auth/popup-closed-by-user",
-      message: "Google sign-in cancelled: The authentication window was closed before completion.",
+      message: "Google Sign-In Cancelled: The authentication window was closed before completion.",
     };
   }
 
@@ -258,7 +258,7 @@ export function getSpecificAuthErrorMessage(
     return {
       category: "generic",
       code: code || "auth/popup-blocked",
-      message: "Browser error: Sign-in popup was blocked. Please allow popups for this site.",
+      message: "Browser Error: Sign-in popup was blocked. Please allow popups for this site.",
     };
   }
 
@@ -266,7 +266,7 @@ export function getSpecificAuthErrorMessage(
   return {
     category: "generic",
     code: code || "auth/unknown",
-    message: rawMsg ? `Authentication error: ${rawMsg}` : "An unexpected error occurred. Please try again.",
+    message: rawMsg ? `Authentication Error: ${rawMsg}` : "An unexpected authentication error occurred. Please try again.",
   };
 }
 
@@ -305,6 +305,46 @@ export interface ActivityLog {
 
 // ── Auth Functions ──
 
+async function registerViaServerFallback(
+  email: string,
+  password: string,
+  displayName: string,
+  phone: string,
+  role: FirebaseUserRole,
+  extra?: { company?: string; specialization?: string }
+): Promise<{ success: boolean; uid?: string; error?: string; errorCode?: string; errorCategory?: string }> {
+  try {
+    const res = await fetch("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email,
+        password,
+        name: displayName,
+        phone,
+        role,
+        company: extra?.company,
+        specialization: extra?.specialization,
+      }),
+    });
+    const data = await res.json();
+    return {
+      success: !!data.success,
+      uid: data.uid,
+      error: data.error,
+      errorCode: data.errorCode || (data.success ? undefined : "server_registration"),
+      errorCategory: data.errorCategory || (data.success ? undefined : "server"),
+    };
+  } catch (netErr: any) {
+    return {
+      success: false,
+      error: "Server Error: Unable to complete registration. Please check your internet connection.",
+      errorCode: "auth/network-request-failed",
+      errorCategory: "server",
+    };
+  }
+}
+
 export async function firebaseRegister(
   email: string,
   password: string,
@@ -314,12 +354,8 @@ export async function firebaseRegister(
   extra?: { company?: string; specialization?: string }
 ): Promise<{ success: boolean; uid?: string; error?: string; errorCode?: string; errorCategory?: string }> {
   if (!isFirebaseConfigured()) {
-    return {
-      success: false,
-      error: "API error: Firebase authentication is not configured. Please contact administrator.",
-      errorCode: "auth/not-configured",
-      errorCategory: "api",
-    };
+    // Seamless fallback to server-side registration
+    return await registerViaServerFallback(email, password, displayName, phone, role, extra);
   }
   try {
     const auth = getFirebaseAuth();
@@ -360,6 +396,25 @@ export async function firebaseRegister(
     return { success: true, uid: user.uid };
   } catch (err: unknown) {
     const errorInfo = getSpecificAuthErrorMessage(err, "register");
+    // If the client failed with an API key, misconfiguration or internal error, attempt the server-side registration fallback!
+    if (
+      errorInfo.category === "api" ||
+      errorInfo.code.includes("api-key") ||
+      errorInfo.code === "auth/internal-error"
+    ) {
+      console.warn("[firebaseRegister] Client registration encountered API error, falling back to server API...", errorInfo.message);
+      const serverFallbackResult = await registerViaServerFallback(email, password, displayName, phone, role, extra);
+      if (serverFallbackResult.success) {
+        return serverFallbackResult;
+      }
+      return serverFallbackResult.error ? serverFallbackResult : {
+        success: false,
+        error: errorInfo.message,
+        errorCode: errorInfo.code,
+        errorCategory: errorInfo.category,
+      };
+    }
+
     return {
       success: false,
       error: errorInfo.message,

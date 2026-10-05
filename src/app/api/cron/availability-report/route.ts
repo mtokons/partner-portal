@@ -7,6 +7,7 @@ import {
 import {
   getAvailabilityForRange,
   recordAuditLog,
+  getHiddenAvailabilityMemberIds,
 } from "@/lib/availability-server";
 import { getAllManagedUsers } from "@/lib/admin-users";
 import { generateDailyReportPdf } from "@/lib/availability-pdf";
@@ -68,15 +69,17 @@ async function handleMorningReport(request: Request) {
       });
     }
 
-    // Fetch managed colleagues & records for today (strictly filtered to SCCG team members)
-    const [allUsers, records] = await Promise.all([
+    // Fetch managed colleagues & records for today (strictly filtered to SCCG team members, excluding hidden members)
+    const [allUsers, records, hiddenIds] = await Promise.all([
       getAllManagedUsers().catch(() => []),
       getAvailabilityForRange(todayStr, todayStr),
+      getHiddenAvailabilityMemberIds().catch(() => [] as string[]),
     ]);
 
     const activeColleagues = allUsers
       .filter((u) => {
         if (u.status === "suspended") return false;
+        if (hiddenIds.includes(u.id)) return false;
         const cat = resolveCategory(u.category, u.primaryRole);
         return cat === "sccg-admin" || cat === "sccg-staff";
       })
@@ -202,6 +205,37 @@ async function handleMorningReport(request: Request) {
           },
         ],
       }).catch((err) => console.warn(`Failed to email daily report to ${email}:`, err.message));
+    }
+
+    // Automatically notify any colleague who missed submitting availability for today
+    if (report.notSubmittedList.length > 0) {
+      for (const item of report.notSubmittedList) {
+        if (!item.userEmail) continue;
+        const missingHtml = `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1e293b; max-width: 550px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+            <div style="background-color: #991b1b; padding: 16px 20px; color: #ffffff;">
+              <h3 style="margin: 0; font-size: 16px;">⚠️ Action Required: Submit Today's Availability</h3>
+            </div>
+            <div style="padding: 20px; background-color: #ffffff;">
+              <p>Hi ${item.userName},</p>
+              <p>You have not yet submitted your team availability for today (<strong>${todayStr}</strong>).</p>
+              <p>Please log in and update your schedule immediately:</p>
+              <div style="margin: 20px 0;">
+                <a href="https://portal.mysccg.de/sccg/availability"
+                   style="background-color: #2563eb; color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+                  Submit Availability Now
+                </a>
+              </div>
+            </div>
+          </div>
+        `;
+        sendEmailViaGraph({
+          to: item.userEmail,
+          toName: item.userName,
+          subject: `[Reminder] Missing Team Availability Entry for Today (${todayStr})`,
+          htmlBody: missingHtml,
+        }).catch((e) => console.warn(`Failed to notify missing colleague ${item.userEmail}:`, e.message));
+      }
     }
 
     // Record audit log for idempotency and tracking

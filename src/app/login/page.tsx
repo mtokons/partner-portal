@@ -65,7 +65,7 @@ function LoginContent() {
               router.refresh();
               return;
             }
-            setError(sessionResult.error || "User account error: Account is pending administrator approval or inactive.");
+            setError(sessionResult.error || "User Error: Account is pending administrator approval or inactive.");
             setLoading(false);
             return;
           }
@@ -103,10 +103,10 @@ function LoginContent() {
       if (fbError) {
         setError(fbError.message);
       } else {
-        setError("User error: No account found or incorrect credentials. Please check your email and password.");
+        setError("User Error: No registered account found or incorrect credentials. Please check your email and password.");
       }
     } catch {
-      setError("Server error: An unexpected connection error occurred during authentication. Please try again.");
+      setError("Server Error: An unexpected connection error occurred during authentication. Please try again.");
     } finally {
       setLoading(false);
     }

@@ -60,6 +60,10 @@ export function AvailabilityManager({
   const [loading, setLoading] = useState<boolean>(true);
   const [records, setRecords] = useState<TeamAvailability[]>([]);
   const [colleagues, setColleagues] = useState<any[]>([]);
+  const [isAdminState, setIsAdminState] = useState<boolean>(() => {
+    return (userRoles || []).some((r: string) => ["admin", "super_admin", "sccg-admin"].includes(r.toLowerCase())) || baseConsole === "admin";
+  });
+  const [hiddenMemberIds, setHiddenMemberIds] = useState<string[]>([]);
 
   // Dialog state: Time Entry / Schedule Modal
   const [modalOpen, setModalOpen] = useState(false);
@@ -87,6 +91,12 @@ export function AvailabilityManager({
 
       setRecords(data.records || []);
       setColleagues(data.colleagues || []);
+      if (typeof data.isAdmin === "boolean") {
+        setIsAdminState(data.isAdmin);
+      }
+      if (Array.isArray(data.hiddenMemberIds)) {
+        setHiddenMemberIds(data.hiddenMemberIds);
+      }
     } catch (err: any) {
       toast.error(err.message || "Failed to fetch availability data");
     } finally {
@@ -291,6 +301,8 @@ export function AvailabilityManager({
           currentUserEmail={currentUserEmail}
           currentUserName={currentUserName}
           isManager={initialIsManager}
+          isAdmin={isAdminState}
+          initialHiddenMemberIds={hiddenMemberIds}
           onSelectCell={handleSelectCell}
           onOpenMyEntry={handleOpenMyEntry}
         />

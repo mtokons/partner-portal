@@ -16,8 +16,16 @@ import {
   Users,
   Search,
   X,
+  Bell,
+  FileSpreadsheet,
+  Download,
+  Printer,
+  Send,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { exportPastWeekReportToCsv } from "@/lib/availability-export";
 import {
   STATUS_COLORS,
   STATUS_LABELS,
@@ -191,6 +199,8 @@ interface TeamCalendarViewProps {
   currentUserEmail?: string;
   currentUserName?: string;
   isManager: boolean;
+  isAdmin?: boolean;
+  initialHiddenMemberIds?: string[];
   onSelectCell?: (params: {
     colleague: ColleagueItem;
     dateStr: string;
@@ -212,6 +222,8 @@ export function TeamCalendarView({
   currentUserEmail,
   currentUserName,
   isManager,
+  isAdmin = false,
+  initialHiddenMemberIds = [],
   onSelectCell,
   onOpenMyEntry,
 }: TeamCalendarViewProps) {
@@ -252,54 +264,133 @@ export function TeamCalendarView({
     return map;
   }, [colleagues]);
 
-  // Hidden Member IDs (persisted to localStorage so view preferences are preserved)
-  const [hiddenMemberIds, setHiddenMemberIds] = useState<string[]>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const stored = localStorage.getItem("sccg_availability_hidden_members");
-        if (stored) return JSON.parse(stored);
-      } catch {}
+  // Hidden Member IDs (loaded from server + persisted globally by admin)
+  const [hiddenMemberIds, setHiddenMemberIds] = useState<string[]>(initialHiddenMemberIds);
+
+  React.useEffect(() => {
+    if (initialHiddenMemberIds && initialHiddenMemberIds.length > 0) {
+      setHiddenMemberIds(initialHiddenMemberIds);
     }
-    return [];
-  });
+  }, [initialHiddenMemberIds]);
+
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [filterSearch, setFilterSearch] = useState("");
 
-  const toggleMemberVisibility = useCallback((id: string) => {
-    setHiddenMemberIds((prev) => {
-      const next = prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id];
-      if (typeof window !== "undefined") {
-        try {
-          localStorage.setItem("sccg_availability_hidden_members", JSON.stringify(next));
-        } catch {}
-      }
-      return next;
-    });
-  }, []);
+  // Modals for Admin Actions
+  const [showReminderModal, setShowReminderModal] = useState(false);
+  const [reminderSending, setReminderSending] = useState(false);
+  const [showPastWeekModal, setShowPastWeekModal] = useState(false);
 
-  const showAllMembers = useCallback(() => {
-    setHiddenMemberIds([]);
-    if (typeof window !== "undefined") {
-      try {
-        localStorage.removeItem("sccg_availability_hidden_members");
-      } catch {}
+  // Toggle member visibility — ONLY allowed for admin, persists globally
+  const toggleMemberVisibility = useCallback(async (id: string) => {
+    if (!isAdmin) {
+      toast.error("Only administrators can modify member visibility.");
+      return;
     }
-  }, []);
+    const isNowHidden = hiddenMemberIds.includes(id);
+    const next = isNowHidden ? hiddenMemberIds.filter((item) => item !== id) : [...hiddenMemberIds, id];
+    setHiddenMemberIds(next);
 
-  const hideAllMembers = useCallback(() => {
+    try {
+      const res = await fetch("/api/availability/hidden-members", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ memberId: id, hide: !isNowHidden }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update member visibility on server");
+      toast.success(isNowHidden ? "Member restored to team view for all users." : "Member hidden globally for all users.");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update member visibility on server.");
+    }
+  }, [isAdmin, hiddenMemberIds]);
+
+  const showAllMembers = useCallback(async () => {
+    if (!isAdmin) return;
+    setHiddenMemberIds([]);
+    try {
+      const res = await fetch("/api/availability/hidden-members", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hiddenMemberIds: [] }),
+      });
+      if (res.ok) {
+        toast.success("All members are now visible globally for all users.");
+      }
+    } catch {
+      toast.error("Failed to update visibility on server.");
+    }
+  }, [isAdmin]);
+
+  const hideAllMembers = useCallback(async () => {
+    if (!isAdmin) return;
     const allIds = colleagues.map((c) => c.id);
     setHiddenMemberIds(allIds);
-    if (typeof window !== "undefined") {
-      try {
-        localStorage.setItem("sccg_availability_hidden_members", JSON.stringify(allIds));
-      } catch {}
+    try {
+      const res = await fetch("/api/availability/hidden-members", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hiddenMemberIds: allIds }),
+      });
+      if (res.ok) {
+        toast.success("All members hidden globally.");
+      }
+    } catch {
+      toast.error("Failed to update visibility on server.");
     }
-  }, [colleagues]);
+  }, [isAdmin, colleagues]);
 
   // Filtered visible colleagues for both Daily and Weekly views
   const visibleColleagues = useMemo(() => {
     return colleagues.filter((c) => !hiddenMemberIds.includes(c.id));
   }, [colleagues, hiddenMemberIds]);
+
+  // Missing colleagues for selected date (for Reminder button)
+  const missingColleaguesForSelectedDate = useMemo(() => {
+    return visibleColleagues.filter((c) => {
+      const rec = recordsMap.get(`${c.id}_${selectedDate}`) ||
+        (c.email ? recordsMap.get(`${c.email.toLowerCase()}_${selectedDate}`) : undefined);
+      return !rec;
+    });
+  }, [visibleColleagues, selectedDate, recordsMap]);
+
+  // Past week days for past week report
+  const pastWeekDays = useMemo(() => {
+    const prevAnchor = addDaysToDateStr(currentWeekAnchor, -7);
+    return getWeekDaysForAnchor(prevAnchor);
+  }, [currentWeekAnchor]);
+
+  // Send reminders handler
+  const handleSendReminders = async () => {
+    try {
+      setReminderSending(true);
+      const res = await fetch("/api/availability/reminders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          targetDate: selectedDate,
+          recipients: missingColleaguesForSelectedDate.map((c) => ({
+            email: c.email,
+            name: c.displayName,
+          })),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to dispatch reminders");
+      toast.success(data.message || `Dispatched reminders to ${missingColleaguesForSelectedDate.length} colleague(s) via Email and Teams.`);
+      setShowReminderModal(false);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to send reminders");
+    } finally {
+      setReminderSending(false);
+    }
+  };
+
+  // Export past week CSV handler
+  const handleExportPastWeekCsv = () => {
+    exportPastWeekReportToCsv(pastWeekDays, visibleColleagues, records);
+    toast.success("Past week availability report exported successfully.");
+  };
 
   // Selected day info for daily view
   const selectedDayInfo = useMemo(() => {
@@ -359,25 +450,55 @@ export function TeamCalendarView({
 
           {/* Right Header Controls */}
           <div className="flex flex-wrap items-center gap-2.5">
-            {/* Filter / Visibility Button */}
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => setShowFilterModal(true)}
-              className={`text-xs h-8 gap-1.5 font-semibold border transition ${
-                hiddenMemberIds.length > 0
-                  ? "bg-amber-400 text-slate-950 hover:bg-amber-300 border-amber-500 shadow-sm"
-                  : "bg-white/15 text-white hover:bg-white/25 border-white/20"
-              }`}
-              title="Show or hide team members from view and report"
-            >
-              {hiddenMemberIds.length > 0 ? (
-                <EyeOff className="w-3.5 h-3.5" />
-              ) : (
-                <Eye className="w-3.5 h-3.5" />
-              )}
-              <span>Members ({visibleColleagues.length}/{colleagues.length})</span>
-            </Button>
+            {/* Filter / Visibility Button: Admin Only */}
+            {isAdmin && (
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => setShowFilterModal(true)}
+                className={`text-xs h-8 gap-1.5 font-semibold border transition ${
+                  hiddenMemberIds.length > 0
+                    ? "bg-amber-400 text-slate-950 hover:bg-amber-300 border-amber-500 shadow-sm"
+                    : "bg-white/15 text-white hover:bg-white/25 border-white/20"
+                }`}
+                title="Hide or show members globally for all users (Admin only)"
+              >
+                {hiddenMemberIds.length > 0 ? (
+                  <EyeOff className="w-3.5 h-3.5" />
+                ) : (
+                  <Eye className="w-3.5 h-3.5" />
+                )}
+                <span>Members ({visibleColleagues.length}/{colleagues.length})</span>
+              </Button>
+            )}
+
+            {/* Past Week Report Button: Admin / Manager */}
+            {(isAdmin || isManager) && (
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => setShowPastWeekModal(true)}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-sm text-xs h-8 gap-1.5 border-0 transition"
+                title="Generate and export report of all member past week entries"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                <span>Past Week Report</span>
+              </Button>
+            )}
+
+            {/* Reminder Button: Admin / Manager */}
+            {(isAdmin || isManager) && (
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => setShowReminderModal(true)}
+                className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold shadow-sm text-xs h-8 gap-1.5 border-0 transition"
+                title="Send notification via Microsoft Teams and Email to employees who missed submitting"
+              >
+                <Bell className="w-3.5 h-3.5" />
+                <span>Remind Missing ({missingColleaguesForSelectedDate.length})</span>
+              </Button>
+            )}
 
             <Button
               type="button"
@@ -419,13 +540,13 @@ export function TeamCalendarView({
       </div>
 
       <div className="p-6">
-        {/* Hidden Members Notice Banner */}
-        {hiddenMemberIds.length > 0 && (
+        {/* Hidden Members Notice Banner — Admin Only */}
+        {isAdmin && hiddenMemberIds.length > 0 && (
           <div className="mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-3 px-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs">
             <div className="flex items-center gap-2">
               <EyeOff className="w-4 h-4 text-amber-600 shrink-0" />
               <span>
-                <strong>{hiddenMemberIds.length}</strong> team member{hiddenMemberIds.length > 1 ? "s are" : " is"} currently hidden from this view.
+                <strong>{hiddenMemberIds.length}</strong> team member{hiddenMemberIds.length > 1 ? "s are" : " is"} currently hidden globally from all users.
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -460,7 +581,7 @@ export function TeamCalendarView({
             currentUserEmail={currentUserEmail}
             isManager={isManager}
             onSelectCell={onSelectCell}
-            onToggleHideMember={toggleMemberVisibility}
+            onToggleHideMember={isAdmin ? toggleMemberVisibility : undefined}
             onShowAllMembers={showAllMembers}
           />
         ) : (
@@ -502,7 +623,7 @@ export function TeamCalendarView({
           </span>
         </div>
 
-        {/* Member Color Legend with quick Click-to-Toggle */}
+        {/* Member Color Legend */}
         <div className="flex flex-wrap items-center gap-2 pt-3">
           <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 mr-2 flex items-center gap-1">
             <Users className="w-3.5 h-3.5" /> Members:
@@ -514,12 +635,15 @@ export function TeamCalendarView({
               <button
                 key={c.id}
                 type="button"
-                onClick={() => toggleMemberVisibility(c.id)}
-                title={isHidden ? `Click to show ${c.displayName}` : `Click to hide ${c.displayName}`}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition cursor-pointer ${
+                onClick={() => isAdmin && toggleMemberVisibility(c.id)}
+                disabled={!isAdmin}
+                title={isAdmin ? (isHidden ? `Click to show ${c.displayName} for all` : `Click to hide ${c.displayName} for all`) : c.displayName}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition ${
+                  isAdmin ? "cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800" : "cursor-default"
+                } ${
                   isHidden
-                    ? "bg-slate-100 dark:bg-slate-800/40 text-slate-400 line-through opacity-60 hover:opacity-100"
-                    : "bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                    ? "bg-slate-100 dark:bg-slate-800/40 text-slate-400 line-through opacity-60"
+                    : "bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300"
                 }`}
               >
                 <span
@@ -527,7 +651,7 @@ export function TeamCalendarView({
                   style={{ backgroundColor: isHidden ? "#94a3b8" : (color?.accent || "#6366f1") }}
                 />
                 <span>{c.displayName?.split(" ")[0] || c.email.split("@")[0]}</span>
-                {isHidden && <EyeOff className="w-3 h-3 text-slate-400" />}
+                {isAdmin && isHidden && <EyeOff className="w-3 h-3 text-slate-400" />}
               </button>
             );
           })}
@@ -651,6 +775,258 @@ export function TeamCalendarView({
                 className="bg-blue-600 hover:bg-blue-700 text-white text-xs h-8 px-4"
               >
                 Done
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* REMINDER MODAL (ADMIN / MANAGER) */}
+      {showReminderModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-5 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-950/60 flex items-center justify-center text-amber-600">
+                  <Bell className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+                    Send Availability Reminders
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Notify missing team members via Email and Microsoft Teams
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowReminderModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/60 text-xs">
+                <div className="flex items-center justify-between font-medium text-slate-700 dark:text-slate-200 mb-1">
+                  <span>Target Date: <strong>{selectedDate}</strong></span>
+                  <span className="text-amber-600 dark:text-amber-400 font-bold">
+                    {missingColleaguesForSelectedDate.length} Colleague(s) Missing
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 text-[11px] text-slate-500 pt-1.5 border-t border-slate-200 dark:border-slate-700">
+                  <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400 font-medium">
+                    ✉️ Graph Email (portal@mysccg.de)
+                  </span>
+                  <span>•</span>
+                  <span className="flex items-center gap-1 text-violet-600 dark:text-violet-400 font-medium">
+                    💬 Microsoft Teams Direct Chat
+                  </span>
+                </div>
+              </div>
+
+              {missingColleaguesForSelectedDate.length === 0 ? (
+                <div className="p-6 text-center text-emerald-600 dark:text-emerald-400 text-xs font-medium bg-emerald-50 dark:bg-emerald-950/30 rounded-xl border border-emerald-200 dark:border-emerald-800">
+                  ✓ All visible colleagues have submitted their availability for this date!
+                </div>
+              ) : (
+                <div className="max-h-56 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 border border-slate-100 dark:border-slate-800 rounded-xl">
+                  {missingColleaguesForSelectedDate.map((c) => (
+                    <div key={c.id} className="p-2.5 px-3 flex items-center justify-between text-xs">
+                      <div>
+                        <div className="font-semibold text-slate-800 dark:text-slate-200">{c.displayName}</div>
+                        <div className="text-[11px] text-slate-400">{c.email} • {c.department}</div>
+                      </div>
+                      <span className="text-[10px] font-semibold text-rose-600 bg-rose-50 dark:bg-rose-950/60 dark:text-rose-300 px-2 py-0.5 rounded-full">
+                        Not Submitted
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowReminderModal(false)}
+                className="text-xs"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                disabled={reminderSending || missingColleaguesForSelectedDate.length === 0}
+                onClick={handleSendReminders}
+                className="bg-blue-600 hover:bg-blue-700 text-white text-xs gap-1.5 font-bold"
+              >
+                {reminderSending ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    Sending Reminders...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-3.5 h-3.5" />
+                    Send Email & Teams Notifications ({missingColleaguesForSelectedDate.length})
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PAST WEEK REPORT MODAL (ADMIN / MANAGER) */}
+      {showPastWeekModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-hidden">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col p-6 shadow-2xl border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 flex items-center justify-center text-emerald-600">
+                  <FileSpreadsheet className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+                    Past Week Team Availability Report
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Period: {pastWeekDays[0]?.dateStr} to {pastWeekDays[pastWeekDays.length - 1]?.dateStr}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleExportPastWeekCsv}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs gap-1.5 font-bold"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Download CSV
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.print()}
+                  className="text-xs gap-1.5"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  Print
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => setShowPastWeekModal(false)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Scrollable Table Content */}
+            <div className="flex-1 overflow-auto my-4 border border-slate-200 dark:border-slate-800 rounded-xl">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10">
+                    <th className="py-2.5 px-3 font-bold text-slate-700 dark:text-slate-300">Colleague</th>
+                    <th className="py-2.5 px-3 font-bold text-slate-700 dark:text-slate-300">Dept</th>
+                    {pastWeekDays.map((d) => (
+                      <th key={d.dateStr} className={`py-2.5 px-2 font-semibold text-center ${d.isWeekend ? "text-slate-400 opacity-60" : "text-slate-700 dark:text-slate-300"}`}>
+                        <div>{d.dayLabel}</div>
+                        <div className="text-[10px] font-normal text-slate-400">{d.dateStr.slice(5)}</div>
+                      </th>
+                    ))}
+                    <th className="py-2.5 px-3 font-bold text-center text-slate-700 dark:text-slate-300">Submitted</th>
+                    <th className="py-2.5 px-3 font-bold text-center text-slate-700 dark:text-slate-300">Logged Hours</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {visibleColleagues.map((c) => {
+                    let subCount = 0;
+                    let totalMins = 0;
+                    return (
+                      <tr key={c.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30">
+                        <td className="py-2.5 px-3 font-semibold text-slate-900 dark:text-slate-100 whitespace-nowrap">
+                          {c.displayName}
+                        </td>
+                        <td className="py-2.5 px-3 text-slate-500 text-[11px] whitespace-nowrap">
+                          {c.department || "SCCG"}
+                        </td>
+                        {pastWeekDays.map((d) => {
+                          const rec = records.find(
+                            (r) =>
+                              r.date === d.dateStr &&
+                              (r.userId === c.id || (r.userEmail && r.userEmail.toLowerCase() === c.email.toLowerCase()))
+                          );
+                          if (rec) {
+                            subCount++;
+                            if (rec.startTime && rec.endTime) {
+                              const [sH, sM] = rec.startTime.split(":").map(Number);
+                              const [eH, eM] = rec.endTime.split(":").map(Number);
+                              if (!isNaN(sH) && !isNaN(eH)) {
+                                const diff = (eH * 60 + (eM || 0)) - (sH * 60 + (sM || 0));
+                                if (diff > 0) totalMins += diff;
+                              }
+                            }
+                            return (
+                              <td key={d.dateStr} className="py-2 px-1 text-center">
+                                <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                                  rec.status === "indoor" || rec.status === "available"
+                                    ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
+                                    : rec.status === "partial"
+                                    ? "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300"
+                                    : rec.status === "leave"
+                                    ? "bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300"
+                                    : "bg-sky-100 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300"
+                                }`}>
+                                  {rec.status === "leave" ? "Leave" : rec.startTime ? `${rec.startTime.slice(0,5)}` : (STATUS_LABELS[rec.status] || rec.status)}
+                                </span>
+                              </td>
+                            );
+                          }
+                          return (
+                            <td key={d.dateStr} className="py-2 px-1 text-center">
+                              {d.isWeekend ? (
+                                <span className="text-[10px] text-slate-300 dark:text-slate-600 font-medium">Off</span>
+                              ) : (
+                                <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400">
+                                  Missing
+                                </span>
+                              )}
+                            </td>
+                          );
+                        })}
+                        <td className="py-2.5 px-3 text-center font-bold text-slate-800 dark:text-slate-200">
+                          {subCount} / {pastWeekDays.filter(d => !d.isWeekend).length}
+                        </td>
+                        <td className="py-2.5 px-3 text-center font-bold text-blue-600 dark:text-blue-400">
+                          {(totalMins / 60).toFixed(1)} hrs
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500 shrink-0">
+              <span>Showing {visibleColleagues.length} team members</span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowPastWeekModal(false)}
+              >
+                Close
               </Button>
             </div>
           </div>

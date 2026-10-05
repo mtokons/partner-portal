@@ -592,3 +592,76 @@ export async function submitChangeRequest(params: {
     return { success: false, error: err.message || "Failed to submit change request." };
   }
 }
+
+/**
+ * Global hidden members for Team Availability.
+ * Stored in Firestore (collection "system_settings", doc "team_availability")
+ * with local fallback in "data/hidden-members.json".
+ */
+export async function getHiddenAvailabilityMemberIds(): Promise<string[]> {
+  try {
+    const { getAdminFirestore } = await import("./firebase-admin");
+    const db = getAdminFirestore();
+    const docSnap = await db.collection("system_settings").doc("team_availability").get();
+    if (docSnap.exists) {
+      const data = docSnap.data();
+      if (Array.isArray(data?.hiddenMemberIds)) {
+        return data.hiddenMemberIds;
+      }
+    }
+  } catch (err: any) {
+    console.warn("[getHiddenAvailabilityMemberIds] Firestore read warning:", err.message);
+  }
+
+  // Local file fallback
+  try {
+    const fs = await import("fs/promises");
+    const path = await import("path");
+    const filePath = path.join(process.cwd(), "data", "hidden-members.json");
+    const raw = await fs.readFile(filePath, "utf-8");
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed;
+  } catch {
+    // File not yet created
+  }
+
+  return [];
+}
+
+export async function setHiddenAvailabilityMemberIds(
+  memberIds: string[],
+  changedBy: string
+): Promise<boolean> {
+  const uniqueIds = Array.from(new Set(memberIds));
+
+  // 1. Save to local fallback file
+  try {
+    const fs = await import("fs/promises");
+    const path = await import("path");
+    const dirPath = path.join(process.cwd(), "data");
+    await fs.mkdir(dirPath, { recursive: true });
+    await fs.writeFile(path.join(dirPath, "hidden-members.json"), JSON.stringify(uniqueIds), "utf-8");
+  } catch (e: any) {
+    console.warn("[setHiddenAvailabilityMemberIds] File write warning:", e.message);
+  }
+
+  // 2. Save to Firestore
+  try {
+    const { getAdminFirestore } = await import("./firebase-admin");
+    const db = getAdminFirestore();
+    const { FieldValue } = await import("firebase-admin/firestore");
+    await db.collection("system_settings").doc("team_availability").set(
+      {
+        hiddenMemberIds: uniqueIds,
+        updatedBy: changedBy,
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+    return true;
+  } catch (err: any) {
+    console.warn("[setHiddenAvailabilityMemberIds] Firestore write warning:", err.message);
+    return true;
+  }
+}
+

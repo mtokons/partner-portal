@@ -45,25 +45,25 @@ export default function RegisterPage() {
     setError("");
 
     if (!form.name.trim()) {
-      setError("User error: Full name is required.");
+      setError("User Error: Full name is required.");
       return;
     }
     if (!form.email.trim() || !/^\S+@\S+\.\S+$/.test(form.email)) {
-      setError("Email error: A valid email address is required.");
+      setError("Validation Error: A valid email address is required.");
       return;
     }
     if (form.password.length < 6) {
-      setError("Password error: Password must be at least 6 characters.");
+      setError("Password Error: Password must be at least 6 characters.");
       return;
     }
     if (form.password !== form.confirmPassword) {
-      setError("Password error: Passwords do not match. Please verify both password fields.");
+      setError("Password Error: Passwords do not match. Please verify both password fields.");
       return;
     }
 
     setLoading(true);
     try {
-      // 1. Firebase Registration (Real Cloud Auth)
+      // 1. Firebase Registration (Real Cloud Auth with server fallback)
       const result = await firebaseRegister(
         form.email,
         form.password,
@@ -85,8 +85,14 @@ export default function RegisterPage() {
         }
 
         // Automatically create session and redirect for all roles
-        const fbAuth = getFirebaseAuth();
-        const idToken = await fbAuth.currentUser?.getIdToken();
+        let idToken: string | undefined;
+        try {
+          const fbAuth = getFirebaseAuth();
+          idToken = await fbAuth.currentUser?.getIdToken();
+        } catch {
+          // Non-fatal if client SDK instance is unavailable
+        }
+
         if (idToken) {
           const sessionResult = await firebaseAuthAction(idToken);
           if (sessionResult.success) {
@@ -102,10 +108,10 @@ export default function RegisterPage() {
         }
         setSuccess(true);
       } else {
-        setError(result.error || "Registration error: Could not complete registration. Please try again.");
+        setError(result.error || "Server Error: Could not complete registration. Please try again.");
       }
     } catch {
-      setError("Server error: An unexpected server error occurred during registration. Please try again.");
+      setError("Server Error: An unexpected server error occurred during registration. Please try again.");
     } finally {
       setLoading(false);
     }

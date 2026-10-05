@@ -44,14 +44,19 @@ export async function GET(request: Request) {
       endDate = currentWeek[6].dateStr;   // Saturday
     }
 
-    const isManager = isUserAuthorizedManager(user.roles);
+    const userRoles = (user.roles || [user.role]).map((r) => r.toLowerCase().trim());
+    const isManager = isUserAuthorizedManager(userRoles);
+    const isAdmin = userRoles.some((r) => ["admin", "super_admin", "sccg-admin"].includes(r));
 
-    // Fetch availability records in range
-    const records = await getAvailabilityForRange(startDate, endDate);
+    // Fetch availability records in range and global hidden members
+    const [records, hiddenMemberIds] = await Promise.all([
+      getAvailabilityForRange(startDate, endDate),
+      getHiddenAvailabilityMemberIds().catch(() => [] as string[]),
+    ]);
 
     // Fetch managed colleagues list & filter strictly for SCCG user categories (sccg-admin and sccg-staff)
     let managedUsers = await getAllManagedUsers().catch(() => []);
-    const colleagues = managedUsers
+    let colleagues = managedUsers
       .filter((u) => {
         if (u.status === "suspended") return false;
         const cat = resolveCategory(u.category, u.primaryRole);
@@ -69,14 +74,21 @@ export async function GET(request: Request) {
         };
       });
 
+    // If viewer is not an admin, filter out globally hidden members so they are hidden for everyone
+    if (!isAdmin) {
+      colleagues = colleagues.filter((c) => !hiddenMemberIds.includes(c.id));
+    }
+
     return NextResponse.json({
       success: true,
       currentDhakaToday: todayDhaka,
       isManager,
+      isAdmin,
       startDate,
       endDate,
       records,
       colleagues,
+      hiddenMemberIds,
     });
   } catch (err: any) {
     console.error("[GET /api/availability] Error:", err);
