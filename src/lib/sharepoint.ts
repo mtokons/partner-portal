@@ -794,11 +794,10 @@ export async function getProducts(): Promise<Product[]> {
                 ...ovr,
                 sortOrder: ovr.sortOrder !== undefined ? Number(ovr.sortOrder) : p.sortOrder,
                 logoText: ovr.logoText !== undefined ? String(ovr.logoText) : p.logoText,
-                logoUrl: ovr.logoUrl !== undefined ? String(ovr.logoUrl) : p.logoUrl,
+
                 retailPriceEur: ovr.retailPriceEur !== undefined ? Number(ovr.retailPriceEur) : p.retailPriceEur,
                 retailPriceBdt: ovr.retailPriceBdt !== undefined ? Number(ovr.retailPriceBdt) : p.retailPriceBdt,
-                hasInstallment: ovr.hasInstallment !== undefined ? Boolean(ovr.hasInstallment) : p.hasInstallment,
-                installmentQty: ovr.installmentQty !== undefined ? Number(ovr.installmentQty) : p.installmentQty,
+
               };
             }
             return p;
@@ -836,8 +835,7 @@ export async function createProduct(data: Omit<Product, "id">): Promise<Product>
   if (data.unit) body[PR_COL.unit] = data.unit;
   if (data.sku) body[PR_COL.sku] = data.sku;
   if (data.initialPayment !== undefined) body[PR_COL.initialPayment] = data.initialPayment;
-  if (data.hasInstallment !== undefined) body[PR_COL.hasInstallment] = data.hasInstallment;
-  if (data.installmentQty !== undefined) body[PR_COL.installmentQty] = data.installmentQty;
+
   try {
     const res = await graphPost<{ id: string }>(`${await getSiteListUrlAsync("Products")}`, { fields: body });
     return { ...data, id: res.id };
@@ -881,8 +879,7 @@ export async function updateProduct(id: string, data: Partial<Product>): Promise
     if (data.isAvailable !== undefined) body[PR_COL.isAvailable] = data.isAvailable;
     if (data.tags !== undefined) body[PR_COL.tags] = data.tags.join(",");
     if (data.sortOrder !== undefined) body[PR_COL.sortOrder] = data.sortOrder;
-    if (data.hasInstallment !== undefined) body[PR_COL.hasInstallment] = data.hasInstallment;
-    if (data.installmentQty !== undefined) body[PR_COL.installmentQty] = data.installmentQty;
+
     await graphPatch(`${await getSiteListUrlAsync("Products")}/${id}/fields`, body);
   } catch {
     // SharePoint may be offline in dev

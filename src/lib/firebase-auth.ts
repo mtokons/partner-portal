@@ -46,13 +46,18 @@ import {
 
 // ── Firebase App Singleton ──
 
+function cleanEnv(val?: string): string {
+  if (!val) return "";
+  return val.replace(/^["']|["']$/g, "").trim();
+}
+
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "",
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "",
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "",
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "",
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "",
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "",
+  apiKey: cleanEnv(process.env.NEXT_PUBLIC_FIREBASE_API_KEY),
+  authDomain: cleanEnv(process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN),
+  projectId: cleanEnv(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID),
+  storageBucket: cleanEnv(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET),
+  messagingSenderId: cleanEnv(process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID),
+  appId: cleanEnv(process.env.NEXT_PUBLIC_FIREBASE_APP_ID),
 };
 
 function getFirebaseApp(): FirebaseApp {
@@ -74,6 +79,195 @@ export function isFirebaseConfigured(): boolean {
     firebaseConfig.projectId &&
     firebaseConfig.projectId.trim() !== ""
   );
+}
+
+// ── Auth Error Parser ──
+
+export interface AuthErrorInfo {
+  message: string;
+  code: string;
+  category: "server" | "api" | "password" | "user" | "duplicate_email" | "security" | "validation" | "generic";
+}
+
+export function getSpecificAuthErrorMessage(
+  err: unknown,
+  context: "login" | "register" | "reset" = "login"
+): AuthErrorInfo {
+  const code = (typeof err === "object" && err !== null && "code" in err && typeof (err as { code: unknown }).code === "string")
+    ? (err as { code: string }).code
+    : "";
+  const rawMsg = err instanceof Error ? err.message : String(err || "");
+  const normalized = (code + " " + rawMsg).toLowerCase();
+
+  // 1. API Issues (Configuration / Invalid Key / Quotas / Domain)
+  if (
+    code === "auth/api-key-not-valid" ||
+    code === "auth/invalid-api-key" ||
+    code === "auth/app-not-authorized" ||
+    code === "auth/unauthorized-domain" ||
+    code === "auth/quota-exceeded" ||
+    code === "auth/project-not-found" ||
+    code === "auth/configuration-not-found" ||
+    normalized.includes("api-key-not-valid") ||
+    normalized.includes("invalid-api-key") ||
+    normalized.includes("pass-a-valid-api-key") ||
+    normalized.includes("api key")
+  ) {
+    return {
+      category: "api",
+      code: code || "auth/api-key-not-valid",
+      message: "API error: Firebase authentication service is misconfigured or API key is invalid. Please contact portal administrator.",
+    };
+  }
+
+  // 2. Server Issues (Network / Timeout / Internal error)
+  if (
+    code === "auth/network-request-failed" ||
+    code === "auth/internal-error" ||
+    code === "auth/timeout" ||
+    normalized.includes("network-request-failed") ||
+    normalized.includes("failed to fetch") ||
+    normalized.includes("econnrefused") ||
+    normalized.includes("timeout") ||
+    normalized.includes("server error")
+  ) {
+    return {
+      category: "server",
+      code: code || "auth/network-request-failed",
+      message: "Server error: Unable to reach authentication server. Please check your internet connection and try again.",
+    };
+  }
+
+  // 3. Duplicate Email (Registration)
+  if (
+    code === "auth/email-already-in-use" ||
+    code === "auth/credential-already-in-use" ||
+    normalized.includes("email-already-in-use") ||
+    normalized.includes("already in use")
+  ) {
+    return {
+      category: "duplicate_email",
+      code: code || "auth/email-already-in-use",
+      message: "Duplicate email error: An account with this email address already exists. Please sign in instead.",
+    };
+  }
+
+  // 4. Password Issues
+  if (
+    code === "auth/wrong-password" ||
+    code === "auth/invalid-password" ||
+    normalized.includes("wrong-password")
+  ) {
+    return {
+      category: "password",
+      code: code || "auth/wrong-password",
+      message: "Password error: The password you entered is incorrect. Please double check and try again.",
+    };
+  }
+
+  if (
+    code === "auth/weak-password" ||
+    normalized.includes("weak-password") ||
+    normalized.includes("password should be at least")
+  ) {
+    return {
+      category: "password",
+      code: code || "auth/weak-password",
+      message: "Password error: Password is too weak. Please use at least 6 characters.",
+    };
+  }
+
+  // 5. User Issues
+  if (
+    code === "auth/user-not-found" ||
+    normalized.includes("user-not-found")
+  ) {
+    return {
+      category: "user",
+      code: code || "auth/user-not-found",
+      message: "User error: No account found registered with this email address. Please check your email or register.",
+    };
+  }
+
+  if (
+    code === "auth/user-disabled" ||
+    normalized.includes("user-disabled")
+  ) {
+    return {
+      category: "user",
+      code: code || "auth/user-disabled",
+      message: "User error: This account has been disabled or suspended. Please contact portal administrator.",
+    };
+  }
+
+  // 6. Security / Rate Limiting
+  if (
+    code === "auth/too-many-requests" ||
+    normalized.includes("too-many-requests")
+  ) {
+    return {
+      category: "security",
+      code: code || "auth/too-many-requests",
+      message: "Security error: Too many failed login attempts. Access is temporarily locked. Please wait a few minutes or reset your password.",
+    };
+  }
+
+  // 7. Invalid Email Format
+  if (
+    code === "auth/invalid-email" ||
+    normalized.includes("invalid-email")
+  ) {
+    return {
+      category: "validation",
+      code: code || "auth/invalid-email",
+      message: "Email error: Invalid email address format. Please enter a valid email address.",
+    };
+  }
+
+  // 8. Firebase v10 Combined Invalid Credential (User enumeration protection)
+  if (
+    code === "auth/invalid-credential" ||
+    normalized.includes("invalid-credential")
+  ) {
+    return {
+      category: "user",
+      code: code || "auth/invalid-credential",
+      message: context === "login"
+        ? "Authentication error: Incorrect password or user account not found. Please verify your credentials or register."
+        : "Authentication error: Invalid registration credentials.",
+    };
+  }
+
+  // 9. Popup/Google Sign-In cancellation
+  if (
+    code === "auth/popup-closed-by-user" ||
+    code === "auth/cancelled-popup-request" ||
+    normalized.includes("popup-closed-by-user")
+  ) {
+    return {
+      category: "generic",
+      code: code || "auth/popup-closed-by-user",
+      message: "Google sign-in cancelled: The authentication window was closed before completion.",
+    };
+  }
+
+  if (
+    code === "auth/popup-blocked" ||
+    normalized.includes("popup-blocked")
+  ) {
+    return {
+      category: "generic",
+      code: code || "auth/popup-blocked",
+      message: "Browser error: Sign-in popup was blocked. Please allow popups for this site.",
+    };
+  }
+
+  // Fallback
+  return {
+    category: "generic",
+    code: code || "auth/unknown",
+    message: rawMsg ? `Authentication error: ${rawMsg}` : "An unexpected error occurred. Please try again.",
+  };
 }
 
 // ── Firestore Schema Types ──
@@ -118,9 +312,14 @@ export async function firebaseRegister(
   phone: string,
   role: FirebaseUserRole,
   extra?: { company?: string; specialization?: string }
-): Promise<{ success: boolean; uid?: string; error?: string }> {
+): Promise<{ success: boolean; uid?: string; error?: string; errorCode?: string; errorCategory?: string }> {
   if (!isFirebaseConfigured()) {
-    return { success: false, error: "Firebase not configured" };
+    return {
+      success: false,
+      error: "API error: Firebase authentication is not configured. Please contact administrator.",
+      errorCode: "auth/not-configured",
+      errorCategory: "api",
+    };
   }
   try {
     const auth = getFirebaseAuth();
@@ -131,7 +330,11 @@ export async function firebaseRegister(
     await updateProfile(user, { displayName });
 
     // Send email verification
-    await sendEmailVerification(user);
+    try {
+      await sendEmailVerification(user);
+    } catch {
+      // Non-fatal if verification email fails
+    }
 
     // Create Firestore user profile
     const db = getFirestoreDb();
@@ -156,17 +359,27 @@ export async function firebaseRegister(
 
     return { success: true, uid: user.uid };
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Registration failed";
-    return { success: false, error: msg };
+    const errorInfo = getSpecificAuthErrorMessage(err, "register");
+    return {
+      success: false,
+      error: errorInfo.message,
+      errorCode: errorInfo.code,
+      errorCategory: errorInfo.category,
+    };
   }
 }
 
 export async function firebaseLogin(
   email: string,
   password: string
-): Promise<{ success: boolean; uid?: string; role?: FirebaseUserRole; error?: string }> {
+): Promise<{ success: boolean; uid?: string; role?: FirebaseUserRole; error?: string; errorCode?: string; errorCategory?: string }> {
   if (!isFirebaseConfigured()) {
-    return { success: false, error: "Firebase not configured" };
+    return {
+      success: false,
+      error: "API error: Firebase authentication is not configured.",
+      errorCode: "auth/not-configured",
+      errorCategory: "api",
+    };
   }
   try {
     const auth = getFirebaseAuth();
@@ -187,14 +400,24 @@ export async function firebaseLogin(
       role: normalizeFirebaseRole(profile?.role),
     };
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Login failed";
-    return { success: false, error: msg };
+    const errorInfo = getSpecificAuthErrorMessage(err, "login");
+    return {
+      success: false,
+      error: errorInfo.message,
+      errorCode: errorInfo.code,
+      errorCategory: errorInfo.category,
+    };
   }
 }
 
-export async function firebaseGoogleLogin(): Promise<{ success: boolean; uid?: string; role?: FirebaseUserRole; error?: string }> {
+export async function firebaseGoogleLogin(): Promise<{ success: boolean; uid?: string; role?: FirebaseUserRole; error?: string; errorCode?: string; errorCategory?: string }> {
   if (!isFirebaseConfigured()) {
-    return { success: false, error: "Firebase not configured" };
+    return {
+      success: false,
+      error: "API error: Firebase authentication is not configured.",
+      errorCode: "auth/not-configured",
+      errorCategory: "api",
+    };
   }
   try {
     const auth = getFirebaseAuth();
@@ -208,7 +431,12 @@ export async function firebaseGoogleLogin(): Promise<{ success: boolean; uid?: s
     if (!snap.exists()) {
       // If user doesn't exist in our DB, block them and log them out of Firebase Auth.
       await auth.signOut();
-      return { success: false, error: "No account found. Please register first." };
+      return {
+        success: false,
+        error: "User error: No registered profile found for this Google account. Please create an account first.",
+        errorCode: "auth/user-not-found",
+        errorCategory: "user",
+      };
     }
 
     const profile = snap.data() as FirebaseUserProfile;
@@ -220,8 +448,13 @@ export async function firebaseGoogleLogin(): Promise<{ success: boolean; uid?: s
       role: normalizeFirebaseRole(profile.role),
     };
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Google login failed";
-    return { success: false, error: msg };
+    const errorInfo = getSpecificAuthErrorMessage(err, "login");
+    return {
+      success: false,
+      error: errorInfo.message,
+      errorCode: errorInfo.code,
+      errorCategory: errorInfo.category,
+    };
   }
 }
 
@@ -229,7 +462,7 @@ export async function firebaseGoogleSignup(
   role: FirebaseUserRole,
   company: string = "",
   specialization: string = ""
-): Promise<{ success: boolean; uid?: string; role?: FirebaseUserRole; error?: string }> {
+): Promise<{ success: boolean; uid?: string; role?: FirebaseUserRole; error?: string; errorCode?: string; errorCategory?: string }> {
   try {
     const auth = getFirebaseAuth();
     const provider = new GoogleAuthProvider();
@@ -267,8 +500,13 @@ export async function firebaseGoogleSignup(
       role: snap.exists() ? (snap.data() as FirebaseUserProfile).role : role,
     };
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Google registration failed";
-    return { success: false, error: msg };
+    const errorInfo = getSpecificAuthErrorMessage(err, "register");
+    return {
+      success: false,
+      error: errorInfo.message,
+      errorCode: errorInfo.code,
+      errorCategory: errorInfo.category,
+    };
   }
 }
 
@@ -284,14 +522,19 @@ export async function firebaseLogout(): Promise<void> {
 
 export async function firebaseResetPassword(
   email: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; errorCode?: string; errorCategory?: string }> {
   try {
     const auth = getFirebaseAuth();
     await sendPasswordResetEmail(auth, email);
     return { success: true };
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Failed to send reset email";
-    return { success: false, error: msg };
+    const errorInfo = getSpecificAuthErrorMessage(err, "reset");
+    return {
+      success: false,
+      error: errorInfo.message,
+      errorCode: errorInfo.code,
+      errorCategory: errorInfo.category,
+    };
   }
 }
 

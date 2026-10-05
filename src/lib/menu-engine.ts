@@ -253,6 +253,7 @@ const SCHOOL_ADMIN_MENU: MenuItem[] = [
   { key: "school.students",          label: "Students",           href: "/sccg/school/students",     icon: "Users",           group: "school",     groupLabel: "Language School",    groupOrder: 1, itemOrder: 7, isEnabled: true, isDefault: true, isLocked: false },
   // Team & Waiting List
   { key: "school.team",              label: "Language Team",      href: "/sccg/school/team",         icon: "UserCheck",       group: "school",     groupLabel: "Language School",    groupOrder: 1, itemOrder: 8, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "school.availability",      label: "Team Availability",  href: "/sccg/availability",        icon: "CalendarCheck",   group: "school",     groupLabel: "Language School",    groupOrder: 1, itemOrder: 8.5, isEnabled: true, isDefault: true, isLocked: false },
   { key: "school.waiting",           label: "Waiting List",       href: "/sccg/school/waiting-list", icon: "Hourglass",       group: "school",     groupLabel: "Language School",    groupOrder: 1, itemOrder: 9, isEnabled: true, isDefault: true, isLocked: false },
   // Model Tests
   { key: "school.model-tests",       label: "Model Tests",        href: "/admin/school/model-tests",  icon: "ClipboardCheck",  group: "school",     groupLabel: "Language School",    groupOrder: 1, itemOrder: 10, isEnabled: true, isDefault: true, isLocked: false },
@@ -461,7 +462,6 @@ export const UNAVAILABLE_MENU_KEYS = new Set<string>([
   "admin.sessions",         // /admin/sessions
   "admin.expert-payments",  // /admin/expert-payments
   "admin.commissions",      // /admin/commissions
-  "admin.hr.employees",     // /admin/hr/employees
   // Admin → Language School sub-pages (only /admin/school dashboard exists)
   "admin.school.model-tests",
   "admin.school.model-test-builder",

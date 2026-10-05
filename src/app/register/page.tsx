@@ -44,16 +44,20 @@ export default function RegisterPage() {
     e.preventDefault();
     setError("");
 
-    if (form.password !== form.confirmPassword) {
-      setError("Passwords do not match.");
+    if (!form.name.trim()) {
+      setError("User error: Full name is required.");
+      return;
+    }
+    if (!form.email.trim() || !/^\S+@\S+\.\S+$/.test(form.email)) {
+      setError("Email error: A valid email address is required.");
       return;
     }
     if (form.password.length < 6) {
-      setError("Password must be at least 6 characters.");
+      setError("Password error: Password must be at least 6 characters.");
       return;
     }
-    if (!form.name.trim() || !form.email.trim()) {
-      setError("Name and email are required.");
+    if (form.password !== form.confirmPassword) {
+      setError("Password error: Passwords do not match. Please verify both password fields.");
       return;
     }
 
@@ -89,7 +93,7 @@ export default function RegisterPage() {
             const redirectPath = 
               form.role === "customer" ? "/customer/dashboard" :
               form.role === "expert" ? "/expert/dashboard" :
-              form.role === "project-partner" || form.role === "project-partner-admin" ? "/project-partner/dashboard" :
+              (form.role as string) === "project-partner" || (form.role as string) === "project-partner-admin" ? "/project-partner/dashboard" :
               "/partner/dashboard";
             router.push(redirectPath);
             router.refresh();
@@ -98,10 +102,10 @@ export default function RegisterPage() {
         }
         setSuccess(true);
       } else {
-        setError(result.error || "Registration failed. Please try again.");
+        setError(result.error || "Registration error: Could not complete registration. Please try again.");
       }
     } catch {
-      setError("An unexpected error occurred. Please try again.");
+      setError("Server error: An unexpected server error occurred during registration. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -448,17 +452,17 @@ export default function RegisterPage() {
                       router.push("/dashboard");
                       router.refresh();
                     } else {
-                      setError(result.error || "Google registration failed");
+                      setError(result.error || "Google registration error: Could not complete registration.");
                       setLoading(false);
                     }
                   } catch (err: unknown) {
-                    const msg = err instanceof Error ? err.message : "Google popup was blocked or closed";
+                    const msg = err instanceof Error ? err.message : String(err || "");
                     if (msg.includes("popup-closed") || msg.includes("cancelled")) {
-                      setError("Google sign-in popup was closed. Please try again.");
+                      setError("Google sign-in cancelled: The authentication popup was closed before completion.");
                     } else if (msg.includes("popup-blocked")) {
-                      setError("Popup was blocked by your browser. Please allow popups for this site and try again.");
+                      setError("Browser error: Popup was blocked by your browser. Please allow popups for this site and try again.");
                     } else {
-                      setError(msg);
+                      setError("Server error: An unexpected error occurred during Google registration.");
                     }
                     setLoading(false);
                   }

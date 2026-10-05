@@ -94,15 +94,18 @@ const allLinks: LinkItem[] = [
   { href: "/admin/hr", label: "HR Dashboard", icon: Building2, group: "hr", roles: ["admin", "hr"] },
   { href: "/admin/hr/employees", label: "Employees", icon: Users, group: "hr", roles: ["admin", "hr"] },
   { href: "/admin/availability", label: "Team Availability", icon: Calendar, group: "hr", roles: ["admin", "hr", "sccg-admin", "sccg-staff", "school-manager"] },
+  { href: "/sccg/availability", label: "Team Availability", icon: Calendar, group: "hr", roles: ["admin", "hr", "sccg-admin", "sccg-staff", "school-manager"] },
   { href: "/admin/hr/employees/new", label: "Add Employee", icon: UserPlus, group: "hr", roles: ["admin", "hr"] },
   { href: "/admin/hr/reports", label: "HR Reports", icon: BarChart3, group: "hr", roles: ["admin", "hr"] },
   
   // Language School
   { href: "/admin/school", label: "School Dashboard", icon: GraduationCap, group: "school", roles: ["admin", "school-manager"] },
+  { href: "/sccg/school", label: "School Dashboard", icon: GraduationCap, group: "school", roles: ["admin", "school-manager", "sccg-admin", "sccg-staff"] },
   { href: "/admin/school/courses", label: "Courses", icon: BookOpen, group: "school", roles: ["admin", "school-manager"] },
   { href: "/admin/school/batches", label: "Batches", icon: Layers, group: "school", roles: ["admin", "school-manager"] },
   { href: "/admin/school/enrollments", label: "Enrollments", icon: ClipboardList, group: "school", roles: ["admin", "school-manager"] },
   { href: "/admin/school/teachers", label: "Teachers", icon: UserCheck, group: "school", roles: ["admin", "school-manager"] },
+  { href: "/sccg/school/team", label: "Language Team", icon: UserCheck, group: "school", roles: ["admin", "school-manager", "sccg-admin", "sccg-staff"] },
   { href: "/admin/school/certificates", label: "Certificates", icon: Award, group: "school", roles: ["admin", "school-manager"] },
   { href: "/admin/school/certificate-generator", label: "Certificate Tool", icon: Layers, group: "school", roles: ["admin", "school-manager"] },
   { href: "/admin/school/reports", label: "School Reports", icon: BarChart3, group: "school", roles: ["admin", "school-manager"] },

@@ -27,6 +27,16 @@ function LoginContent() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+
+    if (!email.trim()) {
+      setError("User error: Email address is required.");
+      return;
+    }
+    if (!password) {
+      setError("Password error: Password is required.");
+      return;
+    }
+
     setLoading(true);
     
     try {
@@ -34,6 +44,8 @@ function LoginContent() {
       if (isFirebaseConfigured()) {
         await firebaseLogout().catch(() => {});
       }
+
+      let fbError: { message: string; code?: string; category?: string } | null = null;
 
       // 1. Attempt Firebase Login first (only if client Firebase API keys are configured)
       if (isFirebaseConfigured()) {
@@ -53,7 +65,20 @@ function LoginContent() {
               router.refresh();
               return;
             }
-            setError(sessionResult.error || "Login failed. Your account may be pending approval.");
+            setError(sessionResult.error || "User account error: Account is pending administrator approval or inactive.");
+            setLoading(false);
+            return;
+          }
+        } else {
+          fbError = {
+            message: result.error || "Authentication failed",
+            code: result.errorCode,
+            category: result.errorCategory,
+          };
+
+          // If this is an API configuration issue, Server issue, or Security rate limit, report it immediately!
+          if (result.errorCategory === "api" || result.errorCategory === "server" || result.errorCategory === "security") {
+            setError(result.error || "Authentication failed.");
             setLoading(false);
             return;
           }
@@ -74,10 +99,14 @@ function LoginContent() {
         return;
       }
 
-      // 4. Both authentication engines failed
-      setError("Invalid email or password. Please verify your credentials.");
+      // 4. Both authentication engines failed — deliver specific failure reason
+      if (fbError) {
+        setError(fbError.message);
+      } else {
+        setError("User error: No account found or incorrect credentials. Please check your email and password.");
+      }
     } catch {
-      setError("An unexpected error occurred during authentication.");
+      setError("Server error: An unexpected connection error occurred during authentication. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -306,11 +335,18 @@ function LoginContent() {
                       router.push("/dashboard");
                       router.refresh();
                     } else {
-                      setError(result.error || "Google login failed");
+                      setError(result.error || "Google login error: Could not complete sign in.");
                       setLoading(false);
                     }
-                  } catch {
-                    setError("Google login failed.");
+                  } catch (err: unknown) {
+                    const msg = err instanceof Error ? err.message : String(err || "");
+                    if (msg.includes("popup-closed") || msg.includes("cancelled")) {
+                      setError("Google sign-in cancelled: The authentication popup was closed before completion.");
+                    } else if (msg.includes("popup-blocked")) {
+                      setError("Browser error: Popup was blocked by your browser. Please allow popups for this site and try again.");
+                    } else {
+                      setError("Server error: An unexpected error occurred during Google sign in.");
+                    }
                     setLoading(false);
                   }
                 }}

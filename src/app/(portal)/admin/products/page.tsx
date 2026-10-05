@@ -15,7 +15,14 @@ export default async function AdminProductsPage() {
   if (!session?.user) redirect("/login");
 
   const role = (session.user.role || "").toLowerCase();
-  if (role !== "admin" && role !== "superadmin") {
+  const roles = (session.user.roles || [role]).map((r) => r.toLowerCase());
+  if (
+    !roles.includes("admin") &&
+    !roles.includes("superadmin") &&
+    !roles.includes("sccg-admin") &&
+    !roles.includes("sccg-staff") &&
+    !roles.includes("sccg")
+  ) {
     redirect("/dashboard");
   }
 

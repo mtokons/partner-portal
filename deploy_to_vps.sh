@@ -62,12 +62,12 @@ fi
 # NEXT_PUBLIC_* values are compiled into the browser bundle during `next build`.
 # The VPS runtime env_file alone cannot configure Firebase in an already-built
 # bundle, so load only the public Firebase settings before building locally.
-export NEXT_PUBLIC_FIREBASE_API_KEY="$(sed -n 's/^NEXT_PUBLIC_FIREBASE_API_KEY=//p' "${ENV_FILE}")"
-export NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="$(sed -n 's/^NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=//p' "${ENV_FILE}")"
-export NEXT_PUBLIC_FIREBASE_PROJECT_ID="$(sed -n 's/^NEXT_PUBLIC_FIREBASE_PROJECT_ID=//p' "${ENV_FILE}")"
-export NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET="$(sed -n 's/^NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=//p' "${ENV_FILE}")"
-export NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID="$(sed -n 's/^NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=//p' "${ENV_FILE}")"
-export NEXT_PUBLIC_FIREBASE_APP_ID="$(sed -n 's/^NEXT_PUBLIC_FIREBASE_APP_ID=//p' "${ENV_FILE}")"
+export NEXT_PUBLIC_FIREBASE_API_KEY="$(sed -n 's/^NEXT_PUBLIC_FIREBASE_API_KEY=//p' "${ENV_FILE}" | tr -d '"'\' | xargs)"
+export NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="$(sed -n 's/^NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=//p' "${ENV_FILE}" | tr -d '"'\' | xargs)"
+export NEXT_PUBLIC_FIREBASE_PROJECT_ID="$(sed -n 's/^NEXT_PUBLIC_FIREBASE_PROJECT_ID=//p' "${ENV_FILE}" | tr -d '"'\' | xargs)"
+export NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET="$(sed -n 's/^NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=//p' "${ENV_FILE}" | tr -d '"'\' | xargs)"
+export NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID="$(sed -n 's/^NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=//p' "${ENV_FILE}" | tr -d '"'\' | xargs)"
+export NEXT_PUBLIC_FIREBASE_APP_ID="$(sed -n 's/^NEXT_PUBLIC_FIREBASE_APP_ID=//p' "${ENV_FILE}" | tr -d '"'\' | xargs)"
 
 if [ -z "${NEXT_PUBLIC_FIREBASE_API_KEY}" ] || [ -z "${NEXT_PUBLIC_FIREBASE_PROJECT_ID}" ] || \
    [ -z "${NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}" ] || [ -z "${NEXT_PUBLIC_FIREBASE_APP_ID}" ]; then
