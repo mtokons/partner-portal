@@ -66,6 +66,8 @@ export interface TaskBoardProps {
   currentUserName?: string;
   title?: string;
   subtitle?: string;
+  /** When true, hides the Create Task button and inline column add buttons */
+  hideCreate?: boolean;
 }
 
 export default function SccgTaskBoardClient({
@@ -79,6 +81,7 @@ export default function SccgTaskBoardClient({
   currentUserName = "",
   title = "Task Board",
   subtitle = "Manage all operational and automated tasks across candidates, partners, and staff.",
+  hideCreate = false,
 }: TaskBoardProps) {
   const [tasks, setTasks] = useState(initialTasks);
   const [query, setQuery] = useState("");
@@ -139,6 +142,44 @@ export default function SccgTaskBoardClient({
       badge: s.category || "sccg-staff",
     }));
   }, [staff]);
+
+  const allUserOptions: ComboboxOption[] = useMemo(() => {
+    const uniqueStaff = Array.from(new Map(staff.map((s) => [s.id, s])).values());
+    const staffOpts: ComboboxOption[] = uniqueStaff.map((s) => {
+      const isAdm = s.category === "sccg-admin" || s.category === "admin" || (s as any).role === "admin";
+      return {
+        id: s.id,
+        label: s.name || s.email || "Staff Member",
+        subLabel: s.email || undefined,
+        badge: isAdm ? "SCCG-Admin" : "SCCG-Staff",
+        email: s.email,
+      };
+    });
+
+    const partnerOpts: ComboboxOption[] = partners.map((p) => ({
+      id: p.id,
+      label: p.companyName || (p as any).name || "Partner",
+      subLabel: p.email,
+      badge: "Partner",
+      email: p.email,
+    }));
+
+    const candidateOpts: ComboboxOption[] = candidates.map((c) => ({
+      id: c.id,
+      label: c.fullName || "Candidate",
+      subLabel: c.email || (c.sccgId ? `ID: ${c.sccgId}` : undefined),
+      badge: "Candidate",
+      email: c.email,
+    }));
+
+    const map = new Map<string, ComboboxOption>();
+    [...staffOpts, ...partnerOpts, ...candidateOpts].forEach((opt) => {
+      if (opt.id && !map.has(opt.id)) {
+        map.set(opt.id, opt);
+      }
+    });
+    return Array.from(map.values());
+  }, [staff, partners, candidates]);
 
   const normalizedUserEmail = currentUserEmail.trim().toLowerCase();
 
@@ -237,15 +278,10 @@ export default function SccgTaskBoardClient({
       return;
     }
 
-    if (createData.taskFlow === "partner" && !createData.assignedTo) {
-      alert("Please select a partner to assign this task to.");
-      return;
-    }
-
     startTransition(async () => {
       const result = await saveSccgTaskAction({
         ...createData,
-        status: createData.status || "backlog",
+        status: createData.status || "todo",
       });
 
       if (!result.success || !result.task) {
@@ -268,11 +304,6 @@ export default function SccgTaskBoardClient({
 
     if (editingTask.taskFlow === "candidate" && !editingTask.candidateId) {
       alert("Please select a candidate for candidate tasks.");
-      return;
-    }
-
-    if (editingTask.taskFlow === "partner" && !editingTask.assignedTo) {
-      alert("Please select a partner to assign this task to.");
       return;
     }
 
@@ -474,13 +505,15 @@ export default function SccgTaskBoardClient({
           </select>
 
           {/* Create Button */}
-          <button
-            onClick={() => openCreateModal()}
-            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-primary px-4 text-xs font-semibold text-primary-foreground shadow hover:bg-primary/90 transition-colors cursor-pointer"
-          >
-            <Plus className="h-4 w-4" />
-            Create Task
-          </button>
+          {!hideCreate && (
+            <button
+              onClick={() => openCreateModal()}
+              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-primary px-4 text-xs font-semibold text-primary-foreground shadow hover:bg-primary/90 transition-colors cursor-pointer"
+            >
+              <Plus className="h-4 w-4" />
+              Create Task
+            </button>
+          )}
         </div>
       </div>
 
@@ -568,12 +601,14 @@ export default function SccgTaskBoardClient({
                   ))
                 )}
 
-                <button
-                  onClick={() => openCreateModal("sccg", column.id)}
-                  className="w-full mt-2 rounded-xl border border-dashed border-border/70 py-2.5 text-xs font-semibold text-muted-foreground hover:border-primary hover:text-foreground hover:bg-muted/40 transition-colors cursor-pointer"
-                >
-                  + Add task
-                </button>
+                {!hideCreate && (
+                  <button
+                    onClick={() => openCreateModal("sccg", column.id)}
+                    className="w-full mt-2 rounded-xl border border-dashed border-border/70 py-2.5 text-xs font-semibold text-muted-foreground hover:border-primary hover:text-foreground hover:bg-muted/40 transition-colors cursor-pointer"
+                  >
+                    + Add task
+                  </button>
+                )}
               </div>
             </div>
           );
@@ -584,10 +619,10 @@ export default function SccgTaskBoardClient({
       {/* 1. CREATE TASK MODAL                                                      */}
       {/* ========================================================================= */}
       {isCreateOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in-0">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-xs p-3 sm:p-6 overflow-y-auto animate-in fade-in-0">
           <form
             onSubmit={handleCreateSubmit}
-            className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-xl border border-border bg-card p-6 shadow-2xl space-y-5"
+            className="max-h-[88vh] w-full max-w-xl overflow-y-auto rounded-xl border border-border bg-card p-6 shadow-2xl space-y-5 my-auto"
           >
             {/* Header */}
             <div className="flex items-start justify-between border-b border-border pb-4">
@@ -643,59 +678,31 @@ export default function SccgTaskBoardClient({
               </div>
             </Field>
 
-            {/* Dynamic Assignee Searchable Dropdown */}
-            {createData.taskFlow === "partner" && (
-              <Field label="Assign To (Partner) *">
-                <MultiSelectCombobox
-                  options={partnerOptions}
-                  values={(createData.assignees || []).map(a => a.id)}
-                  onChange={(vals, selectedOpts) => {
-                    setCreateData({
-                      ...createData,
-                      assignees: selectedOpts.map(opt => ({
-                        id: opt.id,
-                        name: opt.label,
-                        email: opt.subLabel || "",
-                        category: "partner"
-                      }))
-                    });
-                  }}
-                  placeholder="Search and select partners..."
-                  searchPlaceholder="Type partner company name or email..."
-                  emptyMessage="No matching partners found."
-                  required
-                />
-              </Field>
-            )}
-
-            {(createData.taskFlow === "staff" || createData.taskFlow === "sccg") && (
-              <Field label={createData.taskFlow === "staff" ? "Assign To (Staff Member) *" : "Assign To Staff (Optional)"}>
-                <MultiSelectCombobox
-                  options={staffOptions.filter((opt) => {
-                    const b = String(opt.badge || "").toLowerCase();
-                    if (createData.taskFlow === "sccg") return b === "sccg-admin" || b === "admin";
-                    if (createData.taskFlow === "staff") return b === "sccg-staff";
-                    return true;
-                  })}
-                  values={(createData.assignees || []).map(a => a.id)}
-                  onChange={(vals, selectedOpts) => {
-                    setCreateData({
-                      ...createData,
-                      assignees: selectedOpts.map(opt => ({
-                        id: opt.id,
-                        name: opt.label,
-                        email: opt.subLabel || "",
-                        category: opt.badge || "sccg-staff"
-                      }))
-                    });
-                  }}
-                  placeholder="Search and select staff..."
-                  searchPlaceholder="Type staff name or email..."
-                  emptyMessage="No matching staff found."
-                  required={createData.taskFlow === "staff"}
-                />
-              </Field>
-            )}
+            {/* Unified Multi-User Assignee Combobox */}
+            <Field label="Assign To (Select multiple users across SCCG Staff, Admin, Partners, Candidates)">
+              <MultiSelectCombobox
+                options={allUserOptions}
+                values={(createData.assignees || []).map((a) => a.id)}
+                onChange={(vals, selectedOpts) => {
+                  setCreateData({
+                    ...createData,
+                    assignees: selectedOpts.map((opt) => ({
+                      id: opt.id,
+                      name: opt.label,
+                      email: opt.email || opt.subLabel || "",
+                      category: opt.badge || "sccg-staff",
+                    })),
+                    // Set legacy fields for compatibility
+                    assignedTo: selectedOpts[0]?.id || "",
+                    assignedToName: selectedOpts[0]?.label || "",
+                    assignedToEmail: selectedOpts[0]?.email || selectedOpts[0]?.subLabel || "",
+                  });
+                }}
+                placeholder="Search and select assignees from any category..."
+                searchPlaceholder="Type name, email, or role..."
+                emptyMessage="No matching users found."
+              />
+            </Field>
 
             {/* Candidate & Priority Row */}
             <div className="grid gap-4 sm:grid-cols-2">
@@ -802,8 +809,8 @@ export default function SccgTaskBoardClient({
       {/* 2. EDIT TASK MODAL (with Comments tab)                                     */}
       {/* ========================================================================= */}
       {editingTask && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in-0">
-          <div className="max-h-[92vh] w-full max-w-2xl overflow-hidden rounded-xl border border-border bg-card shadow-2xl flex flex-col">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-xs p-3 sm:p-6 overflow-y-auto animate-in fade-in-0">
+          <div className="max-h-[88vh] w-full max-w-2xl overflow-hidden rounded-xl border border-border bg-card shadow-2xl flex flex-col my-auto">
             {/* Header with highlighted title */}
             <div className="flex items-start justify-between border-b border-border p-5 pb-4">
               <div className="flex-1 min-w-0">
@@ -868,55 +875,30 @@ export default function SccgTaskBoardClient({
                     </select>
                   </Field>
 
-                  {/* Assignee Searchable Dropdown */}
-                  {editingTask.taskFlow === "partner" && (
-                    <Field label="Assign To (Partner) *">
-                      <SearchableCombobox
-                        options={partnerOptions}
-                        value={editingTask.assignedTo || ""}
-                        onChange={(val) => {
-                          const selected = partners.find((p) => p.id === val);
-                          setEditingTask({
-                            ...editingTask,
-                            assignedTo: selected?.id || "",
-                            assignedToName: selected?.companyName || "",
-                            assignedToEmail: selected?.email || "",
-                          });
-                        }}
-                        placeholder="Search and select partner..."
-                        searchPlaceholder="Type partner company name or email..."
-                        emptyMessage="No matching partners found."
-                        required
-                      />
-                    </Field>
-                  )}
-
-                  {(editingTask.taskFlow === "staff" || editingTask.taskFlow === "sccg") && (
-                    <Field label={editingTask.taskFlow === "staff" ? "Assign To (Staff Member) *" : "Assign To Staff (Optional)"}>
-                      <SearchableCombobox
-                        options={staffOptions.filter((opt) => {
-                          const b = String(opt.badge || "").toLowerCase();
-                          if (editingTask.taskFlow === "sccg") return b === "sccg-admin" || b === "admin";
-                          if (editingTask.taskFlow === "staff") return b === "sccg-staff";
-                          return true;
-                        })}
-                        value={editingTask.assignedTo || ""}
-                        onChange={(val) => {
-                          const selected = staff.find((s) => s.id === val);
-                          setEditingTask({
-                            ...editingTask,
-                            assignedTo: selected?.id || "",
-                            assignedToName: selected?.name || "",
-                            assignedToEmail: selected?.email || "",
-                          });
-                        }}
-                        placeholder="Search and select staff member..."
-                        searchPlaceholder="Type staff name or email..."
-                        emptyMessage="No matching staff found."
-                        required={editingTask.taskFlow === "staff"}
-                      />
-                    </Field>
-                  )}
+                  {/* Unified Multi-User Assignee Combobox */}
+                  <Field label="Assign To (Select multiple users across SCCG Staff, Admin, Partners, Candidates)">
+                    <MultiSelectCombobox
+                      options={allUserOptions}
+                      values={(editingTask.assignees || (editingTask.assignedTo ? [{ id: editingTask.assignedTo, name: editingTask.assignedToName || "", email: editingTask.assignedToEmail || "", category: "sccg-staff" }] : [])).map((a) => a.id)}
+                      onChange={(vals, selectedOpts) => {
+                        setEditingTask({
+                          ...editingTask,
+                          assignees: selectedOpts.map((opt) => ({
+                            id: opt.id,
+                            name: opt.label,
+                            email: opt.email || opt.subLabel || "",
+                            category: opt.badge || "sccg-staff",
+                          })),
+                          assignedTo: selectedOpts[0]?.id || "",
+                          assignedToName: selectedOpts[0]?.label || "",
+                          assignedToEmail: selectedOpts[0]?.email || selectedOpts[0]?.subLabel || "",
+                        });
+                      }}
+                      placeholder="Search and select assignees from any category..."
+                      searchPlaceholder="Type name, email, or role..."
+                      emptyMessage="No matching users found."
+                    />
+                  </Field>
 
                   {/* Candidate & Priority Row */}
                   <div className="grid gap-4 sm:grid-cols-2">

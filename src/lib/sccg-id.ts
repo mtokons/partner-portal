@@ -45,18 +45,24 @@ function getTodayString(): string {
  * Example: SCCG-EMP-260412-00001
  */
 export async function generateSccgId(entityPrefix: SccgEntityPrefix): Promise<string> {
-  const db = getAdminFirestore();
   const today = getTodayString();
-  const docRef = db.collection("sccgSequences").doc(`${entityPrefix}-${today}`);
+  try {
+    const db = getAdminFirestore();
+    const docRef = db.collection("sccgSequences").doc(`${entityPrefix}-${today}`);
 
-  const result = await db.runTransaction(async (tx) => {
-    const docSnap = await tx.get(docRef);
-    const next = (docSnap.exists ? (docSnap.data()?.lastSequence ?? 0) : 0) + 1;
-    tx.set(docRef, { lastSequence: next, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
-    return next;
-  });
+    const result = await db.runTransaction(async (tx) => {
+      const docSnap = await tx.get(docRef);
+      const next = (docSnap.exists ? (docSnap.data()?.lastSequence ?? 0) : 0) + 1;
+      tx.set(docRef, { lastSequence: next, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+      return next;
+    });
 
-  return `SCCG-${entityPrefix}-${today}-${String(result).padStart(5, "0")}`;
+    return `SCCG-${entityPrefix}-${today}-${String(result).padStart(5, "0")}`;
+  } catch (err) {
+    console.warn(`[generateSccgId] Transaction fallback used for ${entityPrefix}:`, err);
+    const rnd = Math.floor(1000 + Math.random() * 9000);
+    return `SCCG-${entityPrefix}-${today}-${Date.now().toString().slice(-4)}${rnd.toString().slice(-1)}`;
+  }
 }
 
 /**

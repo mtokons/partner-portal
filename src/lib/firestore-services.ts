@@ -184,23 +184,47 @@ export async function getSchoolBatches(filters?: {
   status?: string;
   teacherId?: string;
 }): Promise<SchoolBatch[]> {
-  let q: FirebaseFirestore.Query = db().collection("schoolBatches").orderBy("startDate", "desc");
+  const hasFilter = filters?.courseId || filters?.status || filters?.teacherId;
+  let q: FirebaseFirestore.Query = hasFilter
+    ? db().collection("schoolBatches")
+    : db().collection("schoolBatches").orderBy("startDate", "desc");
   if (filters?.courseId) q = q.where("courseId", "==", filters.courseId);
   if (filters?.status) q = q.where("status", "==", filters.status);
   if (filters?.teacherId) q = q.where("teacherId", "==", filters.teacherId);
   const snap = await q.get();
-  return snap.docs.map((d) => toPlainObject<SchoolBatch>({ id: d.id, ...d.data() }));
+  const results = snap.docs.map((d) => toPlainObject<SchoolBatch>({ id: d.id, ...d.data() }));
+  if (hasFilter) {
+    results.sort((a, b) => ((b.startDate || "") > (a.startDate || "") ? 1 : -1));
+  }
+  return results;
 }
 
 export async function getSchoolBatchById(id: string): Promise<SchoolBatch | null> {
   const snap = await db().collection("schoolBatches").doc(id).get();
-  return snap.exists ? ({ id: snap.id, ...snap.data() } as SchoolBatch) : null;
+  return snap.exists ? toPlainObject<SchoolBatch>({ id: snap.id, ...snap.data() }) : null;
 }
 
 export async function createSchoolBatch(data: Omit<SchoolBatch, "id" | "sccgId" | "createdAt" | "updatedAt" | "enrolledStudents">): Promise<SchoolBatch> {
   const sccgId = await generateSccgId("BCH");
   const doc = { ...data, sccgId, enrolledStudents: 0, createdAt: now(), updatedAt: now() };
   const ref = await db().collection("schoolBatches").add(doc);
+
+  // Link batch to assigned teacher
+  if (data.teacherId) {
+    try {
+      const tRef = db().collection("schoolTeachers").doc(data.teacherId);
+      const tSnap = await tRef.get();
+      if (tSnap.exists) {
+        await tRef.update({
+          assignedBatches: admin.firestore.FieldValue.arrayUnion(ref.id),
+          updatedAt: now(),
+        });
+      }
+    } catch (err) {
+      console.warn("[createSchoolBatch] Teacher assignedBatches update skipped:", err);
+    }
+  }
+
   return { id: ref.id, ...doc } as unknown as SchoolBatch;
 }
 
@@ -249,17 +273,26 @@ export async function createSchoolEnrollment(
     ...data,
     sccgId,
     amountPaid: 0,
-    amountRemaining: data.netFee,
+    amountRemaining: data.netFee || data.totalFee || 0,
     createdAt: now(),
     updatedAt: now(),
   };
   const ref = await db().collection("schoolEnrollments").add(doc);
 
-  // Only increment batch enrolled count if a real batch is assigned
-  if (data.batchId && data.batchId !== "" && data.batchId !== "pending") {
-    await db().collection("schoolBatches").doc(data.batchId).update({
-      enrolledStudents: admin.firestore.FieldValue.increment(1),
-    });
+  // Only increment batch enrolled count if a real batch is assigned and exists
+  if (data.batchId && data.batchId !== "" && data.batchId !== "pending" && data.batchId !== "waiting-list") {
+    try {
+      const bRef = db().collection("schoolBatches").doc(data.batchId);
+      const bSnap = await bRef.get();
+      if (bSnap.exists) {
+        await bRef.update({
+          enrolledStudents: admin.firestore.FieldValue.increment(1),
+          updatedAt: now(),
+        });
+      }
+    } catch (err) {
+      console.warn("[createSchoolEnrollment] Batch update skipped:", err);
+    }
   }
 
   return { id: ref.id, ...doc } as unknown as SchoolEnrollment;
@@ -303,7 +336,7 @@ export async function updateSchoolEnrollment(id: string, data: Partial<SchoolEnr
 
 export async function deleteSchoolEnrollment(id: string): Promise<void> {
   const enrollment = await getSchoolEnrollmentById(id);
-  if (enrollment) {
+  if (enrollment && enrollment.batchId) {
     // Decrement batch count
     await db().collection("schoolBatches").doc(enrollment.batchId).update({
       enrolledStudents: admin.firestore.FieldValue.increment(-1),
@@ -491,6 +524,21 @@ export async function revokeSchoolCertificate(id: string, reason: string, revoke
     revocationReason: reason,
     revokedBy,
   });
+}
+
+export async function updateSchoolCertificate(id: string, data: Partial<SchoolCertificate>): Promise<void> {
+  const docRef = db().collection("schoolCertificates").doc(id);
+  const snap = await docRef.get();
+  if (snap.exists) {
+    await docRef.update({
+      ...data,
+      updatedAt: now(),
+    });
+  }
+}
+
+export async function deleteSchoolCertificate(id: string): Promise<void> {
+  await db().collection("schoolCertificates").doc(id).delete();
 }
 
 // ── Teachers ──

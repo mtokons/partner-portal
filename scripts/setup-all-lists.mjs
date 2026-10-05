@@ -628,6 +628,39 @@ const LISTS = [
       col("CreatedAt", dt()),
     ],
   },
+  // ===== Team Availability =====
+  {
+    name: "TeamAvailability",
+    columns: [
+      col("UserId", t()),
+      col("UserName", t()),
+      col("UserEmail", t()),
+      col("Department", t()),
+      col("Date", t()),
+      col("Status", ch(["available", "partial", "leave", "remote", "field"])),
+      col("StartTime", t()),
+      col("EndTime", t()),
+      col("Note", t()),
+      col("CreatedBy", t()),
+      col("UpdatedBy", t()),
+      col("CreatedAt", dt()),
+      col("UpdatedAt", dt()),
+    ],
+  },
+  {
+    name: "AvailabilityAudit",
+    columns: [
+      col("AvailabilityId", t()),
+      col("UserId", t()),
+      col("Date", t()),
+      col("Action", ch(["create", "update", "override", "delete", "request_change"])),
+      col("ChangedBy", t()),
+      col("ChangedAt", dt()),
+      col("OldValue", tMulti()),
+      col("NewValue", tMulti()),
+      col("Reason", t()),
+    ],
+  },
 ];
 
 // ---------- core ops ----------

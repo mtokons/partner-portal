@@ -22,6 +22,7 @@ import {
   Check,
   X,
   CreditCard,
+  Edit,
 } from "lucide-react";
 import type {
   BatchStatus,
@@ -33,8 +34,10 @@ import type {
 import {
   fillBatchFromWaitingListAction,
   registerStudentAction,
+  updateBatchAction,
   updateBatchStatusAction,
   updateEnrollmentPaymentStatusAction,
+  updateEnrollmentTimelineAction,
 } from "../../actions";
 
 interface BatchDetailClientProps {
@@ -57,6 +60,8 @@ export default function BatchDetailClient({
   const [enrollments, setEnrollments] = useState(initialEnrollments);
   const [batchState, setBatchState] = useState(batch);
   const [showAddStudentModal, setShowAddStudentModal] = useState(false);
+  const [showEditBatchModal, setShowEditBatchModal] = useState(false);
+  const [editingEnrollment, setEditingEnrollment] = useState<SchoolEnrollment | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -165,6 +170,13 @@ export default function BatchDetailClient({
               <Sparkles className="w-3.5 h-3.5" /> Fill From Waiting List ({waitingList.length} waiting)
             </button>
           )}
+
+          <button
+            onClick={() => setShowEditBatchModal(true)}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-[#0F4C81]/30 hover:bg-[#0F4C81]/10 text-[#0F4C81] text-xs font-bold transition-all shadow-sm"
+          >
+            <Edit className="w-3.5 h-3.5" /> Edit Timeline
+          </button>
 
           <button
             onClick={() => setShowAddStudentModal(true)}
@@ -284,6 +296,7 @@ export default function BatchDetailClient({
                 <tr>
                   <th className="py-3 px-4 rounded-l-xl">Student Name</th>
                   <th className="py-3 px-4">Contact</th>
+                  <th className="py-3 px-4">Zertifikat-Zeitraum</th>
                   <th className="py-3 px-4">Fee (€)</th>
                   <th className="py-3 px-4">Payment Status</th>
                   <th className="py-3 px-4 text-right rounded-r-xl">Action</th>
@@ -292,6 +305,7 @@ export default function BatchDetailClient({
               <tbody className="divide-y divide-border/40 font-medium">
                 {enrollments.map((e) => {
                   const isPaid = e.paymentStatus === "paid";
+                  const studentTimeline = e.courseTimeline || (batchState.startDate && batchState.endDate ? `${new Date(batchState.startDate).toLocaleDateString("de-DE", { month: "long", year: "numeric" })} — ${new Date(batchState.endDate).toLocaleDateString("de-DE", { month: "long", year: "numeric" })}` : "—");
                   return (
                     <tr key={e.id} className="hover:bg-muted/30 transition-colors">
                       <td className="py-3.5 px-4">
@@ -301,6 +315,19 @@ export default function BatchDetailClient({
                       <td className="py-3.5 px-4 text-muted-foreground">
                         <div>{e.studentEmail}</div>
                         <div className="text-[11px]">{e.mobileNumber || e.studentPhone || "—"}</div>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-semibold text-foreground">{studentTimeline}</span>
+                          <button
+                            type="button"
+                            onClick={() => setEditingEnrollment(e)}
+                            className="p-1 hover:bg-muted rounded text-[#0F4C81] transition-colors"
+                            title="Zeitraum bearbeiten"
+                          >
+                            <Edit className="w-3 h-3" />
+                          </button>
+                        </div>
                       </td>
                       <td className="py-3.5 px-4 font-bold text-foreground">
                         €{e.netFee || e.totalFee || courseFee}
@@ -317,22 +344,33 @@ export default function BatchDetailClient({
                         )}
                       </td>
                       <td className="py-3.5 px-4 text-right">
-                        <button
-                          onClick={async () => {
-                            const newStatus = isPaid ? "pending" : "paid";
-                            await updateEnrollmentPaymentStatusAction(e.id, newStatus);
-                            setEnrollments((prev) =>
-                              prev.map((item) => (item.id === e.id ? { ...item, paymentStatus: newStatus } : item))
-                            );
-                          }}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                            isPaid
-                              ? "border border-border text-muted-foreground hover:text-foreground"
-                              : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
-                          }`}
-                        >
-                          {isPaid ? "Mark Pending" : "Collect Payment (€" + (e.netFee || courseFee) + ")"}
-                        </button>
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setEditingEnrollment(e)}
+                            className="px-2.5 py-1.5 rounded-xl border border-[#0F4C81]/30 hover:bg-[#0F4C81]/10 text-[#0F4C81] text-xs font-bold transition-all flex items-center gap-1"
+                            title="Zeitraum für Zertifikat anpassen"
+                          >
+                            <Edit className="w-3 h-3" /> Zeitraum
+                          </button>
+
+                          <button
+                            onClick={async () => {
+                              const newStatus = isPaid ? "pending" : "paid";
+                              await updateEnrollmentPaymentStatusAction(e.id, newStatus);
+                              setEnrollments((prev) =>
+                                prev.map((item) => (item.id === e.id ? { ...item, paymentStatus: newStatus } : item))
+                              );
+                            }}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                              isPaid
+                                ? "border border-border text-muted-foreground hover:text-foreground"
+                                : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                            }`}
+                          >
+                            {isPaid ? "Mark Pending" : "Collect (€" + (e.netFee || courseFee) + ")"}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -389,6 +427,231 @@ export default function BatchDetailClient({
                 <button type="button" onClick={() => setShowAddStudentModal(false)} className="w-1/2 h-10 rounded-xl border font-bold text-xs">Cancel</button>
                 <button type="submit" disabled={loading} className="w-1/2 h-10 rounded-xl bg-[#0F4C81] text-white font-bold text-xs hover:bg-[#0D3F6D] transition-colors">
                   {loading ? "Adding..." : "Add to Batch"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal: Edit Batch Timeline & Details ── */}
+      {showEditBatchModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="bg-card border border-border rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <h3 className="text-lg font-black text-foreground flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-[#0F4C81]" /> Batch Timeline bearbeiten: {batchState.batchCode}
+              </h3>
+              <button onClick={() => setShowEditBatchModal(false)} className="text-muted-foreground hover:text-foreground text-sm font-bold">✕</button>
+            </div>
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const fd = new FormData(e.currentTarget);
+                setLoading(true);
+                try {
+                  await updateBatchAction(batchState.id, fd);
+                  const updatedStart = String(fd.get("startDate"));
+                  const updatedEnd = String(fd.get("endDate"));
+                  const updatedName = String(fd.get("batchName"));
+                  const updatedSchedule = String(fd.get("schedule"));
+                  const updatedStatus = String(fd.get("status")) as BatchStatus;
+                  const updatedMax = Number(fd.get("maxStudents")) || batchState.maxStudents;
+                  const updatedFee = Number(fd.get("courseFeeEur")) || batchState.courseFeeEur;
+
+                  setBatchState((prev) => ({
+                    ...prev,
+                    batchName: updatedName,
+                    startDate: updatedStart,
+                    endDate: updatedEnd,
+                    schedule: updatedSchedule,
+                    status: updatedStatus,
+                    maxStudents: updatedMax,
+                    courseFeeEur: updatedFee,
+                  }));
+                  setShowEditBatchModal(false);
+                  setMessage({ type: "success", text: "Batch-Timeline erfolgreich aktualisiert." });
+                } catch (err: any) {
+                  alert(err.message || "Fehler beim Aktualisieren des Batches");
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              className="space-y-4 text-xs"
+            >
+              <div>
+                <label className="block font-bold text-muted-foreground uppercase mb-1">Batch Name *</label>
+                <input
+                  required
+                  name="batchName"
+                  defaultValue={batchState.batchName}
+                  className="w-full h-10 px-3 rounded-xl border bg-background text-foreground"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-muted-foreground uppercase mb-1">Startdatum *</label>
+                  <input
+                    required
+                    type="date"
+                    name="startDate"
+                    defaultValue={batchState.startDate}
+                    className="w-full h-10 px-3 rounded-xl border bg-background text-foreground"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-muted-foreground uppercase mb-1">Enddatum *</label>
+                  <input
+                    required
+                    type="date"
+                    name="endDate"
+                    defaultValue={batchState.endDate}
+                    className="w-full h-10 px-3 rounded-xl border bg-background text-foreground"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-muted-foreground uppercase mb-1">Zeitplan / Zeiten *</label>
+                <input
+                  required
+                  name="schedule"
+                  defaultValue={batchState.schedule}
+                  placeholder="z. B. Mo & Mi 18:00 - 19:30 CET"
+                  className="w-full h-10 px-3 rounded-xl border bg-background text-foreground"
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block font-bold text-muted-foreground uppercase mb-1">Status</label>
+                  <select
+                    name="status"
+                    defaultValue={batchState.status}
+                    className="w-full h-10 px-2 rounded-xl border bg-background text-foreground font-bold"
+                  >
+                    <option value="planned">Planned (Geplant)</option>
+                    <option value="running">Running (Aktiv)</option>
+                    <option value="on-hold">On Hold</option>
+                    <option value="completed">Completed (Beendet)</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-muted-foreground uppercase mb-1">Kapazität</label>
+                  <input
+                    type="number"
+                    min="1"
+                    name="maxStudents"
+                    defaultValue={batchState.maxStudents || 20}
+                    className="w-full h-10 px-3 rounded-xl border bg-background text-foreground"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-muted-foreground uppercase mb-1">Gebühr (€)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    name="courseFeeEur"
+                    defaultValue={batchState.courseFeeEur || 500}
+                    className="w-full h-10 px-3 rounded-xl border bg-background text-foreground"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-3 border-t border-border">
+                <button
+                  type="button"
+                  onClick={() => setShowEditBatchModal(false)}
+                  className="w-1/2 h-10 rounded-xl border font-bold hover:bg-muted transition-colors"
+                >
+                  Abbrechen
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-1/2 h-10 rounded-xl bg-[#0F4C81] text-white font-bold hover:bg-[#0D3F6D] transition-colors disabled:opacity-50"
+                >
+                  {loading ? "Speichern..." : "Zeitplan speichern"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal: Edit Student Course Timeline ── */}
+      {editingEnrollment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="bg-card border border-border rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <h3 className="text-lg font-black text-foreground flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-[#0F4C81]" /> Kurs-Zeitraum bearbeiten
+              </h3>
+              <button onClick={() => setEditingEnrollment(null)} className="text-muted-foreground hover:text-foreground text-sm font-bold">✕</button>
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              Dieser Zeitraum wird verbindlich auf dem offiziellen Zertifikat von <strong>{editingEnrollment.studentName}</strong> ausgewiesen.
+            </p>
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const fd = new FormData(e.currentTarget);
+                setLoading(true);
+                try {
+                  const timeline = String(fd.get("courseTimeline") || "").trim();
+                  await updateEnrollmentTimelineAction(editingEnrollment.id, timeline);
+                  setEnrollments((prev) =>
+                    prev.map((item) => (item.id === editingEnrollment.id ? { ...item, courseTimeline: timeline } : item))
+                  );
+                  setEditingEnrollment(null);
+                  setMessage({ type: "success", text: `Zeitraum für ${editingEnrollment.studentName} erfolgreich auf "${timeline}" aktualisiert.` });
+                } catch (err: any) {
+                  alert(err.message || "Fehler beim Aktualisieren des Zeitraums");
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              className="space-y-4 text-xs"
+            >
+              <div>
+                <label className="block font-bold text-muted-foreground uppercase mb-1">Student</label>
+                <div className="p-2.5 rounded-xl bg-muted/50 font-bold text-foreground">
+                  {editingEnrollment.studentName} ({editingEnrollment.studentEmail})
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-muted-foreground uppercase mb-1">
+                  Zertifikat-Zeitraum *
+                </label>
+                <input
+                  required
+                  name="courseTimeline"
+                  defaultValue={
+                    editingEnrollment.courseTimeline ||
+                    (batchState.startDate && batchState.endDate
+                      ? `${new Date(batchState.startDate).toLocaleDateString("de-DE", { month: "long", year: "numeric" })} — ${new Date(batchState.endDate).toLocaleDateString("de-DE", { month: "long", year: "numeric" })}`
+                      : "")
+                  }
+                  placeholder="z. B. Juni 2026 — August 2026"
+                  className="w-full h-10 px-3 rounded-xl border bg-background text-foreground font-semibold"
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Erscheint auf dem Zertifikat als: <em>ZEITRAUM: [Eingabe]</em>
+                </p>
+              </div>
+
+              <div className="flex gap-2 pt-2 border-t border-border">
+                <button type="button" onClick={() => setEditingEnrollment(null)} className="w-1/2 h-10 rounded-xl border font-bold hover:bg-muted">Abbrechen</button>
+                <button type="submit" disabled={loading} className="w-1/2 h-10 rounded-xl bg-[#0F4C81] text-white font-bold hover:bg-[#0D3F6D] transition-colors disabled:opacity-50">
+                  {loading ? "Speichern..." : "Zeitraum speichern"}
                 </button>
               </div>
             </form>

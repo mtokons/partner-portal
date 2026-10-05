@@ -111,7 +111,7 @@ export function StudentsPageClient({ enrollments: allEnrollments, batches }: Stu
             className="pl-10 rounded-xl h-11"
           />
         </div>
-        <Select value={batchFilter} onValueChange={setBatchFilter}>
+        <Select value={batchFilter} onValueChange={(v) => setBatchFilter(v || "all")}>
           <SelectTrigger className="rounded-xl h-11 w-full sm:w-[220px]">
             <Filter className="h-4 w-4 mr-2 text-muted-foreground" />
             <SelectValue placeholder="Filter by batch" />
@@ -123,7 +123,7 @@ export function StudentsPageClient({ enrollments: allEnrollments, batches }: Stu
             ))}
           </SelectContent>
         </Select>
-        <Select value={paymentFilter} onValueChange={setPaymentFilter}>
+        <Select value={paymentFilter} onValueChange={(v) => setPaymentFilter(v || "all")}>
           <SelectTrigger className="rounded-xl h-11 w-full sm:w-[180px]">
             <SelectValue placeholder="Payment status" />
           </SelectTrigger>

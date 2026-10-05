@@ -144,6 +144,15 @@ async function buildRolesForEmail(email: string, firebaseProfile?: FirebaseUserP
     if (!roles.includes("partner-institutional")) roles.push("partner-institutional");
   }
 
+  // Add category from Firebase Profile if present
+  const fbCategory = (firebaseProfile as any)?.category
+    ? String((firebaseProfile as any).category).trim().toLowerCase()
+    : undefined;
+  
+  if (fbCategory && !roles.includes(fbCategory)) {
+    roles.push(fbCategory);
+  }
+
   // SCCG Career Lab allowlist: force the sccg role for allow-listed staff/admin
   // (unless the account is a full platform admin, which takes precedence).
   const sccgRole = sccgRoleFromEmail(cleanEmail);
@@ -208,6 +217,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             const effectivePrimary = rolesInfo.roles.includes("admin") || isAdminDomainUser ? "admin" : rolesInfo.primaryRole;
 
             console.log(`[auth] Successful Firebase login for ${email}. Primary role: ${effectivePrimary}`);
+
+            if (effectivePrimary === "customer" || effectiveRoles.includes("customer")) {
+              import("@/lib/customer-candidate-sync")
+                .then((m) =>
+                  m.ensureCustomerCandidateRecord({
+                    email,
+                    fullName: rolesInfo.name || decodedToken.name || profile?.displayName || email.split("@")[0],
+                    phone: profile?.phone,
+                    partnerId: rolesInfo.partnerId,
+                    partnerName: rolesInfo.company,
+                  })
+                )
+                .catch(() => {});
+            }
 
             return {
               id: decodedToken.uid,
@@ -354,6 +377,20 @@ async function verifyOrUpdatePassword(
             partnerType: rolesInfo.partnerType, coinBalance: rolesInfo.coinBalance,
             tierStatus: rolesInfo.tierStatus, marginPercentage: rolesInfo.marginPercentage,
           } as SessionUser;
+        }
+
+        if (customer && customer.status !== "suspended") {
+          import("@/lib/customer-candidate-sync")
+            .then((m) =>
+              m.ensureCustomerCandidateRecord({
+                email,
+                fullName: customer.name,
+                phone: customer.phone,
+                partnerId: customer.partnerId,
+                partnerName: customer.company,
+              })
+            )
+            .catch(() => {});
         }
 
         const expert = await Repository.experts.getByEmail(email);

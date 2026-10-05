@@ -24,6 +24,11 @@ export default auth((req: NextAuthRequest) => {
   // When impersonation is active, use target roles for route-access decisions (admin is still logged in)
   const effectiveRoles = impersonation ? impersonation.targetRoles : roles;
 
+  // --- Root URL: redirect directly to public marketplace ---
+  if (pathname === "/") {
+    return NextResponse.redirect(new URL("/marketplace", req.url));
+  }
+
   // --- Dedicated demo flow ---
   if (pathname === "/demo" || pathname === "/demo/login") {
     return NextResponse.next();
@@ -36,12 +41,16 @@ export default auth((req: NextAuthRequest) => {
   }
 
   // --- Public paths: no auth required ---
-  const publicPaths = ["/login", "/customer-login", "/expert-login", "/register", "/forgot-password", "/erp-experience", "/access-denied", "/demo", "/demo/login"];
+  const publicPaths = ["/", "/login", "/customer-login", "/expert-login", "/register", "/forgot-password", "/erp-experience", "/access-denied", "/demo", "/demo/login", "/marketplace"];
   const isPublic =
     publicPaths.includes(pathname) ||
+    pathname.startsWith("/marketplace/") ||
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/health") ||
     pathname.startsWith("/api/livez") ||
+    pathname.startsWith("/api/currency") ||
+    pathname.startsWith("/api/geo") ||
+    pathname.startsWith("/api/payment") ||
     pathname.startsWith("/verify") ||
     pathname.startsWith("/offer-response");
 
@@ -69,6 +78,11 @@ export default auth((req: NextAuthRequest) => {
     if (!isRealAdmin) {
       return NextResponse.redirect(new URL(resolveDefaultConsole(effectiveRoles), req.url));
     }
+  }
+
+  // --- Allow all authenticated portal users to access /partner/marketplace ---
+  if (pathname === "/partner/marketplace" || pathname.startsWith("/partner/marketplace/")) {
+    return NextResponse.next();
   }
 
   // --- Console-based access control ---

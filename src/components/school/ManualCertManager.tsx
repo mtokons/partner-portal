@@ -24,7 +24,7 @@ export function ManualCertManager() {
       try {
         const results = await fetchEnrollments();
         // Simple client-side search for enrollment selection
-        const filtered = results.filter(e => 
+        const filtered = results.filter((e: any) => 
           e.studentName.toLowerCase().includes(search.toLowerCase()) || 
           e.studentEmail.toLowerCase().includes(search.toLowerCase()) ||
           e.batchCode.toLowerCase().includes(search.toLowerCase())

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   Calendar,
   CheckCircle2,
@@ -21,12 +22,14 @@ import {
   Pause,
   XCircle,
   Trash2,
+  Edit,
 } from "lucide-react";
 import type { BatchStatus, SchoolBatch, SchoolCourse, SchoolTeacher } from "@/types";
 import {
   createBatchAction,
   deleteBatchAction,
   fillBatchFromWaitingListAction,
+  updateBatchAction,
   updateBatchStatusAction,
 } from "../actions";
 
@@ -37,10 +40,15 @@ interface BatchesClientProps {
 }
 
 export default function BatchesClient({ initialBatches, courses, teachers }: BatchesClientProps) {
+  const searchParams = useSearchParams();
+  const createCourseId = searchParams?.get("createCourseId") || "";
+
   const [batches, setBatches] = useState(initialBatches);
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [search, setSearch] = useState("");
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(Boolean(createCourseId));
+  const [selectedCourseId, setSelectedCourseId] = useState(createCourseId);
+  const [editingBatch, setEditingBatch] = useState<SchoolBatch | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -202,12 +210,22 @@ export default function BatchesClient({ initialBatches, courses, teachers }: Bat
 
               {/* Actions Footer */}
               <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-border/60">
-                <Link
-                  href={`/sccg/school/batches/${b.id}`}
-                  className="px-3.5 py-1.5 rounded-xl bg-[#0F4C81] hover:bg-[#0D3F6D] text-white text-xs font-bold transition-all flex items-center gap-1"
-                >
-                  Manage Batch <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
+                <div className="flex items-center gap-2">
+                  <Link
+                    href={`/sccg/school/batches/${b.id}`}
+                    className="px-3.5 py-1.5 rounded-xl bg-[#0F4C81] hover:bg-[#0D3F6D] text-white text-xs font-bold transition-all flex items-center gap-1"
+                  >
+                    Manage Batch <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => setEditingBatch(b)}
+                    className="px-3 py-1.5 rounded-xl border border-[#0F4C81]/30 hover:bg-[#0F4C81]/10 text-[#0F4C81] text-xs font-bold transition-all flex items-center gap-1"
+                    title="Edit Batch Timeline & Details"
+                  >
+                    <Edit className="w-3.5 h-3.5" /> Edit Timeline
+                  </button>
+                </div>
 
                 <div className="flex items-center gap-1.5">
                   {enrolled < capacity && (
@@ -307,7 +325,11 @@ export default function BatchesClient({ initialBatches, courses, teachers }: Bat
                 setLoading(true);
                 setError(null);
                 try {
-                  await createBatchAction(fd);
+                  const res = await createBatchAction(fd);
+                  if (res && !(res as any).success) {
+                    setError((res as any).error || "Failed to create batch");
+                    return;
+                  }
                   setShowAddModal(false);
                   window.location.reload();
                 } catch (err: any) {
@@ -320,7 +342,13 @@ export default function BatchesClient({ initialBatches, courses, teachers }: Bat
             >
               <div>
                 <label className="block text-xs font-bold text-muted-foreground uppercase mb-1">Course *</label>
-                <select required name="courseId" className="w-full h-10 px-3 rounded-xl border bg-background font-medium">
+                <select
+                  required
+                  name="courseId"
+                  value={selectedCourseId}
+                  onChange={(e) => setSelectedCourseId(e.target.value)}
+                  className="w-full h-10 px-3 rounded-xl border bg-background font-medium"
+                >
                   <option value="">-- Choose Course --</option>
                   {courses.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -394,6 +422,161 @@ export default function BatchesClient({ initialBatches, courses, teachers }: Bat
                 <button type="button" onClick={() => setShowAddModal(false)} className="w-1/2 h-10 rounded-xl border font-bold text-xs">Cancel</button>
                 <button type="submit" disabled={loading} className="w-1/2 h-10 rounded-xl bg-[#0F4C81] text-white font-bold text-xs hover:bg-[#0D3F6D] transition-colors">
                   {loading ? "Creating..." : "Create Batch"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal: Edit Batch Timeline & Details ── */}
+      {editingBatch && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="bg-card border border-border rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <h3 className="text-lg font-black text-foreground flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-[#0F4C81]" /> Batch Timeline bearbeiten: {editingBatch.batchCode}
+              </h3>
+              <button onClick={() => setEditingBatch(null)} className="text-muted-foreground hover:text-foreground text-sm font-bold">✕</button>
+            </div>
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const fd = new FormData(e.currentTarget);
+                setLoading(true);
+                try {
+                  await updateBatchAction(editingBatch.id, fd);
+                  const updatedStart = String(fd.get("startDate"));
+                  const updatedEnd = String(fd.get("endDate"));
+                  const updatedName = String(fd.get("batchName"));
+                  const updatedSchedule = String(fd.get("schedule"));
+                  const updatedStatus = String(fd.get("status")) as BatchStatus;
+                  const updatedMax = Number(fd.get("maxStudents")) || editingBatch.maxStudents;
+                  const updatedFee = Number(fd.get("courseFeeEur")) || editingBatch.courseFeeEur;
+
+                  setBatches((prev) =>
+                    prev.map((item) =>
+                      item.id === editingBatch.id
+                        ? {
+                            ...item,
+                            batchName: updatedName,
+                            startDate: updatedStart,
+                            endDate: updatedEnd,
+                            schedule: updatedSchedule,
+                            status: updatedStatus,
+                            maxStudents: updatedMax,
+                            courseFeeEur: updatedFee,
+                          }
+                        : item
+                    )
+                  );
+                  setEditingBatch(null);
+                } catch (err: any) {
+                  alert(err.message || "Fehler beim Aktualisieren des Batches");
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              className="space-y-4 text-xs"
+            >
+              <div>
+                <label className="block font-bold text-muted-foreground uppercase mb-1">Batch Name *</label>
+                <input
+                  required
+                  name="batchName"
+                  defaultValue={editingBatch.batchName}
+                  className="w-full h-10 px-3 rounded-xl border bg-background text-foreground"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-muted-foreground uppercase mb-1">Startdatum *</label>
+                  <input
+                    required
+                    type="date"
+                    name="startDate"
+                    defaultValue={editingBatch.startDate}
+                    className="w-full h-10 px-3 rounded-xl border bg-background text-foreground"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-muted-foreground uppercase mb-1">Enddatum *</label>
+                  <input
+                    required
+                    type="date"
+                    name="endDate"
+                    defaultValue={editingBatch.endDate}
+                    className="w-full h-10 px-3 rounded-xl border bg-background text-foreground"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-muted-foreground uppercase mb-1">Zeitplan / Zeiten *</label>
+                <input
+                  required
+                  name="schedule"
+                  defaultValue={editingBatch.schedule}
+                  placeholder="z. B. Mo & Mi 18:00 - 19:30 CET"
+                  className="w-full h-10 px-3 rounded-xl border bg-background text-foreground"
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block font-bold text-muted-foreground uppercase mb-1">Status</label>
+                  <select
+                    name="status"
+                    defaultValue={editingBatch.status}
+                    className="w-full h-10 px-2 rounded-xl border bg-background text-foreground font-bold"
+                  >
+                    <option value="planned">Planned (Geplant)</option>
+                    <option value="running">Running (Aktiv)</option>
+                    <option value="on-hold">On Hold</option>
+                    <option value="completed">Completed (Beendet)</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-muted-foreground uppercase mb-1">Kapazität</label>
+                  <input
+                    type="number"
+                    min="1"
+                    name="maxStudents"
+                    defaultValue={editingBatch.maxStudents || 20}
+                    className="w-full h-10 px-3 rounded-xl border bg-background text-foreground"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-muted-foreground uppercase mb-1">Gebühr (€)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    name="courseFeeEur"
+                    defaultValue={editingBatch.courseFeeEur || 500}
+                    className="w-full h-10 px-3 rounded-xl border bg-background text-foreground"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-3 border-t border-border">
+                <button
+                  type="button"
+                  onClick={() => setEditingBatch(null)}
+                  className="w-1/2 h-10 rounded-xl border font-bold hover:bg-muted transition-colors"
+                >
+                  Abbrechen
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-1/2 h-10 rounded-xl bg-[#0F4C81] text-white font-bold hover:bg-[#0D3F6D] transition-colors disabled:opacity-50"
+                >
+                  {loading ? "Speichern..." : "Zeitplan speichern"}
                 </button>
               </div>
             </form>

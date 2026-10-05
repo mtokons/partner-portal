@@ -616,13 +616,13 @@ export default function UserManagementClient({
       </Card>
 
       {/* Users Table */}
-      <div className="overflow-hidden rounded-xl border bg-white shadow-sm dark:bg-slate-900">
+      <div className="overflow-x-auto overflow-y-hidden rounded-xl border bg-white shadow-sm dark:bg-slate-900">
         <Table>
           <TableHeader className="bg-slate-50 dark:bg-slate-800">
             <TableRow>
               <TableHead className="font-semibold">User</TableHead>
               <TableHead className="font-semibold">Role</TableHead>
-              <TableHead className="font-semibold">Company / Org</TableHead>
+              <TableHead className="font-semibold max-w-[150px] min-w-[100px]">Company / Org</TableHead>
               <TableHead className="font-semibold">Category</TableHead>
               <TableHead className="font-semibold">Status</TableHead>
               <TableHead className="font-semibold">Source</TableHead>
@@ -671,7 +671,10 @@ export default function UserManagementClient({
                       </div>
                     </TableCell>
 
-                    <TableCell className="text-sm text-slate-600 dark:text-slate-400">
+                    <TableCell 
+                      className="text-sm text-slate-600 dark:text-slate-400 max-w-[150px] truncate" 
+                      title={user.company}
+                    >
                       {user.company || "—"}
                     </TableCell>
 

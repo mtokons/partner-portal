@@ -487,8 +487,13 @@ export default function SchoolDashboardClient({
                 setLoading(true);
                 setError(null);
                 try {
-                  await registerStudentAction(fd);
+                  const res = await registerStudentAction(fd);
+                  if (res && !(res as any).success) {
+                    setError((res as any).error || "Failed to register student");
+                    return;
+                  }
                   setActiveModal(null);
+                  window.location.reload();
                 } catch (err: any) {
                   setError(err.message || "Failed to register student");
                 } finally {

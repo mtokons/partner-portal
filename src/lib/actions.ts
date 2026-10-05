@@ -59,6 +59,8 @@ export async function registerAction(name: string, email: string, password: stri
       });
     } else {
       await createCustomer({ name, email, passwordHash, company, partnerId: "", status: "active" });
+      const { ensureCustomerCandidateRecord } = await import("@/lib/customer-candidate-sync");
+      await ensureCustomerCandidateRecord({ email, fullName: name });
     }
     // Auto login
     const portal = role === "customer" ? "customer" : undefined;
@@ -67,6 +69,23 @@ export async function registerAction(name: string, email: string, password: stri
     await signIn("credentials", { ...credentials, redirect: false });
     return { success: true };
   } catch (err) {
+    return { success: false, error: String(err) };
+  }
+}
+
+export async function syncCustomerCandidateAction(data: {
+  email: string;
+  fullName?: string;
+  phone?: string;
+  partnerId?: string;
+  partnerName?: string;
+}) {
+  try {
+    const { ensureCustomerCandidateRecord } = await import("@/lib/customer-candidate-sync");
+    await ensureCustomerCandidateRecord(data);
+    return { success: true };
+  } catch (err) {
+    console.error("[actions] syncCustomerCandidateAction error:", err);
     return { success: false, error: String(err) };
   }
 }

@@ -389,7 +389,11 @@ export default function StudentsClient({
                 setLoading(true);
                 setError(null);
                 try {
-                  await registerStudentAction(fd);
+                  const res = await registerStudentAction(fd);
+                  if (res && !(res as any).success) {
+                    setError((res as any).error || "Failed to register student");
+                    return;
+                  }
                   setShowRegisterModal(false);
                   window.location.reload();
                 } catch (err: any) {

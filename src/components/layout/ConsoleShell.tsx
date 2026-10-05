@@ -237,19 +237,48 @@ export default function ConsoleShell({
   impersonating,
   isAdmin,
 }: ConsoleShellProps) {
+  const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [previewConsole, setPreviewConsole] = useState<ConsoleType | null>(null);
+  const [previewConsole, setPreviewConsole] = useState<ConsoleType | null>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("sccg_preview_console");
+      if (saved) return saved as ConsoleType;
+    }
+    return null;
+  });
 
-  // Use preview console if set, otherwise the real console
-  const activeConsole = previewConsole ?? consoleName;
-  const theme = SHELL_THEME[activeConsole];
+  const handleSwitchConsole = (c: ConsoleType | null) => {
+    setPreviewConsole(c);
+    if (typeof window !== "undefined") {
+      if (c) {
+        localStorage.setItem("sccg_preview_console", c);
+      } else {
+        localStorage.removeItem("sccg_preview_console");
+      }
+    }
+  };
+
+  // Determine which console is active:
+  // 1. If explicit previewConsole is set by the admin -> use previewConsole
+  // 2. If current route starts with /sccg -> use "sccg"
+  // 3. Otherwise fallback to consoleName
+  let activeConsole: ConsoleType;
+  if (previewConsole) {
+    activeConsole = previewConsole;
+  } else if (pathname?.startsWith("/sccg")) {
+    activeConsole = "sccg";
+  } else {
+    activeConsole = consoleName;
+  }
+
+  const theme = SHELL_THEME[activeConsole] || SHELL_THEME.admin;
 
   // Resolve final menu items for the active console + overrides
-  const themeClass = CONSOLE_THEME[activeConsole];
+  const themeClass = CONSOLE_THEME[activeConsole] || CONSOLE_THEME.admin;
   // When previewing, resolve menu from defaults only (no user/role overrides)
   const resolvedMenu = previewConsole
     ? resolveMenu(previewConsole)
-    : resolveMenu(consoleName, roleMenuOverrides, userMenuOverrides);
+    : resolveMenu(activeConsole, roleMenuOverrides, userMenuOverrides);
   // Hide management (ppa.*) items from read-only viewers
   const lowerRoles = (roles || []).map((r) => r.toLowerCase());
   const canManage = lowerRoles.includes("admin") || lowerRoles.includes("project-partner-admin");
@@ -258,16 +287,10 @@ export default function ConsoleShell({
   const menuItems = (canManage || previewConsole ? resolvedMenu : resolvedMenu.filter((m) => !isManagementMenuKey(m.key)))
     .filter((m) => !m.adminOnly || isSccgAdmin || previewConsole);
 
-  const pathname = usePathname();
   const isFullBleed = pathname?.includes("/cv-suite/create") || pathname?.includes("/cv-maker");
 
   return (
     <div className={`console-theme ${themeClass} portal-shell ${theme.shellClass}`}>
-      <div aria-hidden className="portal-orbs" />
-      <div className="console-backdrop" aria-hidden="true" />
-      <div className="console-orb console-orb-one" aria-hidden="true" />
-      <div className="console-orb console-orb-two" aria-hidden="true" />
-      <CalligraphyArt />
       <DynamicSidebar
         console={activeConsole}
         menuItems={menuItems}
@@ -281,7 +304,7 @@ export default function ConsoleShell({
             <RoleSwitcher
               currentConsole={consoleName}
               previewConsole={previewConsole}
-              onSwitch={setPreviewConsole}
+              onSwitch={handleSwitchConsole}
             />
           ) : undefined
         }

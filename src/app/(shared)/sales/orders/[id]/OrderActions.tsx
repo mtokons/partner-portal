@@ -27,7 +27,6 @@ export default function OrderActions({
       const result = await updateOrderStatusAction(order.id, status);
       if (!result.success) {
         toast.error(result.message || "Failed to update order status");
-        alert(result.message || "Failed to update order status");
       } else {
         toast.success(`Order status updated to ${status}`);
         router.refresh();
@@ -35,7 +34,6 @@ export default function OrderActions({
     } catch (err: any) {
       const msg = err?.message || "An unexpected error occurred";
       toast.error(msg);
-      alert(msg);
     } finally {
       setLoading(null);
     }

@@ -78,6 +78,12 @@ export async function GET(
   }
 
   const download = req.nextUrl.searchParams.get("download") === "1";
+  if (download && project.status === "inactive") {
+    return NextResponse.json(
+      { error: "Downloads are disabled for inactive projects" },
+      { status: 403 }
+    );
+  }
   const disposition = download ? "attachment" : "inline";
   return new NextResponse(new Uint8Array(result.buffer), {
     status: 200,

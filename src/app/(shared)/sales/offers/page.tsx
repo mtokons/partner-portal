@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getEffectiveSession } from "@/lib/effective-user";
 import type { SessionUser } from "@/types";
 import { getSalesOffers } from "@/lib/sharepoint";
+import { isAdministrativeUser } from "@/lib/permissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -25,7 +26,8 @@ export default async function SalesOffersPage() {
   if (!session?.user) redirect("/login");
   const user = session.user as SessionUser;
 
-  let offers = await getSalesOffers(user.role === "admin" ? undefined : user.partnerId);
+  const isAdminOrStaff = isAdministrativeUser(user);
+  let offers = await getSalesOffers(isAdminOrStaff ? undefined : user.partnerId);
   if (user.role === "partner") {
     offers = offers.filter((o) => o.createdBy === user.id);
   }

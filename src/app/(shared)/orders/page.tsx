@@ -2,6 +2,7 @@ import { getEffectiveSession } from "@/lib/effective-user";
 import { redirect } from "next/navigation";
 import type { SessionUser } from "@/types";
 import { getOrders } from "@/lib/sharepoint";
+import { isAdministrativeUser } from "@/lib/permissions";
 import { loadRate, fmtBdt } from "@/lib/serverCurrency";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,8 +25,9 @@ export default async function OrdersPage() {
   const session = await getEffectiveSession();
   if (!session?.user) redirect("/login");
   const user = session.user as SessionUser;
+  const isAdminOrStaff = isAdministrativeUser(user);
   const [orders, rate] = await Promise.all([
-    getOrders(user.role === "admin" ? undefined : user.partnerId),
+    getOrders(isAdminOrStaff ? undefined : user.partnerId),
     loadRate(),
   ]);
 

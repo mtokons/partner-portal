@@ -53,12 +53,16 @@ export interface Product {
   retailPriceEur: number;        // SCCG Retail Price in EUR
   retailPriceBdt: number;        // SCCG Retail Price in BDT
   initialPayment?: number;       // Initial payment percentage per product (e.g. 30)
+  hasInstallment?: boolean;      // SharePoint: Instalment (Yes/No)
+  installmentQty?: number;       // SharePoint: InstalmentQty (Number of installments)
   
   // Base B2B reference pricing/stock
   price: number;
   stock: number;
   category: string;
   imageUrl?: string;
+  logoUrl?: string;              // Custom product logo (defaults to SCCG original logo /assets/sccg-logo.png)
+  logoText?: string;             // Custom logo badge or display text set by admin
   // Sales Shop extensions
   contentType?: string;
   discount?: number;             // Discount value
@@ -66,7 +70,7 @@ export interface Product {
   discountExpiry?: string;       // ISO date
   isAvailable?: boolean;         // If false, hidden in shop
   tags?: string[];               // e.g. ["new", "bestseller"]
-  sortOrder?: number;            // Gallery display order
+  sortOrder?: number;            // Gallery display order / product positioning
   isOnHold?: boolean;
 }
 
@@ -372,6 +376,8 @@ export interface Expert {
   totalSessionsCompleted: number;
   /** EUR paid to expert per completed session */
   ratePerSession: number;
+  paymentMethodType?: "bank_transfer" | "ewallet";
+  paymentMethodDetails?: string;
   createdAt: string;
   updatedAt?: string;
 }
@@ -625,6 +631,23 @@ export interface Payout {
   isOnHold?: boolean;
   createdAt: string;
   updatedAt?: string;
+}
+
+/** Withdrawal Request — Expert payouts */
+export type WithdrawalStatus = "drafted" | "requested" | "under review" | "approved" | "paid";
+
+export interface WithdrawalRequest {
+  id: string;
+  expertId: string;
+  expertName: string;
+  amount: number;
+  currency: "BDT" | "EUR";
+  status: WithdrawalStatus;
+  paymentMethodType: "bank_transfer" | "ewallet";
+  paymentMethodDetails: string;
+  notes?: string;
+  requestedAt: string;
+  processedAt?: string;
 }
 
 /** Promotion / campaign — stored in SharePoint "SCCG Promotions" */
@@ -1321,6 +1344,7 @@ export interface SchoolCourse {
   courseFee: number;
   courseFeeCurrency: "BDT" | "EUR";
   maxStudentsPerBatch: number;
+  productId?: string;            // Link to Marketplace Product / Service
   prerequisites?: string;
   syllabusUrl?: string;
   status: CourseStatus;
@@ -1412,6 +1436,9 @@ export interface SchoolEnrollment {
   examScore?: number;
   participationCertId?: string;
   completionCertId?: string;
+  courseTimeline?: string;
+  courseStartDate?: string;
+  courseEndDate?: string;
   // Enrollment source + context
   enrollmentSource?: "direct" | "partner" | "referral" | "new-student" | "online";
   partnerId?: string;
@@ -1461,6 +1488,7 @@ export interface SchoolTeacher {
   id: string;
   sccgId: string;
   userId: string; // Links to the global users table
+  expertId?: string; // Optional link to Expert record if onboarded from Expert Bank
   name: string;
   email: string;
   phone?: string;
@@ -1562,6 +1590,9 @@ export interface SchoolCertificate {
   courseLevel: CourseLevel;
   batchId: string;
   batchCode: string;
+  courseTimeline?: string;
+  courseStartDate?: string;
+  courseEndDate?: string;
   attendancePercentage: number;
   finalGrade?: string;
   examScore?: number;
@@ -1881,7 +1912,7 @@ export interface B2BCompany {
 // Project Partner Collaboration (e.g. GFA / GIZ Bangladesh TVET4RE)
 // ============================================================
 
-export type ProjectStatus = "active" | "completed" | "on-hold";
+export type ProjectStatus = "active" | "completed" | "on-hold" | "inactive";
 export type ExpertActiveStatus = "active" | "standby" | "unavailable";
 
 /** A collaboration project shared with an external Project Partner. */
@@ -2133,3 +2164,45 @@ export interface EmailTemplate {
   subjectTemplate: string;
   htmlBodyTemplate: string;
 }
+
+// ============================================================
+// Team Availability & Daily Availability Reporting
+// ============================================================
+export type AvailabilityStatus = "available" | "indoor" | "partial" | "leave" | "remote" | "field";
+
+export interface AvailabilityTimeSlot {
+  startTime: string; // "HH:mm" 24h
+  endTime: string;   // "HH:mm" 24h
+  label?: string;    // e.g. "Morning", "Evening", "Night"
+}
+
+export interface TeamAvailability {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  department?: string;
+  date: string; // YYYY-MM-DD
+  status: AvailabilityStatus;
+  startTime?: string;
+  endTime?: string;
+  slots?: AvailabilityTimeSlot[];
+  note?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
+export interface AvailabilityAudit {
+  id: string;
+  availabilityId?: string;
+  userId: string;
+  date: string;
+  action: "create" | "update" | "override" | "delete" | "request_change";
+  changedBy: string;
+  changedAt: string;
+  oldValue?: string;
+  newValue?: string;
+  reason?: string;
+}
+

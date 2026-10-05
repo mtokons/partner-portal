@@ -16,11 +16,12 @@ import {
   X,
   Search,
 } from "lucide-react";
-import type { CourseLevel, SchoolCourse } from "@/types";
+import type { CourseLevel, SchoolCourse, Product } from "@/types";
 import { createCourseAction, deleteCourseAction, updateCourseAction } from "../actions";
 
 interface CoursesClientProps {
   initialCourses: SchoolCourse[];
+  products?: Product[];
 }
 
 const DEFAULT_LEVELS = [
@@ -31,7 +32,7 @@ const DEFAULT_LEVELS = [
   { level: "C1", name: "🇩🇪 C1 German — Advanced Level", desc: "Academic and high-level professional fluency, complex writing, and nuanced conversation." },
 ];
 
-export default function CoursesClient({ initialCourses }: CoursesClientProps) {
+export default function CoursesClient({ initialCourses, products = [] }: CoursesClientProps) {
   const [courses, setCourses] = useState(initialCourses);
   const [selectedLevel, setSelectedLevel] = useState<string>("ALL");
   const [search, setSearch] = useState("");
@@ -39,6 +40,105 @@ export default function CoursesClient({ initialCourses }: CoursesClientProps) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Form state for add / edit
+  const [selectedProductId, setSelectedProductId] = useState<string>("");
+  const [formName, setFormName] = useState<string>("German A1 Beginner Intensive");
+  const [formCode, setFormCode] = useState<string>("GER-A1");
+  const [formLevel, setFormLevel] = useState<CourseLevel>("A1");
+  const [formFee, setFormFee] = useState<number>(500);
+  const [formDurationWeeks, setFormDurationWeeks] = useState<number>(8);
+  const [formSessions, setFormSessions] = useState<number>(24);
+  const [formDescription, setFormDescription] = useState<string>("");
+  const [formStatus, setFormStatus] = useState<"published" | "draft">("published");
+
+  // Dedicated German Language Courses (German A1, A2, B1, Intensive A1-A2, Intensive A1-B1, etc.)
+  const germanCourseProducts = products.filter((p) => {
+    const name = (p.name || "").toLowerCase();
+    const sku = (p.sku || "").toLowerCase();
+    return (
+      name.includes("german") ||
+      name.includes("deutsch") ||
+      name.includes("intensive a") ||
+      name.includes("intensive b") ||
+      sku.includes("lan-") ||
+      p.unit === "Course"
+    );
+  });
+
+  // Other training and assessment services
+  const trainingProducts = products.filter((p) => {
+    if (germanCourseProducts.some((g) => g.id === p.id)) return false;
+    const cat = (p.category || "").toLowerCase();
+    const name = (p.name || "").toLowerCase();
+    return (
+      cat.includes("training") ||
+      cat.includes("language") ||
+      name.includes("training") ||
+      name.includes("assessment") ||
+      name.includes("coaching")
+    );
+  });
+
+  // Remaining marketplace packages (Ausbildung, Student, Opportunity Card, etc.)
+  const otherProducts = products.filter(
+    (p) => !germanCourseProducts.some((g) => g.id === p.id) && !trainingProducts.some((t) => t.id === p.id)
+  );
+
+  const handleSelectProduct = (productId: string) => {
+    setSelectedProductId(productId);
+    if (!productId) return;
+    const p = products.find((item) => item.id === productId || item.sku === productId);
+    if (!p) return;
+
+    setFormName(p.name);
+    setFormFee(p.retailPriceEur || p.price || 500);
+
+    // Auto-detect CEFR level
+    const upper = p.name.toUpperCase();
+    let detectedLevel: CourseLevel = "A1";
+    if (upper.includes("C2")) detectedLevel = "C2" as CourseLevel;
+    else if (upper.includes("C1")) detectedLevel = "C1";
+    else if (upper.includes("B2")) detectedLevel = "B2";
+    else if (upper.includes("B1")) detectedLevel = "B1";
+    else if (upper.includes("A2")) detectedLevel = "A2";
+    else if (upper.includes("A1")) detectedLevel = "A1";
+
+    setFormLevel(detectedLevel);
+    setFormCode(p.sku && p.sku.startsWith("GER") ? p.sku : `GER-${detectedLevel}`);
+    if (p.description) setFormDescription(p.description);
+    if (p.sessionsCount && p.sessionsCount > 0) setFormSessions(p.sessionsCount);
+  };
+
+  const openAddModal = () => {
+    setError(null);
+    setEditingCourse(null);
+    setSelectedProductId("");
+    setFormName("German A1 Beginner Intensive");
+    setFormCode("GER-A1");
+    setFormLevel("A1");
+    setFormFee(500);
+    setFormDurationWeeks(8);
+    setFormSessions(24);
+    setFormDescription("Comprehensive German Language course covering A1 CEFR standards.");
+    setFormStatus("published");
+    setShowAddModal(true);
+  };
+
+  const openEditModal = (c: SchoolCourse) => {
+    setError(null);
+    setEditingCourse(c);
+    setSelectedProductId(c.productId || "");
+    setFormName(c.courseName);
+    setFormCode(c.courseCode);
+    setFormLevel(c.level || "A1");
+    setFormFee(c.courseFee || 500);
+    setFormDurationWeeks(c.totalDurationWeeks || 8);
+    setFormSessions(c.totalSessions || 24);
+    setFormDescription(c.description || "");
+    setFormStatus(c.status === "draft" ? "draft" : "published");
+    setShowAddModal(true);
+  };
 
   const filteredCourses = courses.filter((c) => {
     const matchLevel = selectedLevel === "ALL" || (c.level || "").toUpperCase() === selectedLevel;
@@ -64,7 +164,7 @@ export default function CoursesClient({ initialCourses }: CoursesClientProps) {
         </div>
 
         <button
-          onClick={() => { setError(null); setShowAddModal(true); }}
+          onClick={openAddModal}
           className="flex items-center gap-2 bg-[#0F4C81] hover:bg-[#0D3F6D] text-white font-bold text-xs sm:text-sm px-4 py-2.5 rounded-xl transition-all shadow-md active:scale-95 self-start sm:self-auto"
         >
           <Plus className="w-4 h-4" /> Add German Course
@@ -138,14 +238,15 @@ export default function CoursesClient({ initialCourses }: CoursesClientProps) {
 
             <div className="flex items-center justify-between pt-3 border-t border-border/60">
               <Link
-                href="/sccg/school/batches"
+                href={`/sccg/school/batches?createCourseId=${c.id}`}
                 className="text-xs font-bold text-[#0F4C81] hover:underline flex items-center gap-1"
+                title="Create a batch based on this course"
               >
-                <Layers className="w-3.5 h-3.5" /> View Batches
+                <Layers className="w-3.5 h-3.5" /> Create Batch →
               </Link>
               <div className="flex items-center gap-1">
                 <button
-                  onClick={() => { setError(null); setEditingCourse(c); }}
+                  onClick={() => openEditModal(c)}
                   className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                   title="Edit Course"
                 >
@@ -203,10 +304,12 @@ export default function CoursesClient({ initialCourses }: CoursesClientProps) {
                 setLoading(true);
                 setError(null);
                 try {
-                  if (editingCourse) {
-                    await updateCourseAction(editingCourse.id, fd);
-                  } else {
-                    await createCourseAction(fd);
+                  const res = editingCourse
+                    ? await updateCourseAction(editingCourse.id, fd)
+                    : await createCourseAction(fd);
+                  if (res && !(res as any).success) {
+                    setError((res as any).error || "Failed to save course");
+                    return;
                   }
                   setShowAddModal(false);
                   setEditingCourse(null);
@@ -217,15 +320,65 @@ export default function CoursesClient({ initialCourses }: CoursesClientProps) {
                   setLoading(false);
                 }
               }}
-              className="space-y-3 text-sm"
+              className="space-y-3.5 text-sm"
             >
+              <input type="hidden" name="productId" value={selectedProductId} />
+
+              {/* ── Dropdown: Choose from Marketplace Products/Services ── */}
+              {!editingCourse && products.length > 0 && (
+                <div className="bg-[#0F4C81]/5 border border-[#0F4C81]/20 rounded-2xl p-3.5 space-y-1.5">
+                  <label className="block text-xs font-black text-[#0F4C81] uppercase tracking-wide flex items-center gap-1.5">
+                    <BookOpen className="w-3.5 h-3.5 text-[#0F4C81]" /> Select from Marketplace / Services
+                  </label>
+                  <select
+                    value={selectedProductId}
+                    onChange={(e) => handleSelectProduct(e.target.value)}
+                    className="w-full h-10 px-3 rounded-xl border-2 border-[#0F4C81]/30 bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#0F4C81]"
+                  >
+                    <option value="">-- Choose Course from Marketplace Catalog or Type Custom --</option>
+                    {germanCourseProducts.length > 0 && (
+                      <optgroup label="🇩🇪 German Language Courses (Marketplace)">
+                        {germanCourseProducts.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name} — €{p.retailPriceEur || p.price}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                    {trainingProducts.length > 0 && (
+                      <optgroup label="📚 Career & Job Training Services">
+                        {trainingProducts.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name} — €{p.retailPriceEur || p.price}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                    {otherProducts.length > 0 && (
+                      <optgroup label="📦 Other Marketplace Packages">
+                        {otherProducts.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name} — €{p.retailPriceEur || p.price}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                  </select>
+                  <p className="text-[11px] text-muted-foreground">
+                    Selecting a marketplace item auto-populates course name, price, CEFR level, sessions, and code.
+                  </p>
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-bold text-muted-foreground uppercase mb-1">Course Name *</label>
                 <input
                   required
                   name="courseName"
-                  defaultValue={editingCourse?.courseName || "German A1 Beginner Intensive"}
-                  className="w-full h-10 px-3 rounded-xl border bg-background"
+                  value={formName}
+                  onChange={(e) => setFormName(e.target.value)}
+                  placeholder="e.g. German Language — A1"
+                  className="w-full h-10 px-3 rounded-xl border bg-background font-medium"
                 />
               </div>
 
@@ -235,7 +388,9 @@ export default function CoursesClient({ initialCourses }: CoursesClientProps) {
                   <input
                     required
                     name="courseCode"
-                    defaultValue={editingCourse?.courseCode || "GER-A1"}
+                    value={formCode}
+                    onChange={(e) => setFormCode(e.target.value.toUpperCase())}
+                    placeholder="e.g. GER-A1"
                     className="w-full h-10 px-3 rounded-xl border bg-background uppercase font-bold"
                   />
                 </div>
@@ -243,7 +398,8 @@ export default function CoursesClient({ initialCourses }: CoursesClientProps) {
                   <label className="block text-xs font-bold text-muted-foreground uppercase mb-1">CEFR Level *</label>
                   <select
                     name="level"
-                    defaultValue={editingCourse?.level || "A1"}
+                    value={formLevel}
+                    onChange={(e) => setFormLevel(e.target.value as CourseLevel)}
                     className="w-full h-10 px-3 rounded-xl border bg-background font-bold"
                   >
                     <option value="A1">🇩🇪 A1 German</option>
@@ -251,6 +407,8 @@ export default function CoursesClient({ initialCourses }: CoursesClientProps) {
                     <option value="B1">🇩🇪 B1 German</option>
                     <option value="B2">🇩🇪 B2 German</option>
                     <option value="C1">🇩🇪 C1 German</option>
+                    <option value="C2">🇩🇪 C2 German</option>
+                    <option value="custom">🌐 Custom Level</option>
                   </select>
                 </div>
               </div>
@@ -262,7 +420,8 @@ export default function CoursesClient({ initialCourses }: CoursesClientProps) {
                     required
                     name="courseFee"
                     type="number"
-                    defaultValue={editingCourse?.courseFee || 500}
+                    value={formFee}
+                    onChange={(e) => setFormFee(Number(e.target.value))}
                     className="w-full h-10 px-3 rounded-xl border bg-background font-bold"
                   />
                 </div>
@@ -271,7 +430,8 @@ export default function CoursesClient({ initialCourses }: CoursesClientProps) {
                   <input
                     name="totalDurationWeeks"
                     type="number"
-                    defaultValue={editingCourse?.totalDurationWeeks || 8}
+                    value={formDurationWeeks}
+                    onChange={(e) => setFormDurationWeeks(Number(e.target.value))}
                     className="w-full h-10 px-3 rounded-xl border bg-background"
                   />
                 </div>
@@ -280,7 +440,8 @@ export default function CoursesClient({ initialCourses }: CoursesClientProps) {
                   <input
                     name="totalSessions"
                     type="number"
-                    defaultValue={editingCourse?.totalSessions || 24}
+                    value={formSessions}
+                    onChange={(e) => setFormSessions(Number(e.target.value))}
                     className="w-full h-10 px-3 rounded-xl border bg-background"
                   />
                 </div>
@@ -290,8 +451,9 @@ export default function CoursesClient({ initialCourses }: CoursesClientProps) {
                 <label className="block text-xs font-bold text-muted-foreground uppercase mb-1">Status</label>
                 <select
                   name="status"
-                  defaultValue={editingCourse?.status || "published"}
-                  className="w-full h-10 px-3 rounded-xl border bg-background"
+                  value={formStatus}
+                  onChange={(e) => setFormStatus(e.target.value as "published" | "draft")}
+                  className="w-full h-10 px-3 rounded-xl border bg-background font-medium"
                 >
                   <option value="published">Active / Published</option>
                   <option value="draft">Inactive / Draft</option>
@@ -303,7 +465,8 @@ export default function CoursesClient({ initialCourses }: CoursesClientProps) {
                 <textarea
                   name="description"
                   rows={2}
-                  defaultValue={editingCourse?.description || ""}
+                  value={formDescription}
+                  onChange={(e) => setFormDescription(e.target.value)}
                   placeholder="Curriculum overview and target learning outcomes..."
                   className="w-full p-2.5 rounded-xl border bg-background text-xs"
                 />

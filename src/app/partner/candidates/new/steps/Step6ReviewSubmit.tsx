@@ -77,7 +77,7 @@ export function Step6ReviewSubmit({
         });
       } else {
         result = await finalizeRegistrationAction({
-            partnerId,
+            partnerId: state.selectedPartnerId || partnerId,
             workflowCategory: personalInfo.workflowCategory,
             fullName: personalInfo.fullName,
             dateOfBirth: personalInfo.dateOfBirth,

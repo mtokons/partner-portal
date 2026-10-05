@@ -328,8 +328,8 @@ export async function getAllManagedUsers(): Promise<ManagedUserItem[]> {
   const allUsers = Array.from(userMap.values()).filter((user) => {
     // Keep fallback admins or users with no explicit sources
     if (!user.sources || user.sources.length === 0) return true;
-    // Keep user if they exist in Firebase (Firestore or Auth)
-    return user.sources.some((s) => !s.startsWith("sharepoint"));
+    // Keep user if they exist in Firebase (Firestore or Auth) or if they are experts
+    return user.sources.some((s) => !s.startsWith("sharepoint") || s === "sharepoint-experts");
   }).map(user => {
     // Enforce max one category — always resolve to one of the 4 valid values
     user.category = resolveCategory(user.category, user.primaryRole);

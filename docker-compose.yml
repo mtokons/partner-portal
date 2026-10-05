@@ -10,6 +10,10 @@ services:
       - CV_TAILOR_API_URL=http://cv-tailor:8001
       - MODEL_TEST_API_URL=http://model-test:8002
       - NODE_OPTIONS=--max-old-space-size=384 --expose-gc
+    volumes:
+      - ./.next/standalone/.next:/app/.next
+      - ./.next/standalone/.next/static:/app/.next/static
+      - ./.next/standalone/public:/app/public
     restart: always
     mem_limit: 450m
     mem_reservation: 256m

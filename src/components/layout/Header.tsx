@@ -80,6 +80,16 @@ export default function Header({
   const [searchFocused, setSearchFocused] = useState(false);
   const [alertOpen, setAlertOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [liveBdtRate, setLiveBdtRate] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetch("/api/currency?target=BDT")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.rate) setLiveBdtRate(Number(d.rate));
+      })
+      .catch(() => {});
+  }, []);
 
   // Map routes to SharePoint list names for context-aware Live Sync
   const routeToList: Record<string, string> = {
@@ -132,6 +142,9 @@ export default function Header({
 
   return (
     <header className="fixed top-0 left-0 lg:left-64 right-0 z-30 h-14 lg:h-16 header-glass flex items-center justify-between px-3 sm:px-6">
+      {/* German Flag & SCCG 4-Color Accent Ribbon */}
+      <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-[#111827] via-[#0F4C81] via-[#DC2626] to-[#F59E0B]" />
+
       {/* Left: hamburger + breadcrumb */}
       <div className="flex items-center gap-2 sm:gap-4 min-w-0">
         {/* Hamburger (mobile only) */}
@@ -207,6 +220,17 @@ export default function Header({
               </div>
             );
           })()
+        )}
+
+        {/* Live EUR to BDT Exchange Rate Badge */}
+        {liveBdtRate && (
+          <div
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 border border-slate-200 text-xs font-bold text-slate-800 shadow-2xs"
+            title="Live Central Bank Exchange Rate (Updated every 10 min)"
+          >
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[11px] font-mono">1 EUR ≈ ৳{liveBdtRate.toFixed(2)}</span>
+          </div>
         )}
 
         {/* Live Data Badge */}

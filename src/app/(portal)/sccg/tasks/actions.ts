@@ -108,6 +108,7 @@ function revalidateAllTaskRoutes() {
     revalidatePath("/sccg/tasks");
     revalidatePath("/admin/tasks");
     revalidatePath("/partner/tasks");
+    revalidatePath("/expert/tasks");
   } catch (e) {
     // ignore in background contexts
   }
@@ -128,7 +129,11 @@ async function sendTeamsChatNotification(recipientEmail: string, subject: string
     const { getGraphClient } = await import("@/lib/graph");
     const client = await getGraphClient();
 
-    const userRes = await client.api(`/users/${recipientEmail}`).select("id,displayName").get();
+    const senderEmail = process.env.O365_SENDER_USER_ID || process.env.MS_GRAPH_USER_ID || "portal@mysccg.de";
+    const senderRes = await client.api(`/users/${senderEmail}`).select("id").get().catch(() => null);
+    const senderId = senderRes?.id || senderEmail;
+
+    const userRes = await client.api(`/users/${recipientEmail}`).select("id,displayName").get().catch(() => null);
     if (!userRes?.id) return;
 
     const chatBody = {
@@ -137,17 +142,17 @@ async function sendTeamsChatNotification(recipientEmail: string, subject: string
         {
           "@odata.type": "#microsoft.graph.aadUserConversationMember",
           roles: ["owner"],
-          "user@odata.bind": `https://graph.microsoft.com/v1.0/users('${process.env.MS_GRAPH_USER_ID || "portal@mysccg.de"}')`
+          "user@odata.bind": `https://graph.microsoft.com/v1.0/users/${senderId}`
         },
         {
           "@odata.type": "#microsoft.graph.aadUserConversationMember",
           roles: ["owner"],
-          "user@odata.bind": `https://graph.microsoft.com/v1.0/users('${userRes.id}')`
+          "user@odata.bind": `https://graph.microsoft.com/v1.0/users/${userRes.id}`
         }
       ]
     };
 
-    const chat = await client.api("/chats").post(chatBody);
+    const chat = await client.api("/chats").post(chatBody).catch(() => null);
     if (!chat?.id) return;
 
     await client.api(`/chats/${chat.id}/messages`).post({
@@ -155,7 +160,7 @@ async function sendTeamsChatNotification(recipientEmail: string, subject: string
         contentType: "html",
         content: `<b>${subject}</b><br/>${messageHtml}`
       }
-    });
+    }).catch(() => null);
   } catch (err) {
     console.warn("[sccg-tasks] Teams chat notification skipped:", (err as Error)?.message || err);
   }
@@ -164,8 +169,6 @@ async function sendTeamsChatNotification(recipientEmail: string, subject: string
 /**
  * Helper to extract email addresses from text mentions like "@user@domain.com"
  * or match "@username" with a list of known users.
- * For simplicity here, we assume users might type actual emails after @,
- * or we can just send to assignees and owners. Let's extract any emails.
  */
 function extractMentionedEmails(text: string): string[] {
   if (!text) return [];
@@ -188,7 +191,17 @@ async function notifyTaskActivity(
     const portalUrl = getPortalUrl();
     const { sendEmailViaGraph } = await import("@/lib/email");
 
+    // Fetch managed users to ensure missing emails can be resolved
+    let allManagedUsers: any[] = [];
+    try {
+      const { getAllManagedUsers } = await import("@/lib/admin-users");
+      allManagedUsers = await getAllManagedUsers();
+    } catch (e) {}
+    const userMapById = new Map(allManagedUsers.map((u: any) => [u.id, u]));
+    const userMapByName = new Map(allManagedUsers.map((u: any) => [u.name?.toLowerCase() || u.displayName?.toLowerCase(), u]));
+
     const recipientsMap = new Map<string, string>(); // email -> name
+    const explicitAssigneeEmails = new Set<string>();
 
     // 1. Task Owner
     if (task.createdByEmail) {
@@ -197,14 +210,34 @@ async function notifyTaskActivity(
 
     // 2. Assignee (Legacy single)
     if (task.assignedToEmail) {
-      recipientsMap.set(task.assignedToEmail.toLowerCase(), task.assignedToName || "Assignee");
+      const e = task.assignedToEmail.toLowerCase();
+      recipientsMap.set(e, task.assignedToName || "Assignee");
+      explicitAssigneeEmails.add(e);
+    } else if (task.assignedTo) {
+      const matched = userMapById.get(task.assignedTo);
+      if (matched?.email) {
+        const e = matched.email.toLowerCase();
+        recipientsMap.set(e, matched.displayName || matched.name || task.assignedToName || "Assignee");
+        explicitAssigneeEmails.add(e);
+      }
     }
 
     // 3. Assignees (Multiple)
     if (task.assignees && Array.isArray(task.assignees)) {
       task.assignees.forEach(assignee => {
-        if (assignee.email) {
-          recipientsMap.set(assignee.email.toLowerCase(), assignee.name || "Assignee");
+        let email = assignee.email;
+        if (!email && assignee.id) {
+          const matched = userMapById.get(assignee.id);
+          if (matched?.email) email = matched.email;
+        }
+        if (!email && assignee.name) {
+          const matched = userMapByName.get(assignee.name.toLowerCase());
+          if (matched?.email) email = matched.email;
+        }
+        if (email) {
+          const lower = email.toLowerCase();
+          recipientsMap.set(lower, assignee.name || "Assignee");
+          explicitAssigneeEmails.add(lower);
         }
       });
     }
@@ -221,24 +254,37 @@ async function notifyTaskActivity(
     const subject = `SCCG — ${actionLabel}: ${task.title}`;
 
     for (const [email, name] of Array.from(recipientsMap.entries())) {
-      if (excludeEmail && email === excludeEmail.toLowerCase()) continue;
+      // Don't exclude the creator if they explicitly assigned the task to themselves
+      if (excludeEmail && email === excludeEmail.toLowerCase() && !explicitAssigneeEmails.has(email)) {
+        continue;
+      }
 
       const htmlBody = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <p>Hi ${name},</p>
-          <p><strong>${actorName}</strong> ${
-            action === "created" ? "created a new task" :
-            action === "edited" ? "updated a task" :
-            "added a comment on a task"
-          }:</p>
-          <div style="background:#f8fafc;border-left:4px solid #6366f1;padding:12px 16px;margin:12px 0;border-radius:4px;">
-            <p style="font-size:16px;font-weight:600;margin:0 0 4px;">${task.title}</p>
-            ${task.description ? `<p style="color:#475569;margin:4px 0;font-size:14px;">${task.description.slice(0, 200)}</p>` : ""}
-            ${extraHtml || ""}
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+          <div style="background: #4f46e5; padding: 20px; color: white;">
+            <h2 style="margin: 0; font-size: 20px;">SCCG Task Notification</h2>
+            <p style="margin: 4px 0 0; opacity: 0.9; font-size: 14px;">${actionLabel}</p>
           </div>
-          ${task.dueDate ? `<p><strong>Due:</strong> ${task.dueDate}</p>` : ""}
-          <p><a href="${portalUrl}/sccg/tasks" style="color:#2563eb;font-weight:600;">Open Task Board →</a></p>
-          <p style="color:#64748b;font-size:13px;margin-top:24px;">Best regards,<br/><strong>SCCG Career Lab Germany</strong></p>
+          <div style="padding: 24px;">
+            <p style="font-size: 15px; color: #1e293b;">Hi <strong>${name}</strong>,</p>
+            <p style="font-size: 14px; color: #475569;"><strong>${actorName}</strong> ${
+              action === "created" ? "created and assigned a new task to you" :
+              action === "edited" ? "updated a task" :
+              "added a comment on a task"
+            }:</p>
+            <div style="background:#f8fafc;border-left:4px solid #4f46e5;padding:14px 16px;margin:16px 0;border-radius:4px;">
+              <p style="font-size:16px;font-weight:700;margin:0 0 6px;color:#1e293b;">${task.title}</p>
+              ${task.description ? `<p style="color:#475569;margin:4px 0;font-size:14px;line-height:1.5;">${task.description.slice(0, 300)}</p>` : ""}
+              ${extraHtml || ""}
+            </div>
+            ${task.dueDate ? `<p style="font-size: 13px; color: #64748b;"><strong>Due Date:</strong> ${task.dueDate}</p>` : ""}
+            <div style="margin-top: 24px;">
+              <a href="${portalUrl}/sccg/tasks" style="display:inline-block;background:#4f46e5;color:white;text-decoration:none;padding:10px 20px;border-radius:6px;font-weight:600;font-size:14px;">Open Task Board →</a>
+            </div>
+            <p style="color:#94a3b8;font-size:12px;margin-top:32px;border-top:1px solid #f1f5f9;padding-top:16px;">
+              Sent by SCCG Career Lab Germany Portal
+            </p>
+          </div>
         </div>
       `;
 
@@ -247,7 +293,7 @@ async function notifyTaskActivity(
         toName: name,
         subject,
         htmlBody,
-      }).catch((e: any) => console.warn("[sccg-tasks] Email failed:", e?.message));
+      }).catch((e: any) => console.warn("[sccg-tasks] Email failed to " + email + ":", e?.message));
 
       await sendTeamsChatNotification(
         email,
@@ -318,9 +364,9 @@ export async function saveSccgTaskAction(taskData: Partial<CandidateTask>) {
         payload.comments = existing.comments;
       }
       await Repository.candidates.updateTask(payload.id, payload);
-      saved = { ...existing, ...payload };
+      saved = { ...existing, ...payload, assignees: (payload.assignees && payload.assignees.length > 0) ? payload.assignees : (existing.assignees || []) };
 
-      notifyTaskActivity(
+      await notifyTaskActivity(
         saved, "edited",
         (user as any).name || user.email || "Someone",
         undefined,
@@ -328,9 +374,10 @@ export async function saveSccgTaskAction(taskData: Partial<CandidateTask>) {
       );
     } else {
       const { id: _id, ...newTask } = payload;
-      saved = await Repository.candidates.addTask(newTask);
+      const created = await Repository.candidates.addTask(newTask);
+      saved = { ...newTask, ...created, assignees: (payload.assignees && payload.assignees.length > 0) ? payload.assignees : (created.assignees || []) };
 
-      notifyTaskActivity(
+      await notifyTaskActivity(
         saved, "created",
         (user as any).name || user.email || "Someone",
         undefined,
@@ -378,7 +425,7 @@ export async function addTaskCommentAction(taskId: string, commentText: string) 
 
     const updatedTask = { ...existing, comments: updatedComments };
 
-    notifyTaskActivity(
+    await notifyTaskActivity(
       updatedTask, "commented",
       newComment.authorName,
       `<p style="color:#334155;font-style:italic;">"${newComment.text.slice(0, 300)}"</p>`,

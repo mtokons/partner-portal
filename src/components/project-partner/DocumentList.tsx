@@ -1,4 +1,4 @@
-import { FileText, FolderOpen, Download } from "lucide-react";
+import { FileText, FolderOpen, Download, Lock } from "lucide-react";
 import type { ProjectDocument } from "@/types";
 
 function fmtSize(bytes: number): string {
@@ -8,7 +8,17 @@ function fmtSize(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
-export default function DocumentList({ projectId, folder, docs }: { projectId: string; folder: string; docs: ProjectDocument[] }) {
+export default function DocumentList({
+  projectId,
+  folder,
+  docs,
+  readOnly = false,
+}: {
+  projectId: string;
+  folder: string;
+  docs: ProjectDocument[];
+  readOnly?: boolean;
+}) {
   if (docs.length === 0) {
     return <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">No files yet.</p>;
   }
@@ -21,12 +31,18 @@ export default function DocumentList({ projectId, folder, docs }: { projectId: s
             <span className="truncate">{d.name}</span>
             <span className="shrink-0 text-xs text-muted-foreground">{fmtSize(d.sizeBytes)}</span>
           </span>
-          <a
-            href={`/api/project-files/${projectId}/${folder}/${encodeURIComponent(d.name)}?download=1`}
-            className="inline-flex shrink-0 items-center gap-1 text-sm text-blue-600 hover:underline"
-          >
-            <Download className="h-4 w-4" /> Download
-          </a>
+          {readOnly ? (
+            <span className="inline-flex shrink-0 items-center gap-1 rounded bg-slate-100 px-2 py-1 text-[11px] text-slate-400">
+              <Lock className="h-3 w-3" /> Locked
+            </span>
+          ) : (
+            <a
+              href={`/api/project-files/${projectId}/${folder}/${encodeURIComponent(d.name)}?download=1`}
+              className="inline-flex shrink-0 items-center gap-1 text-sm text-blue-600 hover:underline"
+            >
+              <Download className="h-4 w-4" /> Download
+            </a>
+          )}
         </li>
       ))}
     </ul>

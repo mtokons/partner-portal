@@ -27,7 +27,7 @@ export function generateCandidateOfferPdf(
   doc.rect(0, 0, w, 22, "F");
   doc.setFontSize(14);
   doc.setTextColor(255);
-  doc.text("SCCG — Service Offer", 20, 14);
+  doc.text("SCCG Career Lab — Service Offer", 20, 14);
   doc.setFontSize(9);
   doc.text(partner.name ?? "Partner", w - 20, 14, { align: "right" });
 

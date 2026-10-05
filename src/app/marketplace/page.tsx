@@ -1,22 +1,22 @@
-import { getEffectiveSession } from "@/lib/effective-user";
-import { redirect } from "next/navigation";
-import type { SessionUser } from "@/types";
+import { getEffectiveUser } from "@/lib/effective-user";
 import { getProducts, getPromotions } from "@/lib/sharepoint";
+import { getEurToRate } from "@/lib/currency";
 import ShopClient from "./ShopClient";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
-  title: "SCCG Marketplace | Direct E-Commerce",
+  title: "SCCG Marketplace | Direct E-Commerce & Service Packages",
   description: "Buy SCCG service packages and products directly with instant order fulfillment.",
 };
 
 export default async function MarketplacePage() {
-  const session = await getEffectiveSession();
-  if (!session?.user) redirect("/login");
-  const user = session.user as SessionUser;
+  const user = await getEffectiveUser();
 
-  const [products, promotions] = await Promise.all([
+  const [products, promotions, eurToBdtRate] = await Promise.all([
     getProducts(),
     getPromotions(),
+    getEurToRate("BDT").catch(() => 140.2),
   ]);
 
   // Sort products for marketplace display
@@ -36,7 +36,8 @@ export default async function MarketplacePage() {
     <ShopClient
       products={sorted}
       promotions={activePromos}
-      user={user}
+      user={user || undefined}
+      liveEurToBdtRate={eurToBdtRate}
     />
   );
 }

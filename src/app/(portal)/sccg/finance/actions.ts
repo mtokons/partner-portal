@@ -165,10 +165,64 @@ export async function createSccgExpenseAction(formData: FormData): Promise<void>
   revalidatePath("/sccg/finance"); revalidatePath("/sccg/finance/expenses");
 }
 
+export async function recordIncomeAction(formData: FormData): Promise<void> {
+  const user = await requirePermission("payment.record");
+  const clientId = String(formData.get("clientId") || "").trim();
+  const paymentType = String(formData.get("paymentType") || "payment").trim() as "payment" | "purchase";
+  const amount = Number(formData.get("amount"));
+  const reference = String(formData.get("reference") || "").trim();
+  const date = String(formData.get("date") || "").trim();
+  const description = String(formData.get("description") || "").trim();
+
+  if (!clientId || !reference || !date || !Number.isFinite(amount) || amount <= 0) {
+    throw new Error("Valid income details are required");
+  }
+
+  const tx = await createTransaction({
+    clientId,
+    partnerId: "SCCG-DIRECT",
+    type: paymentType,
+    amount,
+    amountEur: amount,
+    conversionRate: 1,
+    reference,
+    description: description || undefined,
+    date,
+  });
+
+  // Notify client about payment confirmation
+  const typeLabel = paymentType === "payment" ? "full payment" : "installment / partial payment";
+  await createNotification({
+    userId: clientId,
+    userType: "customer",
+    type: "payment_received",
+    title: "Payment Confirmation",
+    message: `Your ${typeLabel} of EUR ${amount.toFixed(2)} (ref: ${reference}) has been recorded and confirmed. Thank you!`,
+    read: false,
+    relatedId: tx.id,
+    createdAt: new Date().toISOString(),
+  });
+
+  await writeAuditLog({
+    action: "finance.income.record",
+    actorId: user.id,
+    actorEmail: user.email,
+    targetId: tx.id,
+    targetType: "transaction",
+    metadata: { amount, reference, type: paymentType, clientId },
+  });
+
+  const { revalidatePath } = await import("next/cache");
+  revalidatePath("/sccg/finance");
+  revalidatePath("/sccg/finance/income");
+  revalidatePath("/sccg/finance/payments");
+}
+
 export async function revalidateFinanceViewsAction(): Promise<{ success: boolean }> {
   try {
     const { revalidatePath } = await import("next/cache");
     revalidatePath("/sccg/finance");
+    revalidatePath("/sccg/finance/income");
     revalidatePath("/sccg/finance/invoices");
     revalidatePath("/sccg/finance/payments");
     revalidatePath("/sccg/finance/payouts");

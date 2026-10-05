@@ -74,6 +74,20 @@ export async function createSystemUserAction(data: {
       { merge: true }
     );
 
+    if (data.role === "customer") {
+      try {
+        const { ensureCustomerCandidateRecord } = await import("@/lib/customer-candidate-sync");
+        await ensureCustomerCandidateRecord({
+          email: emailNorm,
+          fullName: data.displayName.trim(),
+          partnerId: "SCCG-DIRECT",
+          partnerName: "SCCG Direct",
+        });
+      } catch (syncErr) {
+        console.warn("[admin-users] Candidate sync non-fatal warning:", syncErr);
+      }
+    }
+
     return { success: true, password: tempPassword };
   } catch (err: any) {
     console.error("createSystemUserAction error:", err);
@@ -363,6 +377,20 @@ export async function updateUserRoleAction(data: {
       });
     } catch {
       /* audit failure must not block the operation */
+    }
+
+    if (role === "customer") {
+      try {
+        const { ensureCustomerCandidateRecord } = await import("@/lib/customer-candidate-sync");
+        await ensureCustomerCandidateRecord({
+          email: emailNorm,
+          fullName: data.displayName || before?.displayName,
+          partnerId: "SCCG-DIRECT",
+          partnerName: "SCCG Direct",
+        });
+      } catch (syncErr) {
+        console.warn("[admin-users] Candidate sync non-fatal warning:", syncErr);
+      }
     }
 
     return {

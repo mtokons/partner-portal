@@ -19,7 +19,8 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 export default async function BatchDetailPage({ params }: { params: Promise<{ id: string }> }) {
   await requirePermission("school.batch.manage");
-  const { id } = await params;
+  const rawParams = await params;
+  const id = decodeURIComponent(rawParams.id);
   const batch = await getSchoolBatchById(id);
   if (!batch) notFound();
 

@@ -8,6 +8,15 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
   NPR: "₨", TRY: "₺",
 };
 
+const DEFAULT_RATES: Record<string, number> = {
+  BDT: 140.2,
+  INR: 111.37,
+  USD: 1.16,
+  GBP: 0.87,
+  AED: 4.27,
+  SAR: 4.36,
+};
+
 type Props = {
   /** Amount in EUR (primary/home currency) */
   amount: number;
@@ -38,7 +47,7 @@ type Props = {
  */
 export default function CurrencyDisplay({
   amount, secondaryCurrency, rate, decimals = 0, compact = false,
-  className = "", eurOnly = true,
+  className = "", eurOnly = false,
   // Legacy props
   bdt, eur, storedRate,
 }: Props) {
@@ -65,7 +74,7 @@ export default function CurrencyDisplay({
     return <span className={className}>€{eurFmt}</span>;
   }
 
-  const effectiveRate = liveRate ?? rate ?? null;
+  const effectiveRate = liveRate ?? rate ?? DEFAULT_RATES[secCurrency] ?? null;
   if (!effectiveRate || effectiveRate <= 0) {
     return <span className={className}>€{eurFmt}</span>;
   }

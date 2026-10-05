@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build --webpack",
+    "deploy:fast": "powershell -ExecutionPolicy Bypass -File ./deploy_fast.ps1",
+    "deploy:fast-skipbuild": "powershell -ExecutionPolicy Bypass -File ./deploy_fast.ps1 -SkipBuild",
     "start": "next start",
     "lint": "eslint",
     "sp:setup-all": "node scripts/setup-all-lists.mjs",
@@ -16,7 +18,7 @@
     "sp:migrate-gfa": "node scripts/migrate-gfa-experts-to-bank.mjs",
     "sp:setup-kanban": "node scripts/setup-kanban-tasks.mjs",
     "demo:create-user": "node scripts/create-public-demo-user.mjs",
-    "test": "vitest run",
+    "test": "npx tsx scripts/test-availability.mjs",
     "test:watch": "vitest",
     "test:e2e": "playwright test"
   },

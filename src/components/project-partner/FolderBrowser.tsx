@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Folder, ChevronLeft, FileText, Download } from "lucide-react";
+import { Folder, ChevronLeft, FileText, Download, Lock } from "lucide-react";
 import type { ProjectDocument } from "@/types";
 
 function fmtSize(bytes: number): string {
@@ -17,22 +17,40 @@ export interface FolderData {
   docs: ProjectDocument[];
 }
 
-export default function FolderBrowser({ projectId, folders }: { projectId: string; folders: FolderData[] }) {
+interface Props {
+  projectId: string;
+  folders: FolderData[];
+  /** When true the download links are hidden and text selection is blocked. */
+  readOnly?: boolean;
+}
+
+export default function FolderBrowser({ projectId, folders, readOnly = false }: Props) {
   const [open, setOpen] = useState<string | null>(null);
   const active = folders.find((f) => f.folder === open);
 
   if (active) {
     const files = active.docs.filter((d) => !d.isFolder);
     return (
-      <div className="rounded-xl border">
+      <div className="rounded-xl border" style={readOnly ? { userSelect: "none", WebkitUserSelect: "none" } : {}}>
         <div className="flex items-center gap-2 border-b px-4 py-3">
-          <button onClick={() => setOpen(null)} className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline">
+          <button
+            onClick={() => setOpen(null)}
+            className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline"
+          >
             <ChevronLeft className="h-4 w-4" /> All folders
           </button>
           <span className="text-muted-foreground">/</span>
           <span className="font-medium">{active.label}</span>
-          <span className="ml-auto text-xs text-muted-foreground">{files.length} file{files.length === 1 ? "" : "s"}</span>
+          <span className="ml-auto text-xs text-muted-foreground">
+            {files.length} file{files.length === 1 ? "" : "s"}
+          </span>
+          {readOnly && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500">
+              <Lock className="h-3 w-3" /> Read-only
+            </span>
+          )}
         </div>
+
         {files.length === 0 ? (
           <p className="p-6 text-center text-sm text-muted-foreground">This folder is empty.</p>
         ) : (
@@ -44,12 +62,20 @@ export default function FolderBrowser({ projectId, folders }: { projectId: strin
                   <span className="truncate">{d.name}</span>
                   <span className="shrink-0 text-xs text-muted-foreground">{fmtSize(d.sizeBytes)}</span>
                 </span>
-                <a
-                  href={`/api/project-files/${projectId}/${active.folder}/${encodeURIComponent(d.name)}?download=1`}
-                  className="inline-flex shrink-0 items-center gap-1 text-sm text-blue-600 hover:underline"
-                >
-                  <Download className="h-4 w-4" /> Download
-                </a>
+
+                {readOnly ? (
+                  /* Download is hidden; show a lock indicator instead */
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded bg-slate-100 px-2 py-1 text-[11px] text-slate-400">
+                    <Lock className="h-3 w-3" /> Locked
+                  </span>
+                ) : (
+                  <a
+                    href={`/api/project-files/${projectId}/${active.folder}/${encodeURIComponent(d.name)}?download=1`}
+                    className="inline-flex shrink-0 items-center gap-1 text-sm text-blue-600 hover:underline"
+                  >
+                    <Download className="h-4 w-4" /> Download
+                  </a>
+                )}
               </li>
             ))}
           </ul>
@@ -71,6 +97,7 @@ export default function FolderBrowser({ projectId, folders }: { projectId: strin
             <Folder className="h-10 w-10 text-amber-500" />
             <span className="font-medium">{f.label}</span>
             <span className="text-xs text-muted-foreground">{count} file{count === 1 ? "" : "s"}</span>
+            {readOnly && <Lock className="h-3 w-3 text-slate-400" />}
           </button>
         );
       })}

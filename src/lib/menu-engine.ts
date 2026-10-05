@@ -143,6 +143,7 @@ const ADMIN_MENU: MenuItem[] = [
   { key: "admin.experts",           label: "Experts",            href: "/admin/experts",             icon: "UserCheck",       group: "users",      groupLabel: "User Management",    groupOrder: 3, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
 
   // Sales & CRM
+  { key: "admin.marketplace",       label: "Marketplace",        href: "/partner/marketplace",       icon: "ShoppingBag",     group: "sales",      groupLabel: "Sales & CRM",        groupOrder: 4, itemOrder: 0.5, isEnabled: true, isDefault: true, isLocked: false },
   { key: "admin.products",          label: "Manage Products",    href: "/admin/products",            icon: "Package",         group: "sales",      groupLabel: "Sales & CRM",        groupOrder: 4, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
   { key: "admin.register",          label: "Register Candidate", href: "/admin/candidates/new",      icon: "UserPlus",        group: "sales",      groupLabel: "Sales & CRM",        groupOrder: 4, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
   { key: "admin.orders",            label: "All Orders",         href: "/admin/orders",              icon: "ShoppingCart",    group: "sales",      groupLabel: "Sales & CRM",        groupOrder: 4, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
@@ -172,17 +173,20 @@ const ADMIN_MENU: MenuItem[] = [
   // HR
   { key: "admin.hr",                label: "HR Dashboard",       href: "/admin/hr",                  icon: "Building2",       group: "hr",         groupLabel: "Human Resources",    groupOrder: 8, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
   { key: "admin.hr.employees",      label: "Employees",          href: "/admin/hr/employees",        icon: "Users",           group: "hr",         groupLabel: "Human Resources",    groupOrder: 8, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.availability",      label: "Team Availability",  href: "/admin/availability",        icon: "CalendarCheck",   group: "hr",         groupLabel: "Human Resources",    groupOrder: 8, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
 
   // School
-  { key: "admin.school",            label: "School Dashboard",   href: "/admin/school",              icon: "GraduationCap",   group: "school",     groupLabel: "Language School",    groupOrder: 9, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
-  { key: "admin.school.courses",    label: "Courses",            href: "/admin/school/courses",      icon: "BookOpen",        group: "school",     groupLabel: "Language School",    groupOrder: 9, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
-  { key: "admin.school.batches",    label: "Batches",            href: "/admin/school/batches",      icon: "Layers",          group: "school",     groupLabel: "Language School",    groupOrder: 9, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
-  { key: "admin.school.enrollments",label: "Enrollments",        href: "/admin/school/enrollments",  icon: "ClipboardList",   group: "school",     groupLabel: "Language School",    groupOrder: 9, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false },
-  { key: "admin.school.teachers",   label: "Teachers",           href: "/admin/school/teachers",     icon: "UserCheck",       group: "school",     groupLabel: "Language School",    groupOrder: 9, itemOrder: 5, isEnabled: true, isDefault: true, isLocked: false },
-  { key: "admin.school.certs",      label: "Certificates",       href: "/admin/school/certificates", icon: "Award",           group: "school",     groupLabel: "Language School",    groupOrder: 9, itemOrder: 6, isEnabled: true, isDefault: true, isLocked: false },
-  { key: "admin.school.students",   label: "All Students",       href: "/admin/school/students",     icon: "Users",           group: "school",     groupLabel: "Language School",    groupOrder: 9, itemOrder: 7, isEnabled: true, isDefault: true, isLocked: false },
-  { key: "admin.school.model-tests", label: "Model Tests",       href: "/admin/school/model-tests",  icon: "ClipboardCheck",  group: "school",     groupLabel: "Language School",    groupOrder: 9, itemOrder: 8, isEnabled: true, isDefault: true, isLocked: false },
-  { key: "admin.school.model-test-builder", label: "Test Builder", href: "/admin/school/model-tests/builder", icon: "Wand2",   group: "school",     groupLabel: "Language School",    groupOrder: 9, itemOrder: 9, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.school",            label: "School Dashboard",   href: "/sccg/school",              icon: "GraduationCap",   group: "school",     groupLabel: "Language School",    groupOrder: 9, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.school.courses",    label: "Courses",            href: "/sccg/school/courses",      icon: "BookOpen",        group: "school",     groupLabel: "Language School",    groupOrder: 9, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.school.batches",    label: "Batches",            href: "/sccg/school/batches",      icon: "Layers",          group: "school",     groupLabel: "Language School",    groupOrder: 9, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.school.enrollments",label: "Enrollments",        href: "/sccg/school/enrollments",  icon: "ClipboardList",   group: "school",     groupLabel: "Language School",    groupOrder: 9, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.school.teachers",   label: "Teachers",           href: "/sccg/school/teachers",     icon: "UserCheck",       group: "school",     groupLabel: "Language School",    groupOrder: 9, itemOrder: 5, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.school.certs",      label: "Certificates",       href: "/sccg/school/certificates", icon: "Award",           group: "school",     groupLabel: "Language School",    groupOrder: 9, itemOrder: 6, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.school.students",   label: "Students",           href: "/sccg/school/students",     icon: "Users",           group: "school",     groupLabel: "Language School",    groupOrder: 9, itemOrder: 7, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.school.team",       label: "Language Team",      href: "/sccg/school/team",         icon: "UserCheck",       group: "school",     groupLabel: "Language School",    groupOrder: 9, itemOrder: 8, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.school.waiting",    label: "Waiting List",       href: "/sccg/school/waiting-list", icon: "Hourglass",       group: "school",     groupLabel: "Language School",    groupOrder: 9, itemOrder: 9, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.school.model-tests", label: "Model Tests",       href: "/admin/school/model-tests",  icon: "ClipboardCheck",  group: "school",     groupLabel: "Language School",    groupOrder: 9, itemOrder: 10, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "admin.school.model-test-builder", label: "Test Builder", href: "/admin/school/model-tests/builder", icon: "Wand2",   group: "school",     groupLabel: "Language School",    groupOrder: 9, itemOrder: 11, isEnabled: true, isDefault: true, isLocked: false },
 
   // Administration
   { key: "admin.send-email",        label: "Send Email",         href: "/admin/send-email",          icon: "Mail",            group: "admin",      groupLabel: "Administration",     groupOrder: 10, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
@@ -200,6 +204,7 @@ const CUSTOMER_MENU: MenuItem[] = [
   { key: "customer.offers",         label: "My Offers",          href: "/customer/offers",           icon: "FileText",        group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
   { key: "customer.timeline",       label: "My Timeline",        href: "/customer/timeline",         icon: "ClipboardList",   group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
   { key: "customer.packages",       label: "My Packages",        href: "/customer/packages",         icon: "Package",         group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "customer.marketplace",   label: "Marketplace",        href: "/partner/marketplace",       icon: "ShoppingBag",     group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 4.5, isEnabled: true, isDefault: true, isLocked: false },
   { key: "customer.courses",        label: "My Courses",         href: "/customer/school",           icon: "GraduationCap",   group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 5, isEnabled: true, isDefault: true, isLocked: false },
   { key: "customer.sessions",       label: "Sessions",           href: "/customer/sessions",         icon: "Calendar",        group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 6, isEnabled: true, isDefault: true, isLocked: false },
   { key: "customer.messages",       label: "Messages",           href: "/customer/messages",         icon: "MessageSquare",   group: "communication", groupLabel: "Communication",   groupOrder: 2, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
@@ -212,40 +217,46 @@ const CUSTOMER_MENU: MenuItem[] = [
 
 const EXPERT_MENU: MenuItem[] = [
   { key: "expert.dashboard",        label: "Dashboard",          href: "/expert/dashboard",          icon: "LayoutDashboard", group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: true },
-  { key: "expert.clients",          label: "My Clients",         href: "/expert/clients",            icon: "Users",           group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
-  { key: "expert.sessions",         label: "Sessions",           href: "/expert/sessions",           icon: "Calendar",        group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
-  { key: "expert.teaching",         label: "My Teaching",        href: "/expert/teaching",           icon: "BookOpen",        group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "expert.tasks",            label: "My Tasks",           href: "/expert/tasks",              icon: "ClipboardList",   group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "expert.candidates",       label: "My Candidates",      href: "/expert/candidates",         icon: "UserSquare",      group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "expert.marketplace",     label: "Marketplace",        href: "/partner/marketplace",       icon: "ShoppingBag",     group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 3.5, isEnabled: true, isDefault: true, isLocked: false },
   { key: "expert.payments",         label: "My Earnings",        href: "/expert/payments",           icon: "CreditCard",      group: "finance",    groupLabel: "Finance",            groupOrder: 2, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
-  { key: "expert.notifications",    label: "Notifications",      href: "/expert/notifications",      icon: "Bell",            group: "account",    groupLabel: "Account",            groupOrder: 3, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },  { key: "expert.manual",           label: "User Manual",         href: "/user-manual",               icon: "BookOpen",        group: "account",    groupLabel: "Account",            groupOrder: 3, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },];
+  { key: "expert.notifications",    label: "Notifications",      href: "/expert/notifications",      icon: "Bell",            group: "account",    groupLabel: "Account",            groupOrder: 3, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "expert.manual",           label: "User Manual",         href: "/user-manual",               icon: "BookOpen",        group: "account",    groupLabel: "Account",            groupOrder: 3, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
+];
 
 const STUDENT_MENU: MenuItem[] = [
   { key: "student.dashboard",       label: "Dashboard",          href: "/student/dashboard",         icon: "LayoutDashboard", group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: true },
   { key: "student.courses",         label: "My Courses",         href: "/student/courses",           icon: "GraduationCap",   group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
   { key: "student.progress",        label: "Progress",           href: "/student/progress",          icon: "TrendingUp",      group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
   { key: "student.documents",       label: "Documents",          href: "/student/documents",         icon: "FileText",        group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false },
-  { key: "student.model-tests",     label: "Model Tests",        href: "/student/model-tests",       icon: "ClipboardCheck",  group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 5, isEnabled: true, isDefault: true, isLocked: false },  { key: "student.manual",          label: "User Manual",         href: "/user-manual",               icon: "BookOpen",        group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 6, isEnabled: true, isDefault: true, isLocked: false },];
+  { key: "student.model-tests",     label: "Model Tests",        href: "/student/model-tests",       icon: "ClipboardCheck",  group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 5, isEnabled: true, isDefault: true, isLocked: false },  { key: "student.marketplace",    label: "Marketplace",        href: "/partner/marketplace",       icon: "ShoppingBag",     group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 5.5, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "student.manual",          label: "User Manual",         href: "/user-manual",               icon: "BookOpen",        group: "main",       groupLabel: "Main Console",       groupOrder: 1, itemOrder: 6, isEnabled: true, isDefault: true, isLocked: false },];
 
 // School Admin — only school-related pages
 const SCHOOL_ADMIN_MENU: MenuItem[] = [
   // Overview
-  { key: "school.dashboard",         label: "School Dashboard",   href: "/admin/school",              icon: "GraduationCap",   group: "school",     groupLabel: "Language School",    groupOrder: 1, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: true },
+  { key: "school.dashboard",         label: "School Dashboard",   href: "/sccg/school",              icon: "GraduationCap",   group: "school",     groupLabel: "Language School",    groupOrder: 1, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: true },
   // Courses
-  { key: "school.courses",           label: "Courses",            href: "/admin/school/courses",      icon: "BookOpen",        group: "school",     groupLabel: "Language School",    groupOrder: 1, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "school.courses",           label: "Courses",            href: "/sccg/school/courses",      icon: "BookOpen",        group: "school",     groupLabel: "Language School",    groupOrder: 1, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
   // Batches
-  { key: "school.batches",           label: "Batches",            href: "/admin/school/batches",      icon: "Layers",          group: "school",     groupLabel: "Language School",    groupOrder: 1, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "school.batches",           label: "Batches",            href: "/sccg/school/batches",      icon: "Layers",          group: "school",     groupLabel: "Language School",    groupOrder: 1, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
   // Enrollments
-  { key: "school.enrollments",       label: "Enrollments",        href: "/admin/school/enrollments",  icon: "ClipboardList",   group: "school",     groupLabel: "Language School",    groupOrder: 1, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "school.enrollments",       label: "Enrollments",        href: "/sccg/school/enrollments",  icon: "ClipboardList",   group: "school",     groupLabel: "Language School",    groupOrder: 1, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false },
+  // All Orders
+  { key: "school.orders",            label: "All Orders",         href: "/admin/orders",             icon: "ShoppingCart",    group: "school",     groupLabel: "Language School",    groupOrder: 1, itemOrder: 4.5, isEnabled: true, isDefault: true, isLocked: false },
   // Teachers
-  { key: "school.teachers",          label: "Teachers",           href: "/admin/school/teachers",     icon: "UserCheck",       group: "school",     groupLabel: "Language School",    groupOrder: 1, itemOrder: 5, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "school.teachers",          label: "Teachers",           href: "/sccg/school/teachers",     icon: "UserCheck",       group: "school",     groupLabel: "Language School",    groupOrder: 1, itemOrder: 5, isEnabled: true, isDefault: true, isLocked: false },
   // Certificates
-  { key: "school.certificates",      label: "Certificates",       href: "/admin/school/certificates", icon: "Award",           group: "school",     groupLabel: "Language School",    groupOrder: 1, itemOrder: 6, isEnabled: true, isDefault: true, isLocked: false },
-  // Reports
-  { key: "school.reports",           label: "School Reports",     href: "/admin/school/reports",      icon: "BarChart3",       group: "school",     groupLabel: "Language School",    groupOrder: 1, itemOrder: 7, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "school.certificates",      label: "Certificates",       href: "/sccg/school/certificates", icon: "Award",           group: "school",     groupLabel: "Language School",    groupOrder: 1, itemOrder: 6, isEnabled: true, isDefault: true, isLocked: false },
   // Students
-  { key: "school.students",          label: "All Students",       href: "/admin/school/students",     icon: "Users",           group: "school",     groupLabel: "Language School",    groupOrder: 1, itemOrder: 8, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "school.students",          label: "Students",           href: "/sccg/school/students",     icon: "Users",           group: "school",     groupLabel: "Language School",    groupOrder: 1, itemOrder: 7, isEnabled: true, isDefault: true, isLocked: false },
+  // Team & Waiting List
+  { key: "school.team",              label: "Language Team",      href: "/sccg/school/team",         icon: "UserCheck",       group: "school",     groupLabel: "Language School",    groupOrder: 1, itemOrder: 8, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "school.waiting",           label: "Waiting List",       href: "/sccg/school/waiting-list", icon: "Hourglass",       group: "school",     groupLabel: "Language School",    groupOrder: 1, itemOrder: 9, isEnabled: true, isDefault: true, isLocked: false },
   // Model Tests
-  { key: "school.model-tests",       label: "Model Tests",        href: "/admin/school/model-tests",  icon: "ClipboardCheck",  group: "school",     groupLabel: "Language School",    groupOrder: 1, itemOrder: 9, isEnabled: true, isDefault: true, isLocked: false },
-  { key: "school.model-test-builder", label: "Test Builder",     href: "/admin/school/model-tests/builder", icon: "Wand2",   group: "school",     groupLabel: "Language School",    groupOrder: 1, itemOrder: 10, isEnabled: true, isDefault: true, isLocked: false },  { key: "school.manual",           label: "User Manual",         href: "/user-manual",               icon: "BookOpen",        group: "school",     groupLabel: "Language School",    groupOrder: 1, itemOrder: 11, isEnabled: true, isDefault: true, isLocked: false },];
+  { key: "school.model-tests",       label: "Model Tests",        href: "/admin/school/model-tests",  icon: "ClipboardCheck",  group: "school",     groupLabel: "Language School",    groupOrder: 1, itemOrder: 10, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "school.model-test-builder", label: "Test Builder",     href: "/admin/school/model-tests/builder", icon: "Wand2",   group: "school",     groupLabel: "Language School",    groupOrder: 1, itemOrder: 11, isEnabled: true, isDefault: true, isLocked: false },  { key: "school.manual",           label: "User Manual",         href: "/user-manual",               icon: "BookOpen",        group: "school",     groupLabel: "Language School",    groupOrder: 1, itemOrder: 12, isEnabled: true, isDefault: true, isLocked: false },];
 
 const PROJECT_PARTNER_MENU: MenuItem[] = [
   { key: "pp.dashboard",  label: "Dashboard",        href: "/project-partner/dashboard", icon: "LayoutDashboard", group: "main", groupLabel: "Main Console", groupOrder: 1, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: true },
@@ -337,6 +348,7 @@ const SCCG_MENU: MenuItem[] = [
 
   // 5. Sales & Marketing
   { key: "sccg.products",    label: "Manage Product",         href: "/admin/products",   icon: "Package",       group: "sales", groupLabel: "Sales & Marketing", groupOrder: 6, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.orders",      label: "All Orders",             href: "/sccg/orders",     icon: "ShoppingCart",  group: "sales", groupLabel: "Sales & Marketing", groupOrder: 6, itemOrder: 1.5, isEnabled: true, isDefault: true, isLocked: false },
   { key: "sccg.bookings",    label: "Booking & Lead",         href: "/sales/bookings",   icon: "CalendarCheck", group: "sales", groupLabel: "Sales & Marketing", groupOrder: 6, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
   { key: "sccg.promotions",  label: "Current Campaign",       href: "/admin/promotions", icon: "Megaphone",     group: "sales", groupLabel: "Sales & Marketing", groupOrder: 6, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
   { key: "sccg.promo-codes", label: "Promo Codes",            href: "/admin/promo-codes",icon: "Tag",           group: "sales", groupLabel: "Sales & Marketing", groupOrder: 6, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false },
@@ -349,21 +361,25 @@ const SCCG_MENU: MenuItem[] = [
   { key: "sccg.payouts",    label: "Payout",           href: "/sccg/finance/payouts",    icon: "Wallet",     group: "finance", groupLabel: "Finance", groupOrder: 7, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false },
   { key: "sccg.expert-payments", label: "Expert Payment", href: "/sccg/expert-payments", icon: "HandCoins", group: "finance", groupLabel: "Finance", groupOrder: 7, itemOrder: 5, isEnabled: true, isDefault: true, isLocked: false },
   { key: "sccg.refunds",    label: "Refund",           href: "/sccg/refunds",     icon: "Undo2",      group: "finance", groupLabel: "Finance", groupOrder: 7, itemOrder: 6, isEnabled: true, isDefault: true, isLocked: false },
-  { key: "sccg.expenses",   label: "Expenses",         href: "/sccg/finance/expenses", icon: "ReceiptText", group: "finance", groupLabel: "Finance", groupOrder: 7, itemOrder: 7, isEnabled: true, isDefault: true, isLocked: false },
-  { key: "sccg.reports",    label: "Reports",          href: "/sccg/finance/reports",    icon: "BarChart3",  group: "finance", groupLabel: "Finance", groupOrder: 7, itemOrder: 8, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.income",    label: "Income Entry",     href: "/sccg/finance/income",    icon: "TrendingUp",  group: "finance", groupLabel: "Finance", groupOrder: 7, itemOrder: 7, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.expenses",   label: "Expenses",         href: "/sccg/finance/expenses", icon: "ReceiptText", group: "finance", groupLabel: "Finance", groupOrder: 7, itemOrder: 8, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.reports",    label: "Reports",          href: "/sccg/finance/reports",    icon: "BarChart3",  group: "finance", groupLabel: "Finance", groupOrder: 7, itemOrder: 9, isEnabled: true, isDefault: true, isLocked: false },
 
   // 7. Human Resource
   { key: "sccg.hr", label: "HR Dashboard", href: "/sccg/hr", icon: "Building2", group: "hr", groupLabel: "Human Resource", groupOrder: 8, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
   { key: "sccg.hr.employees", label: "Employees", href: "/sccg/hr/employees", icon: "Users", group: "hr", groupLabel: "Human Resource", groupOrder: 8, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.availability", label: "Team Availability", href: "/sccg/availability", icon: "CalendarCheck", group: "hr", groupLabel: "Human Resource", groupOrder: 8, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
 
   // 8. Language School
   { key: "sccg.school", label: "School Dashboard", href: "/sccg/school", icon: "GraduationCap", group: "school", groupLabel: "Language School", groupOrder: 9, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
   { key: "sccg.school.courses", label: "Courses", href: "/sccg/school/courses", icon: "BookOpen", group: "school", groupLabel: "Language School", groupOrder: 9, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
   { key: "sccg.school.batches", label: "Batches", href: "/sccg/school/batches", icon: "Layers", group: "school", groupLabel: "Language School", groupOrder: 9, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },
-  { key: "sccg.school.students", label: "Students", href: "/sccg/school/students", icon: "Users", group: "school", groupLabel: "Language School", groupOrder: 9, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false },
-  { key: "sccg.school.waiting-list", label: "Waiting List", href: "/sccg/school/waiting-list", icon: "Hourglass", group: "school", groupLabel: "Language School", groupOrder: 9, itemOrder: 5, isEnabled: true, isDefault: true, isLocked: false },
-  { key: "sccg.school.team", label: "Language Team", href: "/sccg/school/team", icon: "UserCheck", group: "school", groupLabel: "Language School", groupOrder: 9, itemOrder: 6, isEnabled: true, isDefault: true, isLocked: false },
-  { key: "sccg.school.certificates", label: "Certificates", href: "/sccg/school/certificates", icon: "Award", group: "school", groupLabel: "Language School", groupOrder: 9, itemOrder: 7, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.school.enrollments", label: "Enrollments", href: "/sccg/school/enrollments", icon: "ClipboardList", group: "school", groupLabel: "Language School", groupOrder: 9, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.school.teachers", label: "Teachers", href: "/sccg/school/teachers", icon: "UserCheck", group: "school", groupLabel: "Language School", groupOrder: 9, itemOrder: 5, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.school.certificates", label: "Certificates", href: "/sccg/school/certificates", icon: "Award", group: "school", groupLabel: "Language School", groupOrder: 9, itemOrder: 6, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.school.students", label: "Students", href: "/sccg/school/students", icon: "Users", group: "school", groupLabel: "Language School", groupOrder: 9, itemOrder: 7, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.school.team", label: "Language Team", href: "/sccg/school/team", icon: "UserCheck", group: "school", groupLabel: "Language School", groupOrder: 9, itemOrder: 8, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.school.waiting-list", label: "Waiting List", href: "/sccg/school/waiting-list", icon: "Hourglass", group: "school", groupLabel: "Language School", groupOrder: 9, itemOrder: 9, isEnabled: true, isDefault: true, isLocked: false },
 
   // 9. Wallet & Rewards
   { key: "sccg.wallets",    label: "Manage Wallets", href: "/admin/wallets",    icon: "Wallet",     group: "wallet", groupLabel: "Wallet & Rewards", groupOrder: 10, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
@@ -405,8 +421,8 @@ export function getAllAvailableMenuItems(): MenuItem[] {
 /** Given a user's roles array, determine their primary console */
 export function resolveConsole(roles: string[]): ConsoleType {
   const lower = roles.map((r) => r.toLowerCase());
-  if (lower.includes("admin") || lower.includes("project-admin")) return "admin";
   if (lower.includes("sccg-admin") || lower.includes("sccg-staff")) return "sccg";
+  if (lower.includes("admin") || lower.includes("project-admin")) return "admin";
   if (lower.includes("school-manager")) return "school-admin";
   if (lower.includes("project-partner") || lower.includes("project-partner-admin")) return "project-partner";
   if (lower.includes("job-seeker")) return "job-seeker";
@@ -447,12 +463,6 @@ export const UNAVAILABLE_MENU_KEYS = new Set<string>([
   "admin.commissions",      // /admin/commissions
   "admin.hr.employees",     // /admin/hr/employees
   // Admin → Language School sub-pages (only /admin/school dashboard exists)
-  "admin.school.courses",
-  "admin.school.batches",
-  "admin.school.enrollments",
-  "admin.school.teachers",
-  "admin.school.certs",
-  "admin.school.students",
   "admin.school.model-tests",
   "admin.school.model-test-builder",
   // Student console sub-pages without a page
@@ -460,13 +470,6 @@ export const UNAVAILABLE_MENU_KEYS = new Set<string>([
   "student.progress",
   "student.documents",
   // School-admin console — same missing /admin/school/* targets
-  "school.courses",
-  "school.batches",
-  "school.enrollments",
-  "school.teachers",
-  "school.certificates",
-  "school.reports",
-  "school.students",
   "school.model-tests",
   "school.model-test-builder",
   // SCCG console — routes phased in later (Phase 1/2)

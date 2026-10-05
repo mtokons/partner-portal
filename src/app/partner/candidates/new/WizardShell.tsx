@@ -301,15 +301,11 @@ export function WizardShell({
             state={state}
             partnerMargin={partnerMargin}
             partnerId={partnerId}
-            onDone={async () => {
-              const res = await saveCandidateRegistrationAction({
-                ...state,
-                partnerId: state.selectedPartnerId || partnerId,
-              } as any);
+            onDone={(result) => {
               sessionStorage.removeItem(`sccg_wizard_${existingCandidate?.id || 'new'}`);
               // Existing candidates skip documents → go straight to success (step 7)
               const nextStep = isExisting ? 7 : 6;
-              setState((prev) => ({ ...prev, submissionResult: res, step: nextStep }));
+              setState((prev) => ({ ...prev, submissionResult: result, step: nextStep }));
             }}
             onBack={onBack}
             secondaryCurrency={secondaryCurrency}
@@ -325,30 +321,45 @@ export function WizardShell({
             onNext={(uploadedDocuments) => onNext({ uploadedDocuments })}
           />
         )}
-        {currentStep === 7 && state.submissionResult && (
+        {currentStep === 7 && (
           <div className="text-center space-y-4 py-8">
             <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto" />
             <h2 className="text-xl font-bold">
               {state.existingCandidateId ? "Service Order Added!" : "Candidate Registered!"}
             </h2>
-            <p className="text-muted-foreground text-sm">
-              Candidate ID:{" "}
-              <span className="font-mono font-bold text-foreground">
-                {state.submissionResult.candidateId}
-              </span>
-            </p>
-            <div className="flex items-center justify-center gap-3 pt-2">
-              <a
-                href={`${candidatesPath}/${state.submissionResult.candidateId}`}
-                className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90 transition-colors"
-              >
-                View Candidate →
-              </a>
+            {state.submissionResult?.candidateId && (
+              <p className="text-muted-foreground text-sm">
+                Candidate ID:{" "}
+                <span className="font-mono font-bold text-foreground">
+                  {state.submissionResult.candidateId}
+                </span>
+              </p>
+            )}
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+              {state.submissionResult?.candidateId && (
+                <a
+                  href={`${candidatesPath}/${state.submissionResult.candidateId}`}
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90 transition-colors"
+                >
+                  View Candidate →
+                </a>
+              )}
               <button
                 onClick={() => router.push(candidatesPath)}
                 className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted transition-colors"
               >
                 Back to Gallery
+              </button>
+              <button
+                onClick={() => {
+                  if (typeof window !== "undefined") {
+                    window.close();
+                    setTimeout(() => router.push(candidatesPath), 300);
+                  }
+                }}
+                className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted transition-colors"
+              >
+                Close Window
               </button>
             </div>
           </div>

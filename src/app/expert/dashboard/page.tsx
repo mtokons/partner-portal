@@ -34,16 +34,16 @@ export default async function ExpertDashboardPage() {
     getAdminFirestore().collection("users").doc(user.id).get().then(s => s.data()),
   ]);
 
-  // 1b. Auto-provision if approved in Firebase but missing in SharePoint
-  if (!expert && dbProfile && dbProfile.status === "active") {
+  // 1b. Auto-provision if missing in SharePoint (Bypass manual review)
+  if (!expert) {
     const { createExpert } = await import("@/lib/sharepoint");
     try {
       const expertData: Expert = {
         id: user.id,
-        name: dbProfile.displayName || user.name || "Expert",
-        email: dbProfile.email || user.email,
-        phone: dbProfile.phone || "",
-        specialization: dbProfile.specialization || "General",
+        name: dbProfile?.displayName || user.name || "Expert",
+        email: dbProfile?.email || user.email,
+        phone: dbProfile?.phone || "",
+        specialization: dbProfile?.specialization || "General",
         bio: "",
         status: "active",
         rating: 5,
@@ -57,7 +57,7 @@ export default async function ExpertDashboardPage() {
     }
   }
 
-  // 2. Handle approval states
+  // 2. Handle failure to provision
   if (!expert) {
     const isPending = !dbProfile || dbProfile.status === "pending";
     
@@ -195,7 +195,7 @@ export default async function ExpertDashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Upcoming Sessions</CardTitle>
-            <Link href="/expert/sessions" className="text-sm text-indigo-600 hover:underline">View all</Link>
+            <Link href="/expert/candidates" className="text-sm text-indigo-600 hover:underline">View all</Link>
           </CardHeader>
           <CardContent>
             {upcomingSessions.length === 0 ? (
@@ -225,7 +225,7 @@ export default async function ExpertDashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Recent Completions</CardTitle>
-            <Link href="/expert/sessions" className="text-sm text-indigo-600 hover:underline">View all</Link>
+            <Link href="/expert/candidates" className="text-sm text-indigo-600 hover:underline">View all</Link>
           </CardHeader>
           <CardContent>
             {recentCompleted.length === 0 ? (

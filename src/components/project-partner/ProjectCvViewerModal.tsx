@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Lock } from "lucide-react";
 
 /**
  * CV preview popup for project-partner evaluation CVs.
@@ -12,10 +13,12 @@ export default function ProjectCvViewerModal({
   projectId,
   fileName,
   onClose,
+  readOnly = false,
 }: {
   projectId: string;
   fileName: string;
   onClose: () => void;
+  readOnly?: boolean;
 }) {
   const base = `/api/project-files/${projectId}/CVs/${encodeURIComponent(fileName)}`;
   const isPdf = /\.pdf$/i.test(fileName);
@@ -51,11 +54,17 @@ export default function ProjectCvViewerModal({
             <h3 className="truncate text-sm font-semibold text-slate-800">{fileName}</h3>
           </div>
           <div className="flex items-center gap-2">
-            <a href={`${base}?download=1`} className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">Download</a>
+            {readOnly ? (
+              <span className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-400">
+                <Lock className="h-3 w-3" /> Locked
+              </span>
+            ) : (
+              <a href={`${base}?download=1`} className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">Download</a>
+            )}
             <button onClick={onClose} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-200">Close</button>
           </div>
         </div>
-        <div className="flex-1 overflow-auto bg-slate-50">
+        <div className="flex-1 overflow-auto bg-slate-50" style={readOnly ? { userSelect: "none", WebkitUserSelect: "none" } : {}}>
           {isPdf && <iframe title="CV preview" src={base} className="h-full w-full" />}
           {isDocx && loading && <div className="flex h-full items-center justify-center text-sm text-slate-400">Rendering document…</div>}
           {isDocx && !loading && !error && html !== null && (
@@ -65,13 +74,17 @@ export default function ProjectCvViewerModal({
           {isDocx && error && (
             <div className="flex h-full flex-col items-center justify-center text-center text-slate-500">
               <p className="text-sm">Inline preview isn&apos;t available for this file.</p>
-              <a href={`${base}?download=1`} className="mt-3 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Download to view</a>
+              {!readOnly && (
+                <a href={`${base}?download=1`} className="mt-3 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Download to view</a>
+              )}
             </div>
           )}
           {!isPdf && !isDocx && (
             <div className="flex h-full flex-col items-center justify-center text-center text-slate-500">
               <p className="text-sm">Preview not available for this file type.</p>
-              <a href={`${base}?download=1`} className="mt-3 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Download to view</a>
+              {!readOnly && (
+                <a href={`${base}?download=1`} className="mt-3 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Download to view</a>
+              )}
             </div>
           )}
         </div>

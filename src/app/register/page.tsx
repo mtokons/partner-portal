@@ -7,7 +7,7 @@ import {
   Zap, ArrowRight, Eye, EyeOff, User, Mail, Phone, Building,
   Shield, Users, UserCheck, CheckCircle2, AlertCircle, Clock,
 } from "lucide-react";
-import { firebaseAuthAction } from "@/lib/actions";
+import { firebaseAuthAction, syncCustomerCandidateAction } from "@/lib/actions";
 import { firebaseRegister, firebaseGoogleLogin, firebaseGoogleSignup, getFirebaseAuth, type FirebaseUserRole } from "@/lib/firebase-auth";
 
 type UserRole = FirebaseUserRole;
@@ -70,6 +70,16 @@ export default function RegisterPage() {
       );
 
       if (result.success) {
+        if (form.role === "customer") {
+          syncCustomerCandidateAction({
+            email: form.email,
+            fullName: form.name,
+            phone: form.phone,
+            partnerId: "SCCG-DIRECT",
+            partnerName: "SCCG Direct",
+          }).catch(() => {});
+        }
+
         // Automatically create session and redirect for all roles
         const fbAuth = getFirebaseAuth();
         const idToken = await fbAuth.currentUser?.getIdToken();
@@ -419,6 +429,16 @@ export default function RegisterPage() {
                   try {
                     const result = await firebaseGoogleSignup(form.role, form.company, form.specialization);
                     if (result.success) {
+                      if (form.role === "customer") {
+                        const cur = getFirebaseAuth().currentUser;
+                        syncCustomerCandidateAction({
+                          email: cur?.email || form.email,
+                          fullName: cur?.displayName || form.name,
+                          phone: cur?.phoneNumber || form.phone,
+                          partnerId: "SCCG-DIRECT",
+                          partnerName: "SCCG Direct",
+                        }).catch(() => {});
+                      }
                       try {
                         const idToken = await getFirebaseAuth().currentUser?.getIdToken();
                         if (idToken) await firebaseAuthAction(idToken);

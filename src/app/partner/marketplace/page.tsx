@@ -11,12 +11,11 @@ export default async function PartnerMarketplacePage() {
 
   const user = session.user as SessionUser;
   const isAdmin = (user.roles || [user.role]).includes("admin");
-  const partner = await getPartnerByEmail(user.email!);
-  if (!partner) redirect("/partner-pending");
+  const partner = user.email ? await getPartnerByEmail(user.email) : null;
+  const secCur = partner?.preferredCurrency || user.preferredCurrency || "BDT";
+  const rate = secCur !== "EUR" ? await getEurToRate(secCur) : 1;
 
   const allProducts = await getProducts();
-  const secCur = partner.preferredCurrency || "BDT";
-  const rate = secCur !== "EUR" ? await getEurToRate(secCur) : 1;
 
   const downloads = allProducts.filter(
     (p) => (p.category === "partner-downloads" || p.contentType) && p.isAvailable !== false

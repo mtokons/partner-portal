@@ -5,6 +5,8 @@ import { getSessionById, getCustomerPackageById } from "@/lib/sharepoint";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import CompleteSessionButton from "./CompleteSessionButton";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 
 export default async function SessionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -20,6 +22,13 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
 
   return (
     <div className="max-w-2xl space-y-6">
+      <Link
+        href={session.customerId ? `/expert/candidates/${session.customerId}` : "/expert/candidates"}
+        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors group"
+      >
+        <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
+        Back to Candidate
+      </Link>
       <div>
         <h1 className="text-2xl font-bold text-gray-900">
           Session {session.sessionNumber}/{session.totalSessions} — {session.customerName}

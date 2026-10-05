@@ -8,11 +8,20 @@ import { cn } from "@/lib/utils";
 interface PaymentGatewayProps {
   amount: number;
   currency: string;
+  amountBdt?: number;
+  liveRate?: number;
   onSuccess: (reference: string) => void;
   onClose: () => void;
 }
 
-export default function PaymentGateway({ amount, currency, onSuccess, onClose }: PaymentGatewayProps) {
+export default function PaymentGateway({
+  amount,
+  currency,
+  amountBdt,
+  liveRate = 140.2,
+  onSuccess,
+  onClose,
+}: PaymentGatewayProps) {
   const [step, setStep] = useState<"method" | "input" | "processing" | "otp" | "success" | "bank-details">("method");
   const [selectedMethod, setSelectedMethod] = useState<"bkash" | "nagad" | "citybank" | "bank-transfer" | null>(null);
   const [inputValue, setInputValue] = useState("");
@@ -79,9 +88,21 @@ export default function PaymentGateway({ amount, currency, onSuccess, onClose }:
         </div>
 
         {/* Amount bar */}
-        <div className="bg-primary p-4 text-white flex justify-between items-center">
-          <p className="text-xs font-bold opacity-80">Payable Amount</p>
-          <p className="text-xl font-black">{currency} {amount.toLocaleString()}</p>
+        <div className="bg-[#0F4C81] p-4 text-white flex justify-between items-center">
+          <div>
+            <p className="text-xs font-bold text-blue-100">Payable Amount (Bangladesh)</p>
+            <p className="text-[11px] text-blue-200 font-mono">
+              1 EUR ≈ ৳{(liveRate || 140.2).toFixed(2)} BDT
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-2xl font-black text-amber-300">
+              ৳{(amountBdt || Math.round(amount * (liveRate || 140.2))).toLocaleString()} BDT
+            </p>
+            <p className="text-[11px] text-white/80 font-bold">
+              (€{amount.toLocaleString("en-DE", { minimumFractionDigits: 2 })} EUR)
+            </p>
+          </div>
         </div>
 
         <div className="p-8">

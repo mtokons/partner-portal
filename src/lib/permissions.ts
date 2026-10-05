@@ -25,9 +25,42 @@ const PERMISSION_MAP = {
   "quotation.send": ["admin", "sccg-staff", "partner-individual", "partner-institutional"],
 
   // Sales Orders
-  "order.view.own": ["admin", "sccg-staff", "finance", "partner-individual", "partner-institutional", "customer"],
-  "order.view.all": ["admin", "finance", "sccg-staff"],
-  "order.update.status": ["admin"],
+  "order.view.own": [
+    "admin",
+    "sccg-admin",
+    "sccg-staff",
+    "school-manager",
+    "school-admin",
+    "teacher",
+    "finance",
+    "hr",
+    "project-admin",
+    "project-partner-admin",
+    "partner",
+    "partner-individual",
+    "partner-institutional",
+    "customer",
+  ],
+  "order.view.all": [
+    "admin",
+    "sccg-admin",
+    "sccg-staff",
+    "school-manager",
+    "school-admin",
+    "teacher",
+    "finance",
+    "hr",
+    "project-admin",
+    "project-partner-admin",
+  ],
+  "order.update.status": [
+    "admin",
+    "sccg-admin",
+    "sccg-staff",
+    "school-manager",
+    "school-admin",
+    "finance",
+  ],
 
   // Payments
   "payment.make": ["customer"],
@@ -89,20 +122,20 @@ const PERMISSION_MAP = {
   "hr.report": ["admin", "hr"],
 
   // School
-  "school.course.create": ["admin", "school-manager", "teacher"],
-  "school.course.publish": ["admin", "school-manager"],
-  "school.batch.create": ["admin", "school-manager"],
-  "school.batch.manage": ["admin", "school-manager"],
-  "school.enrollment.create": ["admin", "school-manager"],
-  "school.enrollment.manage": ["admin", "school-manager"],
-  "school.attendance.record": ["teacher"],
-  "school.content.upload": ["teacher", "admin", "sccg-staff", "school-manager"],
-  "school.results.enter": ["teacher"],
-  "school.results.publish": ["teacher", "admin", "school-manager"],
-  "school.certificate.issue": ["admin", "school-manager"],
-  "school.certificate.revoke": ["admin", "school-manager"],
-  "school.report": ["admin", "sccg-staff", "school-manager", "finance"],
-  "school.teacher.manage": ["admin", "school-manager"],
+  "school.course.create": ["admin", "sccg-admin", "school-manager", "sccg-staff", "teacher"],
+  "school.course.publish": ["admin", "sccg-admin", "school-manager", "sccg-staff"],
+  "school.batch.create": ["admin", "sccg-admin", "school-manager", "sccg-staff", "teacher"],
+  "school.batch.manage": ["admin", "sccg-admin", "school-manager", "sccg-staff", "teacher"],
+  "school.enrollment.create": ["admin", "sccg-admin", "school-manager", "sccg-staff", "teacher", "partner", "partner-individual", "partner-institutional"],
+  "school.enrollment.manage": ["admin", "sccg-admin", "school-manager", "sccg-staff", "teacher", "partner", "partner-individual", "partner-institutional"],
+  "school.attendance.record": ["teacher", "admin", "sccg-admin", "school-manager", "sccg-staff"],
+  "school.content.upload": ["teacher", "admin", "sccg-admin", "sccg-staff", "school-manager"],
+  "school.results.enter": ["teacher", "admin", "sccg-admin", "school-manager", "sccg-staff"],
+  "school.results.publish": ["teacher", "admin", "sccg-admin", "school-manager", "sccg-staff"],
+  "school.certificate.issue": ["admin", "sccg-admin", "school-manager", "sccg-staff"],
+  "school.certificate.revoke": ["admin", "sccg-admin", "school-manager", "sccg-staff"],
+  "school.report": ["admin", "sccg-admin", "sccg-staff", "school-manager", "finance", "teacher", "partner"],
+  "school.teacher.manage": ["admin", "sccg-admin", "school-manager", "sccg-staff", "teacher", "partner"],
 
   // Candidate management (SCCG Partner Portal)
   "candidate.create": ["partner-individual", "partner-institutional", "admin", "sccg-staff"],
@@ -134,10 +167,18 @@ export async function requirePermission(permission: Permission): Promise<Session
 
   const user = session.user as SessionUser;
   const userRoles = user.roles || [user.role];
-  // SCCG Admin has full internal admin parity for server-action permissions.
-  const effectiveRoles = userRoles.some((r) => r?.toLowerCase() === "sccg-admin")
-    ? [...userRoles, "admin"]
-    : userRoles;
+  const userEmail = (user.email || "").toLowerCase().trim();
+  const isAdminDomainUser =
+    userEmail.endsWith("@mysccg.de") ||
+    userEmail === "mysccg@gmail.com";
+
+  // SCCG Admin & admin domain users have full internal admin parity for server-action permissions.
+  const effectiveRoles = [
+    ...userRoles,
+    ...(userRoles.some((r) => r?.toLowerCase() === "sccg-admin" || r?.toLowerCase() === "admin") || isAdminDomainUser
+      ? ["admin", "sccg-admin", "school-manager", "sccg-staff"]
+      : []),
+  ];
   const allowedRoles = PERMISSION_MAP[permission] as readonly string[];
 
   const hasPermission = effectiveRoles.some((r: string) => allowedRoles.includes(r));
@@ -185,3 +226,30 @@ export async function requireAuth(): Promise<SessionUser> {
   }
   return session.user as SessionUser;
 }
+
+/**
+ * Check whether a user belongs to an administrative or staff role
+ * (Super Admin, SCCG Operations Admin/Staff, School Admin/Manager/Teacher, Finance, HR, Project Admin).
+ */
+export function isAdministrativeUser(user?: SessionUser | null): boolean {
+  if (!user) return false;
+  const adminRoles = [
+    "admin",
+    "sccg-admin",
+    "sccg-staff",
+    "school-manager",
+    "school-admin",
+    "teacher",
+    "finance",
+    "hr",
+    "project-admin",
+    "project-partner-admin",
+  ];
+  const role = (user.role || "").toLowerCase();
+  if (adminRoles.includes(role)) return true;
+  if (user.roles?.some((r) => adminRoles.includes((r || "").toLowerCase()))) return true;
+  const email = (user.email || "").toLowerCase().trim();
+  if (email.endsWith("@mysccg.de") || email === "mysccg@gmail.com") return true;
+  return false;
+}
+

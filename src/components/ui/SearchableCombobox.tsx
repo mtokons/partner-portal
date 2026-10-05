@@ -10,6 +10,7 @@ export interface ComboboxOption {
   subLabel?: string;
   badge?: string;
   icon?: React.ReactNode;
+  email?: string;
 }
 
 interface SearchableComboboxProps {

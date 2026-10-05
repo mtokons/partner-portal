@@ -423,11 +423,17 @@ export async function updateOrderStatusAction(orderId: string, status: "pending"
       await confirmMarketplacePaymentAndActivateServices(order);
     }
 
+    const nowIso = new Date().toISOString();
+    let updatedNotes = needsMarketplaceVerification ? markMarketplacePaymentVerified(order.notes, user.name) : (order.notes || "");
+    if (status === "completed" && !updatedNotes.includes("Completed at:")) {
+      updatedNotes = updatedNotes ? `${updatedNotes}\nCompleted at: ${nowIso}` : `Completed at: ${nowIso}`;
+    }
+
     const updates: Partial<typeof order> = {
       status,
-      notes: needsMarketplaceVerification ? markMarketplacePaymentVerified(order.notes, user.name) : order.notes,
+      notes: updatedNotes,
     };
-    if (status === "completed") updates.completedAt = new Date().toISOString();
+    if (status === "completed") updates.completedAt = nowIso;
 
     await updateSalesOrder(orderId, updates);
     revalidatePath("/sales/orders");
@@ -521,6 +527,11 @@ export async function updateSalesOrderFullAction(data: {
       updatedNotes = `Assigned Expert: ${data.assignedExpert}\n${lines.join("\n")}`.trim();
     }
 
+    const nowIso = new Date().toISOString();
+    if (data.status === "completed" && !order.completedAt && !updatedNotes.includes("Completed at:")) {
+      updatedNotes = updatedNotes ? `${updatedNotes}\nCompleted at: ${nowIso}` : `Completed at: ${nowIso}`;
+    }
+
     const updates: Partial<typeof order> = {
       status: data.status,
       clientName: data.clientName?.trim() || order.clientName,
@@ -528,7 +539,7 @@ export async function updateSalesOrderFullAction(data: {
       notes: updatedNotes,
     };
     if (data.status === "completed" && !order.completedAt) {
-      updates.completedAt = new Date().toISOString();
+      updates.completedAt = nowIso;
     }
 
     await updateSalesOrder(data.orderId, updates);

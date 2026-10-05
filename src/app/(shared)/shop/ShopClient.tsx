@@ -16,9 +16,16 @@ interface ShopClientProps {
   promotions: Promotion[];
   clients: Client[];
   user: SessionUser;
+  liveEurToBdtRate?: number;
 }
 
-export default function ShopClient({ products, promotions, clients, user }: ShopClientProps) {
+export default function ShopClient({
+  products,
+  promotions,
+  clients,
+  user,
+  liveEurToBdtRate = 140.2,
+}: ShopClientProps) {
   const router = useRouter();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
@@ -33,12 +40,13 @@ export default function ShopClient({ products, promotions, clients, user }: Shop
   const addToCart = useCallback((item: CartItem) => {
     setCart((prev) => {
       const existing = prev.findIndex((c) => c.product.id === item.product.id);
+      const targetQty = item.quantity && item.quantity > 0 ? item.quantity : 1;
       if (existing !== -1) {
         return prev.map((c, i) =>
-          i === existing ? { ...c, quantity: c.quantity + 1 } : c
+          i === existing ? { ...c, quantity: targetQty, effectivePrice: item.effectivePrice } : c
         );
       }
-      return [...prev, item];
+      return [...prev, { ...item, quantity: targetQty }];
     });
     setCartOpen(true);
   }, []);
@@ -207,6 +215,7 @@ export default function ShopClient({ products, promotions, clients, user }: Shop
                 canSeePrice={canSeePrice}
                 onAddToCart={addToCart}
                 cartQuantity={cart.find((c) => c.product.id === product.id)?.quantity || 0}
+                liveRate={liveEurToBdtRate}
               />
             ))}
           </div>

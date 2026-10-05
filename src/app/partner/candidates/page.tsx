@@ -34,9 +34,22 @@ export default async function CandidatesPage() {
     getSalesOffers(partnerId),
   ]);
 
+  let allCandidates = candidates;
+  if (isAdmin) {
+    try {
+      const { syncMissingCustomerCandidates } = await import("@/lib/customer-candidate-sync");
+      const missingCandidates = await syncMissingCustomerCandidates(candidates);
+      if (missingCandidates.length > 0) {
+        allCandidates = [...candidates, ...missingCandidates];
+      }
+    } catch (e) {
+      console.warn("[candidates/page] Failed to sync customer candidates:", e);
+    }
+  }
+
   // Fetch services for each candidate
   const candidatesWithServices = await Promise.all(
-    candidates.map(async (c) => {
+    allCandidates.map(async (c) => {
       const services = await getCandidateServices(c.id);
       return { ...c, services };
     })
@@ -44,7 +57,7 @@ export default async function CandidatesPage() {
 
   // Build "waiting for registration" list: accepted offers whose email
   // has no matching registered candidate for this partner
-  const registeredEmails = new Set(candidates.map((c) => c.email.toLowerCase().trim()));
+  const registeredEmails = new Set(allCandidates.map((c) => c.email.toLowerCase().trim()));
   const acceptedOffers = allOffers.filter((o) => o.status === "accepted");
   const waitingOffers = acceptedOffers
     .filter((o) => {
@@ -75,7 +88,7 @@ export default async function CandidatesPage() {
         <div className="flex items-center gap-2">
           <Users className="w-5 h-5 text-primary" />
           <h1 className="text-2xl font-bold text-foreground">My Candidates</h1>
-          <span className="text-sm text-muted-foreground ml-2">({candidates.length})</span>
+          <span className="text-sm text-muted-foreground ml-2">({allCandidates.length})</span>
         </div>
         <div className="flex items-center gap-2">
           <Link

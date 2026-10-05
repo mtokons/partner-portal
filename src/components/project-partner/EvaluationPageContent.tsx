@@ -32,7 +32,9 @@ export default async function EvaluationPageContent({ searchParams, basePath }: 
         if (nameMatch) return true;
         return !visibleExperts.some((expert) => expert.expertName.toLowerCase() === e.expertName.toLowerCase());
       });
-  const canBook = !!ctx && (ctx.isSccgAdmin || ctx.isOrgAdmin || ctx.isViewer);
+  const isInactive = active?.status === "inactive";
+  const readOnly = isInactive;
+  const canBook = !isInactive && !!ctx && (ctx.isSccgAdmin || ctx.isOrgAdmin || ctx.isViewer);
 
   // Merge the canonical (TVET4RE) templates with any per-project custom templates
   // so the matrix can render criteria for both legacy and PPMS evaluations.
@@ -45,6 +47,19 @@ export default async function EvaluationPageContent({ searchParams, basePath }: 
 
   return (
     <div className="space-y-6 p-6">
+      {/* ── Inactive banner ── */}
+      {isInactive && (
+        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800">
+          <span className="mt-0.5 text-lg">🔒</span>
+          <div>
+            <p className="font-semibold text-sm">This project is currently inactive</p>
+            <p className="text-xs mt-0.5 text-amber-700">
+              You are viewing this project in read-only mode. Downloading CVs and candidate documents are restricted.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Evaluation Matrix</h1>
@@ -90,6 +105,7 @@ export default async function EvaluationPageContent({ searchParams, basePath }: 
             templates={templates}
             canBook={canBook}
             isAdmin={ctx?.isSccgAdmin || false}
+            readOnly={readOnly}
           />
         </>
       )}

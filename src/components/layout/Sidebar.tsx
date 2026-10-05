@@ -93,6 +93,7 @@ const allLinks: LinkItem[] = [
   // Human Resources
   { href: "/admin/hr", label: "HR Dashboard", icon: Building2, group: "hr", roles: ["admin", "hr"] },
   { href: "/admin/hr/employees", label: "Employees", icon: Users, group: "hr", roles: ["admin", "hr"] },
+  { href: "/admin/availability", label: "Team Availability", icon: Calendar, group: "hr", roles: ["admin", "hr", "sccg-admin", "sccg-staff", "school-manager"] },
   { href: "/admin/hr/employees/new", label: "Add Employee", icon: UserPlus, group: "hr", roles: ["admin", "hr"] },
   { href: "/admin/hr/reports", label: "HR Reports", icon: BarChart3, group: "hr", roles: ["admin", "hr"] },
   
@@ -129,7 +130,7 @@ const allLinks: LinkItem[] = [
   { href: "/admin/experts", label: "Experts", icon: UserCheck, group: "admin", roles: ["admin"] },
   { href: "/admin/orders", label: "All Orders", icon: ShoppingCart, group: "admin", roles: ["admin"] },
   { href: "/admin/send-email", label: "Send Email", icon: Mail, group: "admin", roles: ["admin"] },
-  { href: "/activity", label: "Activity Logs", icon: Activity, group: "admin", roles: ["admin"] },
+  { href: "/admin/activity-log", label: "Activity Logs", icon: Activity, group: "admin", roles: ["admin"] },
   { href: "/admin/onedrive-to-telegram", label: "OneDrive to Telegram", icon: Send, group: "admin", roles: ["admin"] },
   { href: "/admin/candidates", label: "All Candidates", icon: Users, group: "admin", roles: ["admin"] },
   { href: "/admin/helpdesk", label: "Helpdesk", icon: LifeBuoy, group: "admin", roles: ["admin"] },

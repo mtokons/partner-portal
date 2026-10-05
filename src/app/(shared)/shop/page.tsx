@@ -16,10 +16,12 @@ export default async function ShopPage() {
 
   const partnerId = user.role === "admin" ? undefined : user.partnerId;
 
-  const [products, promotions, clients] = await Promise.all([
+  const { getEurToRate } = await import("@/lib/currency");
+  const [products, promotions, clients, eurToBdtRate] = await Promise.all([
     getProducts(),
     getPromotions(),
     getClients(partnerId),
+    getEurToRate("BDT").catch(() => 140.2),
   ]);
 
   // Sort products by sortOrder or name
@@ -42,6 +44,7 @@ export default async function ShopPage() {
       promotions={activePromos}
       clients={clients}
       user={user}
+      liveEurToBdtRate={eurToBdtRate}
     />
   );
 }

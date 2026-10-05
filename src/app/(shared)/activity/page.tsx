@@ -19,7 +19,11 @@ export default async function ActivityPage() {
   const session = await getEffectiveSession();
   if (!session?.user) redirect("/login");
   const user = session.user as SessionUser;
-  const activities = await getActivities(user.role === "admin" ? undefined : user.partnerId);
+  const roles = user.roles || [user.role];
+  if (roles.some((r) => ["admin", "project-admin", "sccg-admin"].includes(r.toLowerCase()))) {
+    redirect("/admin/activity-log");
+  }
+  const activities = await getActivities(user.partnerId);
 
   return (
     <div className="space-y-6">

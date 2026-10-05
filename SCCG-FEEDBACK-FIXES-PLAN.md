@@ -1,3 +1,4 @@
+
 # SCCG Portal — Feedback Fixes & Feature Development Plan
 
 > Source: Client feedback tables (images 1–3) + error screenshots (Figure 1, Figure 2).

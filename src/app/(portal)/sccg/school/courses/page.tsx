@@ -1,5 +1,6 @@
 import { requirePermission } from "@/lib/permissions";
 import { getSchoolCourses } from "@/lib/firestore-services";
+import { getProducts } from "@/lib/sharepoint";
 import CoursesClient from "./CoursesClient";
 
 export const metadata = {
@@ -9,7 +10,10 @@ export const metadata = {
 
 export default async function CoursesPage() {
   await requirePermission("school.course.create");
-  const courses = await getSchoolCourses().catch(() => []);
+  const [courses, products] = await Promise.all([
+    getSchoolCourses().catch(() => []),
+    getProducts().catch(() => []),
+  ]);
 
-  return <CoursesClient initialCourses={courses} />;
+  return <CoursesClient initialCourses={courses} products={products} />;
 }

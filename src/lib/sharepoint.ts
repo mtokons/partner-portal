@@ -2345,6 +2345,20 @@ export async function deleteSalesOfferItem(id: string): Promise<void> {
   await graphDelete(`${await getSiteListUrlAsync("SalesOfferItems")}/${id}`);
 }
 
+function parseOrderCompletedAt(f: Record<string, any>): string | undefined {
+  if (f[ORD_COL.completedAt]) return String(f[ORD_COL.completedAt]);
+  const notesStr = String(f[ORD_COL.notes] || "");
+  const match = notesStr.match(/Completed(?:\s+at)?:\s*([^\r\n]+)/i);
+  if (match && match[1]) {
+    const raw = match[1].trim();
+    if (!isNaN(Date.parse(raw))) return raw;
+  }
+  if (f[ORD_COL.status] === "completed") {
+    return String(f[ORD_COL.updatedAt] || f.Modified || "");
+  }
+  return undefined;
+}
+
 export async function getSalesOrders(partnerId?: string): Promise<SalesOrder[]> {
   return runSafe(async () => {
     const { graphGet, getSiteListUrlAsync } = await import("@/lib/graph");
@@ -2369,7 +2383,7 @@ export async function getSalesOrders(partnerId?: string): Promise<SalesOrder[]> 
         createdBy: String(f[ORD_COL.createdBy] || ""),
         createdAt: String(f[ORD_COL.createdAt] || ""),
         updatedAt: String(f[ORD_COL.updatedAt] || ""),
-        completedAt: f[ORD_COL.completedAt] ? String(f[ORD_COL.completedAt]) : undefined,
+        completedAt: parseOrderCompletedAt(f),
       };
     });
   }, () => []);
@@ -2396,7 +2410,7 @@ export async function getSalesOrderById(id: string): Promise<SalesOrder | null> 
       createdBy: String(f[ORD_COL.createdBy] || ""),
       createdAt: String(f[ORD_COL.createdAt] || ""),
       updatedAt: String(f[ORD_COL.updatedAt] || ""),
-      completedAt: f[ORD_COL.completedAt] ? String(f[ORD_COL.completedAt]) : undefined,
+      completedAt: parseOrderCompletedAt(f),
     };
   }, () => null);
 }
@@ -2485,13 +2499,32 @@ export async function updateSalesOffer(id: string, data: Partial<SalesOffer>): P
   await graphPatch(`${await getSiteListUrlAsync("SalesOffers")}/${id}/fields`, fields);
 }
 
+let salesOrdersHasCompletedAtColumn: boolean | null = false;
+
 export async function updateSalesOrder(id: string, data: Partial<SalesOrder>): Promise<void> {
   const { graphPatch, getSiteListUrlAsync } = await import("@/lib/graph");
   const fields: Record<string, unknown> = { [ORD_COL.updatedAt]: new Date().toISOString() };
   if (data.status) fields[ORD_COL.status] = data.status;
   if (data.notes !== undefined) fields[ORD_COL.notes] = data.notes;
-  if (data.completedAt) fields[ORD_COL.completedAt] = data.completedAt;
-  await graphPatch(`${await getSiteListUrlAsync("SalesOrders")}/${id}/fields`, fields);
+  if (data.clientName) fields[ORD_COL.clientName] = data.clientName;
+  if (data.clientEmail) fields[ORD_COL.clientEmail] = data.clientEmail;
+  if (data.completedAt && salesOrdersHasCompletedAtColumn) {
+    fields[ORD_COL.completedAt] = data.completedAt;
+  }
+
+  const listUrl = await getSiteListUrlAsync("SalesOrders");
+  try {
+    await graphPatch(`${listUrl}/${id}/fields`, fields);
+  } catch (err: any) {
+    const errMsg = String(err?.message || err);
+    if (fields[ORD_COL.completedAt] && errMsg.toLowerCase().includes("completedat")) {
+      salesOrdersHasCompletedAtColumn = false;
+      delete fields[ORD_COL.completedAt];
+      await graphPatch(`${listUrl}/${id}/fields`, fields);
+    } else {
+      throw err;
+    }
+  }
 }
 
 export async function deleteSalesOffer(id: string): Promise<void> {

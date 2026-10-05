@@ -67,10 +67,11 @@ export default async function SccgFinancePage() {
           { href: "/sccg/expert-payments", title: "Expert Payments", description: "Approve and settle expert session earnings." },
           { href: "/sccg/refunds", title: "Refunds", description: "Review partner requests and issue approved refunds." },
           { href: "/sccg/partner-performance", title: "Partner Performance", description: "Compare revenue, collections, and outstanding balances." },
+          { href: "/sccg/finance/income", title: "Income Entry", description: "Record client sales income and installment payments with automatic confirmation notifications." },
           { href: "/sccg/finance/invoices", title: "Invoices", description: "Review invoice status and due dates." },
           { href: "/sccg/finance/payments", title: "Payments", description: "Inspect the transaction ledger." },
           { href: "/sccg/finance/payouts", title: "Payouts", description: "Track partner, expert and referral payouts." },
-          { href: "/sccg/finance/expenses", title: "Expenses", description: "Record and review SCCG operating expenses." },
+          { href: "/sccg/finance/expenses", title: "Expenses", description: "Record and categorise SCCG monthly operating expenses." },
           { href: "/sccg/finance/reports", title: "Reports", description: "Reconcile allocations, collections and costs." },
         ].map((item) => (
           <Link key={item.href} href={item.href} className="group rounded-xl border border-border bg-card p-4 hover:border-primary/50 hover:bg-muted/40">

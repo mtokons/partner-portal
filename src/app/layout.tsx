@@ -52,7 +52,7 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${outfit.variable} h-full antialiased`}
       suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col bg-background">
+      <body className="min-h-full flex flex-col bg-background" suppressHydrationWarning>
         <AuthContext>
           {children}
           <CurrencyCalculator />
