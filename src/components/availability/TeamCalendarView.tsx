@@ -354,11 +354,80 @@ export function TeamCalendarView({
     });
   }, [visibleColleagues, selectedDate, recordsMap]);
 
-  // Past week days for past week report
-  const pastWeekDays = useMemo(() => {
-    const prevAnchor = addDaysToDateStr(currentWeekAnchor, -7);
-    return getWeekDaysForAnchor(prevAnchor);
-  }, [currentWeekAnchor]);
+  // Multi-period selector for Team Availability Report
+  const [reportPeriod, setReportPeriod] = useState<"past7" | "currentWeek" | "prevWeek" | "past14">("past7");
+
+  // Dynamically computed days for Team Availability Report
+  const reportDays = useMemo(() => {
+    const labels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    if (reportPeriod === "currentWeek") {
+      return getWeekDaysForAnchor(currentWeekAnchor);
+    }
+    if (reportPeriod === "prevWeek") {
+      const prevAnchor = addDaysToDateStr(currentWeekAnchor, -7);
+      return getWeekDaysForAnchor(prevAnchor);
+    }
+    const daysCount = reportPeriod === "past14" ? 14 : 7;
+    const days = [];
+    for (let i = daysCount - 1; i >= 0; i--) {
+      const dStr = addDaysToDateStr(selectedDate, -i);
+      const [y, m, d] = dStr.split("-").map(Number);
+      const dt = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+      const dayOfWeek = dt.getUTCDay();
+      days.push({
+        dateStr: dStr,
+        dayLabel: labels[dayOfWeek],
+        isWeekend: dayOfWeek === 0 || dayOfWeek === 6,
+      });
+    }
+    return days;
+  }, [reportPeriod, currentWeekAnchor, selectedDate]);
+
+  // Backward compatible alias
+  const pastWeekDays = reportDays;
+
+  // Report metrics for all visible SCCG colleagues (counts members with submissions vs zero submissions)
+  const reportMetrics = useMemo(() => {
+    let activeMembers = 0;
+    let zeroMembers = 0;
+    let totalMinutes = 0;
+    const zeroMembersList: Array<{ id: string; email: string; displayName: string }> = [];
+
+    visibleColleagues.forEach((c) => {
+      let subCount = 0;
+      reportDays.forEach((d) => {
+        const rec = records.find(
+          (r) =>
+            r.date === d.dateStr &&
+            (r.userId === c.id || (r.userEmail && r.userEmail.toLowerCase() === c.email.toLowerCase()))
+        );
+        if (rec) {
+          subCount++;
+          if (rec.startTime && rec.endTime) {
+            const [sH, sM] = rec.startTime.split(":").map(Number);
+            const [eH, eM] = rec.endTime.split(":").map(Number);
+            if (!isNaN(sH) && !isNaN(eH)) {
+              const diff = (eH * 60 + (eM || 0)) - (sH * 60 + (sM || 0));
+              if (diff > 0) totalMinutes += diff;
+            }
+          }
+        }
+      });
+      if (subCount > 0) {
+        activeMembers++;
+      } else {
+        zeroMembers++;
+        zeroMembersList.push({ id: c.id, email: c.email, displayName: c.displayName });
+      }
+    });
+
+    return {
+      activeMembers,
+      zeroMembers,
+      totalHours: (totalMinutes / 60).toFixed(1),
+      zeroMembersList,
+    };
+  }, [visibleColleagues, reportDays, records]);
 
   // Send reminders handler
   const handleSendReminders = async () => {
@@ -386,10 +455,53 @@ export function TeamCalendarView({
     }
   };
 
-  // Export past week CSV handler
+  // Remind all members who have 0 submissions in this report period
+  const handleSendZeroMembersReminders = async () => {
+    if (reportMetrics.zeroMembersList.length === 0) {
+      toast.info("All SCCG members have logged entries for this period.");
+      return;
+    }
+    try {
+      setReminderSending(true);
+      const res = await fetch("/api/availability/reminders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          targetDate: selectedDate,
+          recipients: reportMetrics.zeroMembersList.map((c) => ({
+            email: c.email,
+            name: c.displayName,
+          })),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to dispatch reminders");
+      toast.success(
+        data.message ||
+          `Dispatched reminders to ${reportMetrics.zeroMembersList.length} member(s) with 0 submissions via Email and Teams.`
+      );
+    } catch (err: any) {
+      toast.error(err.message || "Failed to send reminders");
+    } finally {
+      setReminderSending(false);
+    }
+  };
+
+  // Export report CSV handler with period naming
   const handleExportPastWeekCsv = () => {
-    exportPastWeekReportToCsv(pastWeekDays, visibleColleagues, records);
-    toast.success("Past week availability report exported successfully.");
+    const periodTitles: Record<string, string> = {
+      past7: "Past 7 Days",
+      currentWeek: "Current Week",
+      prevWeek: "Previous Week",
+      past14: "Past 14 Days",
+    };
+    exportPastWeekReportToCsv(
+      reportDays,
+      visibleColleagues,
+      records,
+      `Team Availability Report (${periodTitles[reportPeriod] || "Past Week"})`
+    );
+    toast.success("Team availability report exported successfully.");
   };
 
   // Selected day info for daily view
@@ -472,17 +584,17 @@ export function TeamCalendarView({
               </Button>
             )}
 
-            {/* Past Week Report Button: Admin / Manager */}
+            {/* Availability Report Button: Admin / Manager */}
             {(isAdmin || isManager) && (
               <Button
                 type="button"
                 size="sm"
                 onClick={() => setShowPastWeekModal(true)}
                 className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-sm text-xs h-8 gap-1.5 border-0 transition"
-                title="Generate and export report of all member past week entries"
+                title="Generate and export availability report for all SCCG members"
               >
                 <FileSpreadsheet className="w-3.5 h-3.5" />
-                <span>Past Week Report</span>
+                <span>Availability Report</span>
               </Button>
             )}
 
@@ -882,22 +994,22 @@ export function TeamCalendarView({
         </div>
       )}
 
-      {/* PAST WEEK REPORT MODAL (ADMIN / MANAGER) */}
+      {/* TEAM AVAILABILITY REPORT MODAL (ADMIN / MANAGER) */}
       {showPastWeekModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-hidden">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col p-6 shadow-2xl border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-5xl w-full max-h-[92vh] flex flex-col p-6 shadow-2xl border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-150">
             {/* Modal Header */}
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 shrink-0">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 shrink-0">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 flex items-center justify-center text-emerald-600">
                   <FileSpreadsheet className="w-5 h-5" />
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
-                    Past Week Team Availability Report
+                    SCCG Team Availability Report
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Period: {pastWeekDays[0]?.dateStr} to {pastWeekDays[pastWeekDays.length - 1]?.dateStr}
+                    Period: {reportDays[0]?.dateStr} to {reportDays[reportDays.length - 1]?.dateStr}
                   </p>
                 </div>
               </div>
@@ -931,14 +1043,103 @@ export function TeamCalendarView({
               </div>
             </div>
 
+            {/* Period Switcher Tabs & Quick Actions */}
+            <div className="flex flex-wrap items-center justify-between gap-3 my-3 shrink-0">
+              <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setReportPeriod("past7")}
+                  className={`px-3 py-1.5 rounded-lg transition ${
+                    reportPeriod === "past7"
+                      ? "bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 shadow-sm font-bold"
+                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                  }`}
+                >
+                  Past 7 Days (Rolling)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setReportPeriod("currentWeek")}
+                  className={`px-3 py-1.5 rounded-lg transition ${
+                    reportPeriod === "currentWeek"
+                      ? "bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 shadow-sm font-bold"
+                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                  }`}
+                >
+                  Current Week
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setReportPeriod("prevWeek")}
+                  className={`px-3 py-1.5 rounded-lg transition ${
+                    reportPeriod === "prevWeek"
+                      ? "bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 shadow-sm font-bold"
+                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                  }`}
+                >
+                  Previous Week
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setReportPeriod("past14")}
+                  className={`px-3 py-1.5 rounded-lg transition ${
+                    reportPeriod === "past14"
+                      ? "bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 shadow-sm font-bold"
+                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                  }`}
+                >
+                  Past 14 Days
+                </button>
+              </div>
+
+              {/* Remind 0-Entry Members Button */}
+              {reportMetrics.zeroMembers > 0 && (
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={reminderSending}
+                  onClick={handleSendZeroMembersReminders}
+                  className="bg-rose-600 hover:bg-rose-700 text-white text-xs gap-1.5 font-bold h-8"
+                  title="Send immediate reminder to all members who have 0 submissions for this period"
+                >
+                  {reminderSending ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Bell className="w-3.5 h-3.5" />
+                  )}
+                  <span>Remind 0-Entry Members ({reportMetrics.zeroMembers})</span>
+                </Button>
+              )}
+            </div>
+
+            {/* Metric KPI Chips */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-3 shrink-0">
+              <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-800">
+                <div className="text-[11px] text-slate-500 font-medium">All SCCG Members</div>
+                <div className="text-base font-bold text-slate-800 dark:text-slate-200 mt-0.5">{visibleColleagues.length} members</div>
+              </div>
+              <div className="p-2.5 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/50">
+                <div className="text-[11px] text-emerald-700 dark:text-emerald-400 font-medium">Active Submissions</div>
+                <div className="text-base font-bold text-emerald-800 dark:text-emerald-300 mt-0.5">{reportMetrics.activeMembers} logged</div>
+              </div>
+              <div className="p-2.5 rounded-xl bg-rose-50/70 dark:bg-rose-950/30 border border-rose-100 dark:border-rose-900/50">
+                <div className="text-[11px] text-rose-700 dark:text-rose-400 font-medium">Zero Submissions</div>
+                <div className="text-base font-bold text-rose-800 dark:text-rose-300 mt-0.5">{reportMetrics.zeroMembers} missing</div>
+              </div>
+              <div className="p-2.5 rounded-xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/50">
+                <div className="text-[11px] text-blue-700 dark:text-blue-400 font-medium">Total Hours Logged</div>
+                <div className="text-base font-bold text-blue-800 dark:text-blue-300 mt-0.5">{reportMetrics.totalHours} hrs</div>
+              </div>
+            </div>
+
             {/* Scrollable Table Content */}
-            <div className="flex-1 overflow-auto my-4 border border-slate-200 dark:border-slate-800 rounded-xl">
+            <div className="flex-1 overflow-auto my-2 border border-slate-200 dark:border-slate-800 rounded-xl">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10">
                     <th className="py-2.5 px-3 font-bold text-slate-700 dark:text-slate-300">Colleague</th>
                     <th className="py-2.5 px-3 font-bold text-slate-700 dark:text-slate-300">Dept</th>
-                    {pastWeekDays.map((d) => (
+                    {reportDays.map((d) => (
                       <th key={d.dateStr} className={`py-2.5 px-2 font-semibold text-center ${d.isWeekend ? "text-slate-400 opacity-60" : "text-slate-700 dark:text-slate-300"}`}>
                         <div>{d.dayLabel}</div>
                         <div className="text-[10px] font-normal text-slate-400">{d.dateStr.slice(5)}</div>
@@ -955,12 +1156,24 @@ export function TeamCalendarView({
                     return (
                       <tr key={c.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30">
                         <td className="py-2.5 px-3 font-semibold text-slate-900 dark:text-slate-100 whitespace-nowrap">
-                          {c.displayName}
+                          <div className="flex items-center gap-1.5">
+                            <span>{c.displayName}</span>
+                            {/* If colleague has zero submissions in period, show badge */}
+                            {records.filter(
+                              (r) =>
+                                reportDays.some((d) => d.dateStr === r.date) &&
+                                (r.userId === c.id || (r.userEmail && r.userEmail.toLowerCase() === c.email.toLowerCase()))
+                            ).length === 0 && (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-950/80 dark:text-rose-300">
+                                0 Entries
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="py-2.5 px-3 text-slate-500 text-[11px] whitespace-nowrap">
                           {c.department || "SCCG"}
                         </td>
-                        {pastWeekDays.map((d) => {
+                        {reportDays.map((d) => {
                           const rec = records.find(
                             (r) =>
                               r.date === d.dateStr &&
@@ -998,16 +1211,16 @@ export function TeamCalendarView({
                                 <span className="text-[10px] text-slate-300 dark:text-slate-600 font-medium">Off</span>
                               ) : (
                                 <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400">
-                                  Missing
+                                  Missing (0)
                                 </span>
                               )}
                             </td>
                           );
                         })}
-                        <td className="py-2.5 px-3 text-center font-bold text-slate-800 dark:text-slate-200">
-                          {subCount} / {pastWeekDays.filter(d => !d.isWeekend).length}
+                        <td className={`py-2.5 px-3 text-center font-bold ${subCount === 0 ? "text-rose-600 dark:text-rose-400" : "text-slate-800 dark:text-slate-200"}`}>
+                          {subCount} / {reportDays.filter(d => !d.isWeekend).length}
                         </td>
-                        <td className="py-2.5 px-3 text-center font-bold text-blue-600 dark:text-blue-400">
+                        <td className={`py-2.5 px-3 text-center font-bold ${totalMins === 0 ? "text-slate-400" : "text-blue-600 dark:text-blue-400"}`}>
                           {(totalMins / 60).toFixed(1)} hrs
                         </td>
                       </tr>
@@ -1019,7 +1232,7 @@ export function TeamCalendarView({
 
             {/* Footer */}
             <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500 shrink-0">
-              <span>Showing {visibleColleagues.length} team members</span>
+              <span>Showing all {visibleColleagues.length} SCCG members</span>
               <Button
                 type="button"
                 variant="outline"

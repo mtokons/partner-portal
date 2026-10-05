@@ -115,13 +115,26 @@ export async function POST(request: Request) {
         getHiddenAvailabilityMemberIds().catch(() => [] as string[]),
       ]);
 
+      const isSccgMember = (u: any) => {
+        if (u.status === "suspended") return false;
+        if (hiddenIds.includes(u.id)) return false; // respect global hidden setting
+        const cat = resolveCategory(u.category, u.primaryRole);
+        if (cat === "sccg-admin" || cat === "sccg-staff") return true;
+        const role = String(u.primaryRole || u.role || "").toLowerCase().trim();
+        const sccgRoles = ["admin", "sccg-admin", "sccg-staff", "finance", "hr", "school-manager", "project-admin", "teacher"];
+        if (sccgRoles.includes(role)) return true;
+        const company = String(u.company || "").toLowerCase();
+        if (company.includes("sccg")) return true;
+        const email = String(u.email || "").toLowerCase();
+        if (email.endsWith("@mysccg.de")) {
+          const partnerKeywords = ["partner", "gfa", "educraft", "gopa", "integration", "icon"];
+          if (!partnerKeywords.some((pk) => email.includes(pk))) return true;
+        }
+        return false;
+      };
+
       const activeColleagues = managedUsers
-        .filter((u) => {
-          if (u.status === "suspended") return false;
-          if (hiddenIds.includes(u.id)) return false; // respect global hidden setting
-          const cat = resolveCategory(u.category, u.primaryRole);
-          return cat === "sccg-admin" || cat === "sccg-staff";
-        })
+        .filter(isSccgMember)
         .map((u) => ({
           id: u.id,
           email: u.email,

@@ -103,7 +103,8 @@ export function exportPastWeekReportToCsv(
     startTime?: string;
     endTime?: string;
     note?: string;
-  }>
+  }>,
+  reportTitle = "SCCG Team Availability Report"
 ): void {
   const headerRow = [
     "Colleague Name",
@@ -151,7 +152,7 @@ export function exportPastWeekReportToCsv(
       } else {
         if (!day.isWeekend) {
           daysMissing++;
-          return "MISSING";
+          return "MISSING (0)";
         }
         return "Weekend (Off)";
       }
@@ -172,7 +173,7 @@ export function exportPastWeekReportToCsv(
   }
 
   const csvRows = [
-    ["SCCG Career Lab — Past Week Team Availability Report"],
+    [`SCCG Career Lab — ${reportTitle}`],
     [`Period: ${weekDays[0]?.dateStr} to ${weekDays[weekDays.length - 1]?.dateStr}`],
     [""],
     headerRow,
@@ -196,7 +197,7 @@ export function exportPastWeekReportToCsv(
   link.setAttribute("href", url);
   link.setAttribute(
     "download",
-    `past-week-availability-${weekDays[0]?.dateStr}-to-${weekDays[weekDays.length - 1]?.dateStr}.csv`
+    `sccg-availability-report-${weekDays[0]?.dateStr}-to-${weekDays[weekDays.length - 1]?.dateStr}.csv`
   );
   document.body.appendChild(link);
   link.click();

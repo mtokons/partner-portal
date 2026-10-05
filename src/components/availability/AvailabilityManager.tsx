@@ -82,8 +82,8 @@ export function AvailabilityManager({
     try {
       setLoading(true);
       const weekDays = getWeekDaysForAnchor(currentWeekAnchor);
-      const startRange = addDaysToDateStr(weekDays[0].dateStr, -7);
-      const endRange = addDaysToDateStr(weekDays[6].dateStr, 14);
+      const startRange = addDaysToDateStr(weekDays[0].dateStr, -14);
+      const endRange = addDaysToDateStr(weekDays[6].dateStr, 21);
 
       const res = await fetch(`/api/availability?startDate=${startRange}&endDate=${endRange}`);
       const data = await res.json();
