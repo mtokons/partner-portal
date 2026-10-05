@@ -8,6 +8,7 @@ import {
 } from "@/lib/availability";
 import {
   getAvailabilityForRange,
+  getHiddenAvailabilityMemberIds,
   saveAvailabilityEntry,
 } from "@/lib/availability-server";
 import { AVAILABILITY_CONFIG } from "@/lib/availability-config";
