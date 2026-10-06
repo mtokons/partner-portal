@@ -23,6 +23,10 @@ import {
   X,
   CreditCard,
   Edit,
+  Search,
+  ChevronDown,
+  Mail,
+  Phone,
 } from "lucide-react";
 import type {
   BatchStatus,
@@ -40,6 +44,15 @@ import {
   updateEnrollmentTimelineAction,
 } from "../../actions";
 
+export interface ExistingClientOption {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  source: "Candidate" | "Client" | "User";
+  details?: string;
+}
+
 interface BatchDetailClientProps {
   batch: SchoolBatch;
   course: SchoolCourse | null;
@@ -47,6 +60,7 @@ interface BatchDetailClientProps {
   waitingList: SchoolEnrollment[];
   teacher: SchoolTeacher | null;
   coordinator: SchoolTeacher | null;
+  existingClients?: ExistingClientOption[];
 }
 
 export default function BatchDetailClient({
@@ -56,6 +70,7 @@ export default function BatchDetailClient({
   waitingList,
   teacher,
   coordinator,
+  existingClients = [],
 }: BatchDetailClientProps) {
   const [enrollments, setEnrollments] = useState(initialEnrollments);
   const [batchState, setBatchState] = useState(batch);
@@ -64,6 +79,51 @@ export default function BatchDetailClient({
   const [editingEnrollment, setEditingEnrollment] = useState<SchoolEnrollment | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // Searchable Client state for Add Student modal
+  const [clientSearch, setClientSearch] = useState("");
+  const [selectedClient, setSelectedClient] = useState<ExistingClientOption | null>(null);
+  const [formStudentName, setFormStudentName] = useState("");
+  const [formStudentEmail, setFormStudentEmail] = useState("");
+  const [formMobileNumber, setFormMobileNumber] = useState("");
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  const openAddStudentModal = () => {
+    setClientSearch("");
+    setSelectedClient(null);
+    setFormStudentName("");
+    setFormStudentEmail("");
+    setFormMobileNumber("");
+    setIsDropdownOpen(false);
+    setShowAddStudentModal(true);
+  };
+
+  const handleSelectClient = (client: ExistingClientOption) => {
+    setSelectedClient(client);
+    setFormStudentName(client.name);
+    setFormStudentEmail(client.email);
+    setFormMobileNumber(client.phone || "");
+    setIsDropdownOpen(false);
+  };
+
+  const handleClearSelectedClient = () => {
+    setSelectedClient(null);
+    setFormStudentName("");
+    setFormStudentEmail("");
+    setFormMobileNumber("");
+    setClientSearch("");
+  };
+
+  const filteredClients = (existingClients || []).filter((c) => {
+    if (!clientSearch.trim()) return true;
+    const term = clientSearch.toLowerCase();
+    return (
+      (c.name || "").toLowerCase().includes(term) ||
+      (c.email || "").toLowerCase().includes(term) ||
+      (c.phone || "").toLowerCase().includes(term) ||
+      (c.details || "").toLowerCase().includes(term)
+    );
+  });
 
   // Financial calculations
   const courseFee = batchState.courseFeeEur || course?.courseFee || 500;
@@ -179,7 +239,7 @@ export default function BatchDetailClient({
           </button>
 
           <button
-            onClick={() => setShowAddStudentModal(true)}
+            onClick={openAddStudentModal}
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#0F4C81] hover:bg-[#0D3F6D] text-white text-xs font-bold transition-all shadow-sm"
           >
             <Plus className="w-3.5 h-3.5" /> Add Student
@@ -384,12 +444,144 @@ export default function BatchDetailClient({
       {/* ── Modal: Add Student to Batch ── */}
       {showAddStudentModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
-          <div className="bg-card border border-border rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+          <div className="bg-card border border-border rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <h3 className="text-lg font-black text-foreground flex items-center gap-2">
                 <Users className="w-5 h-5 text-[#0F4C81]" /> Add Student to {batchState.batchCode}
               </h3>
               <button onClick={() => setShowAddStudentModal(false)} className="text-muted-foreground hover:text-foreground text-sm font-bold">✕</button>
+            </div>
+
+            {/* Search Existing Clients Dropdown */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-muted-foreground uppercase flex items-center gap-1.5">
+                  <UserCheck className="w-3.5 h-3.5 text-[#0F4C81]" />
+                  <span>Choose From Existing Clients / Candidates</span>
+                </label>
+                <span className="text-[10px] text-muted-foreground font-semibold">
+                  {existingClients.length} registered
+                </span>
+              </div>
+
+              <div className="relative">
+                <div className="relative flex items-center">
+                  <Search className="w-4 h-4 absolute left-3 text-muted-foreground pointer-events-none" />
+                  <input
+                    type="text"
+                    value={clientSearch}
+                    onChange={(e) => {
+                      setClientSearch(e.target.value);
+                      setIsDropdownOpen(true);
+                    }}
+                    onFocus={() => setIsDropdownOpen(true)}
+                    placeholder="Search by client name, email, phone, or ID..."
+                    className="w-full h-10 pl-9 pr-8 rounded-xl border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-[#0F4C81]"
+                  />
+                  {clientSearch ? (
+                    <button
+                      type="button"
+                      onClick={() => setClientSearch("")}
+                      className="absolute right-2.5 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  ) : (
+                    <ChevronDown className="w-3.5 h-3.5 absolute right-3 text-muted-foreground pointer-events-none" />
+                  )}
+                </div>
+
+                {/* Dropdown Options */}
+                {isDropdownOpen && (
+                  <div className="absolute top-full left-0 right-0 mt-1 max-h-56 overflow-y-auto rounded-xl border border-border bg-card shadow-2xl z-20 divide-y divide-border">
+                    {filteredClients.length > 0 ? (
+                      filteredClients.slice(0, 50).map((c) => (
+                        <button
+                          key={`${c.source}-${c.id}`}
+                          type="button"
+                          onClick={() => handleSelectClient(c)}
+                          className="w-full text-left p-2.5 hover:bg-muted/70 transition-colors flex items-center justify-between gap-3 text-xs"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-foreground truncate">{c.name}</span>
+                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                                c.source === "Candidate"
+                                  ? "bg-blue-500/15 text-blue-700 dark:text-blue-300"
+                                  : c.source === "Client"
+                                  ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                                  : "bg-purple-500/15 text-purple-700 dark:text-purple-300"
+                              }`}>
+                                {c.source}
+                              </span>
+                              {c.details && (
+                                <span className="text-[10px] text-muted-foreground truncate">
+                                  • {c.details}
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-muted-foreground flex items-center gap-3 mt-0.5 truncate">
+                              {c.email && (
+                                <span className="flex items-center gap-1">
+                                  <Mail className="w-3 h-3 shrink-0" />
+                                  <span className="truncate">{c.email}</span>
+                                </span>
+                              )}
+                              {c.phone && (
+                                <span className="flex items-center gap-1 shrink-0">
+                                  <Phone className="w-3 h-3 shrink-0" />
+                                  <span>{c.phone}</span>
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          {selectedClient?.id === c.id ? (
+                            <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                          ) : (
+                            <span className="text-[11px] text-[#0F4C81] font-bold shrink-0 hover:underline">Select</span>
+                          )}
+                        </button>
+                      ))
+                    ) : (
+                      <div className="p-3 text-center text-xs text-muted-foreground">
+                        No clients found matching &quot;{clientSearch}&quot;
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Selected Client indicator */}
+              {selectedClient && (
+                <div className="p-2.5 rounded-xl bg-[#0F4C81]/10 border border-[#0F4C81]/20 flex items-center justify-between gap-2 text-xs">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <UserCheck className="w-4 h-4 text-[#0F4C81] shrink-0" />
+                    <div className="truncate">
+                      <span className="font-bold text-foreground">{selectedClient.name}</span>
+                      <span className="text-muted-foreground ml-1.5">({selectedClient.email || selectedClient.phone})</span>
+                    </div>
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#0F4C81] text-white shrink-0">
+                      {selectedClient.source}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleClearSelectedClient}
+                    className="text-xs text-muted-foreground hover:text-red-600 font-bold p-1"
+                    title="Clear selected client"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="relative flex py-1 items-center">
+              <div className="flex-grow border-t border-border"></div>
+              <span className="flex-shrink mx-2 text-[10px] font-bold text-muted-foreground uppercase">
+                Student Details (Editable)
+              </span>
+              <div className="flex-grow border-t border-border"></div>
             </div>
 
             <form
@@ -412,20 +604,51 @@ export default function BatchDetailClient({
             >
               <div>
                 <label className="block text-xs font-bold text-muted-foreground uppercase mb-1">Full Name *</label>
-                <input required name="studentName" placeholder="Student Name" className="w-full h-10 px-3 rounded-xl border bg-background" />
+                <input
+                  required
+                  name="studentName"
+                  value={formStudentName}
+                  onChange={(e) => setFormStudentName(e.target.value)}
+                  placeholder="Student Name"
+                  className="w-full h-10 px-3 rounded-xl border bg-background text-xs"
+                />
               </div>
               <div>
                 <label className="block text-xs font-bold text-muted-foreground uppercase mb-1">Email Address *</label>
-                <input required name="studentEmail" type="email" placeholder="student@example.com" className="w-full h-10 px-3 rounded-xl border bg-background" />
+                <input
+                  required
+                  name="studentEmail"
+                  type="email"
+                  value={formStudentEmail}
+                  onChange={(e) => setFormStudentEmail(e.target.value)}
+                  placeholder="student@example.com"
+                  className="w-full h-10 px-3 rounded-xl border bg-background text-xs"
+                />
               </div>
               <div>
                 <label className="block text-xs font-bold text-muted-foreground uppercase mb-1">Mobile Number</label>
-                <input name="mobileNumber" placeholder="+49 170 1234567" className="w-full h-10 px-3 rounded-xl border bg-background" />
+                <input
+                  name="mobileNumber"
+                  value={formMobileNumber}
+                  onChange={(e) => setFormMobileNumber(e.target.value)}
+                  placeholder="+49 170 1234567"
+                  className="w-full h-10 px-3 rounded-xl border bg-background text-xs"
+                />
               </div>
 
               <div className="flex gap-2 pt-2">
-                <button type="button" onClick={() => setShowAddStudentModal(false)} className="w-1/2 h-10 rounded-xl border font-bold text-xs">Cancel</button>
-                <button type="submit" disabled={loading} className="w-1/2 h-10 rounded-xl bg-[#0F4C81] text-white font-bold text-xs hover:bg-[#0D3F6D] transition-colors">
+                <button
+                  type="button"
+                  onClick={() => setShowAddStudentModal(false)}
+                  className="w-1/2 h-10 rounded-xl border font-bold text-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-1/2 h-10 rounded-xl bg-[#0F4C81] text-white font-bold text-xs hover:bg-[#0D3F6D] transition-colors"
+                >
                   {loading ? "Adding..." : "Add to Batch"}
                 </button>
               </div>

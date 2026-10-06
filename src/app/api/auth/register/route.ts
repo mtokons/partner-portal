@@ -145,6 +145,30 @@ export async function POST(request: Request) {
       // Non-fatal if profile write failed, user is created in auth
     }
 
+    // 5. Send welcome email notification to the user & notify admin
+    try {
+      const { sendEmailViaGraph, buildNewUserRegistrationWelcomeEmail } = await import("@/lib/email");
+      const appUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "https://portal.mysccg.de";
+      const emailContent = buildNewUserRegistrationWelcomeEmail({
+        userName: name.trim(),
+        userEmail: cleanEmail,
+        role: (role || "partner").toLowerCase(),
+        company: company ? String(company).trim() : undefined,
+        loginUrl: `${appUrl.replace(/\/$/, "")}/login`,
+      });
+
+      await sendEmailViaGraph({
+        to: cleanEmail,
+        toName: name.trim(),
+        subject: emailContent.subject,
+        htmlBody: emailContent.htmlBody,
+        bcc: [{ email: "info@mysccg.de", name: "SCCG Administration" }],
+      });
+      console.log(`[RegisterAPI] Welcome email notification dispatched to ${cleanEmail}`);
+    } catch (emailErr: any) {
+      console.error("[RegisterAPI] Failed to dispatch welcome email:", emailErr?.message || emailErr);
+    }
+
     return NextResponse.json({
       success: true,
       uid: userRecord.uid,

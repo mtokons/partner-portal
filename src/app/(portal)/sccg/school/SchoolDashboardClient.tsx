@@ -98,12 +98,12 @@ export default function SchoolDashboardClient({
 
         {/* Quick Actions in Header */}
         <div className="relative z-10 flex flex-wrap gap-2.5">
-          <button
-            onClick={() => { setError(null); setActiveModal("register"); }}
+          <Link
+            href="/sccg/candidates/new"
             className="flex items-center gap-2 bg-[#F5B800] hover:bg-[#E5AA00] text-slate-950 font-bold text-xs sm:text-sm px-4 py-2.5 rounded-xl transition-all shadow-md active:scale-95"
           >
             <Plus className="w-4 h-4" /> Register Student
-          </button>
+          </Link>
           <button
             onClick={() => { setError(null); setActiveModal("batch"); }}
             className="flex items-center gap-2 bg-white/15 hover:bg-white/25 text-white border border-white/20 font-bold text-xs sm:text-sm px-4 py-2.5 rounded-xl transition-all backdrop-blur-sm active:scale-95"
@@ -464,116 +464,7 @@ export default function SchoolDashboardClient({
 
       </div>
 
-      {/* ── Modal: Register Student ── */}
-      {activeModal === "register" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
-          <div className="bg-card border border-border rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <h3 className="text-lg font-black text-foreground flex items-center gap-2">
-                <Users className="w-5 h-5 text-[#0F4C81]" /> Register New Student
-              </h3>
-              <button
-                onClick={() => setActiveModal(null)}
-                className="text-muted-foreground hover:text-foreground text-sm font-bold"
-              >
-                ✕
-              </button>
-            </div>
 
-            {error && <div className="p-3 text-xs bg-red-500/15 text-red-600 rounded-xl">{error}</div>}
-
-            <form
-              action={async (fd) => {
-                setLoading(true);
-                setError(null);
-                try {
-                  const res = await registerStudentAction(fd);
-                  if (res && !(res as any).success) {
-                    setError((res as any).error || "Failed to register student");
-                    return;
-                  }
-                  setActiveModal(null);
-                  window.location.reload();
-                } catch (err: any) {
-                  setError(err.message || "Failed to register student");
-                } finally {
-                  setLoading(false);
-                }
-              }}
-              className="space-y-3 text-sm"
-            >
-              <div>
-                <label className="block text-xs font-bold text-muted-foreground uppercase mb-1">Full Name *</label>
-                <input required name="studentName" placeholder="e.g. Max Mustermann" className="w-full h-10 px-3 rounded-xl border bg-background" />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-muted-foreground uppercase mb-1">Email Address *</label>
-                  <input required name="studentEmail" type="email" placeholder="student@example.com" className="w-full h-10 px-3 rounded-xl border bg-background" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-muted-foreground uppercase mb-1">Mobile Number</label>
-                  <input name="mobileNumber" placeholder="+49 170 1234567" className="w-full h-10 px-3 rounded-xl border bg-background" />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-muted-foreground uppercase mb-1">German Level *</label>
-                  <select name="desiredLevel" defaultValue="A1" className="w-full h-10 px-3 rounded-xl border bg-background">
-                    <option value="A1">🇩🇪 A1 German</option>
-                    <option value="A2">🇩🇪 A2 German</option>
-                    <option value="B1">🇩🇪 B1 German</option>
-                    <option value="B2">🇩🇪 B2 German</option>
-                    <option value="C1">🇩🇪 C1 German</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-muted-foreground uppercase mb-1">Registration Action *</label>
-                  <select name="registrationType" defaultValue="batch" className="w-full h-10 px-3 rounded-xl border bg-background font-medium">
-                    <option value="batch">Assign to Batch</option>
-                    <option value="waiting-list">Put On Waiting List</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-muted-foreground uppercase mb-1">Target Batch (If Assigning)</label>
-                <select name="batchId" className="w-full h-10 px-3 rounded-xl border bg-background">
-                  <option value="waiting-list">-- None / Put on Waiting List --</option>
-                  {batches.filter((b) => !["completed", "cancelled"].includes(b.status)).map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.batchName} ({b.courseName}) — {b.enrolledStudents}/{b.maxStudents} seats
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-muted-foreground uppercase mb-1">Remarks</label>
-                <textarea name="remarks" rows={2} placeholder="Optional notes regarding student placement..." className="w-full p-2.5 rounded-xl border bg-background text-xs" />
-              </div>
-
-              <div className="flex gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setActiveModal(null)}
-                  className="w-1/2 h-10 rounded-xl border font-bold text-xs"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-1/2 h-10 rounded-xl bg-[#0F4C81] text-white font-bold text-xs hover:bg-[#0D3F6D] transition-colors"
-                >
-                  {loading ? "Registering..." : "Complete Registration"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* ── Modal: Create Course ── */}
       {activeModal === "course" && (

@@ -74,6 +74,18 @@ export default function RegisterPage() {
       );
 
       if (result.success) {
+        // Dispatch welcome email notification to the new user
+        fetch("/api/auth/send-registration-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: form.email,
+            name: form.name,
+            role: form.role,
+            company: form.company,
+          }),
+        }).catch((e) => console.warn("[Register] Could not dispatch welcome email:", e));
+
         if (form.role === "customer") {
           syncCustomerCandidateAction({
             email: form.email,

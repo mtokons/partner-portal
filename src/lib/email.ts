@@ -145,6 +145,102 @@ export function buildWelcomeEmployeeEmail(data: {
   };
 }
 
+export function buildNewUserRegistrationWelcomeEmail(data: {
+  userName: string;
+  userEmail: string;
+  role: string;
+  company?: string;
+  loginUrl: string;
+}): { subject: string; htmlBody: string } {
+  const roleNameMap: Record<string, string> = {
+    partner: "Business Partner",
+    customer: "Candidate / Client",
+    expert: "Domain Expert",
+    "project-partner": "Project Partner",
+    "project-partner-admin": "Project Partner Admin",
+    admin: "Administrator",
+    "sccg-admin": "SCCG Admin",
+    "sccg-staff": "SCCG Staff",
+  };
+  const roleLabel = roleNameMap[data.role.toLowerCase()] || data.role;
+
+  return {
+    subject: "Welcome to SCCG Partner Portal — Account Registration Confirmation",
+    htmlBody: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 620px; margin: 0 auto; background-color: #0b0f19; color: #f8fafc; border-radius: 16px; overflow: hidden; border: 1px solid #1e293b;">
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #0a1628 0%, #1e1b4b 50%, #0f172a 100%); padding: 36px 32px; text-align: center; border-bottom: 2px solid #3b82f6;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.5px;">SCCG Career Lab Germany</h1>
+          <p style="color: #93c5fd; margin: 8px 0 0; font-size: 14px; font-weight: 500;">Partner & Client Services Portal</p>
+        </div>
+
+        <!-- Body -->
+        <div style="background-color: #0f172a; padding: 36px 32px;">
+          <h2 style="color: #ffffff; font-size: 20px; font-weight: 700; margin-top: 0; margin-bottom: 16px;">
+            Welcome, ${data.userName}! 👋
+          </h2>
+          <p style="color: #cbd5e1; font-size: 14px; line-height: 1.6; margin-bottom: 24px;">
+            Thank you for registering with the <strong>SCCG Partner Portal</strong>. Your account has been created successfully and is now ready for use.
+          </p>
+
+          <!-- Account Details Box -->
+          <div style="background-color: #1e293b; border-radius: 12px; padding: 20px; margin-bottom: 28px; border: 1px solid #334155;">
+            <h3 style="color: #60a5fa; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; margin-top: 0; margin-bottom: 14px;">
+              Your Account Summary
+            </h3>
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+              <tr>
+                <td style="padding: 6px 0; color: #94a3b8; width: 140px;">Full Name:</td>
+                <td style="padding: 6px 0; color: #f8fafc; font-weight: 600;">${data.userName}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #94a3b8;">Email Address:</td>
+                <td style="padding: 6px 0; color: #f8fafc; font-weight: 600;">${data.userEmail}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #94a3b8;">Account Role:</td>
+                <td style="padding: 6px 0; color: #38bdf8; font-weight: 600;">${roleLabel}</td>
+              </tr>
+              ${
+                data.company
+                  ? `<tr>
+                <td style="padding: 6px 0; color: #94a3b8;">Company / Organization:</td>
+                <td style="padding: 6px 0; color: #f8fafc; font-weight: 600;">${data.company}</td>
+              </tr>`
+                  : ""
+              }
+            </table>
+          </div>
+
+          <!-- Sign In Button -->
+          <div style="text-align: center; margin: 32px 0;">
+            <a href="${data.loginUrl}" style="display: inline-block; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #ffffff; text-decoration: none; font-weight: 700; font-size: 14px; padding: 14px 36px; border-radius: 10px; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);">
+              Sign In to SCCG Portal →
+            </a>
+          </div>
+
+          <!-- Info / Security Note -->
+          <div style="background-color: rgba(59, 130, 246, 0.08); border-left: 3px solid #3b82f6; padding: 14px 16px; border-radius: 4px; margin-top: 24px;">
+            <p style="color: #94a3b8; font-size: 12px; line-height: 1.5; margin: 0;">
+              <strong>Security Note:</strong> If you did not create this account, please notify our team immediately at <a href="mailto:info@mysccg.de" style="color: #60a5fa; text-decoration: none;">info@mysccg.de</a>.
+            </p>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div style="background-color: #0b0f19; padding: 24px 32px; border-top: 1px solid #1e293b; text-align: center;">
+          <p style="color: #64748b; font-size: 12px; margin: 0 0 6px;">
+            SCCG Career Lab Germany — Frankfurt am Main, Germany
+          </p>
+          <p style="color: #475569; font-size: 11px; margin: 0;">
+            Website: <a href="https://mysccg.de" style="color: #64748b; text-decoration: none;">mysccg.de</a> • Support: <a href="mailto:info@mysccg.de" style="color: #64748b; text-decoration: none;">info@mysccg.de</a>
+          </p>
+        </div>
+      </div>
+    `,
+  };
+}
+
 export function buildEnrollmentConfirmationEmail(data: {
   studentName: string;
   courseName: string;
