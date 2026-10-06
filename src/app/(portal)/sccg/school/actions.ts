@@ -203,6 +203,7 @@ export async function updateBatchAction(batchId: string, formData: FormData) {
 
   const updates: any = {};
   if (formData.has("batchName")) updates.batchName = value(formData, "batchName");
+  if (formData.has("batchCode")) updates.batchCode = value(formData, "batchCode").toUpperCase();
   if (formData.has("startDate")) updates.startDate = value(formData, "startDate");
   if (formData.has("endDate")) updates.endDate = value(formData, "endDate");
   if (formData.has("schedule")) updates.schedule = value(formData, "schedule");
@@ -210,6 +211,50 @@ export async function updateBatchAction(batchId: string, formData: FormData) {
   if (formData.has("courseFeeEur")) updates.courseFeeEur = Number(formData.get("courseFeeEur")) || batch.courseFeeEur;
   if (formData.has("status")) updates.status = value(formData, "status") as BatchStatus;
   if (formData.has("classroomOrLink")) updates.classroomOrLink = value(formData, "classroomOrLink");
+
+  if (formData.has("teacherId")) {
+    const teacherId = value(formData, "teacherId");
+    if (teacherId && teacherId !== batch.teacherId) {
+      const teacher = await getSchoolTeacherById(teacherId);
+      if (teacher) {
+        updates.teacherId = teacher.id;
+        updates.teacherName = teacher.name;
+        if (teacher.revenueSharePercent !== undefined) {
+          updates.teacherSharePercent = teacher.revenueSharePercent;
+        }
+      }
+    }
+  }
+
+  if (formData.has("coordinatorId")) {
+    const coordinatorId = value(formData, "coordinatorId");
+    if (!coordinatorId || coordinatorId === "none") {
+      updates.coordinatorId = "";
+      updates.coordinatorName = "";
+    } else if (coordinatorId !== batch.coordinatorId) {
+      const coordinator = await getSchoolTeacherById(coordinatorId);
+      if (coordinator) {
+        updates.coordinatorId = coordinator.id;
+        updates.coordinatorName = coordinator.name;
+      }
+    }
+  }
+
+  if (formData.has("courseId")) {
+    const courseId = value(formData, "courseId");
+    if (courseId && courseId !== batch.courseId) {
+      const course = await getSchoolCourseById(courseId);
+      if (course) {
+        updates.courseId = course.id;
+        updates.courseName = course.courseName;
+        updates.level = course.level || batch.level || "A1";
+      }
+    }
+  }
+
+  const fee = updates.courseFeeEur !== undefined ? updates.courseFeeEur : batch.courseFeeEur || 500;
+  const max = updates.maxStudents !== undefined ? updates.maxStudents : batch.maxStudents || 20;
+  updates.totalRevenueEur = fee * max;
 
   await updateSchoolBatch(batchId, updates);
   revalidatePath("/sccg/school/batches");

@@ -6,6 +6,7 @@ import {
   getSchoolEnrollments,
   getSchoolStudents,
   getSchoolTeacherById,
+  getSchoolTeachers,
   getSchoolWaitingList,
 } from "@/lib/firestore-services";
 import { getCandidates, getClients } from "@/lib/sharepoint";
@@ -26,7 +27,7 @@ export default async function BatchDetailPage({ params }: { params: Promise<{ id
   const batch = await getSchoolBatchById(id);
   if (!batch) notFound();
 
-  const [course, enrollments, waitingList, teacher, coordinator, candidates, clients, students] = await Promise.all([
+  const [course, enrollments, waitingList, teacher, coordinator, candidates, clients, students, teachers] = await Promise.all([
     getSchoolCourseById(batch.courseId).catch(() => null),
     getSchoolEnrollments({ batchId: batch.id }).catch(() => []),
     getSchoolWaitingList(batch.level || course?.level).catch(() => []),
@@ -35,6 +36,7 @@ export default async function BatchDetailPage({ params }: { params: Promise<{ id
     getCandidates().catch(() => []),
     getClients().catch(() => []),
     getSchoolStudents().catch(() => []),
+    getSchoolTeachers().catch(() => []),
   ]);
 
   const existingClientsMap = new Map<string, ExistingClientOption>();
@@ -111,6 +113,7 @@ export default async function BatchDetailPage({ params }: { params: Promise<{ id
       teacher={teacher}
       coordinator={coordinator}
       existingClients={existingClients}
+      teachers={teachers}
     />
   );
 }

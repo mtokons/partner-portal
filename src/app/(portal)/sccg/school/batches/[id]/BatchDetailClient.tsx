@@ -65,6 +65,7 @@ interface BatchDetailClientProps {
   teacher: SchoolTeacher | null;
   coordinator: SchoolTeacher | null;
   existingClients?: ExistingClientOption[];
+  teachers?: SchoolTeacher[];
 }
 
 export default function BatchDetailClient({
@@ -75,6 +76,7 @@ export default function BatchDetailClient({
   teacher,
   coordinator,
   existingClients = [],
+  teachers = [],
 }: BatchDetailClientProps) {
   const [enrollments, setEnrollments] = useState(initialEnrollments);
   const [batchState, setBatchState] = useState(batch);
@@ -250,9 +252,10 @@ export default function BatchDetailClient({
 
           <button
             onClick={() => setShowEditBatchModal(true)}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-[#0F4C81]/30 hover:bg-[#0F4C81]/10 text-[#0F4C81] text-xs font-bold transition-all shadow-sm"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-[#0F4C81]/40 bg-[#0F4C81]/5 hover:bg-[#0F4C81]/15 text-[#0F4C81] text-xs font-bold transition-all shadow-sm"
+            title="Edit Batch & Instructor Info"
           >
-            <Edit className="w-3.5 h-3.5" /> Edit Timeline
+            <Edit className="w-3.5 h-3.5" /> Edit Batch
           </button>
 
           <button
@@ -716,13 +719,13 @@ export default function BatchDetailClient({
         </div>
       )}
 
-      {/* ── Modal: Edit Batch Timeline & Details ── */}
+      {/* ── Modal: Edit Batch Details & Instructor ── */}
       {showEditBatchModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
           <div className="bg-card border border-border rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <h3 className="text-lg font-black text-foreground flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-[#0F4C81]" /> Batch Timeline bearbeiten: {batchState.batchCode}
+                <Edit className="w-5 h-5 text-[#0F4C81]" /> Batch bearbeiten: {batchState.batchCode}
               </h3>
               <button onClick={() => setShowEditBatchModal(false)} className="text-muted-foreground hover:text-foreground text-sm font-bold">✕</button>
             </div>
@@ -734,16 +737,25 @@ export default function BatchDetailClient({
                 setLoading(true);
                 try {
                   await updateBatchAction(batchState.id, fd);
+                  const updatedCode = String(fd.get("batchCode") || batchState.batchCode).toUpperCase();
+                  const updatedName = String(fd.get("batchName"));
                   const updatedStart = String(fd.get("startDate"));
                   const updatedEnd = String(fd.get("endDate"));
-                  const updatedName = String(fd.get("batchName"));
                   const updatedSchedule = String(fd.get("schedule"));
                   const updatedStatus = String(fd.get("status")) as BatchStatus;
                   const updatedMax = Number(fd.get("maxStudents")) || batchState.maxStudents;
                   const updatedFee = Number(fd.get("courseFeeEur")) || batchState.courseFeeEur;
+                  const updatedTeacherId = String(fd.get("teacherId") || batchState.teacherId);
+                  const teacherObj = teachers.find((t) => t.id === updatedTeacherId);
+                  const updatedTeacherName = teacherObj?.name || batchState.teacherName;
+                  const updatedCoordId = String(fd.get("coordinatorId") || "");
+                  const coordObj = teachers.find((t) => t.id === updatedCoordId);
+                  const updatedCoordName = coordObj?.name || "";
+                  const updatedLink = String(fd.get("classroomOrLink") || "");
 
                   setBatchState((prev) => ({
                     ...prev,
+                    batchCode: updatedCode,
                     batchName: updatedName,
                     startDate: updatedStart,
                     endDate: updatedEnd,
@@ -751,9 +763,14 @@ export default function BatchDetailClient({
                     status: updatedStatus,
                     maxStudents: updatedMax,
                     courseFeeEur: updatedFee,
+                    teacherId: updatedTeacherId,
+                    teacherName: updatedTeacherName,
+                    coordinatorId: updatedCoordId || undefined,
+                    coordinatorName: updatedCoordName || undefined,
+                    classroomOrLink: updatedLink,
                   }));
                   setShowEditBatchModal(false);
-                  setMessage({ type: "success", text: "Batch-Timeline erfolgreich aktualisiert." });
+                  setMessage({ type: "success", text: "Batch erfolgreich aktualisiert." });
                 } catch (err: any) {
                   alert(err.message || "Fehler beim Aktualisieren des Batches");
                 } finally {
@@ -762,15 +779,63 @@ export default function BatchDetailClient({
               }}
               className="space-y-4 text-xs"
             >
-              <div>
-                <label className="block font-bold text-muted-foreground uppercase mb-1">Batch Name *</label>
-                <input
-                  required
-                  name="batchName"
-                  defaultValue={batchState.batchName}
-                  className="w-full h-10 px-3 rounded-xl border bg-background text-foreground"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-muted-foreground uppercase mb-1">Batch Code *</label>
+                  <input
+                    required
+                    name="batchCode"
+                    defaultValue={batchState.batchCode}
+                    placeholder="z. B. A1-2026-03"
+                    className="w-full h-10 px-3 rounded-xl border bg-background text-foreground uppercase font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-muted-foreground uppercase mb-1">Batch Name *</label>
+                  <input
+                    required
+                    name="batchName"
+                    defaultValue={batchState.batchName}
+                    className="w-full h-10 px-3 rounded-xl border bg-background text-foreground"
+                  />
+                </div>
               </div>
+
+              {teachers.length > 0 && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-muted-foreground uppercase mb-1">👨‍🏫 Dozent / Instructor (70%) *</label>
+                    <select
+                      required
+                      name="teacherId"
+                      defaultValue={batchState.teacherId}
+                      className="w-full h-10 px-3 rounded-xl border bg-background text-foreground font-medium"
+                    >
+                      <option value="">-- Dozent auswählen --</option>
+                      {teachers.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name} ({t.specialization || "Instructor"})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block font-bold text-muted-foreground uppercase mb-1">👨‍💼 Koordinator (5%)</label>
+                    <select
+                      name="coordinatorId"
+                      defaultValue={batchState.coordinatorId || ""}
+                      className="w-full h-10 px-3 rounded-xl border bg-background text-foreground font-medium"
+                    >
+                      <option value="">Kein Koordinator (Unassigned)</option>
+                      {teachers.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -795,15 +860,26 @@ export default function BatchDetailClient({
                 </div>
               </div>
 
-              <div>
-                <label className="block font-bold text-muted-foreground uppercase mb-1">Zeitplan / Zeiten *</label>
-                <input
-                  required
-                  name="schedule"
-                  defaultValue={batchState.schedule}
-                  placeholder="z. B. Mo & Mi 18:00 - 19:30 CET"
-                  className="w-full h-10 px-3 rounded-xl border bg-background text-foreground"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-muted-foreground uppercase mb-1">Zeitplan / Zeiten *</label>
+                  <input
+                    required
+                    name="schedule"
+                    defaultValue={batchState.schedule}
+                    placeholder="z. B. Mo & Mi 18:00 - 19:30 CET"
+                    className="w-full h-10 px-3 rounded-xl border bg-background text-foreground"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-muted-foreground uppercase mb-1">Kursraum / Online-Link</label>
+                  <input
+                    name="classroomOrLink"
+                    defaultValue={batchState.classroomOrLink || ""}
+                    placeholder="Teams / Zoom / Raum 101"
+                    className="w-full h-10 px-3 rounded-xl border bg-background text-foreground"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-3 gap-3">
