@@ -19,19 +19,21 @@ export default async function TeachersPage() {
     getProjectExperts().catch(() => []),
   ]);
 
-  // Unify and deduplicate experts from SharePoint and Expert Bank
+  // Unify and deduplicate experts from SharePoint and Expert Bank with strictly unique keys
   const expertMap = new Map<string, AvailableExpert>();
 
   for (const exp of serviceExperts) {
     if (exp && (exp.email || exp.name)) {
       const key = (exp.email || exp.name).trim().toLowerCase();
       expertMap.set(key, {
-        id: exp.id,
+        id: `svc_${exp.id}`,
+        expertId: String(exp.id),
         name: exp.name,
         email: exp.email || "",
         phone: exp.phone || "",
         specialization: exp.specialization || "Deutsch als Fremdsprache (DaF)",
         status: exp.status || "active",
+        source: "Service Expert",
       });
     }
   }
@@ -41,11 +43,14 @@ export default async function TeachersPage() {
       const key = (exp.email || exp.expertName).trim().toLowerCase();
       if (!expertMap.has(key)) {
         expertMap.set(key, {
-          id: exp.id,
+          id: `bank_${exp.id}`,
+          expertId: String(exp.id),
           name: exp.expertName,
           email: exp.email || "",
+          phone: "",
           specialization: exp.position || "Language Expert",
           status: exp.activeStatus || "active",
+          source: "Expert Bank",
         });
       }
     }

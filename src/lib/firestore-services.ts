@@ -642,13 +642,18 @@ export async function fillBatchFromWaitingList(batchId: string): Promise<{ added
   const candidatesToAssign = waitingStudents.slice(0, availableSlots);
 
   const assignedStudents: string[] = [];
+  const batchFee = Number(batch.courseFeeEur) || Number(course?.courseFee) || 500;
 
   for (const student of candidatesToAssign) {
+    const isPaid = student.paymentStatus === "paid";
     await db().collection("schoolEnrollments").doc(student.id).update({
       batchId: batch.id,
       batchCode: batch.batchCode,
       courseId: batch.courseId,
       courseName: batch.courseName,
+      totalFee: batchFee,
+      netFee: batchFee,
+      amountRemaining: isPaid ? 0 : batchFee,
       status: "enrolled",
       batchConfirmed: true,
       updatedAt: now(),
@@ -657,8 +662,10 @@ export async function fillBatchFromWaitingList(batchId: string): Promise<{ added
   }
 
   if (candidatesToAssign.length > 0) {
+    const newEnrolledCount = (Number(batch.enrolledStudents) || 0) + candidatesToAssign.length;
     await db().collection("schoolBatches").doc(batch.id).update({
       enrolledStudents: admin.firestore.FieldValue.increment(candidatesToAssign.length),
+      totalRevenueEur: newEnrolledCount * batchFee,
       updatedAt: now(),
     });
   }

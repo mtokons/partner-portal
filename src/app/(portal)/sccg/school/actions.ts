@@ -307,7 +307,12 @@ export async function registerStudentAction(formData: FormData) {
           batchCode = batch.batchCode || "";
           courseId = batch.courseId || "";
           courseName = batch.courseName || `German ${desiredLevel}`;
-          totalFee = Number(batch.courseFeeEur) || 500;
+          let fee = Number(batch.courseFeeEur);
+          if (!fee && batch.courseId) {
+            const course = await getSchoolCourseById(batch.courseId).catch(() => null);
+            if (course?.courseFee) fee = Number(course.courseFee);
+          }
+          totalFee = fee || 500;
           status = "enrolled";
         }
       }
@@ -336,9 +341,21 @@ export async function registerStudentAction(formData: FormData) {
       createdBy: user?.email || user?.id || "system",
     });
 
+    if (assignedBatchId) {
+      const currentBatchEnrollments = await getSchoolEnrollments({ batchId: assignedBatchId }).catch(() => []);
+      const newCount = currentBatchEnrollments.length;
+      await updateSchoolBatch(assignedBatchId, {
+        enrolledStudents: newCount,
+        totalRevenueEur: newCount * totalFee,
+      }).catch(() => {});
+    }
+
     revalidatePath("/sccg/school/students");
     revalidatePath("/sccg/school/waiting-list");
     revalidatePath("/sccg/school/batches");
+    if (assignedBatchId) {
+      revalidatePath(`/sccg/school/batches/${assignedBatchId}`);
+    }
     revalidatePath("/sccg/school");
     return { success: true, status, enrollmentId: enrollment.id };
   } catch (err: any) {
@@ -404,6 +421,37 @@ export async function updateEnrollmentPaymentStatusAction(enrollmentId: string, 
   }
   revalidatePath("/sccg/school");
   return { success: true };
+}
+
+export async function deleteEnrollmentAction(enrollmentId: string) {
+  try {
+    await requirePermission("school.enrollment.manage");
+    const enrollment = await getSchoolEnrollmentById(enrollmentId);
+    if (!enrollment) throw new Error("Enrollment not found");
+
+    await deleteSchoolEnrollment(enrollmentId);
+
+    if (enrollment.batchId) {
+      const remaining = await getSchoolEnrollments({ batchId: enrollment.batchId }).catch(() => []);
+      const newCount = remaining.length;
+      const batch = await getSchoolBatchById(enrollment.batchId).catch(() => null);
+      const fee = Number(batch?.courseFeeEur) || 500;
+      await updateSchoolBatch(enrollment.batchId, {
+        enrolledStudents: newCount,
+        totalRevenueEur: newCount * fee,
+      }).catch(() => {});
+      revalidatePath(`/sccg/school/batches/${enrollment.batchId}`);
+    }
+
+    revalidatePath("/sccg/school/enrollments");
+    revalidatePath("/sccg/school/students");
+    revalidatePath("/sccg/school/batches");
+    revalidatePath("/sccg/school");
+    return { success: true };
+  } catch (err: any) {
+    console.error("[deleteEnrollmentAction] Error:", err);
+    throw err;
+  }
 }
 
 export async function removeStudentFromWaitingListAction(enrollmentId: string) {

@@ -27,6 +27,7 @@ import {
   ChevronDown,
   Mail,
   Phone,
+  Trash2,
 } from "lucide-react";
 import type {
   BatchStatus,
@@ -36,6 +37,7 @@ import type {
   SchoolTeacher,
 } from "@/types";
 import {
+  deleteEnrollmentAction,
   fillBatchFromWaitingListAction,
   registerStudentAction,
   updateBatchAction,
@@ -125,20 +127,29 @@ export default function BatchDetailClient({
     );
   });
 
-  // Financial calculations
+  // Financial calculations based on course / service product price
   const courseFee = batchState.courseFeeEur || course?.courseFee || 500;
   const maxCapacity = batchState.maxStudents || 20;
   const enrolledCount = enrollments.length;
   const availableSlots = Math.max(0, maxCapacity - enrolledCount);
 
+  // Dynamically resolve student fee based on batch/course product price
+  const getEnrollmentFee = (e: SchoolEnrollment) => {
+    if (e.netFee && e.netFee !== 500) return e.netFee;
+    if (courseFee) return courseFee;
+    return e.netFee || e.totalFee || courseFee;
+  };
+
   const totalCollected = enrollments
     .filter((e) => e.paymentStatus === "paid")
-    .reduce((sum, e) => sum + (e.netFee || e.totalFee || courseFee), 0);
+    .reduce((sum, e) => sum + getEnrollmentFee(e), 0);
 
   const totalExpectedRevenue = enrolledCount * courseFee;
 
-  const teacherShare = Math.round(totalCollected * 0.7);
-  const coordinatorShare = Math.round(totalCollected * 0.05);
+  const teacherPercent = (batchState.teacherSharePercent !== undefined ? batchState.teacherSharePercent : 70) / 100;
+  const coordinatorPercent = (batchState.coordinatorSharePercent !== undefined ? batchState.coordinatorSharePercent : 5) / 100;
+  const teacherShare = Math.round(totalCollected * teacherPercent);
+  const coordinatorShare = Math.round(totalCollected * coordinatorPercent);
   const sccgShare = totalCollected - teacherShare - coordinatorShare;
 
   const getStatusBadge = (status: BatchStatus) => {
@@ -390,7 +401,7 @@ export default function BatchDetailClient({
                         </div>
                       </td>
                       <td className="py-3.5 px-4 font-bold text-foreground">
-                        €{e.netFee || e.totalFee || courseFee}
+                        €{getEnrollmentFee(e)}
                       </td>
                       <td className="py-3.5 px-4">
                         {isPaid ? (
@@ -428,7 +439,29 @@ export default function BatchDetailClient({
                                 : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
                             }`}
                           >
-                            {isPaid ? "Mark Pending" : "Collect (€" + (e.netFee || courseFee) + ")"}
+                            {isPaid ? "Mark Pending" : "Collect (€" + getEnrollmentFee(e) + ")"}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (!confirm(`Are you sure you want to remove "${e.studentName}" from this batch?`)) return;
+                              setLoading(true);
+                              try {
+                                await deleteEnrollmentAction(e.id);
+                                setEnrollments((prev) => prev.filter((item) => item.id !== e.id));
+                                setMessage({ type: "success", text: `${e.studentName} has been removed from this batch.` });
+                              } catch (err: any) {
+                                alert(err.message || "Failed to remove student from batch");
+                              } finally {
+                                setLoading(false);
+                              }
+                            }}
+                            disabled={loading}
+                            className="p-1.5 rounded-xl border border-red-500/30 text-red-600 hover:bg-red-500/10 transition-colors flex items-center justify-center"
+                            title={`Remove ${e.studentName} from batch`}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </td>

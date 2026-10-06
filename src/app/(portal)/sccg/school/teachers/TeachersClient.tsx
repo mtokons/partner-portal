@@ -19,6 +19,8 @@ import {
   X,
   Award,
   Wallet,
+  Check,
+  ChevronDown,
 } from "lucide-react";
 import type { SchoolBatch, SchoolTeacher, SchoolTeamRole } from "@/types";
 import {
@@ -29,11 +31,13 @@ import {
 
 export interface AvailableExpert {
   id: string;
+  expertId?: string;
   name: string;
   email: string;
   phone?: string;
   specialization: string;
   status: string;
+  source?: "Service Expert" | "Expert Bank";
 }
 
 interface TeachersClientProps {
@@ -59,6 +63,8 @@ export default function TeachersClient({
 
   // Form state for Onboard from Expert / Add Direct
   const [selectedExpertId, setSelectedExpertId] = useState("");
+  const [expertSearch, setExpertSearch] = useState("");
+  const [isExpertDropdownOpen, setIsExpertDropdownOpen] = useState(false);
   const [formName, setFormName] = useState("");
   const [formEmail, setFormEmail] = useState("");
   const [formPhone, setFormPhone] = useState("");
@@ -70,6 +76,7 @@ export default function TeachersClient({
   // Handle selecting an expert from dropdown
   const handleSelectExpert = (expertId: string) => {
     setSelectedExpertId(expertId);
+    setIsExpertDropdownOpen(false);
     if (!expertId) return;
     const exp = availableExperts.find((e) => e.id === expertId);
     if (exp) {
@@ -80,13 +87,38 @@ export default function TeachersClient({
       setFormLanguage("German");
       setFormRole("instructor");
       setFormRevenueShare(70);
+      setExpertSearch(exp.name);
     }
   };
+
+  const handleClearSelectedExpert = () => {
+    setSelectedExpertId("");
+    setExpertSearch("");
+    setFormName("");
+    setFormEmail("");
+    setFormPhone("");
+  };
+
+  const filteredExperts = availableExperts.filter((exp) => {
+    if (!expertSearch.trim()) return true;
+    const term = expertSearch.toLowerCase();
+    return (
+      (exp.name || "").toLowerCase().includes(term) ||
+      (exp.email || "").toLowerCase().includes(term) ||
+      (exp.phone || "").toLowerCase().includes(term) ||
+      (exp.specialization || "").toLowerCase().includes(term) ||
+      (exp.source || "").toLowerCase().includes(term)
+    );
+  });
+
+  const selectedExpert = availableExperts.find((e) => e.id === selectedExpertId);
 
   const openAddModal = (mode: "expert" | "direct") => {
     setError(null);
     setAddMode(mode);
     setSelectedExpertId("");
+    setExpertSearch("");
+    setIsExpertDropdownOpen(false);
     setFormName("");
     setFormEmail("");
     setFormPhone("");
@@ -484,26 +516,121 @@ export default function TeachersClient({
               }}
               className="space-y-3.5 text-sm"
             >
-              <input type="hidden" name="expertId" value={addMode === "expert" ? selectedExpertId : ""} />
+              <input type="hidden" name="expertId" value={addMode === "expert" && selectedExpert ? (selectedExpert.expertId || selectedExpert.id) : ""} />
 
               {/* Expert Selection Dropdown (Only in expert mode) */}
               {addMode === "expert" && (
-                <div className="bg-[#0F4C81]/5 border border-[#0F4C81]/20 rounded-2xl p-3.5 space-y-2">
-                  <label className="block text-xs font-black text-[#0F4C81] uppercase tracking-wide flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Select Existing Expert
-                  </label>
-                  <select
-                    value={selectedExpertId}
-                    onChange={(e) => handleSelectExpert(e.target.value)}
-                    className="w-full h-10 px-3 rounded-xl border-2 border-[#0F4C81]/30 bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#0F4C81]"
-                  >
-                    <option value="">-- Choose Expert from Onboarded Bank --</option>
-                    {availableExperts.map((exp) => (
-                      <option key={exp.id} value={exp.id}>
-                        {exp.name} {exp.email ? `(${exp.email})` : ""} — {exp.specialization}
-                      </option>
-                    ))}
-                  </select>
+                <div className="bg-[#0F4C81]/5 border border-[#0F4C81]/20 rounded-2xl p-3.5 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-black text-[#0F4C81] uppercase tracking-wide flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Select Existing Expert
+                    </label>
+                    <span className="text-[10px] text-muted-foreground font-semibold">
+                      {availableExperts.length} onboarded
+                    </span>
+                  </div>
+
+                  {/* Searchable input */}
+                  <div className="relative">
+                    <div className="relative flex items-center">
+                      <Search className="w-4 h-4 absolute left-3 text-muted-foreground pointer-events-none" />
+                      <input
+                        type="text"
+                        value={expertSearch}
+                        onChange={(e) => {
+                          setExpertSearch(e.target.value);
+                          setIsExpertDropdownOpen(true);
+                        }}
+                        onFocus={() => setIsExpertDropdownOpen(true)}
+                        placeholder="Search expert by name, email, or specialization..."
+                        className="w-full h-10 pl-9 pr-8 rounded-xl border-2 border-[#0F4C81]/30 bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#0F4C81]"
+                      />
+                      {expertSearch ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setExpertSearch("");
+                            setIsExpertDropdownOpen(true);
+                          }}
+                          className="absolute right-2.5 text-muted-foreground hover:text-foreground"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      ) : (
+                        <ChevronDown className="w-3.5 h-3.5 absolute right-3 text-muted-foreground pointer-events-none" />
+                      )}
+                    </div>
+
+                    {isExpertDropdownOpen && (
+                      <div className="absolute top-full left-0 right-0 mt-1 max-h-56 overflow-y-auto rounded-xl border border-border bg-card shadow-2xl z-20 divide-y divide-border">
+                        {filteredExperts.length > 0 ? (
+                          filteredExperts.map((exp) => (
+                            <button
+                              key={exp.id}
+                              type="button"
+                              onClick={() => handleSelectExpert(exp.id)}
+                              className="w-full text-left p-2.5 hover:bg-muted/70 transition-colors flex items-center justify-between gap-3 text-xs"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-foreground truncate">{exp.name}</span>
+                                  {exp.source && (
+                                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                                      exp.source === "Service Expert"
+                                        ? "bg-blue-500/15 text-blue-700 dark:text-blue-300"
+                                        : "bg-purple-500/15 text-purple-700 dark:text-purple-300"
+                                    }`}>
+                                      {exp.source}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-[11px] text-muted-foreground flex items-center gap-3 mt-0.5 truncate">
+                                  {exp.email && (
+                                    <span className="truncate">{exp.email}</span>
+                                  )}
+                                  {exp.specialization && (
+                                    <span className="truncate text-muted-foreground/80">• {exp.specialization}</span>
+                                  )}
+                                </div>
+                              </div>
+                              {selectedExpertId === exp.id ? (
+                                <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                              ) : (
+                                <span className="text-[11px] text-[#0F4C81] font-bold shrink-0 hover:underline">Select</span>
+                              )}
+                            </button>
+                          ))
+                        ) : (
+                          <div className="p-3 text-center text-xs text-muted-foreground">
+                            No experts found matching &quot;{expertSearch}&quot;
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Selected Expert Pill */}
+                  {selectedExpert && (
+                    <div className="p-2.5 rounded-xl bg-[#0F4C81]/10 border border-[#0F4C81]/20 flex items-center justify-between gap-2 text-xs">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <div className="truncate">
+                          <span className="font-bold text-foreground">{selectedExpert.name}</span>
+                          <span className="text-muted-foreground ml-1.5">({selectedExpert.email || "No email"})</span>
+                          <span className="text-muted-foreground ml-1.5">— {selectedExpert.specialization}</span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleClearSelectedExpert}
+                        className="text-xs text-muted-foreground hover:text-red-600 font-bold p-1"
+                        title="Clear selected expert"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+
                   <p className="text-[11px] text-muted-foreground">
                     Selecting an expert automatically links their profile and populates full name, email, phone, and specialization.
                   </p>
