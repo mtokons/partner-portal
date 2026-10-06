@@ -318,6 +318,35 @@ export async function registerStudentAction(formData: FormData) {
       }
     }
 
+    const initialPaymentStatus = value(formData, "paymentStatus") || value(formData, "initialPaymentStatus");
+    const candidateId = value(formData, "candidateId");
+    let isAlreadyPaid = initialPaymentStatus === "paid";
+
+    // Auto-verify payment against Candidate Gallery if candidateId or email matches
+    if (!isAlreadyPaid) {
+      try {
+        const { getCandidates } = await import("@/lib/sharepoint");
+        const allCandidates = await getCandidates();
+        const cand = candidateId
+          ? allCandidates.find((c) => String(c.id) === String(candidateId))
+          : allCandidates.find((c) => (c.email || "").trim().toLowerCase() === studentEmail.trim().toLowerCase());
+        if (
+          cand &&
+          (cand.paymentStatus === "deposit-paid" ||
+            cand.paymentStatus === "fully-paid" ||
+            (cand as any).paymentStatus === "paid")
+        ) {
+          isAlreadyPaid = true;
+        }
+      } catch (err) {
+        console.warn("Could not check candidate payment status:", err);
+      }
+    }
+
+    const paymentStatus: "paid" | "pending" = isAlreadyPaid ? "paid" : "pending";
+    const amountPaid = isAlreadyPaid ? totalFee : 0;
+    const amountRemaining = isAlreadyPaid ? 0 : totalFee;
+
     const enrollment = await createSchoolEnrollment({
       studentUserId: `std_${studentEmail.replace(/[^a-z0-9]/g, "_")}`,
       studentName,
@@ -333,7 +362,10 @@ export async function registerStudentAction(formData: FormData) {
       totalFee,
       discountAmount: 0,
       netFee: totalFee,
-      paymentStatus: "pending",
+      paymentStatus,
+      amountPaid,
+      amountRemaining,
+      paymentConfirmedAt: isAlreadyPaid ? new Date().toISOString() : undefined,
       enrolledAt: new Date().toISOString(),
       status,
       enrollmentSource: "direct",

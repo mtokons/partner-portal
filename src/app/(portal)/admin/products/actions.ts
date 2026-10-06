@@ -14,7 +14,14 @@ async function checkAdminAuth() {
     throw new Error("Unauthorized. Please sign in.");
   }
   const role = (session.user.role || "").toLowerCase();
-  if (role !== "admin" && role !== "superadmin") {
+  const roles = (session.user.roles || [role]).map((r) => r.toLowerCase());
+  if (
+    !roles.includes("admin") &&
+    !roles.includes("superadmin") &&
+    !roles.includes("sccg-admin") &&
+    !roles.includes("sccg-staff") &&
+    !roles.includes("sccg")
+  ) {
     throw new Error("Forbidden. Administrative role required.");
   }
   return session.user;
@@ -41,6 +48,7 @@ export async function saveProductAction(id: string, data: Partial<Product>) {
     await updateProduct(id, sanitizedData);
 
     revalidatePath("/admin/products");
+    revalidatePath("/sccg/products");
     revalidatePath("/marketplace");
     revalidatePath("/marketplace/checkout");
     revalidatePath("/(shared)/shop", "page");
@@ -62,6 +70,7 @@ export async function updateProductPositionAction(id: string, sortOrder: number)
     await updateProduct(id, { sortOrder: Number(sortOrder) });
 
     revalidatePath("/admin/products");
+    revalidatePath("/sccg/products");
     revalidatePath("/marketplace");
     revalidatePath("/partner/marketplace");
 
@@ -104,6 +113,7 @@ export async function shiftProductPositionAction(id: string, direction: "up" | "
     ]);
 
     revalidatePath("/admin/products");
+    revalidatePath("/sccg/products");
     revalidatePath("/marketplace");
     revalidatePath("/partner/marketplace");
 
@@ -122,6 +132,7 @@ export async function toggleProductAvailabilityAction(id: string, isAvailable: b
     await updateProduct(id, { isAvailable });
 
     revalidatePath("/admin/products");
+    revalidatePath("/sccg/products");
     revalidatePath("/marketplace");
     return { success: true };
   } catch (error: any) {

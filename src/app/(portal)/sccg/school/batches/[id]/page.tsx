@@ -44,13 +44,23 @@ export default async function BatchDetailPage({ params }: { params: Promise<{ id
     const name = (c.fullName || "").trim();
     if (!name && !email) continue;
     const key = email || c.id;
+    const isPaid =
+      c.paymentStatus === "deposit-paid" ||
+      c.paymentStatus === "fully-paid" ||
+      (c as any).paymentStatus === "paid";
     existingClientsMap.set(key, {
       id: c.id,
+      candidateId: c.id,
       name: name || email,
       email: c.email || "",
       phone: c.phone || "",
       source: "Candidate",
-      details: c.sccgId ? `ID: ${c.sccgId}` : (c.currentStatus || "Candidate"),
+      paymentStatus: isPaid ? "paid" : "pending",
+      details: c.sccgId
+        ? `ID: ${c.sccgId} · ${isPaid ? "Paid" : "Pending"}`
+        : isPaid
+        ? "Paid in Candidate Gallery"
+        : c.currentStatus || "Candidate",
     });
   }
 

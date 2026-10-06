@@ -348,7 +348,7 @@ const SCCG_MENU: MenuItem[] = [
   { key: "sccg.projects",    label: "Project Partner",    href: "/admin/projects",  icon: "FolderKanban",   group: "partners", groupLabel: "Partner Management", groupOrder: 5, itemOrder: 4, isEnabled: true, isDefault: true, isLocked: false, adminOnly: true },
 
   // 5. Sales & Marketing
-  { key: "sccg.products",    label: "Manage Product",         href: "/admin/products",   icon: "Package",       group: "sales", groupLabel: "Sales & Marketing", groupOrder: 6, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
+  { key: "sccg.products",    label: "Manage Product",         href: "/sccg/products",   icon: "Package",       group: "sales", groupLabel: "Sales & Marketing", groupOrder: 6, itemOrder: 1, isEnabled: true, isDefault: true, isLocked: false },
   { key: "sccg.orders",      label: "All Orders",             href: "/sccg/orders",     icon: "ShoppingCart",  group: "sales", groupLabel: "Sales & Marketing", groupOrder: 6, itemOrder: 1.5, isEnabled: true, isDefault: true, isLocked: false },
   { key: "sccg.bookings",    label: "Booking & Lead",         href: "/sales/bookings",   icon: "CalendarCheck", group: "sales", groupLabel: "Sales & Marketing", groupOrder: 6, itemOrder: 2, isEnabled: true, isDefault: true, isLocked: false },
   { key: "sccg.promotions",  label: "Current Campaign",       href: "/admin/promotions", icon: "Megaphone",     group: "sales", groupLabel: "Sales & Marketing", groupOrder: 6, itemOrder: 3, isEnabled: true, isDefault: true, isLocked: false },

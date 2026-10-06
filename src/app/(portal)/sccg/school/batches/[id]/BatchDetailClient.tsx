@@ -48,11 +48,13 @@ import {
 
 export interface ExistingClientOption {
   id: string;
+  candidateId?: string;
   name: string;
   email: string;
   phone?: string;
   source: "Candidate" | "Client" | "User";
   details?: string;
+  paymentStatus?: "paid" | "pending";
 }
 
 interface BatchDetailClientProps {
@@ -88,6 +90,7 @@ export default function BatchDetailClient({
   const [formStudentName, setFormStudentName] = useState("");
   const [formStudentEmail, setFormStudentEmail] = useState("");
   const [formMobileNumber, setFormMobileNumber] = useState("");
+  const [formPaymentStatus, setFormPaymentStatus] = useState<"paid" | "pending">("pending");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const openAddStudentModal = () => {
@@ -96,6 +99,7 @@ export default function BatchDetailClient({
     setFormStudentName("");
     setFormStudentEmail("");
     setFormMobileNumber("");
+    setFormPaymentStatus("pending");
     setIsDropdownOpen(false);
     setShowAddStudentModal(true);
   };
@@ -105,6 +109,7 @@ export default function BatchDetailClient({
     setFormStudentName(client.name);
     setFormStudentEmail(client.email);
     setFormMobileNumber(client.phone || "");
+    setFormPaymentStatus(client.paymentStatus || "pending");
     setIsDropdownOpen(false);
   };
 
@@ -113,6 +118,7 @@ export default function BatchDetailClient({
     setFormStudentName("");
     setFormStudentEmail("");
     setFormMobileNumber("");
+    setFormPaymentStatus("pending");
     setClientSearch("");
   };
 
@@ -635,6 +641,7 @@ export default function BatchDetailClient({
               }}
               className="space-y-3 text-sm"
             >
+              <input type="hidden" name="candidateId" value={selectedClient?.candidateId || ""} />
               <div>
                 <label className="block text-xs font-bold text-muted-foreground uppercase mb-1">Full Name *</label>
                 <input
@@ -667,6 +674,25 @@ export default function BatchDetailClient({
                   placeholder="+49 170 1234567"
                   className="w-full h-10 px-3 rounded-xl border bg-background text-xs"
                 />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground uppercase mb-1">
+                  Payment Status
+                </label>
+                <select
+                  name="paymentStatus"
+                  value={formPaymentStatus}
+                  onChange={(e) => setFormPaymentStatus(e.target.value as "paid" | "pending")}
+                  className="w-full h-10 px-3 rounded-xl border bg-background text-xs font-bold"
+                >
+                  <option value="pending">Pending</option>
+                  <option value="paid">Paid (Fully Paid / Verified in Gallery)</option>
+                </select>
+                {selectedClient?.paymentStatus === "paid" && (
+                  <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold mt-1">
+                    ✓ Verified paid from Candidate Gallery
+                  </p>
+                )}
               </div>
 
               <div className="flex gap-2 pt-2">
